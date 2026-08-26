@@ -1,0 +1,15 @@
+.gr-theme-toggle {
+  width: 36px; height: 36px; flex: none;
+  display: grid; place-items: center;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-page-top);
+  color: var(--icon-default);
+  cursor: pointer;
+}
+.gr-theme-toggle:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-theme-toggle:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}

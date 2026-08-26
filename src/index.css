@@ -1,0 +1,130 @@
+/* App shell only. Component styles live with their components. */
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--surface-page-bottom);
+  -webkit-font-smoothing: antialiased;
+}
+
+.gr-app { display: flex; min-height: 100vh; }
+
+.gr-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(to bottom, var(--surface-page-top), var(--surface-page-bottom));
+}
+
+/* Header — 140 tall, 24/30/16/30 padding, sticky over the scrolling content. */
+.gr-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: var(--space-24) var(--space-30) var(--space-16);
+  background: linear-gradient(to bottom, var(--surface-page-top), var(--surface-page-bottom));
+  box-shadow: var(--elevation-header);
+}
+
+.gr-toolbar { display: flex; align-items: center; gap: var(--space-12); }
+.gr-toolbar__title { display: flex; flex-direction: column; gap: 3px; }
+.gr-toolbar__title h1 { margin: 0; color: var(--text-primary); }
+.gr-toolbar__title p  { margin: 0; color: var(--text-muted); }
+.gr-toolbar__spacer { flex: 1; }
+
+.gr-crumb {
+  border: none; background: none; padding: 0;
+  color: var(--text-muted); cursor: pointer; font-family: inherit; text-align: left;
+}
+.gr-crumb:hover { color: var(--accent-text); }
+
+.gr-iconbtn {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-sm);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-page-top);
+  color: var(--icon-default);
+  cursor: pointer; font-size: 15px;
+}
+.gr-iconbtn:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-iconbtn:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+
+/* Content — 24/30/0/30, 18px gap between blocks. */
+.gr-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-18);
+  padding: var(--space-24) var(--space-30) 0;
+}
+.gr-content__spacer { height: var(--space-40); flex: none; }
+
+.gr-kpi-row { display: flex; gap: var(--space-14); flex-wrap: wrap; }
+
+.gr-placeholder {
+  display: grid; place-items: center;
+  min-height: 240px;
+  border-radius: var(--radius-xl);
+  border: var(--border-width-sm) dashed var(--border-default);
+  color: var(--text-muted);
+}
+
+/* Chat panel — 360 wide. Opening it shrinks the content column, which is what
+   drives wideColumns on the table. Same behaviour as the Figma prototype
+   variables: content_w goes 1280 to 920 and the table drops CAC and ROAS. */
+.gr-chat {
+  width: 360px;
+  flex: none;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-card);
+  border-left: var(--border-width-sm) solid var(--border-default);
+}
+.gr-chat__header {
+  display: flex; align-items: flex-start; gap: var(--space-12);
+  padding: var(--space-20) var(--space-18) var(--space-16);
+  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-chat__header h2 { margin: 0; color: var(--text-primary); }
+.gr-chat__header p  { margin: 3px 0 0; color: var(--text-muted); }
+.gr-chat__close {
+  margin-left: auto;
+  width: 28px; height: 28px;
+  border: none; border-radius: var(--radius-pill);
+  background: var(--surface-page-top); color: var(--icon-default);
+  cursor: pointer;
+}
+.gr-chat__messages {
+  flex: 1;
+  display: flex; flex-direction: column; gap: var(--space-18);
+  padding: var(--space-18);
+  color: var(--text-secondary);
+}
+.gr-chat__messages p { margin: 0; }
+.gr-chat__composer {
+  display: flex; gap: var(--space-10);
+  padding: var(--space-14) var(--space-18) var(--space-18);
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-chat__input {
+  flex: 1; height: 40px;
+  padding: 0 var(--space-12);
+  border-radius: var(--radius-md);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-page-top);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+.gr-chat__input:focus {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 1px;
+  border-color: transparent;
+}

@@ -1,0 +1,20 @@
+.gr-chip {
+  display: inline-flex; align-items: center; gap: var(--space-6);
+  height: 24px; padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-sm);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.gr-chip.is-interactive:hover { background: var(--surface-page-top); border-color: var(--border-strong); }
+.gr-chip__label { border: none; background: none; padding: 0; font: inherit; color: inherit; cursor: inherit; }
+.gr-chip.is-interactive .gr-chip__label { cursor: pointer; }
+.gr-chip__label:focus-visible,
+.gr-chip__remove:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 3px; border-radius: var(--radius-sm); }
+.gr-chip__remove {
+  display: grid; place-items: center;
+  width: 14px; height: 14px; padding: 0;
+  border: none; background: none; color: var(--icon-muted); cursor: pointer;
+}
+.gr-chip__remove:hover { color: var(--text-primary); }

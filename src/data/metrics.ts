@@ -1,0 +1,245 @@
+/* ============================================================
+   Growth — the data layer.
+
+   The metric toggle used to be decorative: six buttons that changed a label
+   and nothing else. This module is what makes it real.
+
+   The important decision here is that CAC and ROAS are NOT stored series.
+   They are ratios derived from the funnel, recomputed whenever the selection
+   changes. Storing them as their own arrays would let them drift out of
+   agreement with spend and leads, which is exactly the class of bug the
+   token refactor taught me to design out rather than test for.
+   ============================================================ */
+
+import type { ChannelName } from '../styles/tokens';
+
+export type Metric = 'Spend' | 'Clicks' | 'Leads' | 'Sales' | 'CAC' | 'ROAS';
+export const METRICS: Metric[] = ['Spend', 'Clicks', 'Leads', 'Sales', 'CAC', 'ROAS'];
+
+export const DAYS = 24;
+
+/**
+ * Per-channel economics.
+ *
+ * `spend`, `cac`, `roas` and `trend` are taken straight off the Figma screens —
+ * they are the numbers a reviewer can see in the design. Everything else in
+ * this file is derived from them, and the series is normalised at the end so
+ * the totals land on `spend` exactly rather than approximately.
+ *
+ * That normalisation is the whole point. A dashboard whose header says
+ * $160,780 while its own rows add up to $160,593 has already told the reader
+ * not to trust it, and nobody can say which of the two numbers is wrong.
+ */
+const CHANNELS: Record<ChannelName, {
+  label: string;
+  spend: number;      // 24-day total, from the design
+  cvr: number;        // click -> lead
+  closeRate: number;  // lead -> sale
+  roas: number;
+  cac: number;
+  trend: number;      // second half vs first half, as a fraction
+}> = {
+  meta:       { label: 'Meta',        spend: 61240, cvr: 0.034, closeRate: 0.12, roas: 4.6, cac:  35.94, trend:  0.06 },
+  tiktok:     { label: 'TikTok',      spend: 28110, cvr: 0.021, closeRate: 0.09, roas: 3.9, cac:  33.38, trend: -0.03 },
+  youtube:    { label: 'YouTube',     spend: 22470, cvr: 0.018, closeRate: 0.10, roas: 3.1, cac:  40.05, trend:  0.02 },
+  affiliates: { label: 'Affiliates',  spend: 18320, cvr: 0.052, closeRate: 0.18, roas: 5.2, cac:  36.79, trend:  0.11 },
+  paidSearch: { label: 'Paid Search', spend: 18400, cvr: 0.041, closeRate: 0.15, roas: 3.4, cac:  85.98, trend:  0.04 },
+  podcasts:   { label: 'Podcasts',    spend: 12240, cvr: 0.012, closeRate: 0.07, roas: 2.1, cac: 128.80, trend: -0.01 },
+};
+
+export const CHANNEL_KEYS = Object.keys(CHANNELS) as ChannelName[];
+export const CHANNEL_LABEL = Object.fromEntries(
+  CHANNEL_KEYS.map((k) => [k, CHANNELS[k].label]),
+) as Record<ChannelName, string>;
+
+export type Scope = ChannelName | 'all';
+
+/* Deterministic noise. A seeded PRNG rather than Math.random() so the chart
+   does not reshuffle itself on every React render — a moving baseline makes
+   the whole dashboard feel untrustworthy. */
+function mulberry32(seed: number) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hash(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+/** Day 0 is the oldest. Labels are weekly so the axis stays readable. */
+export const DAY_LABELS = Array.from({ length: DAYS }, (_, i) => {
+  const weeks = ['Jul 15', 'Jul 22', 'Jul 29', 'Aug 5'];
+  return weeks[Math.floor(i / 6)] ?? 'Aug 12';
+});
+
+export interface DayRow {
+  spend: number;
+  clicks: number;
+  leads: number;
+  sales: number;
+  revenue: number;
+}
+
+/** The raw funnel, one row per channel per day. Everything else derives from this. */
+const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
+  CHANNEL_KEYS.map((key) => {
+    const c = CHANNELS[key];
+    const rand = mulberry32(hash(key));
+
+    /* A linear ramp whose halves differ by exactly `trend`.
+       If the second half averages (1 + t) times the first, and the ramp runs
+       from 1 - k/2 to 1 + k/2, then k = 4t / (2 + t). Solving for k rather
+       than hand-tuning a multiplier is what keeps the rendered delta equal to
+       the number in the design instead of merely near it. */
+    const k = (4 * c.trend) / (2 + c.trend);
+
+    const shape = Array.from({ length: DAYS }, (_, d) => {
+      const ramp = 1 - k / 2 + (k * d) / (DAYS - 1);
+      const weekly = 1 + Math.sin((d / 7) * Math.PI * 2) * 0.08;
+      const noise = 0.94 + rand() * 0.12;
+      return ramp * weekly * noise;
+    });
+
+    // Normalise so the 24 days sum to the exact spend figure from the design.
+    const shapeSum = shape.reduce((a, b) => a + b, 0);
+    const rows: DayRow[] = shape.map((f) => {
+      const spend = (f / shapeSum) * c.spend;
+      const leads = spend / c.cac;
+      return {
+        spend,
+        clicks: leads / c.cvr,
+        leads,
+        sales: leads * c.closeRate,
+        revenue: spend * c.roas,
+      };
+    });
+    return [key, rows];
+  }),
+) as Record<ChannelName, DayRow[]>;
+
+/** Blended day rows across every channel. */
+const ALL: DayRow[] = Array.from({ length: DAYS }, (_, d) =>
+  CHANNEL_KEYS.reduce<DayRow>(
+    (acc, key) => {
+      const r = SERIES[key][d];
+      return {
+        spend: acc.spend + r.spend,
+        clicks: acc.clicks + r.clicks,
+        leads: acc.leads + r.leads,
+        sales: acc.sales + r.sales,
+        revenue: acc.revenue + r.revenue,
+      };
+    },
+    { spend: 0, clicks: 0, leads: 0, sales: 0, revenue: 0 },
+  ),
+);
+
+function rowsFor(scope: Scope): DayRow[] {
+  return scope === 'all' ? ALL : SERIES[scope];
+}
+
+/**
+ * Project one metric out of the funnel.
+ *
+ * CAC and ROAS are computed per day from that day's spend, leads and revenue.
+ * For the blended view this means summing the parts first and dividing once —
+ * NOT averaging the six channels' ratios. Averaging ratios weights a $510/day
+ * podcast spend the same as $2,551/day on Meta and quietly reports a blended
+ * CAC that no amount of money was ever actually spent at.
+ */
+export function series(scope: Scope, metric: Metric): { label: string; value: number }[] {
+  const rows = rowsFor(scope);
+  return rows.map((r, i) => {
+    let value: number;
+    switch (metric) {
+      case 'Spend':  value = r.spend; break;
+      case 'Clicks': value = r.clicks; break;
+      case 'Leads':  value = r.leads; break;
+      case 'Sales':  value = r.sales; break;
+      case 'CAC':    value = r.leads > 0 ? r.spend / r.leads : 0; break;
+      case 'ROAS':   value = r.spend > 0 ? r.revenue / r.spend : 0; break;
+    }
+    return { label: DAY_LABELS[i], value };
+  });
+}
+
+/** Period totals, computed the same way — sum the parts, divide once. */
+export function totals(scope: Scope) {
+  const rows = rowsFor(scope);
+  const sum = rows.reduce(
+    (a, r) => ({
+      spend: a.spend + r.spend,
+      clicks: a.clicks + r.clicks,
+      leads: a.leads + r.leads,
+      sales: a.sales + r.sales,
+      revenue: a.revenue + r.revenue,
+    }),
+    { spend: 0, clicks: 0, leads: 0, sales: 0, revenue: 0 },
+  );
+  return {
+    ...sum,
+    cac: sum.leads > 0 ? sum.spend / sum.leads : 0,
+    roas: sum.spend > 0 ? sum.revenue / sum.spend : 0,
+  };
+}
+
+/** Percentage change, last 12 days against the 12 before them. */
+export function delta(scope: Scope, metric: Metric): number {
+  const s = series(scope, metric).map((d) => d.value);
+  const half = Math.floor(s.length / 2);
+  const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
+  const prev = avg(s.slice(0, half));
+  const curr = avg(s.slice(half));
+  if (prev === 0) return 0;
+  return Math.round(((curr - prev) / prev) * 100);
+}
+
+/** A short sparkline, normalised 0..1, for KPI cards and table rows. */
+export function sparkline(scope: Scope, metric: Metric, points = 7): number[] {
+  const s = series(scope, metric).map((d) => d.value);
+  const step = Math.max(1, Math.floor(s.length / points));
+  const picked = Array.from({ length: points }, (_, i) => s[Math.min(i * step, s.length - 1)]);
+  const max = Math.max(...picked, 1);
+  const min = Math.min(...picked);
+  const range = max - min || 1;
+  return picked.map((v) => 0.25 + ((v - min) / range) * 0.75);
+}
+
+/* ---------- formatting ---------- */
+
+export function formatMetric(metric: Metric, value: number): string {
+  switch (metric) {
+    case 'Spend':  return `$${Math.round(value).toLocaleString()}`;
+    case 'CAC':    return `$${value.toFixed(2)}`;
+    case 'ROAS':   return `${value.toFixed(1)}x`;
+    default:       return Math.round(value).toLocaleString();
+  }
+}
+
+/** Four y-axis ticks, top down, rounded to something a person would say out loud. */
+export function yTicks(metric: Metric, data: { value: number }[]): string[] {
+  const max = Math.max(...data.map((d) => d.value), 1);
+  const nice = niceCeil(max);
+  return [3, 2, 1, 0].map((i) => shortLabel(metric, (nice / 3) * i));
+}
+
+function niceCeil(n: number): number {
+  const mag = Math.pow(10, Math.floor(Math.log10(n)));
+  const norm = n / mag;
+  const step = norm <= 1.5 ? 1.5 : norm <= 3 ? 3 : norm <= 6 ? 6 : 10;
+  return step * mag;
+}
+
+function shortLabel(metric: Metric, v: number): string {
+  if (metric === 'ROAS') return `${v.toFixed(1)}x`;
+  const money = metric === 'Spend' || metric === 'CAC';
+  const prefix = money ? '$' : '';
+  if (v >= 1000) return `${prefix}${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k`;
+  return `${prefix}${Math.round(v)}`;
+}

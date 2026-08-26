@@ -1,0 +1,294 @@
+/* ============================================================
+   Growth — Design Tokens
+   GENERATED FROM FIGMA. DO NOT EDIT BY HAND.
+
+   Source file : b6JvDQQ7QcWJpckvZyAbjm
+   Generated   : 2026-08-26
+   Counts      : 78 primitives · 55 semantic · 24 scale
+
+   Three tiers, and the rule that makes it a system:
+     TIER 1  primitives  — raw values. Never referenced by a component.
+     TIER 2  semantic    — role names. This is the ONLY tier components use.
+     TIER 3  scale       — spacing, radius, border width. Mode-independent.
+
+   A component that reaches past tier 2 into a primitive is a bug.
+   ============================================================ */
+
+:root {
+  /* ---------- TIER 1 · PRIMITIVES ------------------------------------
+     Values live here and nowhere else. Change a brand colour once. */
+
+  /* neutral ramp */
+  --neutral-0:    #FFFFFF;
+  --neutral-25:   #FBFBFE;
+  --neutral-50:   #F7F7FB;
+  --neutral-75:   #F3F3F8;
+  --neutral-100:  #F1F1FA;
+  --neutral-125:  #F1F1F6;
+  --neutral-150:  #EAEAF1;
+  --neutral-200:  #DBDBE4;
+  --neutral-300:  #B8B8C2;
+  --neutral-350:  #A4A4B4;
+  --neutral-400:  #9A9AA6;
+  --neutral-500:  #71717F;
+  --neutral-550:  #63636E;
+  --neutral-650:  #4E4E5C;
+  --neutral-700:  #33333F;
+  --neutral-775:  #26262F;
+  --neutral-800:  #232330;
+  --neutral-825:  #1E1E27;
+  --neutral-850:  #1C1C25;
+  --neutral-875:  #17171F;
+  --neutral-900:  #16161C;
+  --neutral-950:  #101017;
+  --neutral-1000: #0B0B11;
+
+  /* violet — the product accent */
+  --violet-100: #EEEDFF;
+  --violet-200: #B7B3FF;
+  --violet-250: #ADA6FF;
+  --violet-300: #8B84FF;
+  --violet-350: #7C74FF;
+  --violet-400: #7A72FF;
+  --violet-500: #635BFF;
+  --violet-600: #6259F0;
+  --violet-650: #574DF0;
+  --violet-700: #4A43D6;
+  --violet-750: #4B44C7;
+  --violet-900: #232040;
+
+  /* status ramps */
+  --green-100: #E4F5EC;
+  --green-400: #3ECF8E;
+  --green-500: #17A56B;
+  --green-900: #12301F;
+  --red-100:   #FBEBEB;
+  --red-400:   #FF6B6B;
+  --red-500:   #E14B4B;
+  --red-900:   #3A1A1E;
+  --amber-100: #FBF0E1;
+  --amber-400: #E9A44C;
+  --amber-600: #C9791A;
+  --amber-900: #3A2A16;
+
+  /* channel identity — externally owned brand colours.
+     500 = brand colour · 300 = lifted for dark · 700 = shaded for gradients */
+  --brand-meta-300:       #4D93FF;
+  --brand-meta-500:       #0866FF;
+  --brand-meta-700:       #0A4DC4;
+  --brand-tiktok-100:     #E9E9F2;
+  --brand-tiktok-700:     #2E3140;
+  --brand-tiktok-900:     #161823;
+  --brand-youtube-300:    #FF5A5A;
+  --brand-youtube-500:    #FF0000;
+  --brand-youtube-700:    #C40000;
+  --brand-affiliates-300: #E86AC0;
+  --brand-affiliates-500: #D6409F;
+  --brand-affiliates-700: #A6317B;
+  --brand-paidsearch-300: #FDD663;
+  --brand-paidsearch-500: #FBBC04;
+  --brand-paidsearch-700: #B88700;
+  --brand-podcasts-300:   #A48BFF;
+  --brand-podcasts-500:   #8B6CF0;
+  --brand-podcasts-700:   #6B52C4;
+
+  /* alpha primitives — shadows and glows.
+     These exist because a solid primitive cannot carry opacity, and binding
+     a solid token to a shadow silently forces it to 100%. That shipped once. */
+  --ink-a-05:      rgba(26, 26, 46, 0.05);
+  --ink-a-06:      rgba(26, 26, 46, 0.06);
+  --ink-a-08:      rgba(26, 26, 46, 0.08);
+  --ink-a-10:      rgba(26, 26, 46, 0.10);
+  --black-a-24:    rgba(0, 0, 0, 0.24);
+  --black-a-32:    rgba(0, 0, 0, 0.32);
+  --black-a-40:    rgba(0, 0, 0, 0.40);
+  --violet-a-18:   rgba(99, 91, 255, 0.18);
+  --violet-a-25:   rgba(99, 91, 255, 0.25);
+  --violet-a-32:   rgba(99, 91, 255, 0.32);
+  --violetlt-a-22: rgba(139, 132, 255, 0.22);
+  --violetlt-a-30: rgba(139, 132, 255, 0.30);
+  --violetlt-a-40: rgba(139, 132, 255, 0.40);
+
+  /* ---------- TIER 3 · SCALE -----------------------------------------
+     Mode-independent. A value not on this scale is a defect. */
+  --space-2:  2px;
+  --space-4:  4px;
+  --space-6:  6px;
+  --space-8:  8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-18: 18px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-30: 30px;
+  --space-40: 40px;
+  --space-48: 48px;
+
+  --radius-sm:   8px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   16px;
+  --radius-2xl:  20px;   /* xl + the 4px focus offset, so rings stay concentric */
+  --radius-pill: 999px;
+
+  --border-width-none: 0px;
+  --border-width-sm:   1px;   /* cards, inputs, dividers */
+  --border-width-md:   2px;   /* focus rings only, per WCAG visibility */
+}
+
+/* ---------- TIER 2 · SEMANTIC · LIGHT --------------------------------
+   Role names. The only tier a component may reference. */
+
+:root,
+[data-theme='light'] {
+  --text-primary:   var(--neutral-900);
+  --text-secondary: var(--neutral-550);
+  --text-muted:     var(--neutral-400);
+  --text-disabled:  var(--neutral-300);
+
+  --surface-page-top:    var(--neutral-100);
+  --surface-page-bottom: var(--neutral-50);
+  --surface-card:        var(--neutral-0);
+  --surface-card-tint:   var(--neutral-25);
+  --surface-disabled:    var(--neutral-50);
+  --surface-skeleton:    var(--neutral-125);
+
+  --border-default:  var(--neutral-150);
+  --border-strong:   var(--neutral-200);
+  --border-subtle:   var(--neutral-125);
+  --border-disabled: var(--neutral-125);
+
+  --accent-base:            var(--violet-500);
+  --accent-text:            var(--violet-700);
+  --accent-soft:            var(--violet-200);
+  --accent-tint:            var(--violet-100);
+  --accent-gradient-top:    var(--violet-400);
+  --accent-gradient-bottom: var(--violet-650);
+  --brand-on-accent:        var(--neutral-0);
+
+  --focus-ring:        var(--violet-500);
+  --focus-ring-offset: var(--neutral-0);
+
+  --icon-default:     var(--neutral-550);
+  --icon-muted:       var(--neutral-400);
+  --icon-active:      var(--violet-500);
+  --icon-active-soft: var(--violet-400);
+  --icon-on-accent:   var(--neutral-0);
+
+  --semantic-good:    var(--green-500);
+  --semantic-good-bg: var(--green-100);
+  --semantic-bad:     var(--red-500);
+  --semantic-bad-bg:  var(--red-100);
+  --semantic-warn:    var(--amber-600);
+  --semantic-warn-bg: var(--amber-100);
+
+  /* channel identity. The -soft pair is the shaded bottom of a bar gradient. */
+  --channel-meta:              var(--brand-meta-500);
+  --channel-meta-soft:         var(--brand-meta-700);
+  --channel-tiktok:            var(--brand-tiktok-900);
+  --channel-tiktok-soft:       var(--brand-tiktok-900);
+  --channel-tiktok-lift:       var(--brand-tiktok-700);
+  --channel-tiktok-tile:       var(--brand-tiktok-900);
+  --channel-youtube:           var(--brand-youtube-500);
+  --channel-youtube-soft:      var(--brand-youtube-700);
+  --channel-affiliates:        var(--brand-affiliates-500);
+  --channel-affiliates-soft:   var(--brand-affiliates-700);
+  --channel-paid-search:       var(--brand-paidsearch-500);
+  --channel-paid-search-soft:  var(--brand-paidsearch-700);
+  --channel-podcasts:          var(--brand-podcasts-500);
+  --channel-podcasts-soft:     var(--brand-podcasts-700);
+
+  --shadow-ambient:    var(--ink-a-08);
+  --shadow-soft:       var(--ink-a-05);
+  --shadow-card:       var(--ink-a-06);
+  --shadow-key:        var(--ink-a-10);
+  --shadow-glow-soft:  var(--violet-a-18);
+  --shadow-glow:       var(--violet-a-25);
+  --shadow-glow-strong: var(--violet-a-32);
+}
+
+/* ---------- TIER 2 · SEMANTIC · DARK --------------------------------- */
+
+[data-theme='dark'] {
+  --text-primary:   var(--neutral-75);
+  --text-secondary: var(--neutral-350);
+  --text-muted:     var(--neutral-500);
+  --text-disabled:  var(--neutral-650);
+
+  --surface-page-top:    var(--neutral-950);
+  --surface-page-bottom: var(--neutral-1000);
+  --surface-card:        var(--neutral-875);
+  --surface-card-tint:   var(--neutral-850);
+  --surface-disabled:    var(--neutral-825);
+  --surface-skeleton:    var(--neutral-800);
+
+  --border-default:  var(--neutral-775);
+  --border-strong:   var(--neutral-700);
+  --border-subtle:   var(--neutral-825);
+  --border-disabled: var(--neutral-800);
+
+  --accent-base:            var(--violet-350);
+  --accent-text:            var(--violet-250);
+  --accent-soft:            var(--violet-750);
+  --accent-tint:            var(--violet-900);
+  --accent-gradient-top:    var(--violet-300);
+  --accent-gradient-bottom: var(--violet-600);
+  --brand-on-accent:        var(--neutral-0);
+
+  --focus-ring:        var(--violet-300);
+  --focus-ring-offset: var(--neutral-900);
+
+  --icon-default:     var(--neutral-350);
+  --icon-muted:       var(--neutral-500);
+  --icon-active:      var(--violet-300);
+  --icon-active-soft: var(--violet-300);
+  --icon-on-accent:   var(--neutral-0);
+
+  --semantic-good:    var(--green-400);
+  --semantic-good-bg: var(--green-900);
+  --semantic-bad:     var(--red-400);
+  --semantic-bad-bg:  var(--red-900);
+  --semantic-warn:    var(--amber-400);
+  --semantic-warn-bg: var(--amber-900);
+
+  /* NOTE the inversion: -soft flips to the SATURATED step in dark.
+     If both modes aliased the same step the bar gradient would collapse flat. */
+  --channel-meta:              var(--brand-meta-300);
+  --channel-meta-soft:         var(--brand-meta-500);
+  --channel-tiktok:            var(--brand-tiktok-100);
+  --channel-tiktok-soft:       var(--brand-tiktok-100);
+  --channel-tiktok-lift:       var(--neutral-0);
+  --channel-tiktok-tile:       var(--brand-tiktok-900);
+  --channel-youtube:           var(--brand-youtube-300);
+  --channel-youtube-soft:      var(--brand-youtube-500);
+  --channel-affiliates:        var(--brand-affiliates-300);
+  --channel-affiliates-soft:   var(--brand-affiliates-500);
+  --channel-paid-search:       var(--brand-paidsearch-300);
+  --channel-paid-search-soft:  var(--brand-paidsearch-500);
+  --channel-podcasts:          var(--brand-podcasts-300);
+  --channel-podcasts-soft:     var(--brand-podcasts-500);
+
+  --shadow-ambient:     var(--black-a-32);
+  --shadow-soft:        var(--black-a-24);
+  --shadow-card:        var(--black-a-24);
+  --shadow-key:         var(--black-a-40);
+  --shadow-glow-soft:   var(--violetlt-a-22);
+  --shadow-glow:        var(--violetlt-a-30);
+  --shadow-glow-strong: var(--violetlt-a-40);
+}
+
+/* ---------- COMPOSED EFFECTS ----------------------------------------
+   Built from shadow tokens so the colour still switches with mode. */
+
+:root {
+  --elevation-raised: 0 1px 2px var(--shadow-soft);
+  --elevation-card:   0 1px 2px var(--shadow-card), 0 10px 26px -8px var(--shadow-ambient);
+  --elevation-header: 0 6px 14px -8px var(--shadow-soft);
+  --elevation-menu:   0 2px 6px var(--shadow-ambient), 0 14px 34px -10px var(--shadow-key);
+  --glow-accent-soft:   0 3px 10px -2px var(--shadow-glow-soft);
+  --glow-accent:        0 3px 10px -2px var(--shadow-glow);
+  --glow-accent-strong: 0 3px 14px -2px var(--shadow-glow-strong);
+}

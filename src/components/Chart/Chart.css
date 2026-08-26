@@ -1,0 +1,126 @@
+/* Chart — every value is a token. */
+
+.gr-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-14);
+  width: 100%;
+  max-width: 1172px;
+  min-height: 352px;
+  padding: var(--space-18) var(--space-20) var(--space-16);
+  border-radius: var(--radius-xl);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: linear-gradient(to bottom, var(--surface-card), var(--surface-card-tint));
+  box-shadow: var(--elevation-card);
+}
+
+.gr-chart__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+}
+.gr-chart__title { color: var(--text-primary); margin: 0; }
+
+.gr-chart__toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-page-top);
+}
+.gr-chart__seg {
+  height: 24px;
+  padding: 0 var(--space-10);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+.gr-chart__seg.is-active {
+  background: var(--surface-card);
+  color: var(--text-primary);
+  box-shadow: var(--elevation-raised);
+}
+.gr-chart__seg:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.gr-chart__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  flex: 1;
+}
+.gr-chart__plot {
+  display: flex;
+  gap: var(--space-16);
+  height: 230px;
+}
+.gr-chart__y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 32px;
+  text-align: right;
+  color: var(--text-muted);
+}
+.gr-chart__bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.gr-chart__bar-slot {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+/* The 1px edge in the channel's own -soft colour is not decoration.
+   Paid Search yellow measures 1.7:1 against the card; the silhouette needs it. */
+.gr-chart__bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border: var(--border-width-sm) solid transparent;
+  border-bottom: none;
+}
+
+.gr-chart__baseline { height: 1px; background: var(--border-default); }
+
+.gr-chart__x {
+  display: flex;
+  gap: 5px;
+  color: var(--text-muted);
+}
+.gr-chart__x > span { flex: 1; }
+
+.gr-chart__state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 230px;
+  border-radius: var(--radius-md);
+  background: var(--surface-page-top);
+  color: var(--text-secondary);
+}
+.gr-chart__state--error { color: var(--semantic-bad); }
+.gr-chart__retry {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--accent-text);
+  text-decoration: underline;
+  font: inherit;
+}

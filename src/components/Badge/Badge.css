@@ -1,0 +1,11 @@
+.gr-badge {
+  display: inline-flex; align-items: center;
+  height: 24px; padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+.gr-badge--neutral { background: var(--surface-page-top); color: var(--text-secondary); }
+.gr-badge--good    { background: var(--semantic-good-bg); color: var(--semantic-good); }
+.gr-badge--bad     { background: var(--semantic-bad-bg);  color: var(--semantic-bad); }
+.gr-badge--warn    { background: var(--semantic-warn-bg); color: var(--semantic-warn); }
+.gr-badge--accent  { background: var(--accent-tint);      color: var(--accent-text); }

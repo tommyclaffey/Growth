@@ -1,0 +1,13 @@
+.gr-status {
+  display: inline-flex; align-items: center; gap: var(--space-6);
+  height: 24px; padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+.gr-status__dot { width: 6px; height: 6px; border-radius: var(--radius-pill); background: currentColor; flex: none; }
+
+.gr-status--active { background: var(--semantic-good-bg); color: var(--semantic-good); }
+.gr-status--paused { background: var(--semantic-warn-bg); color: var(--semantic-warn); }
+.gr-status--ended  { background: var(--semantic-bad-bg);  color: var(--semantic-bad); }
+.gr-status--draft  { background: var(--surface-page-top); color: var(--text-muted); }
+.gr-status--review { background: var(--accent-tint);      color: var(--accent-text); }

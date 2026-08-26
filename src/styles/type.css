@@ -1,0 +1,27 @@
+/* ============================================================
+   Growth — Type scale
+   GENERATED FROM FIGMA. DO NOT EDIT BY HAND.
+   Source: b6JvDQQ7QcWJpckvZyAbjm · 2026-08-26
+   ============================================================ */
+
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.gr-type-kpi-value    { font: 600 26px/34px var(--font-sans); }
+.gr-type-page-title   { font: 600 21px/28px var(--font-sans); }
+.gr-type-section      { font: 600 17px/24px var(--font-sans); }
+.gr-type-card-heading { font: 600 15px/20px var(--font-sans); }
+.gr-type-brand        { font: 600 16px/22px var(--font-sans); }
+.gr-type-strip        { font: 600 13px/18px var(--font-sans); }
+.gr-type-label-field  { font: 500 12px/16px var(--font-sans); }
+.gr-type-label-button { font: 500 13px/20px var(--font-sans); }
+.gr-type-body-medium  { font: 500 13px/18px var(--font-sans); }
+.gr-type-body         { font: 400 13px/18px var(--font-sans); }
+.gr-type-caption      { font: 400 12px/16px var(--font-sans); }
+.gr-type-caption-med  { font: 500 12px/16px var(--font-sans); }
+.gr-type-micro        { font: 400 11px/15px var(--font-sans); }
+.gr-type-overline     { font: 500 11px/15px var(--font-sans); letter-spacing: 0.4px; }
+
+/* Body copy keeps its own 18px rhythm. Controls sit on the 4px grid.
+   Those are two different systems on purpose — see Button.tsx. */

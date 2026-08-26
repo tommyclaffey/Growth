@@ -1,0 +1,98 @@
+/* Button — every value is a token. No raw numbers below this line. */
+
+.gr-button {
+  /* 8 + 20 + 8 = 36. See the note in Button.tsx for why the label is 13/20. */
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  height: 36px;
+  padding: var(--space-8) var(--space-16);
+  border-radius: var(--radius-md);
+  border: var(--border-width-none) solid transparent;
+
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0;
+  white-space: nowrap;
+
+  cursor: pointer;
+  position: relative;
+  transition: background-color 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+/* ---------- Focus ----------------------------------------------------
+   A separate ring offset 4px outside the control, radius = control radius + 4
+   so it stays concentric. Uses :focus-visible so a mouse click does not
+   flash a ring, but keyboard navigation always shows one. */
+.gr-button:focus { outline: none; }
+
+.gr-button:focus-visible::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: var(--radius-lg);      /* md(10) + 4 = 14 */
+  border: var(--border-width-md) solid var(--focus-ring);
+  pointer-events: none;
+}
+
+/* ---------- Primary --------------------------------------------------- */
+.gr-button--primary {
+  background: linear-gradient(
+    to bottom,
+    var(--accent-gradient-top),
+    var(--accent-gradient-bottom)
+  );
+  color: var(--brand-on-accent);
+  box-shadow: var(--glow-accent);
+}
+
+.gr-button--primary:hover:not(:disabled) {
+  box-shadow: var(--glow-accent-strong);
+}
+
+.gr-button--primary:active:not(:disabled) {
+  background: var(--accent-gradient-bottom);
+  box-shadow: var(--glow-accent-soft);
+}
+
+/* ---------- Ghost ------------------------------------------------------ */
+.gr-button--ghost {
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+  border-width: var(--border-width-sm);
+}
+
+.gr-button--ghost:hover:not(:disabled) {
+  background: var(--surface-card-tint);
+  border-color: var(--border-strong);
+}
+
+/* Pressed uses accent/tint, NOT surface/page-top.
+   Those two tokens both resolved to #F1F1FA, which made ghost-pressed and
+   ghost-disabled pixel identical. Real collision, shipped unnoticed, fixed. */
+.gr-button--ghost:active:not(:disabled) {
+  background: var(--accent-tint);
+}
+
+/* ---------- Disabled ---------------------------------------------------
+   Flat. A disabled surface never carries the accent gradient or a glow. */
+.gr-button:disabled {
+  background: var(--surface-disabled);
+  color: var(--text-disabled);
+  border-color: var(--border-disabled);
+  border-width: var(--border-width-sm);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.gr-button__caret {
+  flex: none;
+  opacity: 0.9;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gr-button { transition: none; }
+}

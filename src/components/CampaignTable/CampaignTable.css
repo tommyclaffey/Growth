@@ -1,0 +1,36 @@
+.gr-campaigns__filters { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-10); }
+.gr-campaigns__count { color: var(--text-muted); }
+
+.gr-campaigns__expander { width: 28px; padding-right: 0 !important; }
+
+.gr-campaigns__caret {
+  display: grid; place-items: center;
+  width: 20px; height: 20px; padding: 0;
+  border: none; border-radius: var(--radius-sm);
+  background: none; color: var(--icon-muted); cursor: pointer;
+  transition: transform 140ms ease, color 140ms ease;
+}
+.gr-campaigns__caret:hover { color: var(--text-primary); background: var(--surface-page-top); }
+.gr-campaigns__caret:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+.gr-campaigns__caret.is-open { transform: rotate(180deg); color: var(--accent-text); }
+
+/* The campaign row is 2 lines, so it cannot use the 44px row height. */
+.gr-campaigns__row { height: auto; cursor: default; }
+.gr-campaigns__row td { padding-top: var(--space-10); padding-bottom: var(--space-10); }
+.gr-campaigns__meta { display: block; margin-top: 2px; color: var(--text-muted); padding-left: 16px; }
+
+.gr-campaigns__child td {
+  padding-top: var(--space-8); padding-bottom: var(--space-8);
+  background: var(--surface-page-top);
+  color: var(--text-muted);
+  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-campaigns__child td:nth-child(2) { display: flex; align-items: center; gap: var(--space-8); }
+
+.gr-campaigns__rule {
+  width: 12px; height: 1px; flex: none;
+  background: var(--border-strong);
+  margin-left: var(--space-4);
+}
+
+@media (prefers-reduced-motion: reduce) { .gr-campaigns__caret { transition: none; } }

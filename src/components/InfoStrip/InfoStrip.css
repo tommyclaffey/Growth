@@ -1,0 +1,56 @@
+.gr-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 50px;
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-lg);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: linear-gradient(to bottom, var(--surface-card), var(--surface-card-tint));
+  box-shadow: var(--elevation-raised);
+}
+
+.gr-strip__dot {
+  width: 8px; height: 8px; border-radius: var(--radius-pill);
+  background: var(--semantic-warn); flex: none;
+}
+.gr-strip__title { color: var(--text-primary); }
+
+.gr-strip__badge {
+  display: inline-grid; place-items: center;
+  min-width: 24px; height: 24px; padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  background: var(--semantic-warn-bg);
+  color: var(--semantic-warn);
+}
+
+.gr-strip__spacer { flex: 1; }
+
+.gr-strip__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: var(--space-4) 11px;
+  border-radius: var(--radius-pill);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.gr-strip__pill:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-strip__pill:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Colour is never the only signal — every pill also carries its label. */
+.gr-strip__pip { width: 6px; height: 6px; border-radius: var(--radius-pill); flex: none; }
+.tone-warn .gr-strip__pip { background: var(--semantic-warn); }
+.tone-bad  .gr-strip__pip { background: var(--semantic-bad); }
+.tone-good .gr-strip__pip { background: var(--semantic-good); }
+
+@media (prefers-reduced-motion: reduce) { .gr-strip__pill { transition: none; } }
