@@ -18,7 +18,6 @@
   background: linear-gradient(to bottom, var(--surface-card), var(--surface-card-tint));
   box-shadow: var(--elevation-card);
   text-align: left;
-  cursor: pointer;
   position: relative;
   font-family: inherit;
   transition: box-shadow 120ms ease, border-color 120ms ease;
@@ -29,17 +28,8 @@
   box-shadow: var(--elevation-menu);
 }
 
-.gr-kpi:focus { outline: none; }
 
-/* xl(16) + the 4px ring offset = 20, so the ring stays concentric. */
-.gr-kpi:focus-visible::after {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border-radius: var(--radius-2xl);
-  border: var(--border-width-md) solid var(--focus-ring);
-  pointer-events: none;
-}
+
 
 .gr-kpi__label { color: var(--text-secondary); }
 .gr-kpi__value { color: var(--text-primary); }
@@ -99,3 +89,34 @@
 @media (prefers-reduced-motion: reduce) {
   .gr-kpi { transition: none; }
 }
+
+/* Discuss — 24x24 at 16 from the right, 14 from the top, matching the Figma
+   Hover variant. Hidden until the card is hovered or the button itself is
+   focused, so the card stays quiet at rest but is still keyboard reachable. */
+.gr-kpi__discuss {
+  position: absolute;
+  top: 14px; right: 16px;
+  width: 24px; height: 24px;
+  display: grid; place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--surface-page-top);
+  color: var(--icon-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+.gr-kpi:hover .gr-kpi__discuss,
+.gr-kpi__discuss:focus-visible { opacity: 1; }
+.gr-kpi__discuss:hover { color: var(--accent-text); background: var(--accent-tint); }
+.gr-kpi__discuss:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Error — the value is an em dash and the trend goes flat in semantic/bad-bg,
+   so a failed sync reads as absent rather than as zero. */
+.gr-kpi.is-error .gr-kpi__spark-bar { background: var(--semantic-bad-bg); }
+
+@media (prefers-reduced-motion: reduce) { .gr-kpi__discuss { transition: none; } }

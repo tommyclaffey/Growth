@@ -129,20 +129,20 @@ export default function App() {
           {showDashboard && (
             <>
               <div className="gr-kpi-row">
-                <KpiCard onClick={() => shareMetric('Spend')} label="Total spend"
+                <KpiCard onDiscuss={() => shareMetric('Spend')} label="Total spend"
                          value={formatMetric('Spend', view.totals.spend)}
                          deltaPercent={delta(scope, 'Spend', range)}
                          sparkline={sparkline(scope, 'Spend', range)} />
-                <KpiCard onClick={() => shareMetric('Leads')} label="Total leads"
+                <KpiCard onDiscuss={() => shareMetric('Leads')} label="Total leads"
                          value={formatMetric('Leads', view.totals.leads)}
                          deltaPercent={delta(scope, 'Leads', range)}
                          sparkline={sparkline(scope, 'Leads', range)} />
-                <KpiCard onClick={() => shareMetric('CAC')} higherIsBetter={false}
+                <KpiCard onDiscuss={() => shareMetric('CAC')} higherIsBetter={false}
                          label={onChannelScreen ? 'CAC' : 'Blended CAC'}
                          value={formatMetric('CAC', view.totals.cac)}
                          deltaPercent={delta(scope, 'CAC', range)}
                          sparkline={sparkline(scope, 'CAC', range)} />
-                <KpiCard onClick={() => shareMetric('ROAS')} label={onChannelScreen ? 'ROAS' : 'Blended ROAS'}
+                <KpiCard onDiscuss={() => shareMetric('ROAS')} label={onChannelScreen ? 'ROAS' : 'Blended ROAS'}
                          value={formatMetric('ROAS', view.totals.roas)}
                          deltaPercent={delta(scope, 'ROAS', range)}
                          sparkline={sparkline(scope, 'ROAS', range)} />

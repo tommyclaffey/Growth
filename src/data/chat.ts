@@ -30,34 +30,35 @@ export interface Message {
   id: string;
   authorId: string;
   body: string;
-  /** Minutes before now, so the seed never shows a stale absolute time. */
+  /** Absolute clock time, matching the design ("9:42 AM"). */
+  time: string;
+  /** Relayed in from Slack. The design carries a badge for exactly this. */
+  fromSlack?: boolean;
+  /** Ordering key only — never rendered. */
   minutesAgo: number;
   view?: ViewRef;
 }
 
 export const SEED: Message[] = [
-  { id: 'm1', authorId: 'jr', minutesAgo: 214,
+  { id: 'm1', authorId: 'jr', minutesAgo: 214, time: '8:12 AM',
     body: 'Meta CAC is up 42% week over week. Worth a look before Friday.' },
-  { id: 'm2', authorId: 'jr', minutesAgo: 212,
+  { id: 'm2', authorId: 'jr', minutesAgo: 212, time: '8:14 AM',
     body: 'Pulled the campaign split — most of it is Advantage+ Shopping.',
     view: { channel: 'meta', metric: 'CAC', range: 30 } },
-  { id: 'm3', authorId: 'dk', minutesAgo: 156,
+  { id: 'm3', authorId: 'dk', minutesAgo: 156, time: '9:10 AM', fromSlack: true,
     body: 'That tracks. We raised the Advantage+ budget on the 14th and never re-baselined the target.' },
-  { id: 'm4', authorId: 'ap', minutesAgo: 88,
+  { id: 'm4', authorId: 'ap', minutesAgo: 88, time: '10:38 AM',
     body: 'Affiliates are quietly carrying the quarter. 5.2x and the cheapest leads we have.',
     view: { channel: 'affiliates', metric: 'ROAS', range: 30 } },
-  { id: 'm5', authorId: 'dk', minutesAgo: 41,
+  { id: 'm5', authorId: 'dk', minutesAgo: 41, time: '11:25 AM', fromSlack: true,
     body: 'Proposal: move 15% of Meta prospecting into Affiliates for two weeks and measure.' },
-  { id: 'm6', authorId: 'jr', minutesAgo: 12,
+  { id: 'm6', authorId: 'jr', minutesAgo: 12, time: '11:54 AM',
     body: 'Works for me. Can someone pull the numbers into the Monday report?' },
 ];
 
-/** "just now", "12m", "3h", "2d" — relative, so it never needs a real clock. */
-export function relativeTime(minutesAgo: number): string {
-  if (minutesAgo < 1) return 'just now';
-  if (minutesAgo < 60) return `${Math.round(minutesAgo)}m`;
-  if (minutesAgo < 60 * 24) return `${Math.round(minutesAgo / 60)}h`;
-  return `${Math.round(minutesAgo / (60 * 24))}d`;
+/** Clock time for a message being sent right now. */
+export function nowLabel(): string {
+  return new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
 /**

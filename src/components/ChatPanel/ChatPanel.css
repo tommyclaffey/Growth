@@ -138,3 +138,13 @@
   outline: var(--border-width-md) solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+/* Relayed from Slack. The design carries this badge because the channel is
+   mirrored, and a message you cannot reply to in-app should say so. */
+.gr-msg__slack {
+  display: inline-flex; align-items: center; gap: var(--space-4);
+  height: 18px; padding: 0 var(--space-6);
+  border-radius: var(--radius-sm);
+  background: var(--surface-page-top);
+  color: var(--text-muted);
+}

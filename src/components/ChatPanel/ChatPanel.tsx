@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import './ChatPanel.css';
 import { Button } from '../Button/Button';
 import {
-  MEMBERS, ME, SEED, groupMessages, relativeTime,
+  MEMBERS, ME, SEED, groupMessages, nowLabel,
   type Message, type ViewRef,
 } from '../../data/chat';
 import {
-  CHANNEL_LABEL, delta, formatMetric, isRatio, series, totals, type Scope,
+  CHANNEL_LABEL, RANGE_LABEL, delta, formatMetric, isRatio, totals, type Scope,
 } from '../../data/metrics';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import type { ChannelName } from '../../styles/tokens';
@@ -61,6 +61,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
         id: `local-${prev.length}`,
         authorId: ME.id,
         body: body || 'Sharing this view.',
+        time: nowLabel(),
         minutesAgo: 0,
         view: pending ?? undefined,
       },
@@ -93,7 +94,18 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
               <div className="gr-msg__body">
                 <p className="gr-msg__meta gr-type-caption">
                   <strong>{author.name}</strong>
-                  <span>{relativeTime(group[group.length - 1].minutesAgo)}</span>
+                  <span>{group[0].time}</span>
+                  {group.some((m) => m.fromSlack) && (
+                    <span className="gr-msg__slack gr-type-micro">
+                      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                        <circle cx="3" cy="3" r="1.4" fill="currentColor" />
+                        <circle cx="7" cy="3" r="1.4" fill="currentColor" />
+                        <circle cx="3" cy="7" r="1.4" fill="currentColor" />
+                        <circle cx="7" cy="7" r="1.4" fill="currentColor" />
+                      </svg>
+                      Slack
+                    </span>
+                  )}
                 </p>
                 {group.map((m) => (
                   <div key={m.id} className="gr-msg__line">
@@ -150,8 +162,6 @@ function ViewCard({ view, compact = false }: { view: ViewRef; compact?: boolean 
     : view.metric === 'Sales' ? formatMetric('Sales', t.sales)
     : formatMetric('Clicks', t.clicks);
 
-  const points = series(scope, view.metric, view.range);
-  const asOf = points[points.length - 1]?.label ?? '';
   const change = delta(scope, view.metric, view.range);
 
   // Rising CAC is bad; rising everything else here is good.
@@ -166,7 +176,7 @@ function ViewCard({ view, compact = false }: { view: ViewRef; compact?: boolean 
     <div className={`gr-viewcard ${compact ? 'is-compact' : ''}`}>
       <p className="gr-viewcard__head gr-type-caption">
         <span className="gr-viewcard__dot" style={{ background: dot }} aria-hidden="true" />
-        {label} · as of {asOf}
+        {label} · {RANGE_LABEL[view.range]}
       </p>
       <p className="gr-viewcard__metric gr-type-body">{view.metric}</p>
       <p className="gr-viewcard__row">
