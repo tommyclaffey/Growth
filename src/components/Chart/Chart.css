@@ -69,8 +69,53 @@
   text-align: right;
   color: var(--text-muted);
 }
+/* The canvas is the hover surface and the positioning context for the
+   crosshair, marker and tooltip. */
+.gr-chart__canvas { position: relative; flex: 1; min-width: 0; }
+
+.gr-chart__svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+/* Crosshair is recessive — it locates the reading, it is not the reading. */
+.gr-chart__crosshair {
+  position: absolute; top: 0; bottom: 0; width: 1px;
+  background: var(--border-strong);
+  transform: translateX(-0.5px);
+  pointer-events: none;
+}
+
+/* 8px marker, ringed in the surface colour so it stays legible where it
+   crosses the line or the fill. */
+.gr-chart__marker {
+  position: absolute;
+  width: 8px; height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  border: 2px solid;
+  pointer-events: none;
+}
+
+.gr-chart__tip {
+  position: absolute; top: 0;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; gap: 1px;
+  padding: var(--space-6) var(--space-10);
+  border-radius: var(--radius-sm);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-card);
+  box-shadow: var(--elevation-menu);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
+}
+/* Values and labels wear text tokens, never the series colour. The mark
+   carries identity; the readout carries the number. */
+.gr-chart__tip-label { color: var(--text-muted); }
+.gr-chart__tip-value { color: var(--text-primary); }
+
 .gr-chart__bars {
   flex: 1;
+  height: 100%;
   display: flex;
   align-items: flex-end;
   gap: 5px;
@@ -90,12 +135,17 @@
 .gr-chart__bar {
   width: 100%;
   min-height: 2px;
+  transition: filter 120ms ease;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   border: var(--border-width-sm) solid transparent;
   border-bottom: none;
 }
 
+.gr-chart__bar.is-hovered { filter: brightness(1.12); }
+
 .gr-chart__baseline { height: 1px; background: var(--border-default); }
+
+@media (prefers-reduced-motion: reduce) { .gr-chart__bar { transition: none; } }
 
 .gr-chart__x {
   display: flex;

@@ -129,15 +129,37 @@ const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
        the design's spend figure exactly. Scaling by the full 72 would spread
        the same money across three months and the header would stop matching. */
     const windowSum = shape.slice(-DAYS).reduce((a, b) => a + b, 0);
-    const rows: DayRow[] = shape.map((f) => {
-      const spend = (f / windowSum) * c.spend;
-      const leads = spend / c.cac;
+    const spendByDay = shape.map((f) => (f / windowSum) * c.spend);
+
+    /* Efficiency has to wobble independently of spend.
+       If leads were simply spend / cac, then CAC would be spend divided by
+       spend over cac — the constant cac, every single day. Same for ROAS.
+       The dashboard would report a CAC that never moved and a 0% delta
+       forever, which is not a quiet inaccuracy; it is the metric doing
+       nothing while appearing to work. */
+    const effRand = mulberry32(hash(key + ':efficiency'));
+    const cacFactor = spendByDay.map(() => 0.86 + effRand() * 0.28);
+    const roasFactor = spendByDay.map(() => 0.9 + effRand() * 0.2);
+
+    const rawLeads = spendByDay.map((sp, i) => sp / (c.cac * cacFactor[i]));
+    const rawRevenue = spendByDay.map((sp, i) => sp * c.roas * roasFactor[i]);
+
+    /* Rescale so the 30-day window still lands on the published blended
+       figures exactly. The daily values vary; the period totals do not. */
+    const windowSpend = spendByDay.slice(-DAYS).reduce((a, b) => a + b, 0);
+    const leadScale =
+      (windowSpend / c.cac) / rawLeads.slice(-DAYS).reduce((a, b) => a + b, 0);
+    const revScale =
+      (windowSpend * c.roas) / rawRevenue.slice(-DAYS).reduce((a, b) => a + b, 0);
+
+    const rows: DayRow[] = spendByDay.map((spend, i) => {
+      const leads = rawLeads[i] * leadScale;
       return {
         spend,
         clicks: leads / c.cvr,
         leads,
         sales: leads * c.closeRate,
-        revenue: spend * c.roas,
+        revenue: rawRevenue[i] * revScale,
       };
     });
     return [key, rows];
@@ -251,11 +273,51 @@ export function formatMetric(metric: Metric, value: number): string {
   }
 }
 
-/** Four y-axis ticks, top down, rounded to something a person would say out loud. */
-export function yTicks(metric: Metric, data: { value: number }[]): string[] {
-  const max = Math.max(...data.map((d) => d.value), 1);
-  const nice = niceCeil(max);
-  return [3, 2, 1, 0].map((i) => shortLabel(metric, (nice / 3) * i));
+/** CAC and ROAS are ratios: they do not accumulate, so they never get bars. */
+export function isRatio(metric: Metric): boolean {
+  return metric === 'CAC' || metric === 'ROAS';
+}
+
+/**
+ * Four y-axis ticks, top down.
+ *
+ * `zeroBased` is not a style choice. A bar encodes magnitude as length from
+ * zero, so a bar chart MUST start at zero or the lengths lie. A line encodes
+ * change as slope and carries no such obligation — and for a ratio it must
+ * not, because ROAS moving 4.5 to 4.7 against a zero floor renders as a flat
+ * line and hides the only thing the chart is for.
+ */
+export function yTicks(
+  metric: Metric,
+  data: { value: number }[],
+  zeroBased = true,
+): string[] {
+  const values = data.map((d) => d.value);
+  const max = Math.max(...values, 1);
+
+  if (zeroBased) {
+    const nice = niceCeil(max);
+    return [3, 2, 1, 0].map((i) => shortLabel(metric, (nice / 3) * i));
+  }
+
+  const min = Math.min(...values);
+  const pad = (max - min) * 0.15 || max * 0.05;
+  const lo = Math.max(0, min - pad);
+  const hi = max + pad;
+  return [3, 2, 1, 0].map((i) => shortLabel(metric, lo + ((hi - lo) / 3) * i));
+}
+
+/** The plotted domain, matching what yTicks labelled. */
+export function domainFor(
+  data: { value: number }[],
+  zeroBased = true,
+): [number, number] {
+  const values = data.map((d) => d.value);
+  const max = Math.max(...values, 1);
+  if (zeroBased) return [0, niceCeil(max)];
+  const min = Math.min(...values);
+  const pad = (max - min) * 0.15 || max * 0.05;
+  return [Math.max(0, min - pad), max + pad];
 }
 
 function niceCeil(n: number): number {

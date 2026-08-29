@@ -14,7 +14,7 @@ import { Reports } from './screens/Reports';
 import { Notifications } from './screens/Notifications';
 import { Settings } from './screens/Settings';
 import {
-  CHANNEL_KEYS, CHANNEL_LABEL, delta, formatMetric, series, sparkline, totals, yTicks,
+  CHANNEL_KEYS, CHANNEL_LABEL, delta, formatMetric, series, sparkline, totals,
   RANGE_LABEL,
   type Metric, type Range, type Scope,
 } from './data/metrics';
@@ -47,7 +47,6 @@ export default function App() {
     return {
       totals: t,
       data,
-      ticks: yTicks(metric, data),
       rows: CHANNEL_KEYS.map<ChannelRow>((key) => {
         const ct = totals(key, range);
         return {
@@ -157,7 +156,6 @@ export default function App() {
                 metric={metric}
                 onMetricChange={setMetric}
                 data={view.data}
-                yTicks={view.ticks}
               />
 
               {onChannelScreen && <CampaignTable channel={channel} wideColumns={!chatOpen} />}

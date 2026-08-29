@@ -1,67 +1,102 @@
+import { useState } from 'react';
 import './Chart.css';
 import { channelGradient, type ChannelName } from '../../styles/tokens';
+import {
+  METRICS, domainFor, formatMetric, isRatio, yTicks as computeTicks,
+  type Metric,
+} from '../../data/metrics';
 
-/* Metric is owned by the data layer, not by the chart. The chart renders a
-   series; it does not get to decide what the business measures. */
-import { METRICS, type Metric } from '../../data/metrics';
 export { METRICS };
 export type { Metric };
+
+/** Above this many points a bar becomes a picket fence. 1172px / 45 ≈ 26px. */
+const BAR_LIMIT = 45;
+
+export type Mark = 'bar' | 'line' | 'auto';
 
 export interface ChartProps {
   title?: string;
   channel: ChannelName | 'all';
   metric: Metric;
   onMetricChange?: (m: Metric) => void;
-  /** 24 points. Values are absolute; the chart scales to its own max. */
   data: { label: string; value: number }[];
-  yTicks?: string[];
+  /** Override the mark. Default 'auto' applies the rule below. */
+  mark?: Mark;
   state?: 'ready' | 'loading' | 'error' | 'empty';
 }
 
 const CSS_CHANNEL: Record<string, string> = {
-  meta: 'meta',
-  tiktok: 'tiktok',
-  youtube: 'youtube',
-  affiliates: 'affiliates',
-  paidSearch: 'paid-search',
-  podcasts: 'podcasts',
+  meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
+  affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
 };
 
 /**
- * Chart — 1172x352, radius/xl.
+ * Which mark to draw.
  *
- * Bars use a vertical gradient: light at the top, deeper at the bottom.
- * The direction matters. THE TOP EDGE IS THE DATA — it is the line the eye
- * lands on to compare magnitudes — so it keeps the saturated stop. Running the
- * gradient the other way makes the bar read flat and weakens the encoding.
+ *   Ratios always use a line.  CAC and ROAS do not accumulate, and a bar
+ *   encodes magnitude as length from zero — it invites the eye to read total
+ *   area as a quantity that does not exist.
  *
- * Every channel resolves through channel/<name> and channel/<name>-soft, which
- * invert between light and dark so the gradient keeps its travel in both modes.
+ *   Above 45 points everything uses a line, because a 13px bar carries no
+ *   more information than the line through its top edge and carries it worse.
  *
- * loading / error / empty are real states, not an afterthought. Growth runs on
- * channel API syncs; a chart that cannot reach the Meta API is a state that
- * exists whether or not anyone designed it.
+ *   Otherwise quantities use bars.
+ *
+ * This rule lives in code rather than in a designer's head so an engineer can
+ * follow it without asking.
  */
+export function resolveMark(metric: Metric, points: number, requested: Mark = 'auto'): 'bar' | 'line' {
+  if (requested !== 'auto') return requested;
+  if (isRatio(metric)) return 'line';
+  if (points > BAR_LIMIT) return 'line';
+  return 'bar';
+}
+
 export function Chart({
   title,
   channel,
   metric,
   onMetricChange,
   data,
-  yTicks = ['$6k', '$4k', '$2k', '$0'],
+  mark = 'auto',
   state = 'ready',
 }: ChartProps) {
-  const max = Math.max(...data.map((d) => d.value), 1);
+  const [hover, setHover] = useState<number | null>(null);
 
-  const fill =
-    channel === 'all'
-      ? 'linear-gradient(to bottom, var(--accent-gradient-top), var(--accent-gradient-bottom))'
-      : channelGradient(channel);
+  const resolved = resolveMark(metric, data.length, mark);
+  // Bars must start at zero; a ratio line must not.
+  const zeroBased = resolved === 'bar' || !isRatio(metric);
+  const ticks = computeTicks(metric, data, zeroBased);
+  const [lo, hi] = domainFor(data, zeroBased);
+  const span = hi - lo || 1;
 
-  const edge =
-    channel === 'all'
-      ? 'var(--accent-gradient-bottom)'
-      : `var(--channel-${CSS_CHANNEL[channel] ?? channel}-soft)`;
+  const key = channel === 'all' ? 'accent' : (CSS_CHANNEL[channel] ?? channel);
+  const stroke = channel === 'all' ? 'var(--accent-base)' : `var(--channel-${key})`;
+  const fill = channel === 'all'
+    ? 'linear-gradient(to bottom, var(--accent-gradient-top), var(--accent-gradient-bottom))'
+    : channelGradient(channel);
+  const edge = channel === 'all' ? 'var(--accent-gradient-bottom)' : `var(--channel-${key}-soft)`;
+
+  /* Normalised 0-100 viewBox with preserveAspectRatio="none", so the path
+     stretches to the plot. vector-effect keeps the stroke 2px regardless. */
+  const pointAt = (i: number) => ({
+    x: data.length === 1 ? 50 : (i / (data.length - 1)) * 100,
+    y: 100 - ((data[i].value - lo) / span) * 100,
+  });
+  const linePath = data.map((_, i) => {
+    const { x, y } = pointAt(i);
+    return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(' ');
+  const areaPath = `${linePath} L 100 100 L 0 100 Z`;
+
+  function onMove(e: React.MouseEvent<HTMLDivElement>) {
+    const box = e.currentTarget.getBoundingClientRect();
+    const ratio = (e.clientX - box.left) / box.width;
+    setHover(Math.max(0, Math.min(data.length - 1, Math.round(ratio * (data.length - 1)))));
+  }
+
+  const hovered = hover !== null ? data[hover] : null;
+  const hoverX = hover !== null ? pointAt(hover).x : 0;
 
   return (
     <section className="gr-chart" aria-label={title ?? `${metric} over time`}>
@@ -87,38 +122,92 @@ export function Chart({
         <div className="gr-chart__body">
           <div className="gr-chart__plot">
             <div className="gr-chart__y" aria-hidden="true">
-              {yTicks.map((t) => (
-                <span key={t} className="gr-type-micro">{t}</span>
-              ))}
+              {ticks.map((t, i) => <span key={i} className="gr-type-micro">{t}</span>)}
             </div>
-            <ol className="gr-chart__bars">
-              {data.map((d, i) => (
-                <li key={i} className="gr-chart__bar-slot">
-                  <span
-                    className="gr-chart__bar"
-                    style={{
-                      height: `${(d.value / max) * 100}%`,
-                      background: fill,
-                      borderColor: edge,
-                    }}
-                    title={`${d.label}: ${d.value.toLocaleString()}`}
+
+            <div
+              className="gr-chart__canvas"
+              onMouseMove={onMove}
+              onMouseLeave={() => setHover(null)}
+            >
+              {resolved === 'bar' ? (
+                <ol className="gr-chart__bars">
+                  {data.map((d, i) => (
+                    <li key={i} className="gr-chart__bar-slot">
+                      <span
+                        className={`gr-chart__bar ${hover === i ? 'is-hovered' : ''}`}
+                        style={{
+                          height: `${((d.value - lo) / span) * 100}%`,
+                          background: fill,
+                          borderColor: edge,
+                        }}
+                      />
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <svg className="gr-chart__svg" viewBox="0 0 100 100"
+                     preserveAspectRatio="none" aria-hidden="true">
+                  <defs>
+                    <linearGradient id={`grad-${key}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"   stopColor={stroke} stopOpacity="0.28" />
+                      <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d={areaPath} fill={`url(#grad-${key})`} />
+                  <path
+                    d={linePath}
+                    fill="none"
+                    stroke={stroke}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    vectorEffect="non-scaling-stroke"
                   />
-                </li>
-              ))}
-            </ol>
+                </svg>
+              )}
+
+              {hovered && (
+                <>
+                  <span className="gr-chart__crosshair" style={{ left: `${hoverX}%` }} aria-hidden="true" />
+                  {resolved === 'line' && (
+                    <span
+                      className="gr-chart__marker"
+                      style={{
+                        left: `${hoverX}%`,
+                        top: `${pointAt(hover!).y}%`,
+                        borderColor: stroke,
+                      }}
+                      aria-hidden="true"
+                    />
+                  )}
+                  <div
+                    className="gr-chart__tip"
+                    style={{ left: `${hoverX}%` }}
+                    role="status"
+                  >
+                    <span className="gr-chart__tip-label gr-type-micro">{hovered.label}</span>
+                    <span className="gr-chart__tip-value gr-type-caption-med">
+                      {formatMetric(metric, hovered.value)}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
+
           <div className="gr-chart__baseline" />
           <div className="gr-chart__x" aria-hidden="true">
             {data.map((d, i) => (
-              <span key={i} className="gr-type-micro">{i % 7 === 0 ? d.label : ''}</span>
+              <span key={i} className="gr-type-micro">
+                {i % Math.ceil(data.length / 5) === 0 ? d.label : ''}
+              </span>
             ))}
           </div>
         </div>
       ) : (
         <div className={`gr-chart__state gr-chart__state--${state}`} role="status">
-          {state === 'loading' && (
-            <span className="gr-type-body">Loading {metric.toLowerCase()}…</span>
-          )}
+          {state === 'loading' && <span className="gr-type-body">Loading {metric.toLowerCase()}…</span>}
           {state === 'error' && (
             <span className="gr-type-body">
               Could not reach the {channel} API.{' '}
