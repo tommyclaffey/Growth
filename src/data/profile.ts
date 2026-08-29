@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ME } from './chat';
+import { ME, type Member } from './chat';
 
 /**
  * The signed-in person's own photo, when they have set one.
@@ -56,6 +56,20 @@ export function getStoredSource(): { src: string; crop: Crop } | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * The photo to show for any person.
+ *
+ * Returns a resolver rather than a value because the answer differs by member:
+ * the signed-in person's photo can be overridden locally, everyone else's
+ * comes with them. Patching each call site instead is how the sidebar ended up
+ * showing an uploaded photo while the chat panel two panes over still showed
+ * the bundled one — the same fact, read from two places, disagreeing.
+ */
+export function useAvatarFor(): (m: Member) => string | undefined {
+  const mine = useMyAvatar();
+  return (m: Member) => (m.id === ME.id ? mine : m.avatar);
 }
 
 /** The photo to show for the signed-in person: uploaded, else the bundled one. */

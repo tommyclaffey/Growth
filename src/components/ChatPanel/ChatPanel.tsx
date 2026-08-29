@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './ChatPanel.css';
 import { loadThread, postToSlack, subscribeToSlack, type ChatSource } from '../../data/slackClient';
+import { useAvatarFor } from '../../data/profile';
 import { SlackConnect } from './SlackConnect';
 import { Button } from '../Button/Button';
 import {
@@ -43,6 +44,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
   const [source, setSource] = useState<ChatSource>('seed');
   const [origin, setOrigin] = useState<{ team?: string; channel?: string }>({});
   const [draft, setDraft] = useState('');
+  const avatarFor = useAvatarFor();
   const endRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
@@ -153,7 +155,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
           const mine = author.id === ME.id;
           return (
             <article key={gi} className={`gr-msg ${mine ? 'is-mine' : ''}`}>
-              <Avatar initials={author.initials} hue={author.hue} name={author.name} src={author.avatar} />
+              <Avatar initials={author.initials} hue={author.hue} name={author.name} src={avatarFor(author)} />
               <div className="gr-msg__body">
                 <p className="gr-msg__meta gr-type-caption">
                   <strong>{author.name}</strong>
