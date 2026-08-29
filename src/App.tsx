@@ -8,6 +8,7 @@ import { ChannelTable, type ChannelRow } from './components/ChannelTable/Channel
 import { CampaignTable } from './components/CampaignTable/CampaignTable';
 import { ThemeToggle } from './components/ThemeToggle/ThemeToggle';
 import { ChannelSwitcher } from './components/ChannelSwitcher/ChannelSwitcher';
+import { ChannelWordmark } from './components/ChannelWordmark/ChannelWordmark';
 import { RangePicker } from './components/RangePicker/RangePicker';
 import { ChatPanel } from './components/ChatPanel/ChatPanel';
 import { Assistant } from './components/Assistant/Assistant';
@@ -131,7 +132,15 @@ export default function App() {
           </div>
           <div className="gr-toolbar">
             <div className="gr-toolbar__title">
-              <h1 className="gr-type-page-title">{title}</h1>
+              <h1 className="gr-type-page-title">
+                {/* On a channel screen the title is the channel's own logo,
+                    matching the design — where each brand lockup appears
+                    exactly once, in this slot. Channels without a logo keep
+                    the text. */}
+                {onChannelScreen && channel
+                  ? <ChannelWordmark channel={channel} name={title} />
+                  : title}
+              </h1>
               <p className="gr-type-caption">{sub}</p>
             </div>
             <div className="gr-toolbar__spacer" />

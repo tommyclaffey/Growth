@@ -1,0 +1,15 @@
+.gr-wordmark { display: inline-flex; align-items: center; }
+
+/* Sized off the page-title cap height so a logo and a text title occupy the
+   same line, rather than each brand's own export height. Per-brand, because
+   brand artwork is externally owned and does not arrive on a shared grid. */
+.gr-wordmark__img { height: 26px; width: auto; display: block; }
+.gr-wordmark__img.is-meta   { height: 24px; }
+.gr-wordmark__img.is-tiktok { height: 30px; }
+
+/* ⚠️ The Figma file has no reversed lockup — each brand exists once, in its
+   light form, and the wordmarks are near-black. On the dark surface they
+   vanish. Knocking the whole lockup to white is the standard reversed
+   treatment brands ship for exactly this, and it is honest about what it is:
+   a mono logo, not a recolour. */
+[data-theme="dark"] .gr-wordmark__img { filter: brightness(0) invert(1); }
