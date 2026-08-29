@@ -25,9 +25,21 @@ export interface Evidence {
   channel?: ChannelName | 'all';
 }
 
+/** A page consulted on the open web. Never merged into `evidence` — see below. */
+export interface Source { title: string; url: string }
+
 export interface Answer {
   text: string;
   evidence?: Evidence[];
+  /**
+   * Outside context, kept separate from `evidence` on purpose.
+   *
+   * `evidence` is this account's actuals. A source is someone else's number
+   * about someone else's business. Listing them together would let the weaker
+   * claim borrow the authority of the stronger one, which is the failure this
+   * panel is built to avoid — so they get different treatments in the UI.
+   */
+  sources?: Source[];
   /** False when nothing matched, so the UI can present it as a limit. */
   answered: boolean;
 }
