@@ -16,29 +16,21 @@ body {
    It used to be `min-height: 100vh` with the sidebar and chat panel each
    `height: 100vh; position: sticky`. Two panels sized to the viewport inside a
    container sized to its content: whenever the content ran longer, the page
-   scrolled past where the panels ended and left dead space beneath both of
-   them. Sticky was compensating for a shell that never owned its own height.
+   scrolled past where the panels ended and left dead space beneath both.
+   Sticky was compensating for a shell that never owned its own height.
 
-   `100dvh`, not `100vh` — on mobile Safari `vh` is the height with the address
-   bar hidden, so a `100vh` shell is taller than the visible page and the
-   bottom is unreachable until you scroll the bar away. */
+   Pinned to the viewport edges rather than sized in viewport units. Both
+   `height: 100vh` and `height: 100dvh` failed here in ways invisible in the
+   source — a browser that does not resolve the unit drops the declaration, and
+   the shell then falls back to content height, collapsing shorter than the
+   window. `inset: 0` has nothing to resolve: the box is defined by the edges
+   of the viewport, so there is no value to drop and no content height to fall
+   back to. */
 .gr-app {
+  position: fixed;
+  inset: 0;
   display: flex;
-  /* `vh` is the floor. A duplicate `height: 100dvh` on the same rule does NOT
-     survive the build — the minifier collapses duplicate declarations and keeps
-     only the last, so the fallback disappears in production and a browser
-     without `dvh` gets no height at all: the shell falls back to content
-     height, collapses shorter than the window, and the page background shows
-     beneath the sidebar and chat panel. A separate @supports rule cannot be
-     collapsed into this one. */
-  height: 100vh;
   overflow: hidden;
-}
-
-/* Preferred where available: on mobile Safari `vh` is the height with the
-   address bar hidden, which makes a 100vh shell taller than the visible page. */
-@supports (height: 100dvh) {
-  .gr-app { height: 100dvh; }
 }
 
 .gr-main {
