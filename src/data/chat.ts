@@ -77,3 +77,35 @@ export function groupMessages(messages: Message[]): Message[][] {
   }
   return groups;
 }
+
+/**
+ * A view, encoded so it survives a round trip through Slack.
+ *
+ * A shared metric is a Growth object; Slack only carries text. Posting the
+ * card as prose loses it — the message arrives in Slack readable but comes
+ * back as a sentence, and the unfurl is gone. So the reference is written as a
+ * link and read back out of one.
+ *
+ * A link rather than a marker like `[growth:meta/CAC/30]` for two reasons: it
+ * reads as something a person would send in Slack, and it is clickable, so a
+ * teammate who is not looking at Growth still lands on the right screen.
+ */
+export function encodeView(view: ViewRef, origin: string): string {
+  const q = new URLSearchParams({ c: view.channel, m: view.metric, r: String(view.range) });
+  return `${origin}/Growth/?${q}`;
+}
+
+const VIEW_RE = /https?:\/\/[^\s]*\/Growth\/\?(?:[^\s]*&)?c=([a-zA-Z]+)&m=([A-Za-z]+)&r=(7|30|90)/;
+
+/** Pulls a view back out of message text. Returns null when there isn't one. */
+export function decodeView(text: string): { view: ViewRef; text: string } | null {
+  const m = text.match(VIEW_RE);
+  if (!m) return null;
+  const [full, channel, metric, range] = m;
+  /* Strip the URL from the body — the card renders it, and leaving the raw
+     link in as well shows the same thing twice. */
+  return {
+    view: { channel: channel as ViewRef['channel'], metric: metric as Metric, range: Number(range) as Range },
+    text: text.replace(full, '').replace(/\s{2,}/g, ' ').trim(),
+  };
+}

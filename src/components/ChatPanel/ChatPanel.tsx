@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './ChatPanel.css';
+import { loadThread, postToSlack, subscribeToSlack, type ChatSource } from '../../data/slackClient';
+import { SlackConnect } from './SlackConnect';
 import { Button } from '../Button/Button';
 import {
   MEMBERS, ME, SEED, groupMessages, nowLabel,
@@ -40,8 +42,43 @@ export interface ChatPanelProps {
  */
 export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>(SEED);
+  const [members, setMembers] = useState(MEMBERS);
+  const [source, setSource] = useState<ChatSource>('seed');
+  const [origin, setOrigin] = useState<{ team?: string; channel?: string }>({});
   const [draft, setDraft] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
+
+  const refresh = useCallback(async () => {
+    const t = await loadThread();
+    setMessages(t.messages);
+    setMembers(t.members);
+    setSource(t.source);
+    setOrigin({ team: t.team, channel: t.channel });
+  }, []);
+
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  /* Slack sends the browser back here after consent. Clear the marker so a
+     reload does not look like a fresh connection. */
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('slack') === 'connected') {
+      window.history.replaceState({}, '', window.location.pathname);
+      void refresh();
+    }
+  }, [refresh]);
+
+  /* Push, with polling underneath it.
+     Slack posts to /api/slack/events the moment a message lands, and that is
+     relayed here over SSE — so updates are immediate. The slow poll stays as a
+     floor: a stream can be connected and still miss an event (a dropped
+     delivery, a buffering proxy, a reconnect gap), and a chat that is silently
+     stale is worse than one that is a few seconds behind. */
+  useEffect(() => {
+    if (source !== 'slack') return;
+    const unsubscribe = subscribeToSlack(() => { void refresh(); });
+    const id = setInterval(() => { void refresh(); }, 30000);
+    return () => { unsubscribe(); clearInterval(id); };
+  }, [source, refresh]);
 
   // Follow the conversation as it grows, the way every chat client does.
   useEffect(() => {
@@ -53,15 +90,19 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
     if (pending) endRef.current?.scrollIntoView({ block: 'end' });
   }, [pending]);
 
-  function send() {
+  async function send() {
     const body = draft.trim();
     if (!body && !pending) return;
+    const text = body || 'Sharing this view.';
+
+    /* Optimistic: the message appears immediately, then reconciles with what
+       Slack actually stored. */
     setMessages((prev) => [
       ...prev,
       {
         id: `local-${prev.length}`,
         authorId: ME.id,
-        body: body || 'Sharing this view.',
+        body: text,
         time: nowLabel(),
         minutesAgo: 0,
         view: pending ?? undefined,
@@ -69,6 +110,19 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
     ]);
     setDraft('');
     onClearPending();
+
+    if (source === 'slack') {
+      const sent = await postToSlack(text, pending);
+      /* If it did not land, say so. A message that exists only in this browser
+         but looks identical to one that reached the channel is worse than an
+         error — the user believes their team saw it. */
+      if (!sent) {
+        setMessages((prev) => prev.map((m) =>
+          m.id === `local-${prev.length - 1}` ? { ...m, body: `${m.body}  (not delivered)` } : m));
+        return;
+      }
+      await refresh();
+    }
   }
 
   const groups = groupMessages(messages);
@@ -76,16 +130,29 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
   return (
     <aside className="gr-chat" aria-label="Team chat">
       <header className="gr-chat__header">
-        <div>
-          <h2 className="gr-type-section">Team chat</h2>
-          <p className="gr-type-caption">#growth-analytics · 4 members</p>
+        <div className="gr-chat__head-row">
+          <div className="gr-chat__head-text">
+            <h2 className="gr-type-section">Team chat</h2>
+            {/* Was hard-coded to the seeded channel, so a connected panel still
+                claimed to be reading #growth-analytics with 4 members. It now
+                says what it is actually reading. */}
+            <p className="gr-type-caption">
+              {source === 'slack' && origin.channel
+                ? `#${origin.channel}${origin.team ? ` · ${origin.team}` : ''}`
+                : 'Demo conversation · not connected'}
+            </p>
+          </div>
+          <button type="button" className="gr-chat__close" onClick={onClose} aria-label="Close chat">✕</button>
         </div>
-        <button type="button" className="gr-chat__close" onClick={onClose} aria-label="Close chat">✕</button>
+        {/* Which workspace this is reading belongs with the channel name, not
+            in the message stream. It also fills a header sized to match the
+            app header, which two lines of text left half empty. */}
+        <SlackConnect onConnected={() => { void refresh(); }} />
       </header>
 
       <div className="gr-chat__messages">
         {groups.map((group, gi) => {
-          const author = MEMBERS[group[0].authorId] ?? ME;
+          const author = members[group[0].authorId] ?? ME;
           const mine = author.id === ME.id;
           return (
             <article key={gi} className={`gr-msg ${mine ? 'is-mine' : ''}`}>
@@ -94,17 +161,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
                 <p className="gr-msg__meta gr-type-caption">
                   <strong>{author.name}</strong>
                   <span>{group[0].time}</span>
-                  {group.some((m) => m.fromSlack) && (
-                    <span className="gr-msg__slack gr-type-micro">
-                      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-                        <circle cx="3" cy="3" r="1.4" fill="currentColor" />
-                        <circle cx="7" cy="3" r="1.4" fill="currentColor" />
-                        <circle cx="3" cy="7" r="1.4" fill="currentColor" />
-                        <circle cx="7" cy="7" r="1.4" fill="currentColor" />
-                      </svg>
-                      Slack
-                    </span>
-                  )}
+                  {group.some((m) => m.fromSlack) && <SlackMark />}
                 </p>
                 {group.map((m) => (
                   <div key={m.id} className="gr-msg__line">
@@ -190,3 +247,31 @@ function ViewCard({ view, compact = false }: { view: ViewRef; compact?: boolean 
     </div>
   );
 }
+
+
+/**
+ * Slack's lockup — mark plus wordmark, in a pill.
+ *
+ * The mark alone was tried first and rejected on sight: at 12px it reads as a
+ * coloured pinwheel, and a badge nobody recognises is not a badge. The wordmark
+ * is what makes it legible, so it stays.
+ *
+ * Slack's colours and the lowercase wordmark are reproduced as Slack ships
+ * them. Brand artwork is externally owned — the same reason TikTok's pink is
+ * not a token in this system.
+ */
+function SlackMark() {
+  return (
+    <span className="gr-msg__slack" title="Sent from Slack">
+      <svg width="11" height="11" viewBox="0 0 122.8 122.8" aria-hidden="true">
+        <path d="M25.8 77.6a12.9 12.9 0 1 1-12.9-12.9h12.9v12.9zm6.5 0a12.9 12.9 0 0 1 25.8 0v32.3a12.9 12.9 0 0 1-25.8 0V77.6z" fill="#E01E5A" />
+        <path d="M45.2 25.8a12.9 12.9 0 1 1 12.9-12.9v12.9H45.2zm0 6.5a12.9 12.9 0 0 1 0 25.8H12.9a12.9 12.9 0 0 1 0-25.8h32.3z" fill="#36C5F0" />
+        <path d="M97 45.2a12.9 12.9 0 1 1 12.9 12.9H97V45.2zm-6.5 0a12.9 12.9 0 0 1-25.8 0V12.9a12.9 12.9 0 0 1 25.8 0v32.3z" fill="#2EB67D" />
+        <path d="M77.6 97a12.9 12.9 0 1 1-12.9 12.9V97h12.9zm0-6.5a12.9 12.9 0 0 1 0-25.8h32.3a12.9 12.9 0 0 1 0 25.8H77.6z" fill="#ECB22E" />
+      </svg>
+      <span className="gr-msg__slack-word">slack</span>
+      <span className="gr-sr-only">Sent from Slack</span>
+    </span>
+  );
+}
+
