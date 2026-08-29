@@ -1,4 +1,4 @@
-import { MEMBERS, SEED, decodeView, encodeView, type Member, type Message, type ViewRef } from './chat';
+import { ME, MEMBERS, SEED, decodeView, encodeView, type Member, type Message, type ViewRef } from './chat';
 
 /**
  * Slack, multi-workspace.
@@ -69,7 +69,13 @@ export async function loadThread(): Promise<Thread> {
       /* Rebuild any shared metric card from the link in the message text. */
       messages: [...SEED, ...d.messages.map((m) => {
         const found = decodeView(m.body);
-        return found ? { ...m, body: found.text, view: found.view } : m;
+        const base = found ? { ...m, body: found.text, view: found.view } : m;
+        /* Anything not marked fromSlack was posted by this app, which means
+           Maya wrote it — Slack just recorded the bot as the author because
+           the bot holds the token. Attributing it to the app's own identity is
+           the truth of who typed it. Slack's own record still says Growth;
+           changing that needs chat:write.customize and a reinstall. */
+        return base.fromSlack ? base : { ...base, authorId: ME.id };
       })],
       members: { ...MEMBERS, ...(d.members ?? {}) },
       source: 'slack',
