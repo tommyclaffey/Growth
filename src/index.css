@@ -10,7 +10,23 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.gr-app { display: flex; min-height: 100vh; }
+/* The shell is exactly the viewport and does not scroll. Only the content
+   column does.
+
+   It used to be `min-height: 100vh` with the sidebar and chat panel each
+   `height: 100vh; position: sticky`. Two panels sized to the viewport inside a
+   container sized to its content: whenever the content ran longer, the page
+   scrolled past where the panels ended and left dead space beneath both of
+   them. Sticky was compensating for a shell that never owned its own height.
+
+   `100dvh`, not `100vh` — on mobile Safari `vh` is the height with the address
+   bar hidden, so a `100vh` shell is taller than the visible page and the
+   bottom is unreachable until you scroll the bar away. */
+.gr-app {
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+}
 
 .gr-main {
   flex: 1;
@@ -24,13 +40,18 @@ body {
      column's own width, so both causes are handled by one rule. */
   container-type: inline-size;
   container-name: main;
+  /* A flex child will not shrink below its content without this, so the
+     content column would push the shell taller than the viewport and put the
+     scrollbar back on the page. */
+  min-height: 0;
   background: linear-gradient(to bottom, var(--surface-page-top), var(--surface-page-bottom));
 }
 
 /* Header — 140 tall, 24/30/16/30 padding, sticky over the scrolling content. */
 .gr-header {
-  position: sticky;
-  top: 0;
+  /* No longer sticky: the header sits above the scrolling column rather than
+     inside it, so it cannot scroll away and has nothing to stick to. */
+  flex: none;
   z-index: 2;
   box-sizing: border-box;
   min-height: var(--header-h);
@@ -83,6 +104,8 @@ body {
   flex-direction: column;
   gap: var(--space-18);
   padding: var(--space-24) var(--space-30) 0;
+  overflow-y: auto;
+  min-height: 0;
 }
 .gr-content__spacer { height: var(--space-40); flex: none; }
 
