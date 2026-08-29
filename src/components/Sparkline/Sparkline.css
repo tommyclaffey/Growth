@@ -1,0 +1,15 @@
+.gr-spark { flex: none; display: block; }
+
+/* Bars sit on the baseline and grow up, so the bottom edge is a shared line
+   the eye can compare against. Rounded tops only — a rounded foot would lift
+   the bar off that line. */
+.gr-spark--bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+}
+.gr-spark__bar {
+  flex: 1;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+}

@@ -1,6 +1,9 @@
 import './KpiCard.css';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
+import { Sparkline } from '../Sparkline/Sparkline';
+import type { Metric } from '../../data/metrics';
+import type { ChannelName } from '../../styles/tokens';
 
 export interface KpiCardProps {
   label: string;
@@ -15,8 +18,11 @@ export interface KpiCardProps {
   higherIsBetter?: boolean;
   /** 0-1. Renders the pace-to-target bar instead of a sparkline. */
   progress?: number;
-  /** Relative heights 0-1, oldest first. Seven points in the Figma spec. */
+  /** Raw values, oldest first. Seven points in the Figma spec. */
   sparkline?: number[];
+  /** Passed through so the mark follows the same rule the chart does. */
+  metric?: Metric;
+  channel?: ChannelName | 'all';
   loading?: boolean;
   /** Renders the error state: an em dash, and the badge and sparkline in semantic/bad. */
   error?: boolean;
@@ -44,6 +50,8 @@ export function KpiCard({
   higherIsBetter = true,
   progress,
   sparkline,
+  metric,
+  channel,
   loading = false,
   error = false,
   onDiscuss,
@@ -91,15 +99,7 @@ export function KpiCard({
         {progress !== undefined ? (
           <ProgressBar value={progress} label={label} />
         ) : sparkline && sparkline.length > 0 ? (
-          <span className="gr-kpi__spark" aria-hidden="true">
-            {sparkline.map((h, i) => (
-              <span
-                key={i}
-                className="gr-kpi__spark-bar"
-                style={{ height: `${Math.max(0.15, h) * 14}px` }}
-              />
-            ))}
-          </span>
+          <Sparkline values={sparkline} metric={metric} channel={channel} />
         ) : null}
       </span>
     </div>

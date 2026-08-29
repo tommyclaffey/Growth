@@ -132,20 +132,24 @@ export default function App() {
                 <KpiCard onDiscuss={() => shareMetric('Spend')} label="Total spend"
                          value={formatMetric('Spend', view.totals.spend)}
                          deltaPercent={delta(scope, 'Spend', range)}
-                         sparkline={sparkline(scope, 'Spend', range)} />
+                         sparkline={sparkline(scope, 'Spend', range)}
+                         metric="Spend" channel={scope} />
                 <KpiCard onDiscuss={() => shareMetric('Leads')} label="Total leads"
                          value={formatMetric('Leads', view.totals.leads)}
                          deltaPercent={delta(scope, 'Leads', range)}
-                         sparkline={sparkline(scope, 'Leads', range)} />
+                         sparkline={sparkline(scope, 'Leads', range)}
+                         metric="Leads" channel={scope} />
                 <KpiCard onDiscuss={() => shareMetric('CAC')} higherIsBetter={false}
                          label={onChannelScreen ? 'CAC' : 'Blended CAC'}
                          value={formatMetric('CAC', view.totals.cac)}
                          deltaPercent={delta(scope, 'CAC', range)}
-                         sparkline={sparkline(scope, 'CAC', range)} />
+                         sparkline={sparkline(scope, 'CAC', range)}
+                         metric="CAC" channel={scope} />
                 <KpiCard onDiscuss={() => shareMetric('ROAS')} label={onChannelScreen ? 'ROAS' : 'Blended ROAS'}
                          value={formatMetric('ROAS', view.totals.roas)}
                          deltaPercent={delta(scope, 'ROAS', range)}
-                         sparkline={sparkline(scope, 'ROAS', range)} />
+                         sparkline={sparkline(scope, 'ROAS', range)}
+                         metric="ROAS" channel={scope} />
                 <KpiCard label="Pace to target" value="64%" progress={0.64} />
               </div>
 
@@ -160,6 +164,7 @@ export default function App() {
               {!onChannelScreen && (
                 <ChannelTable
                   rows={view.rows}
+                  metric={metric}
                   wideColumns={!chatOpen}
                   onRowClick={(k) => { setNav('channels'); setChannel(k); }}
                 />
@@ -177,7 +182,7 @@ export default function App() {
           )}
 
           {nav === 'channels' && !onChannelScreen && (
-            <ChannelTable rows={view.rows} wideColumns={!chatOpen}
+            <ChannelTable rows={view.rows} metric={metric} wideColumns={!chatOpen}
                           onRowClick={(k) => setChannel(k)} />
           )}
 

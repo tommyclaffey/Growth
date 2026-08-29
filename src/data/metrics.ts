@@ -245,15 +245,18 @@ export function delta(scope: Scope, metric: Metric, range: Range = 30): number {
   return Math.round(((curr - prev) / prev) * 100);
 }
 
-/** A short sparkline, normalised 0..1, for KPI cards and table rows. */
+/**
+ * A short sample of the series for the sparkline mark.
+ *
+ * Returns RAW values. It used to return numbers pre-normalised to 0.25-1,
+ * which meant every caller inherited one hard-coded floor and the mark could
+ * not choose its own scaling — and a value of 0 rendered a quarter-height bar
+ * as if it were real.
+ */
 export function sparkline(scope: Scope, metric: Metric, range: Range = 30, points = 7): number[] {
   const s = series(scope, metric, range).map((d) => d.value);
   const step = Math.max(1, Math.floor(s.length / points));
-  const picked = Array.from({ length: points }, (_, i) => s[Math.min(i * step, s.length - 1)]);
-  const max = Math.max(...picked, 1);
-  const min = Math.min(...picked);
-  const spread = max - min || 1;
-  return picked.map((v) => 0.25 + ((v - min) / spread) * 0.75);
+  return Array.from({ length: points }, (_, i) => s[Math.min(i * step, s.length - 1)]);
 }
 
 /** The raw funnel rows behind a view, with their labels. Used by the export. */

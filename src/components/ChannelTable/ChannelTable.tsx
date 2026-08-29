@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import './ChannelTable.css';
-import { formatMetric } from '../../data/metrics';
+import { formatMetric, type Metric } from '../../data/metrics';
+import { Sparkline } from '../Sparkline/Sparkline';
 import type { ChannelName } from '../../styles/tokens';
 
 /**
@@ -28,6 +29,8 @@ export interface ChannelTableProps {
   onRowClick?: (key: ChannelName) => void;
   /** Chat open shrinks the content column, so the table drops its wide columns. */
   wideColumns?: boolean;
+  /** The metric the trend column is showing, so the mark can follow the rule. */
+  metric?: Metric;
 }
 
 const CSS_CHANNEL: Record<string, string> = {
@@ -44,7 +47,7 @@ const COLUMNS: { key: SortKey; label: string; wideOnly?: boolean; numeric?: bool
   { key: 'delta', label: 'Δ Prev', numeric: true },
 ];
 
-export function ChannelTable({ rows, onRowClick, wideColumns = true }: ChannelTableProps) {
+export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: ChannelTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({
     key: 'spend', dir: 'desc',
   });
@@ -117,12 +120,7 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true }: ChannelTa
                   </span>
                 </td>
                 <td>
-                  <span className="gr-table__spark" aria-hidden="true">
-                    {r.trend.map((h, i) => (
-                      <span key={i} className="gr-table__spark-bar"
-                            style={{ height: `${Math.max(0.2, h) * 14}px` }} />
-                    ))}
-                  </span>
+                  <Sparkline values={r.trend} metric={metric} channel={r.key} />
                 </td>
               </tr>
             );

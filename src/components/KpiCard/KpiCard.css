@@ -43,18 +43,6 @@
 
 
 
-.gr-kpi__spark {
-  margin-left: auto;
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 14px;
-}
-.gr-kpi__spark-bar {
-  width: 5px;
-  border-radius: 1px;
-  background: var(--accent-soft);
-}
 
 /* Loading must read as ABSENT, not as zero. */
 .gr-kpi--loading { cursor: default; }
@@ -104,6 +92,5 @@
 
 /* Error — the value is an em dash and the trend goes flat in semantic/bad-bg,
    so a failed sync reads as absent rather than as zero. */
-.gr-kpi.is-error .gr-kpi__spark-bar { background: var(--semantic-bad-bg); }
 
 @media (prefers-reduced-motion: reduce) { .gr-kpi__discuss { transition: none; } }

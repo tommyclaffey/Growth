@@ -74,7 +74,5 @@
 .gr-table__delta.is-up   { color: var(--semantic-good); }
 .gr-table__delta.is-down { color: var(--semantic-bad); }
 
-.gr-table__spark { display: inline-flex; align-items: flex-end; gap: 3px; height: 14px; }
-.gr-table__spark-bar { width: 4px; border-radius: 1px; background: var(--accent-soft); }
 
 @media (prefers-reduced-motion: reduce) { .gr-table__row { transition: none; } }
