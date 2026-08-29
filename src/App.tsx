@@ -8,6 +8,9 @@ import { ChannelTable, type ChannelRow } from './components/ChannelTable/Channel
 import { CampaignTable } from './components/CampaignTable/CampaignTable';
 import { ThemeToggle } from './components/ThemeToggle/ThemeToggle';
 import { ChannelSwitcher } from './components/ChannelSwitcher/ChannelSwitcher';
+import { Reports } from './screens/Reports';
+import { Notifications } from './screens/Notifications';
+import { Settings } from './screens/Settings';
 import {
   CHANNEL_KEYS, CHANNEL_LABEL, delta, formatMetric, series, sparkline, totals, yTicks,
   type Metric, type Scope,
@@ -59,9 +62,14 @@ export default function App() {
 
   const onChannelScreen = channel !== null;
   const title = onChannelScreen ? CHANNEL_LABEL[channel] : navTitle(nav);
+  const SUBTITLES: Record<string, string> = {
+    reports: 'Scheduled exports sent to your team',
+    notifications: 'Alerts from the last two days',
+    settings: 'Connections, alerts and appearance',
+  };
   const sub = onChannelScreen
     ? `${view.rows.find((r) => r.key === channel)?.spend ?? ''} spend · last 30 days`
-    : 'All channels · last 30 days';
+    : (SUBTITLES[nav] ?? 'All channels · last 30 days');
 
   const showDashboard = nav === 'overview' || (nav === 'channels' && onChannelScreen);
 
@@ -154,10 +162,16 @@ export default function App() {
 
           {nav === 'campaigns' && <CampaignTable wideColumns={!chatOpen} />}
 
-          {(nav === 'reports' || nav === 'notifications' || nav === 'settings') && (
-            <div className="gr-placeholder gr-type-body">
-              {navTitle(nav)} is not built yet.
-            </div>
+          {nav === 'reports' && <Reports />}
+          {nav === 'notifications' && <Notifications />}
+          {nav === 'settings' && (
+            <Settings
+              theme={theme}
+              onThemeChange={(next) => {
+                setTheme(next);
+                document.documentElement.dataset.theme = next;
+              }}
+            />
           )}
 
           <div className="gr-content__spacer" />

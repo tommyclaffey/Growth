@@ -1,0 +1,52 @@
+/* The button is the hit area. It is 44 tall; the switch inside is 24. */
+.gr-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.gr-toggle:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.gr-toggle__track {
+  position: relative;
+  width: 44px; height: 24px; flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--surface-disabled);
+  border: var(--border-width-sm) solid var(--border-default);
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.gr-toggle.is-on .gr-toggle__track {
+  background: var(--accent-base);
+  border-color: var(--accent-base);
+}
+
+.gr-toggle__thumb {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  box-shadow: var(--elevation-raised);
+  transition: transform 140ms ease;
+}
+.gr-toggle.is-on .gr-toggle__thumb { transform: translateX(20px); }
+
+.gr-toggle__label { color: var(--text-primary); }
+
+/* Ring hugs the 44x24 switch, not the 44x44 hit area — the hit area is
+   invisible, so a ring around it would look like a mistake. */
+.gr-toggle:focus-visible { outline: none; }
+.gr-toggle:focus-visible .gr-toggle__track {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gr-toggle__track, .gr-toggle__thumb { transition: none; }
+}

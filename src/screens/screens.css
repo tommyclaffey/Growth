@@ -1,0 +1,48 @@
+/* Shared layout for the three secondary screens. They deliberately reuse
+   .gr-card from ChannelTable rather than inventing new containers. */
+
+.gr-section-head { display: flex; align-items: baseline; gap: var(--space-12); margin-bottom: var(--space-4); }
+.gr-section-head h2 { margin: 0; color: var(--text-primary); }
+.gr-section-head p  { margin: 0; color: var(--text-muted); }
+.gr-section-head .gr-spacer { flex: 1; }
+
+/* Reports */
+.gr-report-name { display: flex; flex-direction: column; gap: 2px; }
+.gr-report-name strong { color: var(--text-primary); font-weight: 500; }
+.gr-report-name span   { color: var(--text-muted); }
+
+/* Notifications */
+.gr-feed { display: flex; flex-direction: column; }
+.gr-feed__day {
+  padding: var(--space-16) 0 var(--space-8);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.gr-feed__item {
+  display: flex; align-items: flex-start; gap: var(--space-12);
+  padding: var(--space-14) 0;
+  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-feed__item:last-child { border-bottom: none; }
+.gr-feed__dot { width: 8px; height: 8px; margin-top: 6px; border-radius: var(--radius-pill); flex: none; }
+.gr-feed__dot--bad  { background: var(--semantic-bad); }
+.gr-feed__dot--warn { background: var(--semantic-warn); }
+.gr-feed__dot--good { background: var(--semantic-good); }
+.gr-feed__body { flex: 1; min-width: 0; }
+.gr-feed__body p { margin: 0; color: var(--text-primary); }
+.gr-feed__meta { margin-top: 3px !important; color: var(--text-muted) !important; }
+.gr-feed__unread { width: 6px; height: 6px; border-radius: var(--radius-pill); background: var(--accent-base); flex: none; margin-top: 7px; }
+
+/* Settings */
+.gr-settings { display: flex; flex-direction: column; gap: var(--space-18); }
+.gr-setting-row {
+  display: flex; align-items: center; gap: var(--space-16);
+  padding: var(--space-12) 0;
+  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-setting-row:last-child { border-bottom: none; }
+.gr-setting-row__text { flex: 1; min-width: 0; }
+.gr-setting-row__text strong { display: block; color: var(--text-primary); font-weight: 500; }
+.gr-setting-row__text span   { color: var(--text-muted); }
+.gr-setting-row__channel { display: inline-flex; align-items: center; gap: var(--space-8); }
+.gr-setting-row__dot { width: 8px; height: 8px; border-radius: var(--radius-pill); flex: none; }
