@@ -6,7 +6,9 @@ import { Badge } from '../components/Badge/Badge';
 import { FormField } from '../components/FormField/FormField';
 import { CHANNEL_KEYS, CHANNEL_LABEL } from '../data/metrics';
 import type { ChannelName } from '../styles/tokens';
-import { CSS_CHANNEL } from '../styles/tokens';
+import { AvatarUpload } from '../components/AvatarUpload/AvatarUpload';
+import { ChannelMark } from '../components/ChannelMark/ChannelMark';
+import { ME, ME_ROLE } from '../data/chat';
 
 
 const SYNCED: Record<ChannelName, string> = {
@@ -42,6 +44,18 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
       <div className="gr-settings">
         <section className="gr-card">
           <header className="gr-card__header">
+            <div className="gr-card__heading">
+              <h3 className="gr-card__title gr-type-card-heading">Account</h3>
+              <p className="gr-card__sub gr-type-caption">{ME.name} · {ME_ROLE}</p>
+            </div>
+          </header>
+          <div className="gr-card__body">
+            <AvatarUpload />
+          </div>
+        </section>
+
+        <section className="gr-card">
+          <header className="gr-card__header">
             <h3 className="gr-card__title gr-type-card-heading">Channels</h3>
             <Button variant="ghost" disabled title="Connecting a channel is an OAuth flow, out of scope for this prototype">
               Add channel
@@ -53,9 +67,7 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
             return (
               <div key={key} className="gr-setting-row">
                 <span className="gr-setting-row__channel gr-type-body-medium">
-                  <span className="gr-setting-row__dot"
-                        style={{ background: `var(--channel-${CSS_CHANNEL[key]})` }}
-                        aria-hidden="true" />
+                  <ChannelMark channel={key} size={16} />
                   {CHANNEL_LABEL[key]}
                 </span>
                 <span className="gr-setting-row__text">

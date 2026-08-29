@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import './Sidebar.css';
 import { Avatar } from '../Avatar/Avatar';
 import { ME, ME_ROLE } from '../../data/chat';
+import { useMyAvatar } from '../../data/profile';
 
 export type NavKey = 'overview' | 'channels' | 'campaigns' | 'reports' | 'notifications' | 'settings';
 
@@ -30,6 +31,7 @@ const NAV: { key: NavKey; label: string; icon: ReactElement }[] = [
  * would take Nav item from 28 variants to 56 for zero added expressiveness.
  */
 export function Sidebar({ active, onNavigate }: SidebarProps) {
+  const myAvatar = useMyAvatar();
   return (
     <nav className="gr-sidebar" aria-label="Main">
       <div className="gr-sidebar__logo">
@@ -70,7 +72,7 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
         {/* The real avatar component rather than a gradient circle standing in
             for one — same initials and hue she carries in the chat panel, so
             she is recognisably the same person in both places. */}
-        <Avatar initials={ME.initials} hue={ME.hue} size={28} src={ME.avatar} name={ME.name} />
+        <Avatar initials={ME.initials} hue={ME.hue} size={28} src={myAvatar} name={ME.name} />
         <span className="gr-navitem__account">
           <span className="gr-navitem__name">{ME.name}</span>
           <span className="gr-navitem__role gr-type-micro">{ME_ROLE}</span>

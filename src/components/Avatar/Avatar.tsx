@@ -12,7 +12,9 @@ export interface AvatarProps {
   src?: string;
   /** Fixed per person, so someone is the same colour in every context. */
   hue: 0 | 1 | 2 | 3;
-  size?: 24 | 28 | 36;
+  /* Figma's Avatar set is Size=24 / 28 / 64. 64 was missing here, so the one
+     place that needs a large avatar could not ask for it. */
+  size?: 24 | 28 | 36 | 64;
   name?: string;
 }
 

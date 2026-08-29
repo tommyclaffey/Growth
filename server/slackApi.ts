@@ -85,7 +85,11 @@ async function slack<T>(method: string, token: string, body: Record<string, unkn
 
 /* ---------- users ---------- */
 
-interface SlackUser { id: string; name: string; initials: string; hue: 0 | 1 | 2 | 3 }
+interface SlackUser {
+  id: string; name: string; initials: string; hue: 0 | 1 | 2 | 3;
+  /** Slack profile picture, when the person has set one. */
+  avatar?: string;
+}
 const userCache = new Map<string, SlackUser>();
 
 function hueFor(id: string): 0 | 1 | 2 | 3 {
@@ -105,11 +109,23 @@ async function resolveUser(id: string, token: string): Promise<SlackUser> {
   if (hit) return hit;
   let u: SlackUser;
   try {
-    const r = await slack<{ user: { real_name?: string; profile?: { display_name?: string; real_name?: string } } }>(
-      'users.info', token, { user: id });
-    const name = r.user.profile?.display_name?.trim() || r.user.profile?.real_name?.trim()
+    const r = await slack<{
+      user: {
+        real_name?: string;
+        profile?: {
+          display_name?: string; real_name?: string;
+          image_72?: string; image_192?: string; image_512?: string;
+        };
+      };
+    }>('users.info', token, { user: id });
+    const prof = r.user.profile;
+    const name = prof?.display_name?.trim() || prof?.real_name?.trim()
       || r.user.real_name?.trim() || id;
-    u = { id, name, initials: initialsFrom(name), hue: hueFor(id) };
+    /* 192 rather than 72: the panel renders at 28 CSS px, which is 56 physical
+       on a 2x display, and Slack's 72 is visibly soft once it is a circle.
+       Falls through the sizes because not every account has every one. */
+    const avatar = prof?.image_192 || prof?.image_512 || prof?.image_72;
+    u = { id, name, initials: initialsFrom(name), hue: hueFor(id), avatar };
   } catch {
     /* Deleted user, or users:read not granted. The message still exists — show
        it rather than dropping it.

@@ -1,0 +1,54 @@
+.gr-upload {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+}
+
+.gr-upload__drop {
+  flex: 1;
+  min-width: 240px;
+  padding: var(--space-14) var(--space-16);
+  border: var(--border-width-sm) dashed var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-page-top);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.gr-upload__drop.is-over {
+  border-color: var(--accent-base);
+  background: var(--accent-tint);
+}
+.gr-upload__drop.is-busy { opacity: 0.6; }
+.gr-upload__drop p { margin: 0; }
+
+.gr-upload__label {
+  color: var(--accent-text);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+/* The input is visually hidden, so its focus ring has to be drawn on the
+   label — otherwise tabbing to it looks like focus vanished. */
+.gr-upload__drop:focus-within .gr-upload__label {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.gr-upload__hint { color: var(--text-muted); margin-top: var(--space-4) !important; }
+
+.gr-upload__remove {
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  padding: var(--space-8) var(--space-12);
+  cursor: pointer;
+  font-family: inherit;
+}
+.gr-upload__remove:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-upload__remove:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px;
+}
+
+.gr-upload__error { color: var(--semantic-bad); flex-basis: 100%; margin: 0; }

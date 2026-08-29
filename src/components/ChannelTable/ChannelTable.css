@@ -9,7 +9,25 @@
   box-shadow: var(--elevation-card);
 }
 
-.gr-card__header { display: flex; align-items: center; padding-bottom: var(--space-10); }
+/* ⚠️ `gr-card__header` is a shared class that happens to live in this
+   component's stylesheet. Left here on purpose rather than moved to index.css:
+   the rule has no extra specificity, so whichever sheet loads last wins, and
+   moving it would hand that fight to import order. Ownership should follow in
+   a deliberate pass, not as a side effect of adding a gap.
+
+   The gap is the fix: with none, a title sat flush against whatever followed
+   it — "ChannelsAdd channel", "AccountMaya Okonkwo". */
+.gr-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding-bottom: var(--space-10);
+}
+
+/* A subtitle is not an action, so it stacks under the title rather than
+   sitting beside it on the header's main axis. */
+.gr-card__heading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gr-card__sub { color: var(--text-muted); margin: 0; }
 .gr-card__title  { margin: 0; color: var(--text-primary); }
 
 .gr-card__sort {
