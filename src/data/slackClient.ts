@@ -15,6 +15,9 @@ export interface WorkspaceSummary {
   teamName: string;
   channelId: string | null;
   channelName: string | null;
+  channelKind?: string;
+  /** Local person id -> Slack user id. */
+  links?: Record<string, string>;
 }
 
 export interface SlackStatus {

@@ -8,6 +8,7 @@ import { CHANNEL_KEYS, CHANNEL_LABEL } from '../data/metrics';
 import type { ChannelName } from '../styles/tokens';
 import { AvatarUpload } from '../components/AvatarUpload/AvatarUpload';
 import { ChannelMark } from '../components/ChannelMark/ChannelMark';
+import { AccountLinks } from '../components/AccountLinks/AccountLinks';
 import { ME, ME_ROLE } from '../data/chat';
 
 
@@ -51,6 +52,20 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
           </header>
           <div className="gr-card__body">
             <AvatarUpload />
+          </div>
+        </section>
+
+        <section className="gr-card">
+          <header className="gr-card__header">
+            <div className="gr-card__heading">
+              <h3 className="gr-card__title gr-type-card-heading">Slack accounts</h3>
+              <p className="gr-card__sub gr-type-caption">
+                Link a person here to their Slack account so they are one person, not two.
+              </p>
+            </div>
+          </header>
+          <div className="gr-card__body">
+            <AccountLinks />
           </div>
         </section>
 
