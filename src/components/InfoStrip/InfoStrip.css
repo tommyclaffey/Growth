@@ -1,6 +1,7 @@
 .gr-strip {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-10);
   min-height: 50px;
   padding: var(--space-12) var(--space-16);
@@ -22,6 +23,20 @@
   border-radius: var(--radius-sm);
   background: var(--semantic-warn-bg);
   color: var(--semantic-warn);
+}
+
+/* Lead group never wraps internally — the title, count and dot belong together. */
+.gr-strip__lead { display: flex; align-items: center; gap: var(--space-10); flex: none; }
+
+/* Pills take the remaining room and wrap within it, right-aligned so a single
+   row still reads the way it was designed. */
+.gr-strip__pills {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-10);
+  min-width: 0;
 }
 
 .gr-strip__spacer { flex: 1; }

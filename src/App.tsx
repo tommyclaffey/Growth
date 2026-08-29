@@ -85,11 +85,16 @@ export default function App() {
         <header className="gr-header">
           <div className="gr-toolbar">
             <div className="gr-toolbar__title">
-              {onChannelScreen && (
-                <button type="button" className="gr-crumb gr-type-caption" onClick={() => setChannel(null)}>
-                  Channels <span aria-hidden="true">›</span> {title}
-                </button>
-              )}
+              {/* The crumb row is always present, empty on screens without one.
+                  Rendering it conditionally made the header a different height
+                  on channel screens, so the whole page shifted on drill-in. */}
+              <div className="gr-crumb-slot">
+                {onChannelScreen && (
+                  <button type="button" className="gr-crumb gr-type-caption" onClick={() => setChannel(null)}>
+                    Channels <span aria-hidden="true">›</span> {title}
+                  </button>
+                )}
+              </div>
               <h1 className="gr-type-page-title">{title}</h1>
               <p className="gr-type-caption">{sub}</p>
             </div>

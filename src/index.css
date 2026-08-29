@@ -128,3 +128,7 @@ body {
   outline-offset: 1px;
   border-color: transparent;
 }
+
+/* Fixed-height crumb row. Present on every screen, occupied only on drill-in,
+   so the header is the same height everywhere and the page never jumps. */
+.gr-crumb-slot { height: 18px; display: flex; align-items: center; }
