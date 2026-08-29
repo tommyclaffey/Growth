@@ -1,0 +1,131 @@
+.gr-assist__scrim {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 10vh var(--space-24) var(--space-24);
+  background: rgba(10, 10, 20, 0.4);
+  backdrop-filter: blur(2px);
+}
+
+/* 720 wide, capped so the reading measure stays sane on a large screen. */
+.gr-assist {
+  width: 100%; max-width: 720px;
+  max-height: 76vh;
+  display: flex; flex-direction: column;
+  border-radius: var(--radius-xl);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-card);
+  box-shadow: var(--elevation-menu);
+  overflow: hidden;
+}
+
+.gr-assist__head {
+  display: flex; align-items: center; gap: var(--space-12);
+  padding: var(--space-18) var(--space-20);
+  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-assist__head h2 { margin: 0; color: var(--text-primary); }
+.gr-assist__head p  { margin: 2px 0 0; color: var(--text-muted); }
+.gr-assist__mark {
+  width: 28px; height: 28px; flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--accent-tint);
+  color: var(--accent-text);
+}
+.gr-assist__close {
+  margin-left: auto;
+  width: 28px; height: 28px;
+  border: none; border-radius: var(--radius-pill);
+  background: var(--surface-page-top); color: var(--icon-default);
+  cursor: pointer;
+}
+.gr-assist__close:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+
+.gr-assist__body {
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column; gap: var(--space-24);
+  padding: var(--space-20);
+}
+
+.gr-assist__empty { display: flex; flex-direction: column; gap: var(--space-16); }
+.gr-assist__empty p { margin: 0; color: var(--text-secondary); }
+.gr-assist__suggestions { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+.gr-assist__suggestion {
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-md);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-page-top);
+  color: var(--text-secondary);
+  cursor: pointer; font-family: inherit; text-align: left;
+}
+.gr-assist__suggestion:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-assist__suggestion:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+
+.gr-assist__turn { display: flex; flex-direction: column; gap: var(--space-12); }
+.gr-assist__q {
+  align-self: flex-end;
+  max-width: 80%;
+  margin: 0;
+  padding: var(--space-10) var(--space-14);
+  border-radius: var(--radius-lg);
+  background: var(--accent-tint);
+  color: var(--accent-text);
+}
+.gr-assist__a p { margin: 0; color: var(--text-secondary); }
+
+/* A refusal is styled as information, not as an error. It is the assistant
+   working correctly, and colouring it red would teach people to avoid it. */
+.gr-assist__a.is-refusal p { color: var(--text-muted); }
+
+.gr-assist__evidence {
+  margin-top: var(--space-12);
+  padding: var(--space-12) var(--space-14);
+  border-radius: var(--radius-md);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-page-top);
+}
+.gr-assist__evidence-head { color: var(--text-muted); margin: 0 0 var(--space-8); }
+.gr-assist__row {
+  display: flex; align-items: center; gap: var(--space-8);
+  margin: 0 !important; padding: 3px 0;
+  color: var(--text-secondary) !important;
+}
+.gr-assist__dot { width: 8px; height: 8px; border-radius: var(--radius-pill); flex: none; }
+.gr-assist__row-label { flex: 1; min-width: 0; }
+.gr-assist__row-value { color: var(--text-primary); }
+
+.gr-assist__composer {
+  display: flex; align-items: flex-end; gap: var(--space-10);
+  padding: var(--space-14) var(--space-20);
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-assist__input {
+  flex: 1;
+  min-height: 40px; max-height: 120px;
+  padding: var(--space-10) var(--space-12);
+  border-radius: var(--radius-md);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-page-top);
+  color: var(--text-primary);
+  font-family: inherit; resize: none;
+}
+.gr-assist__input:focus {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 1px; border-color: transparent;
+}
+.gr-assist__send {
+  width: 40px; height: 40px; flex: none;
+  display: grid; place-items: center;
+  border: none; border-radius: var(--radius-md);
+  background: var(--accent-base); color: var(--brand-on-accent);
+  cursor: pointer;
+}
+.gr-assist__send:disabled {
+  background: var(--surface-disabled); color: var(--text-disabled); cursor: not-allowed;
+}
+.gr-assist__send:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+
+.gr-assist__foot {
+  padding: 0 var(--space-20) var(--space-14);
+  color: var(--text-muted);
+}

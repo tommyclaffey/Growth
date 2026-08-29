@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Sidebar, type NavKey } from './components/Sidebar/Sidebar';
 import { Button } from './components/Button/Button';
 import { KpiCard } from './components/KpiCard/KpiCard';
@@ -10,6 +10,7 @@ import { ThemeToggle } from './components/ThemeToggle/ThemeToggle';
 import { ChannelSwitcher } from './components/ChannelSwitcher/ChannelSwitcher';
 import { RangePicker } from './components/RangePicker/RangePicker';
 import { ChatPanel } from './components/ChatPanel/ChatPanel';
+import { Assistant } from './components/Assistant/Assistant';
 import { downloadCsv } from './data/exportCsv';
 import { Reports } from './screens/Reports';
 import { Notifications } from './screens/Notifications';
@@ -30,6 +31,19 @@ export default function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [range, setRange] = useState<Range>(30);
   const [pendingView, setPendingView] = useState<ViewRef | null>(null);
+  const [assistOpen, setAssistOpen] = useState(false);
+
+  // Cmd/Ctrl-K, the shortcut people already try in a product like this.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setAssistOpen((o) => !o);
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
 
   function toggleTheme() {
@@ -120,6 +134,7 @@ export default function App() {
             />
             <RangePicker value={range} onChange={setRange} />
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            <Button variant="ghost" onClick={() => setAssistOpen(true)}>Ask</Button>
             <Button variant="ghost" onClick={() => setChatOpen(!chatOpen)}>Chat</Button>
             <Button variant="primary" onClick={() => downloadCsv(scope, range)}>Export</Button>
           </div>
@@ -203,6 +218,8 @@ export default function App() {
           <div className="gr-content__spacer" />
         </main>
       </div>
+
+      <Assistant open={assistOpen} onClose={() => setAssistOpen(false)} range={range} />
 
       {chatOpen && (
         <ChatPanel
