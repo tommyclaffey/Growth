@@ -59,12 +59,18 @@ export async function loadThread(): Promise<Thread> {
        indistinguishable from a failure. Keep the seed until there is something
        real to show. */
     if (!d.messages?.length) return seeded;
+    /* Seed first, then the live channel.
+       The scripted thread is not fake next to real data — the whole account is
+       invented, and $160,780 of spend is exactly as made up as Amara's message.
+       What it is, is written: it shows what the panel is for in four messages,
+       which a real channel reading "this is a test" does not. It stays as
+       history above the live conversation. */
     return {
       /* Rebuild any shared metric card from the link in the message text. */
-      messages: d.messages.map((m) => {
+      messages: [...SEED, ...d.messages.map((m) => {
         const found = decodeView(m.body);
         return found ? { ...m, body: found.text, view: found.view } : m;
-      }),
+      })],
       members: { ...MEMBERS, ...(d.members ?? {}) },
       source: 'slack',
       team: d.team,

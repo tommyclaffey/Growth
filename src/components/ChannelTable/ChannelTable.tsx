@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './ChannelTable.css';
+import { ChannelMark } from '../ChannelMark/ChannelMark';
 import { formatMetric, type Metric } from '../../data/metrics';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { Sparkline } from '../Sparkline/Sparkline';
@@ -34,10 +35,6 @@ export interface ChannelTableProps {
   metric?: Metric;
 }
 
-const CSS_CHANNEL: Record<string, string> = {
-  meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
-  affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
-};
 
 const COLUMNS: { key: SortKey; label: string; wideOnly?: boolean; numeric?: boolean }[] = [
   { key: 'name',  label: 'Channel' },
@@ -104,9 +101,7 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
               <tr key={r.key} className="gr-table__row" onClick={() => onRowClick?.(r.key)} tabIndex={0}>
                 <td>
                   <span className="gr-table__channel gr-type-body-medium">
-                    <span className="gr-table__dot"
-                          style={{ background: `var(--channel-${CSS_CHANNEL[r.key] ?? r.key})` }}
-                          aria-hidden="true" />
+                    <ChannelMark channel={r.key} size={16} />
                     {r.name}
                   </span>
                 </td>

@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import './ChannelSwitcher.css';
+import { ChannelMark } from '../ChannelMark/ChannelMark';
 import { CHANNEL_KEYS, CHANNEL_LABEL } from '../../data/metrics';
 import type { ChannelName } from '../../styles/tokens';
 
-const CSS_CHANNEL: Record<string, string> = {
-  meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
-  affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
-};
 
 export interface ChannelSwitcherProps {
   value: ChannelName | null;
@@ -61,9 +58,7 @@ export function ChannelSwitcher({ value, onChange }: ChannelSwitcherProps) {
         aria-expanded={open}
       >
         {value && (
-          <span className="gr-switcher__dot"
-                style={{ background: `var(--channel-${CSS_CHANNEL[value]})` }}
-                aria-hidden="true" />
+          <ChannelMark channel={value} size={16} />
         )}
         {value ? CHANNEL_LABEL[value] : 'All channels'}
         <svg width="8" height="5" viewBox="0 0 8 5" aria-hidden="true" className="gr-switcher__caret">
@@ -90,9 +85,7 @@ export function ChannelSwitcher({ value, onChange }: ChannelSwitcherProps) {
               className={`gr-switcher__row gr-type-body ${value === key ? 'is-selected' : ''}`}
               onClick={() => pick(key)}
             >
-              <span className="gr-switcher__dot"
-                    style={{ background: `var(--channel-${CSS_CHANNEL[key]})` }}
-                    aria-hidden="true" />
+              <ChannelMark channel={key} size={16} />
               <span className="gr-switcher__label">{CHANNEL_LABEL[key]}</span>
               {value === key && <span className="gr-switcher__check" aria-hidden="true">✓</span>}
             </button>

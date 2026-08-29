@@ -13,11 +13,8 @@ import {
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { Avatar } from '../Avatar/Avatar';
 import type { ChannelName } from '../../styles/tokens';
+import { CSS_CHANNEL } from '../../styles/tokens';
 
-const CSS_CHANNEL: Record<string, string> = {
-  meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
-  affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
-};
 
 export interface ChatPanelProps {
   onClose: () => void;

@@ -6,11 +6,8 @@ import { Badge } from '../components/Badge/Badge';
 import { FormField } from '../components/FormField/FormField';
 import { CHANNEL_KEYS, CHANNEL_LABEL } from '../data/metrics';
 import type { ChannelName } from '../styles/tokens';
+import { CSS_CHANNEL } from '../styles/tokens';
 
-const CSS_CHANNEL: Record<string, string> = {
-  meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
-  affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
-};
 
 const SYNCED: Record<ChannelName, string> = {
   meta: '4 minutes ago', tiktok: '11 minutes ago', youtube: '6 minutes ago',

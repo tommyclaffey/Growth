@@ -1,13 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { CSS_CHANNEL } from '../../styles/tokens';
 import './Assistant.css';
 import { SUGGESTIONS, type Answer } from '../../data/assistant';
 import { askAssistant, probeModel, type AnswerSource } from '../../data/assistantClient';
 import { RANGE_LABEL, type Range } from '../../data/metrics';
 
-const CSS_CHANNEL: Record<string, string> = {
-  meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
-  affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
-};
 
 interface Turn { id: number; question: string; answer: Answer; source: AnswerSource }
 
