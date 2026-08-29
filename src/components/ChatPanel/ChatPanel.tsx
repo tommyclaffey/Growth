@@ -5,7 +5,10 @@ import {
   MEMBERS, ME, SEED, groupMessages, relativeTime,
   type Message, type ViewRef,
 } from '../../data/chat';
-import { CHANNEL_LABEL, RANGE_LABEL, formatMetric, totals, type Scope } from '../../data/metrics';
+import {
+  CHANNEL_LABEL, delta, formatMetric, isRatio, series, totals, type Scope,
+} from '../../data/metrics';
+import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import type { ChannelName } from '../../styles/tokens';
 
 const CSS_CHANNEL: Record<string, string> = {
@@ -128,9 +131,17 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
   );
 }
 
-/** A shared view, unfurled with its live number rather than a stale screenshot. */
+/**
+ * A shared view, unfurled with its live number rather than a stale screenshot.
+ *
+ * Carries the same three things the KPI card does — value, change, and what
+ * period it is "as of" — because a number in a thread without a date is the
+ * thing people argue about three weeks later.
+ */
 function ViewCard({ view, compact = false }: { view: ViewRef; compact?: boolean }) {
-  const t = totals(view.channel as Scope, view.range);
+  const scope = view.channel as Scope;
+  const t = totals(scope, view.range);
+
   const value =
     view.metric === 'Spend' ? formatMetric('Spend', t.spend)
     : view.metric === 'Leads' ? formatMetric('Leads', t.leads)
@@ -139,6 +150,13 @@ function ViewCard({ view, compact = false }: { view: ViewRef; compact?: boolean 
     : view.metric === 'Sales' ? formatMetric('Sales', t.sales)
     : formatMetric('Clicks', t.clicks);
 
+  const points = series(scope, view.metric, view.range);
+  const asOf = points[points.length - 1]?.label ?? '';
+  const change = delta(scope, view.metric, view.range);
+
+  // Rising CAC is bad; rising everything else here is good.
+  const higherIsBetter = view.metric !== 'CAC';
+
   const label = view.channel === 'all' ? 'All channels' : CHANNEL_LABEL[view.channel as ChannelName];
   const dot = view.channel === 'all'
     ? 'var(--accent-base)'
@@ -146,12 +164,20 @@ function ViewCard({ view, compact = false }: { view: ViewRef; compact?: boolean 
 
   return (
     <div className={`gr-viewcard ${compact ? 'is-compact' : ''}`}>
-      <span className="gr-viewcard__dot" style={{ background: dot }} aria-hidden="true" />
-      <div className="gr-viewcard__text">
-        <span className="gr-viewcard__title gr-type-caption-med">{label} · {view.metric}</span>
-        <span className="gr-viewcard__sub gr-type-micro">{RANGE_LABEL[view.range]}</span>
-      </div>
-      <span className="gr-viewcard__value gr-type-body-medium">{value}</span>
+      <p className="gr-viewcard__head gr-type-caption">
+        <span className="gr-viewcard__dot" style={{ background: dot }} aria-hidden="true" />
+        {label} · as of {asOf}
+      </p>
+      <p className="gr-viewcard__metric gr-type-body">{view.metric}</p>
+      <p className="gr-viewcard__row">
+        <span className="gr-viewcard__value gr-type-kpi-value">{value}</span>
+        <DeltaBadge percent={change} higherIsBetter={higherIsBetter} />
+      </p>
+      {isRatio(view.metric) && (
+        <p className="gr-viewcard__note gr-type-micro">
+          Ratio — computed from the period, not summed
+        </p>
+      )}
     </div>
   );
 }

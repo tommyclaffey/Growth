@@ -1,0 +1,13 @@
+.gr-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 24px;
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  background: var(--surface-page-top);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.gr-delta.is-good { background: var(--semantic-good-bg); color: var(--semantic-good); }
+.gr-delta.is-bad  { background: var(--semantic-bad-bg);  color: var(--semantic-bad); }

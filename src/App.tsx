@@ -137,7 +137,8 @@ export default function App() {
                          value={formatMetric('Leads', view.totals.leads)}
                          deltaPercent={delta(scope, 'Leads', range)}
                          sparkline={sparkline(scope, 'Leads', range)} />
-                <KpiCard onClick={() => shareMetric('CAC')} label={onChannelScreen ? 'CAC' : 'Blended CAC'}
+                <KpiCard onClick={() => shareMetric('CAC')} higherIsBetter={false}
+                         label={onChannelScreen ? 'CAC' : 'Blended CAC'}
                          value={formatMetric('CAC', view.totals.cac)}
                          deltaPercent={delta(scope, 'CAC', range)}
                          sparkline={sparkline(scope, 'CAC', range)} />

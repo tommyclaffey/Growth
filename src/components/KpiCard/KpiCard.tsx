@@ -1,10 +1,17 @@
 import './KpiCard.css';
+import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 
 export interface KpiCardProps {
   label: string;
   value: string;
-  /** e.g. 8 for +8%. Sign drives the arrow and the colour. */
+  /** e.g. 8 for +8%. Sign drives the arrow. */
   deltaPercent?: number;
+  /**
+   * Whether a rise is good news. False for cost metrics like CAC, where a
+   * falling number is the win — colouring by direction alone paints an
+   * improving CAC red.
+   */
+  higherIsBetter?: boolean;
   /** 0-1. Renders the pace-to-target bar instead of a sparkline. */
   progress?: number;
   /** Relative heights 0-1, oldest first. Seven points in the Figma spec. */
@@ -29,6 +36,7 @@ export function KpiCard({
   label,
   value,
   deltaPercent,
+  higherIsBetter = true,
   progress,
   sparkline,
   loading = false,
@@ -44,8 +52,6 @@ export function KpiCard({
     );
   }
 
-  const up = (deltaPercent ?? 0) >= 0;
-
   return (
     <button type="button" className="gr-kpi" onClick={onClick}>
       <span className="gr-kpi__label gr-type-label-field">{label}</span>
@@ -53,11 +59,7 @@ export function KpiCard({
 
       <span className="gr-kpi__foot">
         {deltaPercent !== undefined && (
-          <span className={`gr-kpi__badge gr-type-caption-med ${up ? 'is-up' : 'is-down'}`}>
-            <span aria-hidden="true">{up ? '↑' : '↓'}</span>
-            {Math.abs(deltaPercent)}%
-            <span className="gr-sr-only">{up ? 'increase' : 'decrease'}</span>
-          </span>
+          <DeltaBadge percent={deltaPercent} higherIsBetter={higherIsBetter} />
         )}
 
         {progress !== undefined ? (
