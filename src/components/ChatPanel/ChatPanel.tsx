@@ -5,7 +5,7 @@ import {
   MEMBERS, ME, SEED, groupMessages, relativeTime,
   type Message, type ViewRef,
 } from '../../data/chat';
-import { CHANNEL_LABEL, RANGE_LABEL, formatMetric, totals, type Metric, type Range, type Scope } from '../../data/metrics';
+import { CHANNEL_LABEL, RANGE_LABEL, formatMetric, totals, type Scope } from '../../data/metrics';
 import type { ChannelName } from '../../styles/tokens';
 
 const CSS_CHANNEL: Record<string, string> = {
@@ -15,8 +15,14 @@ const CSS_CHANNEL: Record<string, string> = {
 
 export interface ChatPanelProps {
   onClose: () => void;
-  /** The view currently on screen, so it can be shared into the thread. */
-  current: { channel: ChannelName | 'all'; metric: Metric; range: Range };
+  /**
+   * A view staged for sending, set by clicking a KPI card on the dashboard.
+   * The composer does not offer an attach button — you attach a metric by
+   * clicking the metric, which is the only place you are already looking at
+   * the number you want to talk about.
+   */
+  pending: ViewRef | null;
+  onClearPending: () => void;
 }
 
 /**
@@ -28,10 +34,9 @@ export interface ChatPanelProps {
  * "Meta CAC is up" and a screenshot of Meta CAC are different artifacts —
  * one goes stale the moment the data moves, the other does not.
  */
-export function ChatPanel({ onClose, current }: ChatPanelProps) {
+export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>(SEED);
   const [draft, setDraft] = useState('');
-  const [attach, setAttach] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   // Follow the conversation as it grows, the way every chat client does.
@@ -39,9 +44,14 @@ export function ChatPanel({ onClose, current }: ChatPanelProps) {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages.length]);
 
+  // A newly staged view should be visible without scrolling for it.
+  useEffect(() => {
+    if (pending) endRef.current?.scrollIntoView({ block: 'end' });
+  }, [pending]);
+
   function send() {
     const body = draft.trim();
-    if (!body && !attach) return;
+    if (!body && !pending) return;
     setMessages((prev) => [
       ...prev,
       {
@@ -49,11 +59,11 @@ export function ChatPanel({ onClose, current }: ChatPanelProps) {
         authorId: ME.id,
         body: body || 'Sharing this view.',
         minutesAgo: 0,
-        view: attach ? { ...current } : undefined,
+        view: pending ?? undefined,
       },
     ]);
     setDraft('');
-    setAttach(false);
+    onClearPending();
   }
 
   const groups = groupMessages(messages);
@@ -96,30 +106,17 @@ export function ChatPanel({ onClose, current }: ChatPanelProps) {
       </div>
 
       <div className="gr-chat__composer">
-        {attach && (
+        {pending && (
           <div className="gr-chat__attachment">
-            <ViewCard view={current} compact />
-            <button type="button" className="gr-chat__unattach" onClick={() => setAttach(false)}
-                    aria-label="Remove attached view">✕</button>
+            <ViewCard view={pending} compact />
+            <button type="button" className="gr-chat__unattach" onClick={onClearPending}
+                    aria-label="Remove attached metric">✕</button>
           </div>
         )}
         <div className="gr-chat__row">
-          <button
-            type="button"
-            className={`gr-chat__attach ${attach ? 'is-on' : ''}`}
-            onClick={() => setAttach((a) => !a)}
-            aria-pressed={attach}
-            aria-label="Attach the view you are looking at"
-            title="Attach current view"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <rect x="1.5" y="1.5" width="11" height="11" rx="2.5" />
-              <path d="M4 9V7M7 9V4.5M10 9V6" strokeLinecap="round" />
-            </svg>
-          </button>
           <input
             className="gr-chat__input gr-type-body"
-            placeholder="Message #growth-analytics"
+            placeholder={pending ? 'Add a comment…' : 'Message #growth-analytics'}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') send(); }}

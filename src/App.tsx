@@ -20,6 +20,7 @@ import {
   type Metric, type Range, type Scope,
 } from './data/metrics';
 import type { ChannelName } from './styles/tokens';
+import type { ViewRef } from './data/chat';
 
 export default function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -28,6 +29,8 @@ export default function App() {
   const [metric, setMetric] = useState<Metric>('Spend');
   const [chatOpen, setChatOpen] = useState(false);
   const [range, setRange] = useState<Range>(30);
+  const [pendingView, setPendingView] = useState<ViewRef | null>(null);
+
 
   function toggleTheme() {
     const next = theme === 'light' ? 'dark' : 'light';
@@ -36,6 +39,15 @@ export default function App() {
   }
 
   const scope: Scope = channel ?? 'all';
+
+  /* Clicking a KPI card stages that metric in the chat composer and opens the
+     panel. This is what makes the card clickable — it was a <button> with no
+     handler, which is the same dead control as a switch that flips nothing. */
+  function shareMetric(m: Metric) {
+    setPendingView({ channel: scope, metric: m, range });
+    setChatOpen(true);
+  }
+
 
   /* Everything below is derived from `scope` and `metric`. Changing either one
      recomputes the whole screen — the KPI values, the deltas, the sparklines,
@@ -117,19 +129,19 @@ export default function App() {
           {showDashboard && (
             <>
               <div className="gr-kpi-row">
-                <KpiCard label="Total spend"
+                <KpiCard onClick={() => shareMetric('Spend')} label="Total spend"
                          value={formatMetric('Spend', view.totals.spend)}
                          deltaPercent={delta(scope, 'Spend', range)}
                          sparkline={sparkline(scope, 'Spend', range)} />
-                <KpiCard label="Total leads"
+                <KpiCard onClick={() => shareMetric('Leads')} label="Total leads"
                          value={formatMetric('Leads', view.totals.leads)}
                          deltaPercent={delta(scope, 'Leads', range)}
                          sparkline={sparkline(scope, 'Leads', range)} />
-                <KpiCard label={onChannelScreen ? 'CAC' : 'Blended CAC'}
+                <KpiCard onClick={() => shareMetric('CAC')} label={onChannelScreen ? 'CAC' : 'Blended CAC'}
                          value={formatMetric('CAC', view.totals.cac)}
                          deltaPercent={delta(scope, 'CAC', range)}
                          sparkline={sparkline(scope, 'CAC', range)} />
-                <KpiCard label={onChannelScreen ? 'ROAS' : 'Blended ROAS'}
+                <KpiCard onClick={() => shareMetric('ROAS')} label={onChannelScreen ? 'ROAS' : 'Blended ROAS'}
                          value={formatMetric('ROAS', view.totals.roas)}
                          deltaPercent={delta(scope, 'ROAS', range)}
                          sparkline={sparkline(scope, 'ROAS', range)} />
@@ -189,7 +201,8 @@ export default function App() {
       {chatOpen && (
         <ChatPanel
           onClose={() => setChatOpen(false)}
-          current={{ channel: scope, metric, range }}
+          pending={pendingView}
+          onClearPending={() => setPendingView(null)}
         />
       )}
     </div>
