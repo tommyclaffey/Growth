@@ -8,12 +8,15 @@ import { ChannelTable, type ChannelRow } from './components/ChannelTable/Channel
 import { CampaignTable } from './components/CampaignTable/CampaignTable';
 import { ThemeToggle } from './components/ThemeToggle/ThemeToggle';
 import { ChannelSwitcher } from './components/ChannelSwitcher/ChannelSwitcher';
+import { RangePicker } from './components/RangePicker/RangePicker';
+import { downloadCsv } from './data/exportCsv';
 import { Reports } from './screens/Reports';
 import { Notifications } from './screens/Notifications';
 import { Settings } from './screens/Settings';
 import {
   CHANNEL_KEYS, CHANNEL_LABEL, delta, formatMetric, series, sparkline, totals, yTicks,
-  type Metric, type Scope,
+  RANGE_LABEL,
+  type Metric, type Range, type Scope,
 } from './data/metrics';
 import type { ChannelName } from './styles/tokens';
 
@@ -23,6 +26,7 @@ export default function App() {
   const [channel, setChannel] = useState<ChannelName | null>(null);
   const [metric, setMetric] = useState<Metric>('Spend');
   const [chatOpen, setChatOpen] = useState(false);
+  const [range, setRange] = useState<Range>(30);
 
   function toggleTheme() {
     const next = theme === 'light' ? 'dark' : 'light';
@@ -38,14 +42,14 @@ export default function App() {
      heading and nothing else, which is the single most common way a portfolio
      prototype gives itself away. */
   const view = useMemo(() => {
-    const t = totals(scope);
-    const data = series(scope, metric);
+    const t = totals(scope, range);
+    const data = series(scope, metric, range);
     return {
       totals: t,
       data,
       ticks: yTicks(metric, data),
       rows: CHANNEL_KEYS.map<ChannelRow>((key) => {
-        const ct = totals(key);
+        const ct = totals(key, range);
         return {
           key,
           name: CHANNEL_LABEL[key],
@@ -53,12 +57,12 @@ export default function App() {
           leads: formatMetric('Leads', ct.leads),
           cac: formatMetric('CAC', ct.cac),
           roas: formatMetric('ROAS', ct.roas),
-          delta: delta(key, metric),
-          trend: sparkline(key, metric),
+          delta: delta(key, metric, range),
+          trend: sparkline(key, metric, range),
         };
       }),
     };
-  }, [scope, metric]);
+  }, [scope, metric, range]);
 
   const onChannelScreen = channel !== null;
   const title = onChannelScreen ? CHANNEL_LABEL[channel] : navTitle(nav);
@@ -68,8 +72,8 @@ export default function App() {
     settings: 'Connections, alerts and appearance',
   };
   const sub = onChannelScreen
-    ? `${view.rows.find((r) => r.key === channel)?.spend ?? ''} spend · last 30 days`
-    : (SUBTITLES[nav] ?? 'All channels · last 30 days');
+    ? `${view.rows.find((r) => r.key === channel)?.spend ?? ''} spend · ${RANGE_LABEL[range].toLowerCase()}`
+    : (SUBTITLES[nav] ?? `All channels · ${RANGE_LABEL[range].toLowerCase()}`);
 
   const showDashboard = nav === 'overview' || (nav === 'channels' && onChannelScreen);
 
@@ -97,10 +101,10 @@ export default function App() {
                 if (next) setNav('channels');
               }}
             />
-            <Button variant="ghost" caret>Last 30 days</Button>
+            <RangePicker value={range} onChange={setRange} />
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
             <Button variant="ghost" onClick={() => setChatOpen(!chatOpen)}>Chat</Button>
-            <Button variant="primary">Export</Button>
+            <Button variant="primary" onClick={() => downloadCsv(scope, range)}>Export</Button>
           </div>
         </header>
 
@@ -110,20 +114,20 @@ export default function App() {
               <div className="gr-kpi-row">
                 <KpiCard label="Total spend"
                          value={formatMetric('Spend', view.totals.spend)}
-                         deltaPercent={delta(scope, 'Spend')}
-                         sparkline={sparkline(scope, 'Spend')} />
+                         deltaPercent={delta(scope, 'Spend', range)}
+                         sparkline={sparkline(scope, 'Spend', range)} />
                 <KpiCard label="Total leads"
                          value={formatMetric('Leads', view.totals.leads)}
-                         deltaPercent={delta(scope, 'Leads')}
-                         sparkline={sparkline(scope, 'Leads')} />
+                         deltaPercent={delta(scope, 'Leads', range)}
+                         sparkline={sparkline(scope, 'Leads', range)} />
                 <KpiCard label={onChannelScreen ? 'CAC' : 'Blended CAC'}
                          value={formatMetric('CAC', view.totals.cac)}
-                         deltaPercent={delta(scope, 'CAC')}
-                         sparkline={sparkline(scope, 'CAC')} />
+                         deltaPercent={delta(scope, 'CAC', range)}
+                         sparkline={sparkline(scope, 'CAC', range)} />
                 <KpiCard label={onChannelScreen ? 'ROAS' : 'Blended ROAS'}
                          value={formatMetric('ROAS', view.totals.roas)}
-                         deltaPercent={delta(scope, 'ROAS')}
-                         sparkline={sparkline(scope, 'ROAS')} />
+                         deltaPercent={delta(scope, 'ROAS', range)}
+                         sparkline={sparkline(scope, 'ROAS', range)} />
                 <KpiCard label="Pace to target" value="64%" progress={0.64} />
               </div>
 

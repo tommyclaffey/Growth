@@ -16,7 +16,19 @@ import type { ChannelName } from '../styles/tokens';
 export type Metric = 'Spend' | 'Clicks' | 'Leads' | 'Sales' | 'CAC' | 'ROAS';
 export const METRICS: Metric[] = ['Spend', 'Clicks', 'Leads', 'Sales', 'CAC', 'ROAS'];
 
-export const DAYS = 24;
+/* 72 points of history so the range picker has something real to select from.
+   The 30-day window is the last 24 of them, and that is the window normalised
+   to the design's totals — so "Last 30 days" still reads $160,780 exactly,
+   while 7 and 90 day are honestly derived rather than faked. */
+export const POINTS = 90;
+export const DAYS = 30;
+
+export type Range = 7 | 30 | 90;
+export const RANGES: Range[] = [7, 30, 90];
+const POINTS_FOR: Record<Range, number> = { 7: 7, 30: 30, 90: 90 };
+export const RANGE_LABEL: Record<Range, string> = {
+  7: 'Last 7 days', 30: 'Last 30 days', 90: 'Last 90 days',
+};
 
 /**
  * Per-channel economics.
@@ -73,9 +85,16 @@ function hash(s: string): number {
 }
 
 /** Day 0 is the oldest. Labels are weekly so the axis stays readable. */
-export const DAY_LABELS = Array.from({ length: DAYS }, (_, i) => {
-  const weeks = ['Jul 15', 'Jul 22', 'Jul 29', 'Aug 5'];
-  return weeks[Math.floor(i / 6)] ?? 'Aug 12';
+/* One point per day, ending on a fixed date so the labels never shift under
+   the reader. A dashboard whose axis moves between two screenshots of the
+   same data is one nobody trusts. */
+const PERIOD_END = new Date(Date.UTC(2026, 7, 12)); // 12 Aug 2026
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+export const DAY_LABELS = Array.from({ length: POINTS }, (_, i) => {
+  const d = new Date(PERIOD_END);
+  d.setUTCDate(d.getUTCDate() - (POINTS - 1 - i));
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
 });
 
 export interface DayRow {
@@ -99,17 +118,19 @@ const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
        the number in the design instead of merely near it. */
     const k = (4 * c.trend) / (2 + c.trend);
 
-    const shape = Array.from({ length: DAYS }, (_, d) => {
-      const ramp = 1 - k / 2 + (k * d) / (DAYS - 1);
+    const shape = Array.from({ length: POINTS }, (_, d) => {
+      const ramp = 1 - k / 2 + (k * d) / (POINTS - 1);
       const weekly = 1 + Math.sin((d / 7) * Math.PI * 2) * 0.08;
       const noise = 0.94 + rand() * 0.12;
       return ramp * weekly * noise;
     });
 
-    // Normalise so the 24 days sum to the exact spend figure from the design.
-    const shapeSum = shape.reduce((a, b) => a + b, 0);
+    /* Normalise against the LAST 24 points only, so the 30-day window lands on
+       the design's spend figure exactly. Scaling by the full 72 would spread
+       the same money across three months and the header would stop matching. */
+    const windowSum = shape.slice(-DAYS).reduce((a, b) => a + b, 0);
     const rows: DayRow[] = shape.map((f) => {
-      const spend = (f / shapeSum) * c.spend;
+      const spend = (f / windowSum) * c.spend;
       const leads = spend / c.cac;
       return {
         spend,
@@ -124,7 +145,7 @@ const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
 ) as Record<ChannelName, DayRow[]>;
 
 /** Blended day rows across every channel. */
-const ALL: DayRow[] = Array.from({ length: DAYS }, (_, d) =>
+const ALL: DayRow[] = Array.from({ length: POINTS }, (_, d) =>
   CHANNEL_KEYS.reduce<DayRow>(
     (acc, key) => {
       const r = SERIES[key][d];
@@ -140,8 +161,9 @@ const ALL: DayRow[] = Array.from({ length: DAYS }, (_, d) =>
   ),
 );
 
-function rowsFor(scope: Scope): DayRow[] {
-  return scope === 'all' ? ALL : SERIES[scope];
+function rowsFor(scope: Scope, range: Range = 30): DayRow[] {
+  const all = scope === 'all' ? ALL : SERIES[scope];
+  return all.slice(-POINTS_FOR[range]);
 }
 
 /**
@@ -153,8 +175,9 @@ function rowsFor(scope: Scope): DayRow[] {
  * podcast spend the same as $2,551/day on Meta and quietly reports a blended
  * CAC that no amount of money was ever actually spent at.
  */
-export function series(scope: Scope, metric: Metric): { label: string; value: number }[] {
-  const rows = rowsFor(scope);
+export function series(scope: Scope, metric: Metric, range: Range = 30): { label: string; value: number }[] {
+  const rows = rowsFor(scope, range);
+  const labels = DAY_LABELS.slice(-POINTS_FOR[range]);
   return rows.map((r, i) => {
     let value: number;
     switch (metric) {
@@ -165,13 +188,13 @@ export function series(scope: Scope, metric: Metric): { label: string; value: nu
       case 'CAC':    value = r.leads > 0 ? r.spend / r.leads : 0; break;
       case 'ROAS':   value = r.spend > 0 ? r.revenue / r.spend : 0; break;
     }
-    return { label: DAY_LABELS[i], value };
+    return { label: labels[i], value };
   });
 }
 
 /** Period totals, computed the same way — sum the parts, divide once. */
-export function totals(scope: Scope) {
-  const rows = rowsFor(scope);
+export function totals(scope: Scope, range: Range = 30) {
+  const rows = rowsFor(scope, range);
   const sum = rows.reduce(
     (a, r) => ({
       spend: a.spend + r.spend,
@@ -190,8 +213,8 @@ export function totals(scope: Scope) {
 }
 
 /** Percentage change, last 12 days against the 12 before them. */
-export function delta(scope: Scope, metric: Metric): number {
-  const s = series(scope, metric).map((d) => d.value);
+export function delta(scope: Scope, metric: Metric, range: Range = 30): number {
+  const s = series(scope, metric, range).map((d) => d.value);
   const half = Math.floor(s.length / 2);
   const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
   const prev = avg(s.slice(0, half));
@@ -201,14 +224,20 @@ export function delta(scope: Scope, metric: Metric): number {
 }
 
 /** A short sparkline, normalised 0..1, for KPI cards and table rows. */
-export function sparkline(scope: Scope, metric: Metric, points = 7): number[] {
-  const s = series(scope, metric).map((d) => d.value);
+export function sparkline(scope: Scope, metric: Metric, range: Range = 30, points = 7): number[] {
+  const s = series(scope, metric, range).map((d) => d.value);
   const step = Math.max(1, Math.floor(s.length / points));
   const picked = Array.from({ length: points }, (_, i) => s[Math.min(i * step, s.length - 1)]);
   const max = Math.max(...picked, 1);
   const min = Math.min(...picked);
-  const range = max - min || 1;
-  return picked.map((v) => 0.25 + ((v - min) / range) * 0.75);
+  const spread = max - min || 1;
+  return picked.map((v) => 0.25 + ((v - min) / spread) * 0.75);
+}
+
+/** The raw funnel rows behind a view, with their labels. Used by the export. */
+export function rows(scope: Scope, range: Range = 30) {
+  const labels = DAY_LABELS.slice(-POINTS_FOR[range]);
+  return rowsFor(scope, range).map((r, i) => ({ label: labels[i], ...r }));
 }
 
 /* ---------- formatting ---------- */
