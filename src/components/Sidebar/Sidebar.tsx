@@ -58,7 +58,13 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
 
       <div className="gr-sidebar__spacer" />
 
-      <button type="button" className="gr-navitem gr-navitem--account gr-type-label-button">
+      {/* Goes to Settings. It was a button with no handler — the same dead
+          control as a switch that flips nothing. */}
+      <button
+        type="button"
+        className={`gr-navitem gr-navitem--account gr-type-label-button ${active === 'settings' ? 'is-active' : ''}`}
+        onClick={() => onNavigate('settings')}
+      >
         <span className="gr-navitem__avatar" aria-hidden="true" />
         Account
       </button>

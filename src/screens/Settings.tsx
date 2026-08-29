@@ -43,7 +43,9 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
         <section className="gr-card">
           <header className="gr-card__header">
             <h3 className="gr-card__title gr-type-card-heading">Channels</h3>
-            <Button variant="ghost">Add channel</Button>
+            <Button variant="ghost" disabled title="Connecting a channel is an OAuth flow, out of scope for this prototype">
+              Add channel
+            </Button>
           </header>
 
           {CHANNEL_KEYS.map((key) => {

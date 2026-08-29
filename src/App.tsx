@@ -65,10 +65,10 @@ export default function App() {
         return {
           key,
           name: CHANNEL_LABEL[key],
-          spend: formatMetric('Spend', ct.spend),
-          leads: formatMetric('Leads', ct.leads),
-          cac: formatMetric('CAC', ct.cac),
-          roas: formatMetric('ROAS', ct.roas),
+          spend: ct.spend,
+          leads: ct.leads,
+          cac: ct.cac,
+          roas: ct.roas,
           delta: delta(key, metric, range),
           trend: sparkline(key, metric, range),
         };
@@ -84,7 +84,7 @@ export default function App() {
     settings: 'Connections, alerts and appearance',
   };
   const sub = onChannelScreen
-    ? `${view.rows.find((r) => r.key === channel)?.spend ?? ''} spend · ${RANGE_LABEL[range].toLowerCase()}`
+    ? `${formatMetric('Spend', view.totals.spend)} spend · ${RANGE_LABEL[range].toLowerCase()}`
     : (SUBTITLES[nav] ?? `All channels · ${RANGE_LABEL[range].toLowerCase()}`);
 
   const showDashboard = nav === 'overview' || (nav === 'channels' && onChannelScreen);

@@ -1,16 +1,27 @@
+import { useState } from 'react';
 import './ChannelTable.css';
+import { formatMetric } from '../../data/metrics';
 import type { ChannelName } from '../../styles/tokens';
 
+/**
+ * Rows carry NUMBERS, not formatted strings.
+ *
+ * They used to arrive pre-formatted ("$61,240"), which meant the table could
+ * render them and nothing else — sorting compared strings, so $9 sorted after
+ * $61,240. Formatting is a view concern; it happens at the last moment.
+ */
 export interface ChannelRow {
   key: ChannelName;
   name: string;
-  spend: string;
-  leads: string;
-  cac: string;
-  roas: string;
+  spend: number;
+  leads: number;
+  cac: number;
+  roas: number;
   delta: number;
   trend: number[];
 }
+
+type SortKey = 'name' | 'spend' | 'leads' | 'cac' | 'roas' | 'delta';
 
 export interface ChannelTableProps {
   rows: ChannelRow[];
@@ -24,61 +35,82 @@ const CSS_CHANNEL: Record<string, string> = {
   affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
 };
 
-/**
- * Channels table.
- *
- * Each row carries a channel dot in channel/<name>. The dot is never the only
- * signal — the channel name sits right beside it, which is what makes the
- * colour-only accessibility concern a non-issue here.
- *
- * wideColumns mirrors the Figma prototype variable of the same name: when the
- * chat panel opens the content column goes 1280 to 920 and CAC and ROAS drop
- * out rather than squeezing.
- */
+const COLUMNS: { key: SortKey; label: string; wideOnly?: boolean; numeric?: boolean }[] = [
+  { key: 'name',  label: 'Channel' },
+  { key: 'spend', label: 'Spend', numeric: true },
+  { key: 'leads', label: 'Leads', numeric: true },
+  { key: 'cac',   label: 'CAC',  wideOnly: true, numeric: true },
+  { key: 'roas',  label: 'ROAS', wideOnly: true, numeric: true },
+  { key: 'delta', label: 'Δ Prev', numeric: true },
+];
+
 export function ChannelTable({ rows, onRowClick, wideColumns = true }: ChannelTableProps) {
+  const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({
+    key: 'spend', dir: 'desc',
+  });
+
+  function toggleSort(key: SortKey) {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === 'desc' ? 'asc' : 'desc' }
+        // A new column starts descending for numbers and ascending for names,
+        // because "biggest first" and "A first" are what people expect.
+        : { key, dir: key === 'name' ? 'asc' : 'desc' });
+  }
+
+  const sorted = [...rows].sort((a, b) => {
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    if (sort.key === 'name') return a.name.localeCompare(b.name) * dir;
+    return (a[sort.key] - b[sort.key]) * dir;
+  });
+
+  const columns = COLUMNS.filter((c) => wideColumns || !c.wideOnly);
+
   return (
     <div className="gr-card">
       <header className="gr-card__header">
         <h3 className="gr-card__title gr-type-card-heading">Channels</h3>
-        <button type="button" className="gr-card__sort gr-type-label-button">
-          Sort: Spend
-          <svg width="8" height="5" viewBox="0 0 8 5" aria-hidden="true">
-            <path d="M1 1L4 4L7 1" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </button>
       </header>
 
       <table className="gr-table">
         <thead>
           <tr className="gr-type-overline">
-            <th scope="col">Channel</th>
-            <th scope="col">Spend</th>
-            <th scope="col">Leads</th>
-            {wideColumns && <th scope="col">CAC</th>}
-            {wideColumns && <th scope="col">ROAS</th>}
-            <th scope="col">Δ Prev</th>
+            {columns.map((c) => {
+              const active = sort.key === c.key;
+              return (
+                <th key={c.key} scope="col"
+                    aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button"
+                          className={`gr-th ${active ? 'is-active' : ''}`}
+                          onClick={() => toggleSort(c.key)}>
+                    {c.label}
+                    <span className="gr-th__arrow" aria-hidden="true">
+                      {active ? (sort.dir === 'asc' ? '↑' : '↓') : ''}
+                    </span>
+                  </button>
+                </th>
+              );
+            })}
             <th scope="col">Trend</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => {
+          {sorted.map((r) => {
             const up = r.delta >= 0;
             return (
               <tr key={r.key} className="gr-table__row" onClick={() => onRowClick?.(r.key)} tabIndex={0}>
                 <td>
                   <span className="gr-table__channel gr-type-body-medium">
-                    <span
-                      className="gr-table__dot"
-                      style={{ background: `var(--channel-${CSS_CHANNEL[r.key] ?? r.key})` }}
-                      aria-hidden="true"
-                    />
+                    <span className="gr-table__dot"
+                          style={{ background: `var(--channel-${CSS_CHANNEL[r.key] ?? r.key})` }}
+                          aria-hidden="true" />
                     {r.name}
                   </span>
                 </td>
-                <td className="gr-type-body">{r.spend}</td>
-                <td className="gr-type-body">{r.leads}</td>
-                {wideColumns && <td className="gr-type-body">{r.cac}</td>}
-                {wideColumns && <td className="gr-type-body">{r.roas}</td>}
+                <td className="gr-type-body">{formatMetric('Spend', r.spend)}</td>
+                <td className="gr-type-body">{formatMetric('Leads', r.leads)}</td>
+                {wideColumns && <td className="gr-type-body">{formatMetric('CAC', r.cac)}</td>}
+                {wideColumns && <td className="gr-type-body">{formatMetric('ROAS', r.roas)}</td>}
                 <td>
                   <span className={`gr-table__delta gr-type-caption-med ${up ? 'is-up' : 'is-down'}`}>
                     {up ? '↑' : '↓'} {Math.abs(r.delta)}%
@@ -87,7 +119,8 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true }: ChannelTa
                 <td>
                   <span className="gr-table__spark" aria-hidden="true">
                     {r.trend.map((h, i) => (
-                      <span key={i} className="gr-table__spark-bar" style={{ height: `${Math.max(0.2, h) * 14}px` }} />
+                      <span key={i} className="gr-table__spark-bar"
+                            style={{ height: `${Math.max(0.2, h) * 14}px` }} />
                     ))}
                   </span>
                 </td>

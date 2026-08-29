@@ -2,6 +2,7 @@ import './screens.css';
 import { Button } from '../components/Button/Button';
 import { StatusPill, type Stage } from '../components/StatusPill/StatusPill';
 import { Badge } from '../components/Badge/Badge';
+import { downloadCsv } from '../data/exportCsv';
 
 interface Report {
   id: string;
@@ -26,8 +27,12 @@ export function Reports() {
     <>
       <header className="gr-section-head">
         <span className="gr-spacer" />
-        <Button variant="ghost">Export now</Button>
-        <Button variant="primary">New report</Button>
+        <Button variant="ghost" onClick={() => downloadCsv('all', 30)}>Export now</Button>
+        {/* Creating a report needs a builder flow that does not exist here.
+            Disabled and labelled, rather than shipped as a button that lies. */}
+        <Button variant="primary" disabled title="Report builder is out of scope for this prototype">
+          New report
+        </Button>
       </header>
 
       <div className="gr-card">
