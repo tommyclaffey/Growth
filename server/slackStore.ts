@@ -23,9 +23,20 @@ export interface Workspace {
   accessToken: string;
   /** Who installed it — useful when one person's grant is revoked. */
   installedBy?: string;
-  /** Channel the panel reads. Chosen after install, per workspace. */
+  /** Conversation the panel reads. Chosen after install, per workspace. */
   channelId?: string;
   channelName?: string;
+  /** channel | private | group | dm — so the UI can label it correctly. */
+  channelKind?: string;
+  /**
+   * Local person id -> Slack user id.
+   *
+   * The seeded cast and the workspace are two directories of the same people.
+   * Without a link between them, the same human appears twice with different
+   * names and different photos, and a message from one is not recognisably
+   * from the other.
+   */
+  links?: Record<string, string>;
   connectedAt: string;
 }
 
@@ -56,12 +67,23 @@ export function saveWorkspace(w: Workspace) {
   write(s);
 }
 
-export function setChannel(teamId: string, channelId: string, channelName: string) {
+export function setChannel(teamId: string, channelId: string, channelName: string, kind = 'channel') {
   const s = read();
   const w = s.workspaces[teamId];
   if (!w) return;
   w.channelId = channelId;
   w.channelName = channelName;
+  w.channelKind = kind;
+  write(s);
+}
+
+export function setLink(teamId: string, personId: string, slackUserId: string | null) {
+  const s = read();
+  const w = s.workspaces[teamId];
+  if (!w) return;
+  w.links = w.links ?? {};
+  if (slackUserId) w.links[personId] = slackUserId;
+  else delete w.links[personId];
   write(s);
 }
 
@@ -95,6 +117,8 @@ export function publicView() {
       teamName: w.teamName,
       channelId: w.channelId ?? null,
       channelName: w.channelName ?? null,
+      channelKind: w.channelKind ?? 'channel',
+      links: w.links ?? {},
       connectedAt: w.connectedAt,
     })),
     active: s.active ?? null,

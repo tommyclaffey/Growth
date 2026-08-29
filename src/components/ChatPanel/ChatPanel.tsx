@@ -3,6 +3,9 @@ import './ChatPanel.css';
 import { loadThread, postToSlack, subscribeToSlack, type ChatSource } from '../../data/slackClient';
 import { useAvatarFor } from '../../data/profile';
 import { SlackConnect } from './SlackConnect';
+import { ConversationPicker } from '../ConversationPicker/ConversationPicker';
+import { listPeople, type Person } from '../../data/slackDirectory';
+import { activeMention, applyMention, mentionsMe, toSlackMentions } from '../../data/mentions';
 import { Button } from '../Button/Button';
 import {
   MEMBERS, ME, SEED, groupMessages, nowLabel,
@@ -45,6 +48,15 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
   const [origin, setOrigin] = useState<{ team?: string; channel?: string }>({});
   const [draft, setDraft] = useState('');
   const avatarFor = useAvatarFor();
+  const [picking, setPicking] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
+  const composerRef = useRef<HTMLInputElement>(null);
+
+  /* The directory is needed to turn "@Dan Kwon" into the id Slack stores, so
+     it is fetched once rather than per keystroke. */
+  useEffect(() => { void listPeople().then(setPeople); }, [source]);
   const endRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
@@ -53,6 +65,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
     setMembers(t.members);
     setSource(t.source);
     setOrigin({ team: t.team, channel: t.channel });
+    setConversationId(t.channelId ?? null);
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -89,6 +102,24 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
     if (pending) endRef.current?.scrollIntoView({ block: 'end' });
   }, [pending]);
 
+  const suggestions = mention
+    ? people.filter((p) => p.name.toLowerCase().includes(mention.query.toLowerCase())).slice(0, 6)
+    : [];
+
+  function choose(p: Person) {
+    const el = composerRef.current;
+    if (!el || !mention) return;
+    const next = applyMention(draft, mention.start, el.selectionStart ?? draft.length, p.name);
+    setDraft(next.text);
+    setMention(null);
+    /* Caret has to be restored after React re-renders the value, or it jumps
+       to the end and the next character lands in the wrong place. */
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(next.caret, next.caret);
+    });
+  }
+
   async function send() {
     const body = draft.trim();
     if (!body && !pending) return;
@@ -111,7 +142,9 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
     onClearPending();
 
     if (source === 'slack') {
-      const sent = await postToSlack(text, pending);
+      /* Slack stores an id, not a name — a renamed person's old messages still
+         read correctly because of it. */
+      const sent = await postToSlack(toSlackMentions(text, people), pending);
       /* If it did not land, say so. A message that exists only in this browser
          but looks identical to one that reached the channel is worse than an
          error — the user believes their team saw it. */
@@ -135,11 +168,18 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
             {/* Was hard-coded to the seeded channel, so a connected panel still
                 claimed to be reading #growth-analytics with 4 members. It now
                 says what it is actually reading. */}
-            <p className="gr-type-caption">
-              {source === 'slack' && origin.channel
-                ? `#${origin.channel}${origin.team ? ` · ${origin.team}` : ''}`
-                : 'Demo conversation · not connected'}
-            </p>
+            {source === 'slack' && origin.channel ? (
+              /* The conversation name is the control that changes it — a
+                 separate "switch" button would sit beside a label naming the
+                 exact thing it switches. */
+              <button type="button" className="gr-chat__switch gr-type-caption"
+                      onClick={() => setPicking((v) => !v)}>
+                {origin.channel}{origin.team ? ` · ${origin.team}` : ''}
+                <span aria-hidden="true"> ⌄</span>
+              </button>
+            ) : (
+              <p className="gr-type-caption">Demo conversation · not connected</p>
+            )}
           </div>
           <button type="button" className="gr-chat__close" onClick={onClose} aria-label="Close chat">✕</button>
         </div>
@@ -148,6 +188,16 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
             app header, which two lines of text left half empty. */}
         <SlackConnect onConnected={() => { void refresh(); }} />
       </header>
+
+      {picking && (
+        <div className="gr-chat__picker">
+          <ConversationPicker
+            currentId={conversationId}
+            onClose={() => setPicking(false)}
+            onOpened={() => { setPicking(false); void refresh(); }}
+          />
+        </div>
+      )}
 
       <div className="gr-chat__messages">
         {groups.map((group, gi) => {
@@ -163,8 +213,8 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
                   {group.some((m) => m.fromSlack) && <SlackMark />}
                 </p>
                 {group.map((m) => (
-                  <div key={m.id} className="gr-msg__line">
-                    <p className="gr-type-body">{m.body}</p>
+                  <div key={m.id} className={`gr-msg__line ${mentionsMe(m.body) ? 'is-flagged' : ''}`}>
+                    <p className="gr-type-body">{renderBody(m.body)}</p>
                     {m.view && <ViewCard view={m.view} />}
                   </div>
                 ))}
@@ -183,13 +233,44 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
                     aria-label="Remove attached metric">✕</button>
           </div>
         )}
+        {suggestions.length > 0 && (
+          <ul className="gr-mention" role="listbox" aria-label="People">
+            {suggestions.map((p) => (
+              <li key={p.id}>
+                <button type="button" className="gr-mention__row gr-type-body"
+                        /* onMouseDown, not onClick: click fires after blur, and
+                           the input losing focus first closes this list. */
+                        onMouseDown={(e) => { e.preventDefault(); choose(p); }}>
+                  <Avatar initials={p.initials} hue={p.hue} size={24} src={p.avatar} />
+                  {p.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="gr-chat__row">
           <input
+            ref={composerRef}
             className="gr-chat__input gr-type-body"
-            placeholder={pending ? 'Add a comment…' : 'Message #growth-analytics'}
+            placeholder={pending
+              ? 'Add a comment…'
+              : origin.channel ? `Message ${origin.channel}` : 'Message'}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setMention(activeMention(e.target.value, e.target.selectionStart ?? e.target.value.length));
+            }}
+            onBlur={() => setMention(null)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') return setMention(null);
+              /* Enter picks the top suggestion while the list is open, rather
+                 than sending a half-typed name. */
+              if (e.key === 'Enter' && suggestions.length > 0) {
+                e.preventDefault();
+                return choose(suggestions[0]);
+              }
+              if (e.key === 'Enter') send();
+            }}
           />
           <Button variant="primary" onClick={send}>Send</Button>
         </div>
@@ -274,3 +355,14 @@ function SlackMark() {
   );
 }
 
+
+
+/** Draws @names as marks rather than plain text, so a mention is findable. */
+function renderBody(body: string) {
+  const parts = body.split(/(@[\p{L}][\p{L}\p{N}. '-]*)/gu);
+  return parts.map((part, i) =>
+    part.startsWith('@')
+      ? <span key={i} className={`gr-mention__tag ${mentionsMe(part) ? 'is-me' : ''}`}>{part.trimEnd()}</span>
+      : part,
+  );
+}

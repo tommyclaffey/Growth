@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
 import {
-  activeWorkspace, publicView, removeWorkspace, saveWorkspace, setActive, setChannel,
+  activeWorkspace, publicView, removeWorkspace, saveWorkspace, setActive, setChannel, setLink,
 } from './slackStore.js';
 import { addSubscriber, broadcast, rawBody, verifySlack } from './slackEvents.js';
 
@@ -36,6 +36,12 @@ const SCOPES = [
      `not_in_channel` — which reads as a broken token rather than a missing
      invite. The scope list was one entry short and nothing said so. */
   'channels:join',
+  /* Direct messages and group DMs are separate conversation types in Slack
+     with separate scopes; a token that reads public channels cannot see either. */
+  'im:read', 'im:write', 'im:history',
+  'mpim:read', 'mpim:write', 'mpim:history',
+  /* Private channels the bot has been invited to. */
+  'groups:read', 'groups:history',
   'users:read',
   'chat:write',
 ].join(',');
@@ -411,6 +417,80 @@ export function slackApi(): Plugin {
           const ws = activeWorkspace();
           if (!ws) return send(res, 503, { error: 'not_connected', message: 'No Slack workspace connected.' });
 
+          /* ---- every conversation the bot can see ---- */
+          if (req.method === 'GET' && path === '/conversations') {
+            const self = await selfIdentity(ws.accessToken);
+            const r = await slack<{
+              channels: {
+                id: string; name?: string; is_member?: boolean; is_im?: boolean;
+                is_mpim?: boolean; is_private?: boolean; user?: string;
+              }[];
+            }>('conversations.list', ws.accessToken, {
+              types: 'public_channel,private_channel,mpim,im',
+              limit: 200, exclude_archived: true,
+            });
+
+            const out = [];
+            for (const c of r.channels) {
+              if (c.is_im) {
+                /* A DM has no name — it is identified by the person on the
+                   other end, so it has to be resolved to one. */
+                if (!c.user || c.user === self.userId) continue;
+                const u = await resolveUser(c.user, ws.accessToken);
+                out.push({ id: c.id, kind: 'dm', name: u.name, userId: u.id, avatar: u.avatar, joined: true });
+              } else if (c.is_mpim) {
+                out.push({ id: c.id, kind: 'group', name: (c.name ?? '').replace(/^mpdm-|-1$/g, '').replace(/--/g, ', '), joined: true });
+              } else {
+                out.push({
+                  id: c.id, kind: c.is_private ? 'private' : 'channel',
+                  name: c.name ?? c.id, joined: Boolean(c.is_member),
+                });
+              }
+            }
+            /* Joined first: a conversation the bot is not in reads as
+               `not_in_channel`, which looks like a broken token. */
+            out.sort((a, b) => Number(b.joined) - Number(a.joined) || a.name.localeCompare(b.name));
+            return send(res, 200, { conversations: out });
+          }
+
+          /* ---- the people directory, for starting a DM and for @-mentions ---- */
+          if (req.method === 'GET' && path === '/people') {
+            const self = await selfIdentity(ws.accessToken);
+            const r = await slack<{
+              members: {
+                id: string; deleted?: boolean; is_bot?: boolean; real_name?: string;
+                profile?: { display_name?: string; real_name?: string; image_192?: string; image_72?: string };
+              }[];
+            }>('users.list', ws.accessToken, { limit: 400 });
+            const people = r.members
+              /* Deactivated accounts and Slackbot are not people you can talk to. */
+              .filter((m) => !m.deleted && !m.is_bot && m.id !== 'USLACKBOT' && m.id !== self.userId)
+              .map((m) => {
+                const name = m.profile?.display_name?.trim() || m.profile?.real_name?.trim()
+                  || m.real_name?.trim() || m.id;
+                return {
+                  id: m.id, name, initials: initialsFrom(name), hue: hueFor(m.id),
+                  avatar: m.profile?.image_192 || m.profile?.image_72,
+                };
+              })
+              .sort((a, b) => a.name.localeCompare(b.name));
+            return send(res, 200, { people });
+          }
+
+          /* ---- open (or reopen) a DM with one or more people ---- */
+          if (req.method === 'POST' && path === '/dm') {
+            const { userIds } = await readBody(req);
+            if (!Array.isArray(userIds) || userIds.length === 0) {
+              return send(res, 400, { error: 'userIds required' });
+            }
+            /* conversations.open is idempotent — the same set of people always
+               returns the same conversation, so this both creates and finds. */
+            const r = await slack<{ channel: { id: string } }>('conversations.open', ws.accessToken, {
+              users: userIds.join(','),
+            });
+            return send(res, 200, { id: r.channel.id });
+          }
+
           /* ---- channels the bot can actually read ---- */
           if (req.method === 'GET' && path === '/channels') {
             const r = await slack<{ channels: { id: string; name: string; is_member: boolean }[] }>(
@@ -427,15 +507,19 @@ export function slackApi(): Plugin {
           }
 
           if (req.method === 'POST' && path === '/channel') {
-            const { channelId, channelName } = await readBody(req);
+            const { channelId, channelName, kind } = await readBody(req);
             if (typeof channelId !== 'string') return send(res, 400, { error: 'channelId required' });
             /* Join so reads work. `already_in_channel` is a success; anything
                else is not, and a bare catch here hid a missing scope behind a
                green checkmark — the channel saved, the UI said connected, and
                every subsequent read failed. */
             let joinWarning: string | null = null;
+            /* Only public channels can be joined. A DM or group DM is opened,
+               not joined, and calling join on one is an error rather than a
+               no-op — so it is not attempted. */
+            const joinable = !kind || kind === 'channel';
             try {
-              await slack('conversations.join', ws.accessToken, { channel: channelId });
+              if (joinable) await slack('conversations.join', ws.accessToken, { channel: channelId });
             } catch (e) {
               const msg = e instanceof Error ? e.message : String(e);
               if (!msg.includes('already_in_channel')) {
@@ -445,8 +529,16 @@ export function slackApi(): Plugin {
                 server.config.logger.warn(`[slack] join failed: ${msg}`);
               }
             }
-            setChannel(ws.teamId, channelId, typeof channelName === 'string' ? channelName : channelId);
+            setChannel(ws.teamId, channelId, typeof channelName === 'string' ? channelName : channelId,
+                       typeof kind === 'string' ? kind : 'channel');
             return send(res, 200, { ok: true, warning: joinWarning });
+          }
+
+          if (req.method === 'POST' && path === '/link') {
+            const { personId, slackUserId } = await readBody(req);
+            if (typeof personId !== 'string') return send(res, 400, { error: 'personId required' });
+            setLink(ws.teamId, personId, typeof slackUserId === 'string' ? slackUserId : null);
+            return send(res, 200, { ok: true });
           }
 
           if (req.method === 'POST' && path === '/active') {
@@ -468,6 +560,13 @@ export function slackApi(): Plugin {
             const r = await slack<{ messages: { subtype?: string; user?: string; bot_id?: string; text?: string; ts: string }[] }>(
               'conversations.history', ws.accessToken, { channel: ws.channelId, limit: 40 });
             const self = await selfIdentity(ws.accessToken);
+            /* Reverse the person -> Slack map so a Slack author can be resolved
+               back to the local person they are. Without it the same human is
+               two directory entries with two names and two photos, and a
+               message from one is not recognisably from the other. */
+            const bySlackId: Record<string, string> = {};
+            for (const [personId, slackId] of Object.entries(ws.links ?? {})) bySlackId[slackId] = personId;
+
             const members: Record<string, SlackUser> = {};
             const messages = [];
             for (const m of [...r.messages].reverse()) {
@@ -478,8 +577,10 @@ export function slackApi(): Plugin {
                  Growth posted came from here, so it does not get one — even
                  though it is read back out of Slack like everything else. */
               const isOwn = (self.userId && m.user === self.userId) || (self.botId && m.bot_id === self.botId);
+              /* A linked Slack account speaks as its local person. */
+              const authorId = bySlackId[u.id] ?? u.id;
               messages.push({
-                id: m.ts, authorId: u.id, body: await render(m.text, ws.accessToken),
+                id: m.ts, authorId, body: await render(m.text, ws.accessToken),
                 time: clock(m.ts), minutesAgo: minutesAgo(m.ts),
                 fromSlack: !isOwn,
               });
@@ -487,6 +588,7 @@ export function slackApi(): Plugin {
             return send(res, 200, {
               messages, members,
               team: ws.teamName, channel: ws.channelName,
+              channelId: ws.channelId, channelKind: ws.channelKind ?? 'channel',
             });
           }
 

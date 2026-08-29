@@ -34,6 +34,8 @@ export interface Thread {
   source: ChatSource;
   team?: string;
   channel?: string;
+  channelId?: string;
+  channelKind?: string;
 }
 
 const seeded: Thread = { messages: SEED, members: MEMBERS, source: 'seed' };
@@ -53,8 +55,10 @@ export async function loadThread(): Promise<Thread> {
   try {
     const res = await fetch('/api/slack/messages');
     if (!res.ok) return seeded;
-    const d = (await res.json()) as
-      { messages?: Message[]; members?: Record<string, Member>; team?: string; channel?: string };
+    const d = (await res.json()) as {
+      messages?: Message[]; members?: Record<string, Member>;
+      team?: string; channel?: string; channelId?: string; channelKind?: string;
+    };
     /* An empty channel is a real state, but rendering nothing is
        indistinguishable from a failure. Keep the seed until there is something
        real to show. */
@@ -81,6 +85,8 @@ export async function loadThread(): Promise<Thread> {
       source: 'slack',
       team: d.team,
       channel: d.channel,
+      channelId: d.channelId,
+      channelKind: d.channelKind,
     };
   } catch {
     return seeded;

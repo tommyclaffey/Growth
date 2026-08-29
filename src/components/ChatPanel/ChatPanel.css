@@ -222,3 +222,62 @@
 .gr-slack__ws:focus-visible, .gr-slack__add:focus-visible {
   outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px;
 }
+
+/* The conversation name doubles as the control that changes it. */
+.gr-chat__switch {
+  border: none; background: none; padding: 0;
+  color: var(--text-muted); cursor: pointer; font-family: inherit;
+  text-align: left; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gr-chat__switch:hover { color: var(--accent-text); }
+.gr-chat__switch:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px; border-radius: var(--radius-sm);
+}
+
+/* Takes the message list's place rather than floating over it: an overlay in a
+   360px panel covers the thing you are switching away from anyway. */
+.gr-chat__picker {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: var(--space-14) var(--space-18);
+  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+}
+
+/* ---------- mentions ---------- */
+
+.gr-mention {
+  list-style: none; margin: 0 0 var(--space-8); padding: var(--space-4);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  box-shadow: var(--elevation-raised);
+  max-height: 200px; overflow-y: auto;
+}
+.gr-mention__row {
+  display: flex; align-items: center; gap: var(--space-8);
+  width: 100%; padding: var(--space-6) var(--space-8);
+  border: none; border-radius: var(--radius-sm);
+  background: none; color: var(--text-primary);
+  cursor: pointer; font-family: inherit; text-align: left;
+}
+.gr-mention__row:hover { background: var(--surface-page-top); }
+
+.gr-mention__tag { color: var(--accent-text); font-weight: 500; }
+/* A mention of you is the one you must not miss, so it carries a surface the
+   others do not. */
+.gr-mention__tag.is-me {
+  background: var(--accent-tint);
+  border-radius: var(--radius-sm);
+  padding: 0 3px;
+}
+
+/* Marks the whole line, not just the name — scanning a thread for "was I
+   asked something" should not require reading every message. */
+.gr-msg__line.is-flagged {
+  border-left: var(--border-width-md) solid var(--accent-base);
+  padding-left: var(--space-8);
+  margin-left: calc(var(--space-8) * -1);
+}
