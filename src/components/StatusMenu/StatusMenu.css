@@ -1,0 +1,36 @@
+.gr-statusmenu { position: relative; display: inline-block; }
+
+.gr-statusmenu__trigger {
+  padding: 0; border: none; background: none; cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.gr-statusmenu__trigger:disabled { cursor: not-allowed; opacity: 0.6; }
+.gr-statusmenu__trigger:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* 150 wide to match the Figma component. */
+.gr-statusmenu__menu {
+  position: absolute; top: calc(100% + var(--space-6)); left: 0; z-index: 20;
+  width: 150px;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--space-6);
+  border-radius: var(--radius-md);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-card);
+  box-shadow: var(--elevation-menu);
+}
+.gr-statusmenu__row {
+  display: flex; align-items: center; gap: var(--space-8);
+  padding: var(--space-4) var(--space-6);
+  border: none; border-radius: var(--radius-sm);
+  background: none; cursor: pointer; text-align: left;
+}
+.gr-statusmenu__row:hover { background: var(--surface-page-top); }
+.gr-statusmenu__row.is-selected { background: var(--accent-tint); }
+.gr-statusmenu__row:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.gr-statusmenu__check { margin-left: auto; color: var(--accent-text); }

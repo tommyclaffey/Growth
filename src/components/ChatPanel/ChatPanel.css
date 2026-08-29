@@ -66,18 +66,6 @@
 
 .gr-msg { display: flex; gap: var(--space-10); align-items: flex-start; }
 
-.gr-msg__avatar {
-  width: 28px; height: 28px; flex: none;
-  display: grid; place-items: center;
-  border-radius: var(--radius-pill);
-  color: var(--brand-on-accent);
-  letter-spacing: 0.02em;
-}
-/* Hue is fixed per person, so someone is the same colour in every message. */
-.gr-msg__avatar--0 { background: var(--accent-base); }
-.gr-msg__avatar--1 { background: var(--channel-meta); }
-.gr-msg__avatar--2 { background: var(--channel-affiliates); }
-.gr-msg__avatar--3 { background: var(--channel-youtube); }
 
 .gr-msg__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
 .gr-msg__meta { display: flex; align-items: baseline; gap: var(--space-8); margin: 0 !important; }

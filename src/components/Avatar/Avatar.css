@@ -1,0 +1,13 @@
+.gr-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  color: var(--brand-on-accent);
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+.gr-avatar--0 { background: var(--accent-base); }
+.gr-avatar--1 { background: var(--channel-meta); }
+.gr-avatar--2 { background: var(--channel-affiliates); }
+.gr-avatar--3 { background: var(--channel-youtube); }

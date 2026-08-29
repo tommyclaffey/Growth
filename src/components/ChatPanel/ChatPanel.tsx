@@ -9,6 +9,7 @@ import {
   CHANNEL_LABEL, RANGE_LABEL, delta, formatMetric, isRatio, totals, type Scope,
 } from '../../data/metrics';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
+import { Avatar } from '../Avatar/Avatar';
 import type { ChannelName } from '../../styles/tokens';
 
 const CSS_CHANNEL: Record<string, string> = {
@@ -88,9 +89,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
           const mine = author.id === ME.id;
           return (
             <article key={gi} className={`gr-msg ${mine ? 'is-mine' : ''}`}>
-              <span className={`gr-msg__avatar gr-msg__avatar--${author.hue} gr-type-micro`} aria-hidden="true">
-                {author.initials}
-              </span>
+              <Avatar initials={author.initials} hue={author.hue} name={author.name} />
               <div className="gr-msg__body">
                 <p className="gr-msg__meta gr-type-caption">
                   <strong>{author.name}</strong>

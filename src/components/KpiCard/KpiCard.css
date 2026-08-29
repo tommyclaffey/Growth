@@ -42,19 +42,6 @@
 }
 
 
-.gr-kpi__progress {
-  flex: 1;
-  height: 8px;
-  border-radius: var(--radius-pill);
-  background: var(--accent-tint);
-  overflow: hidden;
-}
-.gr-kpi__progress-fill {
-  display: block;
-  height: 100%;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(to bottom, var(--accent-gradient-top), var(--accent-gradient-bottom));
-}
 
 .gr-kpi__spark {
   margin-left: auto;

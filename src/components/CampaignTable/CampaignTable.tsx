@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react';
 import './CampaignTable.css';
-import { StatusPill } from '../StatusPill/StatusPill';
+import { StatusMenu } from '../StatusMenu/StatusMenu';
+import { StatusPill, type Stage } from '../StatusPill/StatusPill';
 import { Chip } from '../Chip/Chip';
 import { CAMPAIGNS, type Campaign } from '../../data/campaigns';
 import { CHANNEL_LABEL } from '../../data/metrics';
@@ -24,6 +25,9 @@ export interface CampaignTableProps {
 export function CampaignTable({ channel = null, wideColumns = true }: CampaignTableProps) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<ChannelName | null>(channel);
+  /* Stage overrides live here rather than mutating CAMPAIGNS, so the seed
+     data stays the seed data and a reload is a clean slate. */
+  const [stages, setStages] = useState<Record<string, Stage>>({});
 
   const rows = filter ? CAMPAIGNS.filter((c) => c.channel === filter) : CAMPAIGNS;
 
@@ -96,7 +100,12 @@ export function CampaignTable({ channel = null, wideColumns = true }: CampaignTa
                     </span>
                   </td>
                   {wideColumns && <td className="gr-type-body">{c.objective}</td>}
-                  <td><StatusPill stage={c.stage} /></td>
+                  <td>
+                    <StatusMenu
+                      value={stages[c.id] ?? c.stage}
+                      onChange={(next) => setStages((p) => ({ ...p, [c.id]: next }))}
+                    />
+                  </td>
                   <td className="gr-type-body">{money(c.spend)}</td>
                   <td className="gr-type-body">{c.leads.toLocaleString()}</td>
                   {wideColumns && <td className="gr-type-body">{cacOf(c)}</td>}

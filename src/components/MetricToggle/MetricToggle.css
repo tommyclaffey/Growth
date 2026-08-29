@@ -1,0 +1,27 @@
+.gr-metrictoggle {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-page-top);
+}
+.gr-metrictoggle__seg {
+  height: 24px;
+  padding: 0 var(--space-10);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+.gr-metrictoggle__seg.is-active {
+  background: var(--surface-card);
+  color: var(--text-primary);
+  box-shadow: var(--elevation-raised);
+}
+.gr-metrictoggle__seg:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}

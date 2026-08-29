@@ -1,5 +1,6 @@
 import './KpiCard.css';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
+import { ProgressBar } from '../ProgressBar/ProgressBar';
 
 export interface KpiCardProps {
   label: string;
@@ -88,16 +89,7 @@ export function KpiCard({
         )}
 
         {progress !== undefined ? (
-          <span
-            className="gr-kpi__progress"
-            role="img"
-            aria-label={`${Math.round(progress * 100)} percent of target`}
-          >
-            <span
-              className="gr-kpi__progress-fill"
-              style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
-            />
-          </span>
+          <ProgressBar value={progress} label={label} />
         ) : sparkline && sparkline.length > 0 ? (
           <span className="gr-kpi__spark" aria-hidden="true">
             {sparkline.map((h, i) => (

@@ -3,6 +3,7 @@ import './screens.css';
 import { Toggle } from '../components/Toggle/Toggle';
 import { Button } from '../components/Button/Button';
 import { Badge } from '../components/Badge/Badge';
+import { FormField } from '../components/FormField/FormField';
 import { CHANNEL_KEYS, CHANNEL_LABEL } from '../data/metrics';
 import type { ChannelName } from '../styles/tokens';
 
@@ -28,6 +29,8 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
   const [digest, setDigest] = useState(true);
   const [cacAlerts, setCacAlerts] = useState(true);
   const [pacing, setPacing] = useState(false);
+  const [workspace, setWorkspace] = useState('Growth — Acquisition');
+  const [digestTo, setDigestTo] = useState('growth@example.com');
 
   function toggleChannel(key: ChannelName, next: boolean) {
     setConnected((prev) => {
@@ -102,6 +105,20 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
               <span className="gr-type-caption">Alert when a channel falls behind its monthly target</span>
             </span>
             <Toggle checked={pacing} onChange={setPacing} label="Pacing warnings" labelHidden />
+          </div>
+        </section>
+
+        <section className="gr-card">
+          <header className="gr-card__header">
+            <h3 className="gr-card__title gr-type-card-heading">Workspace</h3>
+          </header>
+          <div className="gr-settings__fields">
+            <FormField label="Workspace name" value={workspace} onChange={setWorkspace}
+                       hint="Shown in the sidebar and on exports" />
+            <FormField label="Digest recipients" type="email" value={digestTo} onChange={setDigestTo}
+                       placeholder="name@company.com"
+                       error={digestTo.length > 0 && !digestTo.includes('@')
+                         ? 'Enter a valid email address' : undefined} />
           </div>
         </section>
 

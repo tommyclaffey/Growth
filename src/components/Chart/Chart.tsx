@@ -6,6 +6,7 @@ import {
   type Metric,
 } from '../../data/metrics';
 import { resolveMark, type Mark } from './mark';
+import { MetricToggle } from '../MetricToggle/MetricToggle';
 
 export { METRICS };
 export type { Metric };
@@ -77,20 +78,7 @@ export function Chart({
     <section className="gr-chart" aria-label={title ?? `${metric} over time`}>
       <header className="gr-chart__header">
         <h3 className="gr-chart__title gr-type-card-heading">{title ?? `${metric} over time`}</h3>
-        <div className="gr-chart__toggle" role="tablist" aria-label="Metric">
-          {METRICS.map((m) => (
-            <button
-              key={m}
-              role="tab"
-              type="button"
-              aria-selected={m === metric}
-              className={`gr-chart__seg gr-type-label-button ${m === metric ? 'is-active' : ''}`}
-              onClick={() => onMetricChange?.(m)}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
+        <MetricToggle value={metric} onChange={(m) => onMetricChange?.(m)} />
       </header>
 
       {state === 'ready' ? (

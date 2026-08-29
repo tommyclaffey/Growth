@@ -1,0 +1,33 @@
+.gr-field { display: flex; flex-direction: column; gap: var(--space-6); }
+.gr-field__label { color: var(--text-secondary); }
+
+.gr-field__input {
+  height: 40px;
+  padding: 0 var(--space-12);
+  border-radius: var(--radius-md);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+.gr-field__input::placeholder { color: var(--text-muted); }
+.gr-field__input:hover:not(:disabled) { border-color: var(--border-strong); }
+
+/* The ring hosts on the input, not the field. A ring that enclosed the label
+   would claim the label is part of the target. */
+.gr-field__input:focus {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+.gr-field__input:disabled {
+  background: var(--surface-disabled);
+  border-color: var(--border-disabled);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+.gr-field.is-invalid .gr-field__input { border-color: var(--semantic-bad); }
+
+/* Reserved height so validation never changes the field's size. */
+.gr-field__msg { min-height: 16px; color: var(--text-muted); }
+.gr-field.is-invalid .gr-field__msg { color: var(--semantic-bad); }
