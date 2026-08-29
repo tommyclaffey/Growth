@@ -1,3 +1,4 @@
+import mayaPhoto from '../assets/maya.jpg';
 import type { ChannelName } from '../styles/tokens';
 import type { Metric, Range } from './metrics';
 
@@ -5,6 +6,8 @@ export interface Member {
   id: string;
   name: string;
   initials: string;
+  /** Optional — most colleagues have none, and initials are the norm. */
+  avatar?: string;
   /* A stable hue index so a person is the same colour in every message.
      Colour follows the entity, never its position in the list. */
   hue: 0 | 1 | 2 | 3;
@@ -19,7 +22,7 @@ export interface Member {
  * that shows a cast of named colleagues and then calls the user "You" has one
  * seat at the table that is not a person.
  */
-export const ME: Member = { id: 'maya', name: 'Maya Okonkwo', initials: 'MO', hue: 0 };
+export const ME: Member = { id: 'maya', name: 'Maya Okonkwo', initials: 'MO', hue: 0, avatar: mayaPhoto };
 
 /** What the account row shows under her name. */
 export const ME_ROLE = 'Growth lead';

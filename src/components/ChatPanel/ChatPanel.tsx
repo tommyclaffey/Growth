@@ -153,7 +153,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
           const mine = author.id === ME.id;
           return (
             <article key={gi} className={`gr-msg ${mine ? 'is-mine' : ''}`}>
-              <Avatar initials={author.initials} hue={author.hue} name={author.name} />
+              <Avatar initials={author.initials} hue={author.hue} name={author.name} src={author.avatar} />
               <div className="gr-msg__body">
                 <p className="gr-msg__meta gr-type-caption">
                   <strong>{author.name}</strong>

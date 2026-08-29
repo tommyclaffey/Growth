@@ -2,6 +2,14 @@ import './Avatar.css';
 
 export interface AvatarProps {
   initials: string;
+  /**
+   * Photo, when there is one.
+   *
+   * Initials remain the fallback rather than the exception: most people in a
+   * workspace have no photo, and a component that assumes one produces a broken
+   * image where a perfectly good monogram belongs.
+   */
+  src?: string;
   /** Fixed per person, so someone is the same colour in every context. */
   hue: 0 | 1 | 2 | 3;
   size?: 24 | 28 | 36;
@@ -16,7 +24,19 @@ export interface AvatarProps {
  * and was deleted. Initials are data, not a variant axis: a variant set can
  * only ever hold the people you thought of when you built it.
  */
-export function Avatar({ initials, hue, size = 28, name }: AvatarProps) {
+export function Avatar({ initials, hue, size = 28, name, src }: AvatarProps) {
+  if (src) {
+    return (
+      <img
+        className="gr-avatar gr-avatar--photo"
+        src={src}
+        style={{ width: size, height: size }}
+        alt={name ?? ''}
+        title={name}
+      />
+    );
+  }
+
   return (
     <span
       className={`gr-avatar gr-avatar--${hue} gr-type-micro`}

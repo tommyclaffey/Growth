@@ -70,7 +70,7 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
         {/* The real avatar component rather than a gradient circle standing in
             for one — same initials and hue she carries in the chat panel, so
             she is recognisably the same person in both places. */}
-        <Avatar initials={ME.initials} hue={ME.hue} size={28} />
+        <Avatar initials={ME.initials} hue={ME.hue} size={28} src={ME.avatar} name={ME.name} />
         <span className="gr-navitem__account">
           <span className="gr-navitem__name">{ME.name}</span>
           <span className="gr-navitem__role gr-type-micro">{ME_ROLE}</span>
