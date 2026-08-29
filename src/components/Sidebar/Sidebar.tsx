@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react';
 import './Sidebar.css';
+import { Avatar } from '../Avatar/Avatar';
+import { ME, ME_ROLE } from '../../data/chat';
 
 export type NavKey = 'overview' | 'channels' | 'campaigns' | 'reports' | 'notifications' | 'settings';
 
@@ -65,8 +67,14 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
         className={`gr-navitem gr-navitem--account gr-type-label-button ${active === 'settings' ? 'is-active' : ''}`}
         onClick={() => onNavigate('settings')}
       >
-        <span className="gr-navitem__avatar" aria-hidden="true" />
-        Account
+        {/* The real avatar component rather than a gradient circle standing in
+            for one — same initials and hue she carries in the chat panel, so
+            she is recognisably the same person in both places. */}
+        <Avatar initials={ME.initials} hue={ME.hue} size={28} />
+        <span className="gr-navitem__account">
+          <span className="gr-navitem__name">{ME.name}</span>
+          <span className="gr-navitem__role gr-type-micro">{ME_ROLE}</span>
+        </span>
       </button>
     </nav>
   );

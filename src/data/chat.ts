@@ -10,10 +10,22 @@ export interface Member {
   hue: 0 | 1 | 2 | 3;
 }
 
-export const ME: Member = { id: 'tc', name: 'You', initials: 'TC', hue: 0 };
+/**
+ * The signed-in person.
+ *
+ * One definition, used by the sidebar account row and by every message sent
+ * from this app. It was `name: 'You'` with initials from nobody — which reads
+ * fine in a chat bubble and reads as a placeholder everywhere else. A product
+ * that shows a cast of named colleagues and then calls the user "You" has one
+ * seat at the table that is not a person.
+ */
+export const ME: Member = { id: 'maya', name: 'Maya Okonkwo', initials: 'MO', hue: 0 };
+
+/** What the account row shows under her name. */
+export const ME_ROLE = 'Growth lead';
 
 export const MEMBERS: Record<string, Member> = {
-  tc: ME,
+  maya: ME,
   jr: { id: 'jr', name: 'Jess Ramírez', initials: 'JR', hue: 1 },
   dk: { id: 'dk', name: 'Dan Kwon',     initials: 'DK', hue: 2 },
   ap: { id: 'ap', name: 'Amara Price',  initials: 'AP', hue: 3 },

@@ -77,11 +77,28 @@
 }
 
 .gr-navitem--account { height: 44px; }
-.gr-navitem__avatar {
-  width: 28px; height: 28px;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(135deg, var(--accent-soft), var(--accent-base));
-  flex: none;
-}
+/* .gr-navitem__avatar removed — it was a gradient circle standing in for an
+   avatar component that already existed. The account row uses the real one. */
 
 @media (prefers-reduced-motion: reduce) { .gr-navitem { transition: none; } }
+
+/* Account row holds a person now: name over role, beside the avatar. The
+   gradient circle that used to sit here was a placeholder for an avatar
+   component that already existed. */
+.gr-navitem__account {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  text-align: left;
+}
+.gr-navitem__name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gr-navitem__role { color: var(--text-muted); }
+
+/* Collapsed sidebar shows the avatar only — the text would be clipped, and a
+   clipped name reads as a rendering fault rather than a deliberate state. */
+.gr-sidebar.is-collapsed .gr-navitem__account { display: none; }
