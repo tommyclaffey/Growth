@@ -11,6 +11,15 @@ import { ME } from './chat';
  */
 
 const KEY = 'growth.avatar';
+/* The source image and the crop are kept beside the rendered avatar so the
+   crop stays editable. Re-cropping the 256px render would compound the loss
+   and could never recover what the first crop cut away — "adjust" has to go
+   back to the original, not to the output. */
+const SRC_KEY = 'growth.avatar.source';
+const CROP_KEY = 'growth.avatar.crop';
+/* Big enough to re-crop and zoom against, small enough to sit in a ~5MB quota
+   alongside everything else. */
+const SOURCE_MAX_PX = 900;
 /* Same-tab writes do not fire `storage`, so components in this tab are told
    directly. Without it the sidebar keeps the old photo until a reload. */
 const CHANGED = 'growth:avatar-changed';
@@ -19,15 +28,34 @@ export function getStoredAvatar(): string | null {
   try { return localStorage.getItem(KEY); } catch { return null; }
 }
 
-export function setStoredAvatar(dataUrl: string | null) {
+export function setStoredAvatar(dataUrl: string | null, source?: string, crop?: Crop) {
   try {
-    if (dataUrl) localStorage.setItem(KEY, dataUrl);
-    else localStorage.removeItem(KEY);
+    if (dataUrl) {
+      localStorage.setItem(KEY, dataUrl);
+      if (source) localStorage.setItem(SRC_KEY, source);
+      if (crop) localStorage.setItem(CROP_KEY, JSON.stringify(crop));
+    } else {
+      localStorage.removeItem(KEY);
+      localStorage.removeItem(SRC_KEY);
+      localStorage.removeItem(CROP_KEY);
+    }
   } catch {
     /* Quota, or Safari private mode. Nothing to recover — the caller already
        has the image on screen; it just will not survive a reload. */
   }
   window.dispatchEvent(new Event(CHANGED));
+}
+
+/** The image the current avatar was cropped from, and where it was cropped. */
+export function getStoredSource(): { src: string; crop: Crop } | null {
+  try {
+    const src = localStorage.getItem(SRC_KEY);
+    if (!src) return null;
+    const raw = localStorage.getItem(CROP_KEY);
+    return { src, crop: raw ? (JSON.parse(raw) as Crop) : DEFAULT_CROP };
+  } catch {
+    return null;
+  }
 }
 
 /** The photo to show for the signed-in person: uploaded, else the bundled one. */
@@ -54,6 +82,35 @@ export interface Crop { scale: number; x: number; y: number }
 export const DEFAULT_CROP: Crop = { scale: 1, x: 0, y: 0 };
 /** The circular preview is this wide, and the crop maths is expressed in it. */
 export const PREVIEW_PX = 220;
+
+/** Loads any image source — a File or a data URL. */
+export function loadImageSrc(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('That image could not be read.'));
+    img.src = src;
+  });
+}
+
+/**
+ * A storable copy of the original.
+ *
+ * Kept at up to 900px so the crop can be re-opened and re-zoomed later without
+ * going back to the file, which the browser cannot do — a File is gone the
+ * moment the page reloads.
+ */
+export function toStorableSource(img: HTMLImageElement): string {
+  const long = Math.max(img.naturalWidth, img.naturalHeight);
+  const k = long > SOURCE_MAX_PX ? SOURCE_MAX_PX / long : 1;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(img.naturalWidth * k);
+  canvas.height = Math.round(img.naturalHeight * k);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas unavailable');
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.88);
+}
 
 export function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {

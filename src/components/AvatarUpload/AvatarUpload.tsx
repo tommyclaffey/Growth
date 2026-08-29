@@ -3,8 +3,8 @@ import './AvatarUpload.css';
 import { Avatar } from '../Avatar/Avatar';
 import { ME } from '../../data/chat';
 import {
-  DEFAULT_CROP, PREVIEW_PX, clampCrop, coverScale, loadImage, renderCrop,
-  setStoredAvatar, useMyAvatar, type Crop,
+  DEFAULT_CROP, PREVIEW_PX, clampCrop, coverScale, getStoredSource, loadImage,
+  loadImageSrc, renderCrop, setStoredAvatar, toStorableSource, useMyAvatar, type Crop,
 } from '../../data/profile';
 
 /**
@@ -76,10 +76,33 @@ export function AvatarUpload() {
   function save() {
     if (!img) return;
     try {
-      setStoredAvatar(renderCrop(img, crop));
+      /* The source is stored with the render so the crop can be re-opened.
+         Without it, "adjust" would have nothing to work from but the 256px
+         output — which cannot recover what the first crop removed. */
+      setStoredAvatar(renderCrop(img, crop), toStorableSource(img), crop);
       setImg(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'That image could not be saved.');
+    }
+  }
+
+  /* Re-open the editor on the photo already in use. */
+  async function adjust() {
+    setError(null);
+    const stored = getStoredSource();
+    /* No stored source means the bundled photo is in play — it can still be
+       re-cropped, just starting from its default framing. */
+    const src = stored?.src ?? current;
+    if (!src) return;
+    setBusy(true);
+    try {
+      const loaded = await loadImageSrc(src);
+      setImg(loaded);
+      setCrop(stored ? clampCrop(loaded, stored.crop) : DEFAULT_CROP);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'That photo could not be opened.');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -158,10 +181,16 @@ export function AvatarUpload() {
       </div>
 
       {current && (
-        <button type="button" className="gr-upload__remove gr-type-caption"
-                onClick={() => { setError(null); setStoredAvatar(null); }}>
-          Remove
-        </button>
+        <div className="gr-upload__actions">
+          <button type="button" className="gr-upload__adjust gr-type-caption"
+                  onClick={() => void adjust()} disabled={busy}>
+            Adjust
+          </button>
+          <button type="button" className="gr-upload__remove gr-type-caption"
+                  onClick={() => { setError(null); setStoredAvatar(null); }}>
+            Remove
+          </button>
+        </div>
       )}
       {error && <p className="gr-upload__error gr-type-caption" role="alert">{error}</p>}
     </div>

@@ -106,3 +106,20 @@
 }
 .gr-upload__save:hover { filter: brightness(1.06); }
 .gr-upload__save:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+
+.gr-upload__actions { display: flex; flex-direction: column; gap: var(--space-8); flex: none; }
+
+.gr-upload__adjust {
+  border: var(--border-width-sm) solid var(--accent-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: var(--accent-text);
+  padding: var(--space-8) var(--space-12);
+  cursor: pointer;
+  font-family: inherit;
+}
+.gr-upload__adjust:hover { border-color: var(--accent-base); }
+.gr-upload__adjust:disabled { opacity: 0.5; cursor: wait; }
+.gr-upload__adjust:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px;
+}
