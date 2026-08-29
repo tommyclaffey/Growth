@@ -11,3 +11,16 @@
 }
 .gr-delta.is-good { background: var(--semantic-good-bg); color: var(--semantic-good); }
 .gr-delta.is-bad  { background: var(--semantic-bad-bg);  color: var(--semantic-bad); }
+
+/* Flat — no change. Neither good nor bad, so it wears neither colour. */
+.gr-delta.is-flat {
+  background: var(--surface-page-top);
+  color: var(--text-muted);
+}
+
+/* Bare — coloured text, no pill. For dense contexts like a table row where a
+   surface on every row would out-shout the values it sits beside. */
+.gr-delta.is-bare {
+  background: none;
+  padding: 0;
+}

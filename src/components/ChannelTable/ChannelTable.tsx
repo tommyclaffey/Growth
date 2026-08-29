@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import './ChannelTable.css';
 import { formatMetric, type Metric } from '../../data/metrics';
+import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { Sparkline } from '../Sparkline/Sparkline';
 import type { ChannelName } from '../../styles/tokens';
 
@@ -99,7 +100,6 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
         </thead>
         <tbody>
           {sorted.map((r) => {
-            const up = r.delta >= 0;
             return (
               <tr key={r.key} className="gr-table__row" onClick={() => onRowClick?.(r.key)} tabIndex={0}>
                 <td>
@@ -115,9 +115,10 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
                 {wideColumns && <td className="gr-type-body">{formatMetric('CAC', r.cac)}</td>}
                 {wideColumns && <td className="gr-type-body">{formatMetric('ROAS', r.roas)}</td>}
                 <td>
-                  <span className={`gr-table__delta gr-type-caption-med ${up ? 'is-up' : 'is-down'}`}>
-                    {up ? '↑' : '↓'} {Math.abs(r.delta)}%
-                  </span>
+                  {/* Instanced, not redrawn. This cell used to own a second
+                      copy of the arrow-and-colour logic, so a fix to one never
+                      reached the other. */}
+                  <DeltaBadge percent={r.delta} bare />
                 </td>
                 <td>
                   <Sparkline values={r.trend} metric={metric} channel={r.key} />

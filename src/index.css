@@ -17,6 +17,13 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  /* The content column narrows for two different reasons — a smaller window,
+     or the chat panel opening — and only one of those is visible to a viewport
+     media query. At 1600px wide with chat open the column is ~1000px, which a
+     `@media (max-width: 900px)` rule never sees. Container queries key off the
+     column's own width, so both causes are handled by one rule. */
+  container-type: inline-size;
+  container-name: main;
   background: linear-gradient(to bottom, var(--surface-page-top), var(--surface-page-bottom));
 }
 
@@ -25,16 +32,31 @@ body {
   position: sticky;
   top: 0;
   z-index: 2;
+  box-sizing: border-box;
+  min-height: var(--header-h);
   padding: var(--space-24) var(--space-30) var(--space-16);
   background: linear-gradient(to bottom, var(--surface-page-top), var(--surface-page-bottom));
   box-shadow: var(--elevation-header);
 }
 
-.gr-toolbar { display: flex; align-items: center; gap: var(--space-12); }
-.gr-toolbar__title { display: flex; flex-direction: column; gap: 3px; }
+/* Wrapping is the floor, not the breakpoint. Without it the toolbar had no
+   way to fail safely: the row simply overflowed, and Export escaped the column
+   to sit on top of the chat panel. A control that leaves its own container is
+   worse than a control that moves. */
+/* Fixed-height crumb row. Present on every screen, occupied only on drill-in,
+   so the header is the same height everywhere and the page never jumps.
+   Sits above the toolbar — nested inside the title column it added invisible
+   height that the toolbar then centred the buttons against. Lives here, with
+   the header it belongs to, rather than in the chat panel's stylesheet. */
+.gr-crumb-slot { height: 18px; display: flex; align-items: center; }
+
+.gr-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-12); }
+.gr-toolbar__title { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .gr-toolbar__title h1 { margin: 0; color: var(--text-primary); }
 .gr-toolbar__title p  { margin: 0; color: var(--text-muted); }
 .gr-toolbar__spacer { flex: 1; }
+/* A group holds together on one line; the toolbar wraps between groups. */
+.gr-toolbar__group { display: flex; align-items: center; gap: var(--space-12); }
 
 .gr-crumb {
   border: none; background: none; padding: 0;
@@ -72,4 +94,18 @@ body {
   border-radius: var(--radius-xl);
   border: var(--border-width-sm) dashed var(--border-default);
   color: var(--text-muted);
+}
+
+
+/* ---------- narrow content column ---------- */
+
+/* Below this the title and the controls stop sharing a row. Measured against
+   the column, so it triggers on a small window and on the chat panel opening
+   alike. */
+@container main (max-width: 880px) {
+  .gr-toolbar { align-items: flex-start; }
+  .gr-toolbar__title { flex: 1 0 100%; }
+  /* The spacer exists to push controls right on one line. On two lines there is
+     nothing to push against, and leaving it in reserves a column of dead space. */
+  .gr-toolbar__spacer { display: none; }
 }

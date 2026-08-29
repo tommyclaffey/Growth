@@ -124,6 +124,13 @@
   --space-24: 24px;
   --space-28: 28px;
   --space-30: 30px;
+
+  /* Layout — the app header and the chat panel header are two headers that sit
+     side by side, so their heights are one decision, not two. Left independent
+     they drifted: 24px top padding against 20px, and different content, so the
+     Export button sat lower than the panel's close button and neither bottom
+     border met the other. */
+  --header-h: 140px;
   --space-40: 40px;
   --space-48: 48px;
 

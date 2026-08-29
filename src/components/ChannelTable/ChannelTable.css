@@ -70,9 +70,8 @@
 .gr-table__channel { display: inline-flex; align-items: center; gap: var(--space-8); color: var(--text-primary); }
 .gr-table__dot { width: 8px; height: 8px; border-radius: var(--radius-pill); flex: none; }
 
-.gr-table__delta { display: inline-flex; align-items: center; gap: var(--space-4); }
-.gr-table__delta.is-up   { color: var(--semantic-good); }
-.gr-table__delta.is-down { color: var(--semantic-bad); }
+/* .gr-table__delta removed — the cell instances DeltaBadge now, so these rules
+   had no owner and were a second definition of a decision made elsewhere. */
 
 
 @media (prefers-reduced-motion: reduce) { .gr-table__row { transition: none; } }

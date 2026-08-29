@@ -5,7 +5,11 @@
   flex-direction: column;
   gap: var(--space-14);
   width: 100%;
-  max-width: 1172px;
+  /* No max-width. 1172px was the Figma frame's width, and a frame width is a
+     canvas dimension, not a layout rule — carried into CSS it capped the only
+     card in the app that had a cap, so the chart stopped growing while the
+     table and KPI row beside it kept going. What the design was drawn at is
+     not what the design is constrained to. */
   min-height: 352px;
   padding: var(--space-18) var(--space-20) var(--space-16);
   border-radius: var(--radius-xl);

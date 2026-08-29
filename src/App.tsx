@@ -109,34 +109,52 @@ export default function App() {
 
       <div className={`gr-main ${chatOpen ? 'is-chat-open' : ''}`}>
         <header className="gr-header">
+          {/* The crumb row is always present, empty on screens without one.
+              Rendering it conditionally made the header a different height on
+              channel screens, so the whole page shifted on drill-in.
+
+              It sits ABOVE the toolbar, not inside the title column. Nested, it
+              added 18px of invisible space to the title block, and the toolbar
+              centred the buttons on that — so they floated above the visible
+              text with a gap under them. A spacer should reserve height for the
+              row it belongs to, not silently reposition its neighbours. */}
+          <div className="gr-crumb-slot">
+            {onChannelScreen && (
+              <button type="button" className="gr-crumb gr-type-caption" onClick={() => setChannel(null)}>
+                {/* Parent only. It read "Channels › Meta" directly above an
+                    <h1> reading "Meta" — the same word twice, two lines apart.
+                    A breadcrumb's job is the way back, and the title already
+                    says where you are. */}
+                <span aria-hidden="true">‹</span> Channels
+              </button>
+            )}
+          </div>
           <div className="gr-toolbar">
             <div className="gr-toolbar__title">
-              {/* The crumb row is always present, empty on screens without one.
-                  Rendering it conditionally made the header a different height
-                  on channel screens, so the whole page shifted on drill-in. */}
-              <div className="gr-crumb-slot">
-                {onChannelScreen && (
-                  <button type="button" className="gr-crumb gr-type-caption" onClick={() => setChannel(null)}>
-                    Channels <span aria-hidden="true">›</span> {title}
-                  </button>
-                )}
-              </div>
               <h1 className="gr-type-page-title">{title}</h1>
               <p className="gr-type-caption">{sub}</p>
             </div>
             <div className="gr-toolbar__spacer" />
-            <ChannelSwitcher
-              value={channel}
-              onChange={(next) => {
-                setChannel(next);
-                if (next) setNav('channels');
-              }}
-            />
-            <RangePicker value={range} onChange={setRange} />
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
-            <Button variant="ghost" onClick={() => setAssistOpen(true)}>Ask</Button>
-            <Button variant="ghost" onClick={() => setChatOpen(!chatOpen)}>Chat</Button>
-            <Button variant="primary" onClick={() => downloadCsv(scope, range)}>Export</Button>
+            {/* Two groups, not six loose controls. As flat siblings they wrapped
+                one at a time wherever the row ran out of room, which orphaned
+                Export onto a line by itself. Filters and actions are separate
+                ideas, so they wrap as units. */}
+            <div className="gr-toolbar__group">
+              <ChannelSwitcher
+                value={channel}
+                onChange={(next) => {
+                  setChannel(next);
+                  if (next) setNav('channels');
+                }}
+              />
+              <RangePicker value={range} onChange={setRange} />
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            </div>
+            <div className="gr-toolbar__group">
+              <Button variant="ghost" onClick={() => setAssistOpen(true)}>Ask</Button>
+              <Button variant="ghost" onClick={() => setChatOpen(!chatOpen)}>Chat</Button>
+              <Button variant="primary" onClick={() => downloadCsv(scope, range)}>Export</Button>
+            </div>
           </div>
         </header>
 
