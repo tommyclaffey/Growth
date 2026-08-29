@@ -9,6 +9,7 @@ import { CampaignTable } from './components/CampaignTable/CampaignTable';
 import { ThemeToggle } from './components/ThemeToggle/ThemeToggle';
 import { ChannelSwitcher } from './components/ChannelSwitcher/ChannelSwitcher';
 import { RangePicker } from './components/RangePicker/RangePicker';
+import { ChatPanel } from './components/ChatPanel/ChatPanel';
 import { downloadCsv } from './data/exportCsv';
 import { Reports } from './screens/Reports';
 import { Notifications } from './screens/Notifications';
@@ -186,23 +187,10 @@ export default function App() {
       </div>
 
       {chatOpen && (
-        <aside className="gr-chat" aria-label="Team chat">
-          <header className="gr-chat__header">
-            <div>
-              <h2 className="gr-type-section">Team chat</h2>
-              <p className="gr-type-caption">#growth-analytics · synced</p>
-            </div>
-            <button type="button" className="gr-chat__close" onClick={() => setChatOpen(false)} aria-label="Close chat">✕</button>
-          </header>
-          <div className="gr-chat__messages">
-            <p className="gr-type-body">Meta CAC is up 42% week over week. Worth a look before Friday.</p>
-            <p className="gr-type-body">Pulled the campaign split — most of it is Advantage+ Shopping.</p>
-          </div>
-          <div className="gr-chat__composer">
-            <input className="gr-chat__input gr-type-body" placeholder="Message #growth-analytics" />
-            <Button variant="primary">Send</Button>
-          </div>
-        </aside>
+        <ChatPanel
+          onClose={() => setChatOpen(false)}
+          current={{ channel: scope, metric, range }}
+        />
       )}
     </div>
   );

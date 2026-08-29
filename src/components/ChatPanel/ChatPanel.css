@@ -1,0 +1,137 @@
+/* Chat panel — 360 wide. Opening it shrinks the content column, which is what
+   drives wideColumns on the table. Same behaviour as the Figma prototype
+   variables: content_w goes 1280 to 920 and the table drops CAC and ROAS. */
+.gr-chat {
+  width: 360px;
+  flex: none;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-card);
+  border-left: var(--border-width-sm) solid var(--border-default);
+}
+.gr-chat__header {
+  display: flex; align-items: flex-start; gap: var(--space-12);
+  padding: var(--space-20) var(--space-18) var(--space-16);
+  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-chat__header h2 { margin: 0; color: var(--text-primary); }
+.gr-chat__header p  { margin: 3px 0 0; color: var(--text-muted); }
+.gr-chat__close {
+  margin-left: auto;
+  width: 28px; height: 28px;
+  border: none; border-radius: var(--radius-pill);
+  background: var(--surface-page-top); color: var(--icon-default);
+  cursor: pointer;
+}
+.gr-chat__messages {
+  flex: 1;
+  display: flex; flex-direction: column; gap: var(--space-18);
+  padding: var(--space-18);
+  color: var(--text-secondary);
+}
+.gr-chat__messages p { margin: 0; }
+.gr-chat__composer {
+  display: flex; gap: var(--space-10);
+  padding: var(--space-14) var(--space-18) var(--space-18);
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-chat__input {
+  flex: 1; height: 40px;
+  padding: 0 var(--space-12);
+  border-radius: var(--radius-md);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-page-top);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+.gr-chat__input:focus {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+/* Fixed-height crumb row. Present on every screen, occupied only on drill-in,
+   so the header is the same height everywhere and the page never jumps. */
+.gr-crumb-slot { height: 18px; display: flex; align-items: center; }
+
+/* ---------- messages ---------- */
+
+.gr-chat__messages {
+  overflow-y: auto;
+  gap: var(--space-16);
+}
+
+.gr-msg { display: flex; gap: var(--space-10); align-items: flex-start; }
+
+.gr-msg__avatar {
+  width: 28px; height: 28px; flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--radius-pill);
+  color: var(--brand-on-accent);
+  letter-spacing: 0.02em;
+}
+/* Hue is fixed per person, so someone is the same colour in every message. */
+.gr-msg__avatar--0 { background: var(--accent-base); }
+.gr-msg__avatar--1 { background: var(--channel-meta); }
+.gr-msg__avatar--2 { background: var(--channel-affiliates); }
+.gr-msg__avatar--3 { background: var(--channel-youtube); }
+
+.gr-msg__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.gr-msg__meta { display: flex; align-items: baseline; gap: var(--space-8); margin: 0 !important; }
+.gr-msg__meta strong { color: var(--text-primary); font-weight: 500; }
+.gr-msg__meta span   { color: var(--text-muted); }
+.gr-msg__line { display: flex; flex-direction: column; gap: var(--space-6); }
+.gr-msg__line p { margin: 0; color: var(--text-secondary); }
+
+/* ---------- shared view card ---------- */
+
+.gr-viewcard {
+  display: flex; align-items: center; gap: var(--space-10);
+  padding: var(--space-10) var(--space-12);
+  border-radius: var(--radius-md);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-page-top);
+}
+.gr-viewcard.is-compact { flex: 1; padding: var(--space-8) var(--space-10); }
+.gr-viewcard__dot { width: 8px; height: 8px; border-radius: var(--radius-pill); flex: none; }
+.gr-viewcard__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.gr-viewcard__title { color: var(--text-primary); }
+.gr-viewcard__sub   { color: var(--text-muted); }
+.gr-viewcard__value { color: var(--text-primary); white-space: nowrap; }
+
+/* ---------- composer ---------- */
+
+.gr-chat__composer { flex-direction: column; gap: var(--space-10); }
+.gr-chat__row { display: flex; align-items: center; gap: var(--space-10); }
+
+.gr-chat__attachment { display: flex; align-items: center; gap: var(--space-8); }
+.gr-chat__unattach {
+  width: 24px; height: 24px; flex: none;
+  border: none; border-radius: var(--radius-sm);
+  background: none; color: var(--icon-muted); cursor: pointer;
+}
+.gr-chat__unattach:hover { color: var(--text-primary); background: var(--surface-page-top); }
+
+.gr-chat__attach {
+  width: 38px; height: 38px; flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--radius-md);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-page-top);
+  color: var(--icon-default);
+  cursor: pointer;
+}
+.gr-chat__attach:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-chat__attach.is-on {
+  background: var(--accent-tint);
+  border-color: var(--accent-base);
+  color: var(--accent-text);
+}
+.gr-chat__attach:focus-visible,
+.gr-chat__unattach:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}

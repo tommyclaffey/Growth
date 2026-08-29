@@ -5,14 +5,11 @@ import {
   METRICS, domainFor, formatMetric, isRatio, yTicks as computeTicks,
   type Metric,
 } from '../../data/metrics';
+import { resolveMark, type Mark } from './mark';
 
 export { METRICS };
 export type { Metric };
-
-/** Above this many points a bar becomes a picket fence. 1172px / 45 ≈ 26px. */
-const BAR_LIMIT = 45;
-
-export type Mark = 'bar' | 'line' | 'auto';
+export type { Mark };
 
 export interface ChartProps {
   title?: string;
@@ -29,28 +26,6 @@ const CSS_CHANNEL: Record<string, string> = {
   meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
   affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
 };
-
-/**
- * Which mark to draw.
- *
- *   Ratios always use a line.  CAC and ROAS do not accumulate, and a bar
- *   encodes magnitude as length from zero — it invites the eye to read total
- *   area as a quantity that does not exist.
- *
- *   Above 45 points everything uses a line, because a 13px bar carries no
- *   more information than the line through its top edge and carries it worse.
- *
- *   Otherwise quantities use bars.
- *
- * This rule lives in code rather than in a designer's head so an engineer can
- * follow it without asking.
- */
-export function resolveMark(metric: Metric, points: number, requested: Mark = 'auto'): 'bar' | 'line' {
-  if (requested !== 'auto') return requested;
-  if (isRatio(metric)) return 'line';
-  if (points > BAR_LIMIT) return 'line';
-  return 'bar';
-}
 
 export function Chart({
   title,
