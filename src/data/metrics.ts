@@ -166,25 +166,62 @@ const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
   }),
 ) as Record<ChannelName, DayRow[]>;
 
-/** Blended day rows across every channel. */
-const ALL: DayRow[] = Array.from({ length: POINTS }, (_, d) =>
-  CHANNEL_KEYS.reduce<DayRow>(
-    (acc, key) => {
-      const r = SERIES[key][d];
-      return {
-        spend: acc.spend + r.spend,
-        clicks: acc.clicks + r.clicks,
-        leads: acc.leads + r.leads,
-        sales: acc.sales + r.sales,
-        revenue: acc.revenue + r.revenue,
-      };
-    },
-    { spend: 0, clicks: 0, leads: 0, sales: 0, revenue: 0 },
-  ),
-);
+/**
+ * The channels this account actually runs.
+ *
+ * A channel that has been switched off is not a channel with no data — it is a
+ * channel that is not part of this business. It should be absent from the
+ * blend, the tables, the picker and the export, not present and empty. An
+ * agency that does no affiliate marketing should never see the word.
+ *
+ * Held here rather than passed through every call because the blend has to
+ * respect it too: `totals('all')` is the sum of what you run, and threading a
+ * list through every caller would leave the one that forgets silently
+ * reporting a different total from everything beside it.
+ */
+let ACTIVE: ChannelName[] = [...CHANNEL_KEYS];
+
+export function activeChannels(): ChannelName[] {
+  return ACTIVE;
+}
+
+export function setActiveChannels(keys: ChannelName[]) {
+  /* Ordered by CHANNEL_KEYS rather than by the caller, so a channel switched
+     off and on again returns to its place instead of the end of the list. */
+  ACTIVE = CHANNEL_KEYS.filter((k) => keys.includes(k));
+  blendCache = null;
+}
+
+export function isActive(scope: Scope): boolean {
+  return scope === 'all' || ACTIVE.includes(scope);
+}
+
+/* Recomputed when the active set changes, not on every read: the blend is 90
+   days across six channels and it is read many times per render. */
+let blendCache: DayRow[] | null = null;
+
+function blend(): DayRow[] {
+  if (blendCache) return blendCache;
+  blendCache = Array.from({ length: POINTS }, (_, d) =>
+    ACTIVE.reduce<DayRow>(
+      (acc, key) => {
+        const r = SERIES[key][d];
+        return {
+          spend: acc.spend + r.spend,
+          clicks: acc.clicks + r.clicks,
+          leads: acc.leads + r.leads,
+          sales: acc.sales + r.sales,
+          revenue: acc.revenue + r.revenue,
+        };
+      },
+      { spend: 0, clicks: 0, leads: 0, sales: 0, revenue: 0 },
+    ),
+  );
+  return blendCache;
+}
 
 function rowsFor(scope: Scope, range: Range = 30): DayRow[] {
-  const all = scope === 'all' ? ALL : SERIES[scope];
+  const all = scope === 'all' ? blend() : SERIES[scope];
   return all.slice(-POINTS_FOR[range]);
 }
 

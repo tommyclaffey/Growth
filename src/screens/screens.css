@@ -53,3 +53,28 @@
   gap: var(--space-16);
   padding-top: var(--space-4);
 }
+
+/* A channel not in use stays listed — you have to be able to switch it back on
+   — but reads as inactive rather than as a live row with a broken sync. */
+.gr-setting-row.is-off { opacity: 0.55; }
+
+.gr-setting-row__connect {
+  flex: none;
+  padding: var(--space-6) var(--space-12);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+}
+.gr-setting-row__connect:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-setting-row__connect.is-primary {
+  border-color: transparent;
+  background: var(--accent-base);
+  color: var(--brand-on-accent);
+}
+.gr-setting-row__connect.is-primary:hover { filter: brightness(1.06); }
+.gr-setting-row__connect:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px;
+}

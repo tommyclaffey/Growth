@@ -3,6 +3,8 @@ import { betaTool } from '@anthropic-ai/sdk/helpers/beta/json-schema';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
 
+type ChannelName = string;
+
 /**
  * The assistant's model backend.
  *
@@ -74,7 +76,10 @@ RULES, IN ORDER OF IMPORTANCE:
 Currency is USD. CAC is dollars per lead. ROAS is a multiple of spend.`;
 
 interface Metrics {
-  CHANNEL_KEYS: string[];
+  /* Not CHANNEL_KEYS: a channel the account has switched off is not part of
+     this business, so the assistant must not rank it, name it, or offer it as
+     a scope. */
+  activeChannels: () => ChannelName[];
   CHANNEL_LABEL: Record<string, string>;
   totals: (scope: string, range: number) => Record<string, number>;
   delta: (scope: string, metric: string, range: number) => number;
@@ -98,7 +103,7 @@ interface Evidence { label: string; value: string; channel?: string }
 interface Source { title: string; url: string }
 
 function buildTools(m: Metrics, range: number, evidence: Evidence[]) {
-  const scopeEnum = ['all', ...m.CHANNEL_KEYS];
+  const scopeEnum = ['all', ...m.activeChannels()];
   const metricEnum = ['Spend', 'Clicks', 'Leads', 'Sales', 'CAC', 'ROAS'];
   const label = (s: string) => (s === 'all' ? 'All channels' : m.CHANNEL_LABEL[s] ?? s);
 
@@ -169,7 +174,7 @@ function buildTools(m: Metrics, range: number, evidence: Evidence[]) {
       },
       run: ({ metric }: { metric: string }) => {
         const key = metric.toLowerCase();
-        const list = m.CHANNEL_KEYS.map((c) => {
+        const list = m.activeChannels().map((c) => {
           const t = m.totals(c, range);
           const value = key === 'sales' ? t.sales : (t[key] ?? 0);
           return { channel: m.CHANNEL_LABEL[c] ?? c, value, formatted: m.formatMetric(metric, value) };

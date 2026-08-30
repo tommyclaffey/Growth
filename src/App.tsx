@@ -9,6 +9,7 @@ import { CampaignTable } from './components/CampaignTable/CampaignTable';
 import { ThemeToggle } from './components/ThemeToggle/ThemeToggle';
 import { ChannelSwitcher } from './components/ChannelSwitcher/ChannelSwitcher';
 import { ChannelWordmark } from './components/ChannelWordmark/ChannelWordmark';
+import { useChannels } from './data/channels';
 import { RangePicker } from './components/RangePicker/RangePicker';
 import { ChatPanel } from './components/ChatPanel/ChatPanel';
 import { Assistant } from './components/Assistant/Assistant';
@@ -17,7 +18,7 @@ import { Reports } from './screens/Reports';
 import { Notifications } from './screens/Notifications';
 import { Settings } from './screens/Settings';
 import {
-  CHANNEL_KEYS, CHANNEL_LABEL, delta, formatMetric, series, sparkline, totals,
+  CHANNEL_LABEL, activeChannels, delta, formatMetric, isActive, series, sparkline, totals,
   RANGE_LABEL,
   type Metric, type Range, type Scope,
 } from './data/metrics';
@@ -33,6 +34,14 @@ export default function App() {
   const [range, setRange] = useState<Range>(30);
   const [pendingView, setPendingView] = useState<ViewRef | null>(null);
   const [assistOpen, setAssistOpen] = useState(false);
+  const enabled = useChannels();
+
+  /* Switching off the channel you are looking at has to move you somewhere
+     that still exists. Leaving the page up would show a screen for something
+     the account does not run, built from a series nothing else is counting. */
+  useEffect(() => {
+    if (channel && !isActive(channel)) setChannel(null);
+  }, [enabled, channel]);
 
   // Cmd/Ctrl-K, the shortcut people already try in a product like this.
   useEffect(() => {
@@ -75,7 +84,7 @@ export default function App() {
     return {
       totals: t,
       data,
-      rows: CHANNEL_KEYS.map<ChannelRow>((key) => {
+      rows: activeChannels().map<ChannelRow>((key) => {
         const ct = totals(key, range);
         return {
           key,

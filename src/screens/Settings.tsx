@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import './screens.css';
 import { Toggle } from '../components/Toggle/Toggle';
-import { Button } from '../components/Button/Button';
 import { Badge } from '../components/Badge/Badge';
 import { FormField } from '../components/FormField/FormField';
 import { CHANNEL_KEYS, CHANNEL_LABEL } from '../data/metrics';
+import { useChannels, toggleChannel } from '../data/channels';
+import { ChannelWordmark } from '../components/ChannelWordmark/ChannelWordmark';
 import type { ChannelName } from '../styles/tokens';
 import { AvatarUpload } from '../components/AvatarUpload/AvatarUpload';
-import { ChannelMark } from '../components/ChannelMark/ChannelMark';
 import { AccountLinks } from '../components/AccountLinks/AccountLinks';
 import { ME, ME_ROLE } from '../data/chat';
 
@@ -23,6 +23,7 @@ export interface SettingsProps {
 }
 
 export function Settings({ theme, onThemeChange }: SettingsProps) {
+  const enabled = useChannels();
   const [connected, setConnected] = useState<Set<ChannelName>>(
     new Set(CHANNEL_KEYS.filter((k) => k !== 'podcasts')),
   );
@@ -32,7 +33,7 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
   const [workspace, setWorkspace] = useState('Growth — Acquisition');
   const [digestTo, setDigestTo] = useState('growth@example.com');
 
-  function toggleChannel(key: ChannelName, next: boolean) {
+  function toggleChannel2(key: ChannelName, next: boolean) {
     setConnected((prev) => {
       const s = new Set(prev);
       if (next) s.add(key); else s.delete(key);
@@ -71,30 +72,52 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
 
         <section className="gr-card">
           <header className="gr-card__header">
-            <h3 className="gr-card__title gr-type-card-heading">Channels</h3>
-            <Button variant="ghost" disabled title="Connecting a channel is an OAuth flow, out of scope for this prototype">
-              Add channel
-            </Button>
+            <div className="gr-card__heading">
+              <h3 className="gr-card__title gr-type-card-heading">Channels</h3>
+              <p className="gr-card__sub gr-type-caption">
+                Switching one off removes it from the whole product — the blend,
+                the tables, the picker and its own page.
+              </p>
+            </div>
           </header>
 
           {CHANNEL_KEYS.map((key) => {
             const isOn = connected.has(key);
+            const runs = enabled.includes(key);
             return (
-              <div key={key} className="gr-setting-row">
-                <span className="gr-setting-row__channel gr-type-body-medium">
-                  <ChannelMark channel={key} size={16} />
-                  {CHANNEL_LABEL[key]}
+              <div key={key} className={`gr-setting-row ${runs ? '' : 'is-off'}`}>
+                <span className="gr-setting-row__channel">
+                  {/* The channel named the way the design names it — a lockup
+                      for the three that are products, the Google Ads mark
+                      beside "Paid Search" because the channel is not called
+                      Google Ads, the channel mark for the two that have no
+                      product behind them. */}
+                  <ChannelWordmark channel={key} name={CHANNEL_LABEL[key]} />
                 </span>
-                <span className="gr-setting-row__text">
-                  <span className="gr-type-caption">
-                    {isOn ? `Synced ${SYNCED[key].toLowerCase()}` : 'Not connected'}
-                  </span>
+
+                <span className="gr-setting-row__text gr-type-caption">
+                  {!runs ? 'Not in use' : isOn ? `Synced ${SYNCED[key].toLowerCase()}` : 'Not connected'}
                 </span>
-                {isOn && SYNCED[key] === 'Never' && <Badge label="Sync failed" tone="bad" />}
+
+                {runs && isOn && SYNCED[key] === 'Never' && <Badge label="Sync failed" tone="bad" />}
+
+                {/* Connecting is only offered for a channel this account runs.
+                    Offering to connect something they have said they do not do
+                    is the noise the switch exists to remove. */}
+                {runs && (
+                  <button
+                    type="button"
+                    className={`gr-setting-row__connect gr-type-caption ${isOn ? '' : 'is-primary'}`}
+                    onClick={() => toggleChannel2(key, !isOn)}
+                  >
+                    {isOn ? 'Disconnect' : 'Connect'}
+                  </button>
+                )}
+
                 <Toggle
-                  checked={isOn}
-                  onChange={(next) => toggleChannel(key, next)}
-                  label={`${CHANNEL_LABEL[key]} connection`}
+                  checked={runs}
+                  onChange={(next) => toggleChannel(key, next, enabled)}
+                  label={`${CHANNEL_LABEL[key]} in use`}
                   labelHidden
                 />
               </div>

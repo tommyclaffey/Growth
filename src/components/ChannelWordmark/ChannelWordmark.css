@@ -13,3 +13,9 @@
    treatment brands ship for exactly this, and it is honest about what it is:
    a mono logo, not a recolour. */
 [data-theme="dark"] .gr-wordmark__img { filter: brightness(0) invert(1); }
+
+/* A product mark shown beside the channel name, not instead of it. Sized to
+   the name's cap height rather than its own export box. */
+.gr-wordmark { gap: var(--space-10); }
+.gr-wordmark__mark { height: 22px; width: auto; display: block; flex: none; }
+.gr-wordmark__name { min-width: 0; }

@@ -1,5 +1,5 @@
 import {
-  CHANNEL_KEYS, CHANNEL_LABEL, RANGE_LABEL, delta, formatMetric, totals,
+  CHANNEL_LABEL, RANGE_LABEL, activeChannels, delta, formatMetric, totals,
   type Metric, type Range, type Scope,
 } from './metrics';
 import type { ChannelName } from '../styles/tokens';
@@ -59,7 +59,7 @@ function findMetric(q: string): Metric | null {
 }
 
 function findChannels(q: string): ChannelName[] {
-  return CHANNEL_KEYS.filter((k) => {
+  return activeChannels().filter((k) => {
     const label = CHANNEL_LABEL[k].toLowerCase();
     return q.toLowerCase().includes(label) || q.toLowerCase().includes(k.toLowerCase());
   });
@@ -99,7 +99,7 @@ export function ask(question: string, range: Range): Answer {
 
   /* "what should I cut" — worst performer by CAC, with the money at stake. */
   if (/\bcut\b|\bpause\b|\bstop\b|\bkill\b|worst|underperform/i.test(q)) {
-    const ranked = [...CHANNEL_KEYS].sort((a, b) => totals(b, range).cac - totals(a, range).cac);
+    const ranked = [...activeChannels()].sort((a, b) => totals(b, range).cac - totals(a, range).cac);
     const worst = ranked[0];
     const t = totals(worst, range);
     const blended = totals('all', range);
@@ -118,7 +118,7 @@ export function ask(question: string, range: Range): Answer {
   /* "which channel has the best/worst X" — a ranking question. */
   if (metric && /\bwhich\b|\bbest\b|\bworst\b|\btop\b|\bhighest\b|\blowest\b/i.test(q)) {
     const wantWorst = /\bworst\b|\blowest\b/i.test(q) !== lowerIsBetter(metric);
-    const ranked = [...CHANNEL_KEYS].sort((a, b) => {
+    const ranked = [...activeChannels()].sort((a, b) => {
       const d = valueOf(a, metric, range) - valueOf(b, metric, range);
       return wantWorst ? d : -d;
     });

@@ -1,5 +1,5 @@
 import {
-  CHANNEL_KEYS, CHANNEL_LABEL, rows, totals,
+  CHANNEL_LABEL, activeChannels, rows, totals,
   type Range, type Scope,
 } from './metrics';
 import type { ChannelName } from '../styles/tokens';
@@ -31,7 +31,7 @@ function line(cells: (string | number)[]): string {
 }
 
 export function buildCsv(scope: Scope, range: Range): string {
-  const scopes: (ChannelName | 'all')[] = scope === 'all' ? CHANNEL_KEYS : [scope];
+  const scopes: (ChannelName | 'all')[] = scope === 'all' ? activeChannels() : [scope];
   const out: string[] = [line(HEADERS)];
 
   for (const s of scopes) {
