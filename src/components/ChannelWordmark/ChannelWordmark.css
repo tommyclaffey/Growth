@@ -1,11 +1,16 @@
 .gr-wordmark { display: inline-flex; align-items: center; }
 
-/* Sized off the page-title cap height so a logo and a text title occupy the
-   same line, rather than each brand's own export height. Per-brand, because
-   brand artwork is externally owned and does not arrive on a shared grid. */
-.gr-wordmark__img { height: 26px; width: auto; display: block; }
-.gr-wordmark__img.is-meta   { height: 24px; }
-.gr-wordmark__img.is-tiktok { height: 30px; }
+/* Matched on CAP HEIGHT, not box height.
+   Each brand's export carries its own padding — Meta's lockup is 113x23 and
+   nearly fills its box, TikTok's is 120x36 with air above and below. Setting
+   one height for all three therefore renders three different optical sizes:
+   at 24px Meta's wordmark stood a third taller than the page title beside it.
+   These are the values at which each wordmark's capitals match the 21px page
+   title's, measured rather than guessed. */
+.gr-wordmark__img { height: 23px; width: auto; display: block; }
+.gr-wordmark__img.is-meta    { height: 18px; }
+.gr-wordmark__img.is-tiktok  { height: 30px; }
+.gr-wordmark__img.is-youtube { height: 23px; }
 
 /* ⚠️ The Figma file has no reversed lockup — each brand exists once, in its
    light form, and the wordmarks are near-black. On the dark surface they
