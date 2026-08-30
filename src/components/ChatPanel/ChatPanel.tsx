@@ -6,7 +6,7 @@ import { SlackConnect } from './SlackConnect';
 import { ConversationList } from '../ConversationList/ConversationList';
 import {
   appendMessage, conversationName, getConversation, markRead, replaceMessages,
-  others, sortedConversations, unreadCount,
+  memberOf, others, sortedConversations, unreadCount,
 } from '../../data/conversations';
 import { SlackMark } from '../SlackMark/SlackMark';
 import { listPeople, type Person } from '../../data/slackDirectory';
@@ -14,7 +14,7 @@ import { activeMention, applyMention, mentionsMe, toSlackMentions } from '../../
 import { Button } from '../Button/Button';
 import {
   MEMBERS, ME, groupMessages, nowLabel,
-  type Message, type ViewRef,
+  type Member, type Message, type ViewRef,
 } from '../../data/chat';
 import {
   CHANNEL_LABEL, RANGE_LABEL, delta, formatMetric, isRatio, totals, type Scope,
@@ -58,7 +58,10 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
      fact, and they drift. */
   const [openId, setOpenId] = useState<string | null>(null);
   const [tick, setTick] = useState(0);        /* conversations live outside React */
-  const [people, setPeople] = useState<Person[]>([]);
+  /* The SLACK directory — used only to translate a name into the id Slack
+     stores, and only for the one conversation Slack mirrors. It is not the
+     roster the mention list is built from. */
+  const [slackPeople, setSlackPeople] = useState<Person[]>([]);
   const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
   const composerRef = useRef<HTMLInputElement>(null);
 
@@ -72,7 +75,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
 
   /* The directory is needed to turn "@Dan Kwon" into the id Slack stores, so
      it is fetched once rather than per keystroke. */
-  useEffect(() => { void listPeople().then(setPeople); }, [source]);
+  useEffect(() => { void listPeople().then(setSlackPeople); }, [source]);
   const endRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
@@ -124,11 +127,18 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
     if (pending) endRef.current?.scrollIntoView({ block: 'end' });
   }, [pending]);
 
+  /* You can only mention someone who is in the conversation.
+     This was built from the Slack workspace directory, so typing "@" in a
+     Growth DM offered every account in a linked Slack -- people who are not
+     in the thread, and in a personal workspace, not colleagues at all. A
+     mention is a claim that someone will see it, and mentioning somebody who
+     is not in the conversation is a claim the product cannot honour. */
+  const roster: Member[] = open ? open.memberIds.map(memberOf).filter((m) => m.id !== ME.id) : [];
   const suggestions = mention
-    ? people.filter((p) => p.name.toLowerCase().includes(mention.query.toLowerCase())).slice(0, 6)
+    ? roster.filter((m) => m.name.toLowerCase().includes(mention.query.toLowerCase())).slice(0, 6)
     : [];
 
-  function choose(p: Person) {
+  function choose(p: Member) {
     const el = composerRef.current;
     if (!el || !mention) return;
     const next = applyMention(draft, mention.start, el.selectionStart ?? draft.length, p.name);
@@ -166,7 +176,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
        failure mode for this feature. */
     if (!mirrored) return;
 
-    const sent = await postToSlack(toSlackMentions(text, people), pending);
+    const sent = await postToSlack(toSlackMentions(text, slackPeople), pending);
     /* A message that exists only in this browser but looks identical to one
        that reached the channel is worse than an error -- the user believes
        their team saw it. */
@@ -267,7 +277,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
                         /* onMouseDown, not onClick: click fires after blur, and
                            the input losing focus first closes this list. */
                         onMouseDown={(e) => { e.preventDefault(); choose(p); }}>
-                  <Avatar initials={p.initials} hue={p.hue} size={24} src={p.avatar} />
+                  <Avatar initials={p.initials} hue={p.hue} size={24} name={p.name} src={avatarFor(p)} />
                   {p.name}
                 </button>
               </li>
