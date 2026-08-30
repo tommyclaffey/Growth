@@ -26,7 +26,14 @@
    with the first card in the page beside it. Holding the min-height here as
    well would stack 140 on top of 60 and leave the gap that SlackConnect used
    to occupy. */
-.gr-chat__header.is-list { min-height: 0; border-bottom: none; padding-bottom: var(--space-12); }
+.gr-chat__header.is-list {
+  min-height: 0;
+  border-bottom: none;
+  /* Zero, not 12. The search row below brings its own 12 of top padding, and
+     two paddings meeting across a seam add up -- 24 above the input against
+     12 below it. The row owns the space on both of its sides. */
+  padding-bottom: 0;
+}
 .gr-chat__head-row { display: flex; align-items: flex-start; gap: var(--space-12); }
 .gr-chat__head-text { min-width: 0; flex: 1; }
 .gr-chat__header h2 { margin: 0; color: var(--text-primary); }

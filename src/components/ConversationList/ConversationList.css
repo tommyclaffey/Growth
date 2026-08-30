@@ -2,7 +2,10 @@
 
 .gr-convs__head {
   display: flex; align-items: center; gap: var(--space-8);
-  padding: var(--space-12) var(--space-16);
+  /* --space-18 to match .gr-chat__header, not --space-16. They are different
+     elements but one visual column: the input's left edge has to sit under
+     "Messages", and 2px off reads as a mistake rather than a margin. */
+  padding: var(--space-12) var(--space-18);
   border-bottom: var(--border-width-sm) solid var(--border-subtle);
   flex: none;
 }
@@ -48,7 +51,7 @@
 .gr-conv {
   display: flex; align-items: center; gap: var(--space-10);
   width: 100%;
-  padding: var(--space-8) var(--space-16);
+  padding: var(--space-8) var(--space-18);
   border: none; background: none; cursor: pointer; text-align: left;
   color: inherit;
 }
@@ -95,13 +98,13 @@
 
 .gr-conv__mirror {
   margin: 0 0 var(--space-4);
-  padding: 0 var(--space-16) 0 62px;   /* aligns under the name, not the avatar */
+  padding: 0 var(--space-18) 0 66px;   /* aligns under the name, not the avatar */
   color: var(--text-muted);
 }
 
 .gr-convs__picked {
   display: flex; flex-wrap: wrap; gap: var(--space-8);
-  padding: var(--space-12) var(--space-16);
+  padding: var(--space-12) var(--space-18);
   border-bottom: var(--border-width-sm) solid var(--border-subtle);
 }
 .gr-convs__chip {
@@ -118,4 +121,4 @@
 }
 .gr-convs__go:hover { filter: brightness(1.06); }
 
-.gr-convs__empty { padding: var(--space-16); color: var(--text-muted); }
+.gr-convs__empty { padding: var(--space-16) var(--space-18); color: var(--text-muted); }
