@@ -3,13 +3,17 @@ import './ChatPanel.css';
 import { loadThread, postToSlack, subscribeToSlack, type ChatSource } from '../../data/slackClient';
 import { useAvatarFor } from '../../data/profile';
 import { SlackConnect } from './SlackConnect';
-import { ConversationPicker } from '../ConversationPicker/ConversationPicker';
+import { ConversationList } from '../ConversationList/ConversationList';
+import {
+  appendMessage, conversationName, getConversation, markRead, replaceMessages,
+  others, sortedConversations, unreadCount,
+} from '../../data/conversations';
 import { SlackMark } from '../SlackMark/SlackMark';
 import { listPeople, type Person } from '../../data/slackDirectory';
 import { activeMention, applyMention, mentionsMe, toSlackMentions } from '../../data/mentions';
 import { Button } from '../Button/Button';
 import {
-  MEMBERS, ME, SEED, groupMessages, nowLabel,
+  MEMBERS, ME, groupMessages, nowLabel,
   type Message, type ViewRef,
 } from '../../data/chat';
 import {
@@ -43,17 +47,28 @@ export interface ChatPanelProps {
  * one goes stale the moment the data moves, the other does not.
  */
 export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) {
-  const [messages, setMessages] = useState<Message[]>(SEED);
+  const [pendingFail, setPendingFail] = useState<string | null>(null);
   const [members, setMembers] = useState(MEMBERS);
   const [source, setSource] = useState<ChatSource>('seed');
   const [origin, setOrigin] = useState<{ team?: string; channel?: string }>({});
   const [draft, setDraft] = useState('');
   const avatarFor = useAvatarFor();
-  const [picking, setPicking] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  /* Two levels, list then thread. `null` IS the list — an explicit
+     view: 'list' | 'thread' would be a second source of truth for the same
+     fact, and they drift. */
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);        /* conversations live outside React */
   const [people, setPeople] = useState<Person[]>([]);
   const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
   const composerRef = useRef<HTMLInputElement>(null);
+
+  /* Derived above the effects because one of them depends on messages.length.
+     `tick` is read here so a mutation to the conversation store -- which lives
+     outside React -- re-derives this. */
+  void tick;
+  const open = openId ? getConversation(openId) : undefined;
+  const messages: Message[] = open?.messages ?? [];
+  const mirrored = Boolean(open?.mirrorsSlack) && source === 'slack';
 
   /* The directory is needed to turn "@Dan Kwon" into the id Slack stores, so
      it is fetched once rather than per keystroke. */
@@ -62,11 +77,17 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
 
   const refresh = useCallback(async () => {
     const t = await loadThread();
-    setMessages(t.messages);
     setMembers(t.members);
     setSource(t.source);
     setOrigin({ team: t.team, channel: t.channel });
-    setConversationId(t.channelId ?? null);
+    /* Slack is the authority for the ONE conversation it mirrors, and for
+       nothing else. Writing its messages over whatever is open is what made
+       the old panel show the linked channel no matter what you had chosen. */
+    if (t.source === 'slack') {
+      const mirrored = sortedConversations().find((c) => c.mirrorsSlack);
+      if (mirrored) replaceMessages(mirrored.id, t.messages);
+    }
+    setTick((n) => n + 1);
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -122,41 +143,38 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
   }
 
   async function send() {
+    if (!openId || !open) return;
     const body = draft.trim();
     if (!body && !pending) return;
     const text = body || 'Sharing this view.';
 
-    /* Optimistic: the message appears immediately, then reconciles with what
-       Slack actually stored. */
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `local-${prev.length}`,
-        authorId: ME.id,
-        body: text,
-        time: nowLabel(),
-        minutesAgo: 0,
-        view: pending ?? undefined,
-      },
-    ]);
+    appendMessage(openId, {
+      id: `local-${Date.now()}`,
+      authorId: ME.id,
+      body: text,
+      time: nowLabel(),
+      minutesAgo: 0,
+      view: pending ?? undefined,
+    });
     setDraft('');
+    setTick((n) => n + 1);
     onClearPending();
 
-    if (source === 'slack') {
-      /* Slack stores an id, not a name — a renamed person's old messages still
-         read correctly because of it. */
-      const sent = await postToSlack(toSlackMentions(text, people), pending);
-      /* If it did not land, say so. A message that exists only in this browser
-         but looks identical to one that reached the channel is worse than an
-         error — the user believes their team saw it. */
-      if (!sent) {
-        setMessages((prev) => prev.map((m) =>
-          m.id === `local-${prev.length - 1}` ? { ...m, body: `${m.body}  (not delivered)` } : m));
-        return;
-      }
-      await refresh();
-    }
+    /* Only the mirrored conversation goes to Slack. A DM in Growth is a
+       Growth object -- posting it into a Slack channel would broadcast a
+       private message to the whole team, which is the worst possible
+       failure mode for this feature. */
+    if (!mirrored) return;
+
+    const sent = await postToSlack(toSlackMentions(text, people), pending);
+    /* A message that exists only in this browser but looks identical to one
+       that reached the channel is worse than an error -- the user believes
+       their team saw it. */
+    if (!sent) { setPendingFail(text); return; }
+    setPendingFail(null);
+    await refresh();
   }
+
 
   const groups = groupMessages(messages);
 
@@ -164,43 +182,44 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
     <aside className="gr-chat" aria-label="Team chat">
       <header className="gr-chat__header">
         <div className="gr-chat__head-row">
+          {/* Back is the only way out of a thread, so it is a real control in
+              the header rather than a gesture. */}
+          {open && (
+            <button type="button" className="gr-chat__back" onClick={() => setOpenId(null)}
+                    aria-label="All conversations">‹</button>
+          )}
           <div className="gr-chat__head-text">
-            <h2 className="gr-type-section">Team chat</h2>
-            {/* Was hard-coded to the seeded channel, so a connected panel still
-                claimed to be reading #growth-analytics with 4 members. It now
-                says what it is actually reading. */}
-            {source === 'slack' && origin.channel ? (
-              /* The conversation name is the control that changes it — a
-                 separate "switch" button would sit beside a label naming the
-                 exact thing it switches. */
-              <button type="button" className="gr-chat__switch gr-type-caption"
-                      onClick={() => setPicking((v) => !v)}>
-                {origin.channel}{origin.team ? ` · ${origin.team}` : ''}
-                <span aria-hidden="true"> ⌄</span>
-              </button>
+            <h2 className="gr-type-section">{open ? conversationName(open) : 'Messages'}</h2>
+            {open ? (
+              <p className="gr-type-caption">
+                {open.kind === 'channel'
+                  ? `${open.memberIds.length} people`
+                  : others(open).map((m) => m.name).join(', ')}
+                {mirrored && origin.channel ? ` · mirrored to #${origin.channel}` : ''}
+              </p>
             ) : (
-              <p className="gr-type-caption">Demo conversation · not connected</p>
+              <p className="gr-type-caption">
+                {(() => {
+                  const n = sortedConversations().reduce((a, c) => a + unreadCount(c), 0);
+                  return n ? `${n} unread` : 'All caught up';
+                })()}
+              </p>
             )}
           </div>
           <button type="button" className="gr-chat__close" onClick={onClose} aria-label="Close chat">✕</button>
         </div>
-        {/* Which workspace this is reading belongs with the channel name, not
-            in the message stream. It also fills a header sized to match the
-            app header, which two lines of text left half empty. */}
         <SlackConnect onConnected={() => { void refresh(); }} />
       </header>
 
-      {picking && (
-        <div className="gr-chat__picker">
-          <ConversationPicker
-            currentId={conversationId}
-            onClose={() => setPicking(false)}
-            onOpened={() => { setPicking(false); void refresh(); }}
-          />
-        </div>
+      {!open && (
+        <ConversationList
+          currentId={openId}
+          slackChannel={source === 'slack' ? origin.channel : undefined}
+          onOpen={(id) => { markRead(id); setOpenId(id); setTick((n) => n + 1); }}
+        />
       )}
 
-      <div className="gr-chat__messages">
+      {open && <><div className="gr-chat__messages">
         {groups.map((group, gi) => {
           const author = members[group[0].authorId] ?? ME;
           const mine = author.id === ME.id;
@@ -259,9 +278,8 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
           <input
             ref={composerRef}
             className="gr-chat__input gr-type-body"
-            placeholder={pending
-              ? 'Add a comment…'
-              : origin.channel ? `Message ${origin.channel}` : 'Message'}
+            placeholder={pending ? 'Add a comment…'
+              : open ? `Message ${conversationName(open)}` : 'Message'}
             value={draft}
             onChange={(e) => {
               setDraft(e.target.value);
@@ -281,7 +299,15 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
           />
           <Button variant="primary" onClick={send}>Send</Button>
         </div>
-      </div>
+        {/* Named where it happened. A failed post used to be appended to the
+            message body as "(not delivered)", which edits what the person
+            wrote in order to report a delivery fact. */}
+        {pendingFail && (
+          <p className="gr-chat__failed gr-type-caption" role="alert">
+            Not delivered to Slack. It is saved here.
+          </p>
+        )}
+      </div></>}
     </aside>
   );
 }

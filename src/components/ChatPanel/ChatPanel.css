@@ -281,3 +281,18 @@
   padding-left: var(--space-8);
   margin-left: calc(var(--space-8) * -1);
 }
+
+/* The way out of a thread. A header control rather than a gesture, because a
+   swipe that only exists on touch is not a way out on a desktop. */
+.gr-chat__back {
+  width: 28px; height: 28px; flex: none;
+  display: grid; place-items: center;
+  border: none; background: none; cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  font-size: 20px; line-height: 1;
+}
+.gr-chat__back:hover { background: var(--surface-page-top); color: var(--text-primary); }
+.gr-chat__back:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+
+.gr-chat__failed { margin: var(--space-8) 0 0; color: var(--semantic-bad); }
