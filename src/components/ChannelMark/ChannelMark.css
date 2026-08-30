@@ -1,0 +1,17 @@
+/* A fixed square with the mark contained inside it.
+   The four brand marks have four aspect ratios — Meta is wide, TikTok is tall
+   — so sizing by one dimension leaves them disagreeing on the other and the
+   left edge of a column goes ragged. */
+.gr-chmark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.gr-chmark img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  display: block;
+}

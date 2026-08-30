@@ -2,6 +2,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 
 import { assistantApi } from './server/assistantApi.js'
+import { channelOauth } from './server/channelOauth.js'
 import { slackApi } from './server/slackApi.js'
 
 // https://vite.dev/config/
@@ -15,7 +16,7 @@ export default defineConfig(({ mode }) => {
     }
 
   return {
-    plugins: [react(), assistantApi(), slackApi()],
+    plugins: [react(), assistantApi(), slackApi(), channelOauth()],
     /* Served from https://tommyclaffey.github.io/Growth/, so assets need the
        repo name as their base path. Without this, the built index.html asks for
        /assets/... at the domain root, gets GitHub's 404 page back, and renders

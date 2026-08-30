@@ -78,3 +78,7 @@
 .gr-setting-row__connect:focus-visible {
   outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px;
 }
+
+/* The connect control is a link, because it navigates away to the platform's
+   own consent screen. A button would be lying about what happens next. */
+a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-items: center; }

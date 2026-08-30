@@ -1,4 +1,9 @@
 import type { ReactNode } from 'react';
+import googleAdsMark from '../../assets/brand/google-ads.svg';
+import metaMark from '../../assets/brand/meta-mark.svg';
+import tiktokMark from '../../assets/brand/tiktok-mark.svg';
+import youtubeMark from '../../assets/brand/youtube-mark.svg';
+import './ChannelMark.css';
 import type { ChannelName } from '../../styles/tokens';
 import { CSS_CHANNEL } from '../../styles/tokens';
 
@@ -11,14 +16,24 @@ import { CSS_CHANNEL } from '../../styles/tokens';
  * used a coloured dot for all six. A dot distinguishes a channel; it does not
  * identify one. You learn the legend or you count colours.
  *
- * So: one visual language across both kinds. Real marks where a mark exists, a
- * glyph for what the channel *is* where one doesn't. 16px, 1.5 stroke, round
- * caps, so nothing in the row looks borrowed.
+ * So: one visual language across both kinds. The real mark where one exists —
+ * taken from the Figma file, not redrawn — and a glyph for what the channel
+ * *is* where there is no product to borrow from.
  *
- * Colour comes from `currentColor`, which the caller sets from `--channel-*`.
- * The mark never names a colour, so a channel recolour reaches it for free —
- * the same reason the Figma variants bind to `channel/*` rather than a hex.
+ * The four real marks carry their own brand colours, which is not the
+ * inconsistency it looks like: this system's channel colours ARE the brand
+ * colours (meta #0866FF, tiktok #161823, youtube #FF0000), so a real mark and
+ * a drawn glyph land on the same hue either way. The drawn two use
+ * `currentColor` so a recolour still reaches them.
  */
+
+/** Cropped out of the Figma lockups — the mark, without the wordmark. */
+const REAL: Partial<Record<string, string>> = {
+  meta: metaMark,
+  tiktok: tiktokMark,
+  youtube: youtubeMark,
+  paidSearch: googleAdsMark,
+};
 
 export interface ChannelMarkProps {
   channel: ChannelName | 'all';
@@ -74,6 +89,24 @@ const PATHS: Record<string, ReactNode> = {
 
 
 export function ChannelMark({ channel, size = 16, title }: ChannelMarkProps) {
+  const real = REAL[channel];
+  if (real) {
+    return (
+      /* Boxed and contained rather than sized directly: the four marks have
+         four different aspect ratios, so setting one dimension makes them
+         disagree on the other and the column edge goes ragged. */
+      <span
+        className="gr-chmark"
+        style={{ width: size, height: size }}
+        role={title ? 'img' : undefined}
+        aria-label={title}
+        aria-hidden={title ? undefined : true}
+      >
+        <img src={real} alt="" />
+      </span>
+    );
+  }
+
   const glyph = PATHS[channel] ?? PATHS.all;
   return (
     <svg

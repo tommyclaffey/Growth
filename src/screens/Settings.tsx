@@ -105,13 +105,21 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
                     Offering to connect something they have said they do not do
                     is the noise the switch exists to remove. */}
                 {runs && (
-                  <button
-                    type="button"
-                    className={`gr-setting-row__connect gr-type-caption ${isOn ? '' : 'is-primary'}`}
-                    onClick={() => toggleChannel2(key, !isOn)}
-                  >
-                    {isOn ? 'Disconnect' : 'Connect'}
-                  </button>
+                  isOn ? (
+                    <button type="button" className="gr-setting-row__connect gr-type-caption"
+                            onClick={() => toggleChannel2(key, false)}>
+                      Disconnect
+                    </button>
+                  ) : (
+                    /* A real redirect to that platform's own consent screen —
+                       Meta to Meta, Google Ads to Google. It used to flip a
+                       local switch and report "Synced 4 minutes ago", which is
+                       a state that was never established. */
+                    <a className="gr-setting-row__connect is-primary gr-type-caption"
+                       href={`/api/connect/${key}`}>
+                      Connect {CHANNEL_LABEL[key]}
+                    </a>
+                  )
                 )}
 
                 <Toggle
