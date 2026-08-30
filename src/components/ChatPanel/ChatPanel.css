@@ -296,3 +296,25 @@
 .gr-chat__back:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
 
 .gr-chat__failed { margin: var(--space-8) 0 0; color: var(--semantic-bad); }
+
+.gr-chat__switch {
+  display: inline-flex; align-items: baseline; gap: 2px;
+  border: none; background: none; padding: 0; cursor: pointer;
+  color: var(--text-primary); text-align: left;
+  border-radius: var(--radius-sm);
+}
+.gr-chat__switch:hover { color: var(--accent-base); }
+.gr-chat__switch:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 3px; }
+
+.gr-chat__rename {
+  width: 100%;
+  border: none; border-bottom: var(--border-width-md) solid var(--accent-base);
+  background: none; padding: 0 0 2px; color: var(--text-primary);
+}
+.gr-chat__rename:focus-visible { outline: none; }
+
+.gr-chat__rename-cta {
+  border: none; background: none; padding: 0; cursor: pointer;
+  color: var(--text-muted); text-decoration: underline; font: inherit;
+}
+.gr-chat__rename-cta:hover { color: var(--text-primary); }

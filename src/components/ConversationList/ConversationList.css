@@ -24,13 +24,14 @@
 }
 
 .gr-convs__new {
-  width: 36px; height: 36px; flex: none;
+  height: 36px; flex: none;
+  padding: 0 var(--space-12);
+  white-space: nowrap;
   border: var(--border-width-sm) solid var(--border-default);
   border-radius: var(--radius-md);
   background: var(--surface-card);
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 14px; line-height: 1;
 }
 .gr-convs__new:hover { border-color: var(--border-strong); color: var(--text-primary); }
 .gr-convs__new.is-on { background: var(--accent-tint); border-color: transparent; color: var(--accent-base); }

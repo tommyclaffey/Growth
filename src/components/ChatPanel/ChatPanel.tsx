@@ -2,11 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import './ChatPanel.css';
 import { loadThread, postToSlack, subscribeToSlack, type ChatSource } from '../../data/slackClient';
 import { useAvatarFor } from '../../data/profile';
-import { SlackConnect } from './SlackConnect';
 import { ConversationList } from '../ConversationList/ConversationList';
 import {
   appendMessage, conversationName, getConversation, markRead, replaceMessages,
-  memberOf, others, sortedConversations, unreadCount,
+  memberOf, others, renameConversation, sortedConversations, unreadCount,
 } from '../../data/conversations';
 import { SlackMark } from '../SlackMark/SlackMark';
 import { listPeople, type Person } from '../../data/slackDirectory';
@@ -57,6 +56,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
      view: 'list' | 'thread' would be a second source of truth for the same
      fact, and they drift. */
   const [openId, setOpenId] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
   const [tick, setTick] = useState(0);        /* conversations live outside React */
   /* The SLACK directory — used only to translate a name into the id Slack
      stores, and only for the one conversation Slack mirrors. It is not the
@@ -192,20 +192,47 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
     <aside className="gr-chat" aria-label="Team chat">
       <header className="gr-chat__header">
         <div className="gr-chat__head-row">
-          {/* Back is the only way out of a thread, so it is a real control in
-              the header rather than a gesture. */}
           {open && (
             <button type="button" className="gr-chat__back" onClick={() => setOpenId(null)}
                     aria-label="All conversations">‹</button>
           )}
           <div className="gr-chat__head-text">
-            <h2 className="gr-type-section">{open ? conversationName(open) : 'Messages'}</h2>
+            {open ? (
+              renaming ? (
+                /* Rename in place. A modal to type one word is a modal too
+                   many, and the header is where the name already is. */
+                <input
+                  className="gr-chat__rename gr-type-section"
+                  defaultValue={open.title ?? ''}
+                  placeholder={conversationName(open)}
+                  autoFocus
+                  onBlur={(e) => { renameConversation(open.id, e.target.value); setRenaming(false); setTick((n) => n + 1); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') { setRenaming(false); }
+                  }}
+                />
+              ) : (
+                /* The name IS the switcher. A separate "switch" control would
+                   sit beside a label naming the exact thing it switches. */
+                <button type="button" className="gr-chat__switch" onClick={() => setOpenId(null)}>
+                  <span className="gr-type-section">{conversationName(open)}</span>
+                  <span aria-hidden="true"> ⌄</span>
+                </button>
+              )
+            ) : (
+              <h2 className="gr-type-section">Messages</h2>
+            )}
             {open ? (
               <p className="gr-type-caption">
                 {open.kind === 'channel'
                   ? `${open.memberIds.length} people`
                   : others(open).map((m) => m.name).join(', ')}
                 {mirrored && origin.channel ? ` · mirrored to #${origin.channel}` : ''}
+                {' · '}
+                <button type="button" className="gr-chat__rename-cta" onClick={() => setRenaming(true)}>
+                  {open.title ? 'Rename' : 'Name it'}
+                </button>
               </p>
             ) : (
               <p className="gr-type-caption">
@@ -218,7 +245,10 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
           </div>
           <button type="button" className="gr-chat__close" onClick={onClose} aria-label="Close chat">✕</button>
         </div>
-        <SlackConnect onConnected={() => { void refresh(); }} />
+        {/* Connecting a Slack workspace moved to Settings. It is a setup task
+            done once, and it was sitting permanently in a panel used every
+            day — "+ Add workspace" is not something you reach for while
+            reading a message. */}
       </header>
 
       {!open && (

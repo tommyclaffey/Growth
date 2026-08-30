@@ -27,7 +27,12 @@ export type ConversationKind = 'channel' | 'dm' | 'group';
 export interface Conversation {
   id: string;
   kind: ConversationKind;
-  /** Channels only. DM and group names are derived from membership. */
+  /**
+   * A name someone chose. Optional everywhere, because most conversations do
+   * not need one — a DM with Dan is "Dan Kwon" and naming it adds nothing.
+   * When it IS set it wins, including on a DM, because a name someone typed
+   * is a stronger signal than a name derived from membership.
+   */
   title?: string;
   /** Everyone in it, including me — so a group of 3 has 3 ids, not 2. */
   memberIds: string[];
@@ -144,14 +149,17 @@ export function others(c: Conversation): Member[] {
 }
 
 /**
- * Derived for DMs and groups, stored only for channels.
+ * A chosen name if there is one, otherwise derived from membership.
  *
- * A stored DM name goes stale the moment someone is renamed, and the old
- * picker stored exactly that — `selected.map(p => p.name).join(', ')` frozen
- * at creation time.
+ * Derivation is the default rather than the fallback, because a stored DM name
+ * goes stale the moment someone is renamed — the old picker stored exactly
+ * that, `selected.map(p => p.name).join(', ')` frozen at creation time. A name
+ * a person typed does not have that problem: it was never a description of
+ * membership in the first place.
  */
 export function conversationName(c: Conversation): string {
   if (c.kind === 'channel') return `#${c.title ?? 'channel'}`;
+  if (c.title) return c.title;
   const people = others(c);
   if (people.length === 0) return 'Just you';
   if (people.length === 1) return people[0].name;
@@ -188,6 +196,20 @@ function mutate(id: string, fn: (c: Conversation) => void) {
   if (!c) return;
   fn(c);
   save();
+}
+
+/**
+ * Naming a conversation.
+ *
+ * An empty name clears it rather than storing "", so a cleared name falls back
+ * to derivation instead of rendering a blank header.
+ */
+export function renameConversation(id: string, title: string) {
+  const next = title.trim();
+  mutate(id, (c) => {
+    if (next) c.title = next;
+    else if (c.kind !== 'channel') delete c.title;
+  });
 }
 
 export function markRead(id: string) {

@@ -6,6 +6,7 @@ import { FormField } from '../components/FormField/FormField';
 import { CHANNEL_KEYS, CHANNEL_LABEL } from '../data/metrics';
 import { useChannels, toggleChannel } from '../data/channels';
 import { ChannelWordmark } from '../components/ChannelWordmark/ChannelWordmark';
+import { SlackConnect } from '../components/ChatPanel/SlackConnect';
 import type { ChannelName } from '../styles/tokens';
 import { AvatarUpload } from '../components/AvatarUpload/AvatarUpload';
 import { AccountLinks } from '../components/AccountLinks/AccountLinks';
@@ -67,6 +68,24 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
           </header>
           <div className="gr-card__body">
             <AccountLinks />
+          </div>
+        </section>
+
+        {/* Moved here from the chat panel. Connecting a workspace and picking
+            the channel to mirror is setup done once — it does not belong in a
+            surface used every day to read messages. */}
+        <section className="gr-card">
+          <header className="gr-card__header">
+            <div className="gr-card__heading">
+              <h3 className="gr-card__title gr-type-card-heading">Slack workspace</h3>
+              <p className="gr-card__sub gr-type-caption">
+                One conversation in Growth can mirror a Slack channel. Everything
+                else stays here.
+              </p>
+            </div>
+          </header>
+          <div className="gr-card__body">
+            <SlackConnect onConnected={() => { /* Settings shows status, not a thread */ }} />
           </div>
         </section>
 

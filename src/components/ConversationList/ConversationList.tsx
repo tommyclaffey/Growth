@@ -67,14 +67,15 @@ export function ConversationList({ currentId, onOpen, slackChannel }: Conversati
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        {/* Labelled, not an icon. Starting a conversation is the primary
+            action in an inbox, and a pencil glyph is a guess the user has to
+            make before they can act on it. */}
         <button
           type="button"
-          className={`gr-convs__new ${composing ? 'is-on' : ''}`}
+          className={`gr-convs__new gr-type-caption ${composing ? 'is-on' : ''}`}
           onClick={() => { setComposing((v) => !v); setPicked([]); setQuery(''); }}
-          aria-label={composing ? 'Cancel new message' : 'New message'}
-          title={composing ? 'Cancel' : 'New message'}
         >
-          {composing ? '✕' : '✎'}
+          {composing ? 'Cancel' : 'New message'}
         </button>
       </div>
 
