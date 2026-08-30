@@ -4,6 +4,7 @@ import { loadThread, postToSlack, subscribeToSlack, type ChatSource } from '../.
 import { useAvatarFor } from '../../data/profile';
 import { SlackConnect } from './SlackConnect';
 import { ConversationPicker } from '../ConversationPicker/ConversationPicker';
+import { SlackMark } from '../SlackMark/SlackMark';
 import { listPeople, type Person } from '../../data/slackDirectory';
 import { activeMention, applyMention, mentionsMe, toSlackMentions } from '../../data/mentions';
 import { Button } from '../Button/Button';
@@ -210,7 +211,13 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
                 <p className="gr-msg__meta gr-type-caption">
                   <strong>{author.name}</strong>
                   <span>{group[0].time}</span>
-                  {group.some((m) => m.fromSlack) && <SlackMark />}
+                  {group.some((m) => m.fromSlack) && (
+                    <span className="gr-msg__slack" title="Sent from Slack">
+                      <SlackMark size={11} />
+                      <span className="gr-msg__slack-word">slack</span>
+                      <span className="gr-sr-only">Sent from Slack</span>
+                    </span>
+                  )}
                 </p>
                 {group.map((m) => (
                   <div key={m.id} className={`gr-msg__line ${mentionsMe(m.body) ? 'is-flagged' : ''}`}>
@@ -329,31 +336,7 @@ function ViewCard({ view, compact = false }: { view: ViewRef; compact?: boolean 
 }
 
 
-/**
- * Slack's lockup — mark plus wordmark, in a pill.
- *
- * The mark alone was tried first and rejected on sight: at 12px it reads as a
- * coloured pinwheel, and a badge nobody recognises is not a badge. The wordmark
- * is what makes it legible, so it stays.
- *
- * Slack's colours and the lowercase wordmark are reproduced as Slack ships
- * them. Brand artwork is externally owned — the same reason TikTok's pink is
- * not a token in this system.
- */
-function SlackMark() {
-  return (
-    <span className="gr-msg__slack" title="Sent from Slack">
-      <svg width="11" height="11" viewBox="0 0 122.8 122.8" aria-hidden="true">
-        <path d="M25.8 77.6a12.9 12.9 0 1 1-12.9-12.9h12.9v12.9zm6.5 0a12.9 12.9 0 0 1 25.8 0v32.3a12.9 12.9 0 0 1-25.8 0V77.6z" fill="#E01E5A" />
-        <path d="M45.2 25.8a12.9 12.9 0 1 1 12.9-12.9v12.9H45.2zm0 6.5a12.9 12.9 0 0 1 0 25.8H12.9a12.9 12.9 0 0 1 0-25.8h32.3z" fill="#36C5F0" />
-        <path d="M97 45.2a12.9 12.9 0 1 1 12.9 12.9H97V45.2zm-6.5 0a12.9 12.9 0 0 1-25.8 0V12.9a12.9 12.9 0 0 1 25.8 0v32.3z" fill="#2EB67D" />
-        <path d="M77.6 97a12.9 12.9 0 1 1-12.9 12.9V97h12.9zm0-6.5a12.9 12.9 0 0 1 0-25.8h32.3a12.9 12.9 0 0 1 0 25.8H77.6z" fill="#ECB22E" />
-      </svg>
-      <span className="gr-msg__slack-word">slack</span>
-      <span className="gr-sr-only">Sent from Slack</span>
-    </span>
-  );
-}
+
 
 
 

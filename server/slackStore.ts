@@ -19,7 +19,14 @@ const FILE = resolve(process.cwd(), '.slack-tokens.local');
 export interface Workspace {
   teamId: string;
   teamName: string;
-  /** Bot token for this workspace. Never leaves the server. */
+  /**
+   * The token calls are made with. Never leaves the server.
+   *
+   * A USER token, not a bot token: this is a personal sign-in. It sees the
+   * conversations that person is actually in — including their DMs, which a
+   * bot cannot see at all — and anything posted with it is posted by them,
+   * not by an app wearing their name.
+   */
   accessToken: string;
   /** Who installed it — useful when one person's grant is revoked. */
   installedBy?: string;

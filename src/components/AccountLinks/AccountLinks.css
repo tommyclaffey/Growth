@@ -6,6 +6,7 @@
 
 .gr-links__btn {
   flex: none;
+  display: inline-flex; align-items: center; gap: var(--space-8);
   padding: var(--space-8) var(--space-14);
   border: var(--border-width-sm) solid var(--border-default);
   border-radius: var(--radius-md);

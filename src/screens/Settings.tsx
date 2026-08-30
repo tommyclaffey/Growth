@@ -58,9 +58,9 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
         <section className="gr-card">
           <header className="gr-card__header">
             <div className="gr-card__heading">
-              <h3 className="gr-card__title gr-type-card-heading">Slack accounts</h3>
+              <h3 className="gr-card__title gr-type-card-heading">Slack account</h3>
               <p className="gr-card__sub gr-type-caption">
-                Connect your own Slack so your messages here and there are the same person.
+                Sign in with your own Slack account. Growth reads and posts as you.
               </p>
             </div>
           </header>

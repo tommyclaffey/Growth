@@ -29,6 +29,13 @@ const SLACK = 'https://slack.com/api';
 
 /* What the bot needs. Keep this list as short as it can be — every scope is
    something a stranger is being asked to hand over. */
+/**
+ * User scopes — what this app may do AS the signed-in person.
+ *
+ * Not bot scopes. A bot is a member of the workspace with its own identity and
+ * its own name on every message; it cannot see anyone's DMs and it cannot
+ * speak as them. A personal connection is the opposite on both counts.
+ */
 const SCOPES = [
   'channels:history',
   'channels:read',
@@ -161,6 +168,8 @@ async function selfIdentity(token: string) {
   const hit = identityCache.get(key);
   if (hit) return hit;
   try {
+    /* With a user token this returns the signed-in person. `bot_id` is absent,
+       which is the point — there is no bot in this flow. */
     const r = await slack<{ user_id?: string; bot_id?: string }>('auth.test', token);
     const id = { userId: r.user_id, botId: r.bot_id };
     identityCache.set(key, id);
@@ -367,7 +376,11 @@ export function slackApi(): Plugin {
             }
             const auth = new URL('https://slack.com/oauth/v2/authorize');
             auth.searchParams.set('client_id', clientId);
-            auth.searchParams.set('scope', SCOPES);
+            /* `user_scope`, not `scope`. `scope` installs a bot; `user_scope`
+               signs a person in. Sending an empty `scope` keeps Slack from
+               provisioning a bot user nobody asked for. */
+            auth.searchParams.set('scope', '');
+            auth.searchParams.set('user_scope', SCOPES);
             auth.searchParams.set('redirect_uri', redirectUri);
             /* `person` is who is connecting. It is theirs to connect and
                nobody else's, which is the whole point of doing this through
@@ -402,17 +415,21 @@ export function slackApi(): Plugin {
               body: new URLSearchParams({ code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri }),
             });
             const data = (await r.json()) as {
-              ok: boolean; error?: string; access_token?: string;
-              team?: { id: string; name: string }; authed_user?: { id: string };
+              ok: boolean; error?: string;
+              team?: { id: string; name: string };
+              /* The user token lives here, not at the top level — that one is
+                 the bot's, and there is no bot in this flow. */
+              authed_user?: { id: string; access_token?: string };
             };
-            if (!data.ok || !data.access_token || !data.team) {
+            const userToken = data.authed_user?.access_token;
+            if (!data.ok || !userToken || !data.team) {
               return page(res, 'Slack refused the connection', data.error ?? 'unknown_error');
             }
 
             saveWorkspace({
               teamId: data.team.id,
               teamName: data.team.name,
-              accessToken: data.access_token,
+              accessToken: userToken,
               installedBy: data.authed_user?.id,
               connectedAt: new Date().toISOString(),
             });
