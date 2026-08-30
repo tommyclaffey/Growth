@@ -39,15 +39,16 @@ const SLACK = 'https://slack.com/api';
 const SCOPES = [
   'channels:history',
   'channels:read',
-  /* Without this, conversations.join fails and every read comes back
-     `not_in_channel` — which reads as a broken token rather than a missing
-     invite. The scope list was one entry short and nothing said so. */
-  'channels:join',
-  /* Direct messages and group DMs are separate conversation types in Slack
-     with separate scopes; a token that reads public channels cannot see either. */
+  /* No `channels:join` here. It is a bot-only scope — there is no user
+     equivalent, and asking for it fails the whole authorisation with
+     "Invalid permissions requested" rather than dropping just that one.
+     A person does not need it either: a personal token already sees the
+     channels that person is in, which is the point of a personal token. */
+  /* DMs and group DMs are separate conversation types with separate scopes;
+     reading public channels does not imply either. */
   'im:read', 'im:write', 'im:history',
   'mpim:read', 'mpim:write', 'mpim:history',
-  /* Private channels the bot has been invited to. */
+  /* Private channels the person belongs to. */
   'groups:read', 'groups:history',
   'users:read',
   'chat:write',
@@ -377,9 +378,9 @@ export function slackApi(): Plugin {
             const auth = new URL('https://slack.com/oauth/v2/authorize');
             auth.searchParams.set('client_id', clientId);
             /* `user_scope`, not `scope`. `scope` installs a bot; `user_scope`
-               signs a person in. Sending an empty `scope` keeps Slack from
-               provisioning a bot user nobody asked for. */
-            auth.searchParams.set('scope', '');
+               connects a person. `scope` is omitted entirely rather than sent
+               empty — an empty value is still a value, and Slack reads it as a
+               bot install with no permissions. */
             auth.searchParams.set('user_scope', SCOPES);
             auth.searchParams.set('redirect_uri', redirectUri);
             /* `person` is who is connecting. It is theirs to connect and
@@ -544,10 +545,11 @@ export function slackApi(): Plugin {
                green checkmark — the channel saved, the UI said connected, and
                every subsequent read failed. */
             let joinWarning: string | null = null;
-            /* Only public channels can be joined. A DM or group DM is opened,
-               not joined, and calling join on one is an error rather than a
-               no-op — so it is not attempted. */
-            const joinable = !kind || kind === 'channel';
+            /* Not attempted at all on a personal token: the conversations this
+               person can see are the ones they are already in. Joining is a
+               bot's problem, because a bot has to be invited somewhere before
+               it can read it. */
+            const joinable = false;
             try {
               if (joinable) await slack('conversations.join', ws.accessToken, { channel: channelId });
             } catch (e) {
