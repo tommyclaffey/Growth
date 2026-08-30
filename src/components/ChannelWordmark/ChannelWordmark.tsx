@@ -37,11 +37,14 @@ export function hasWordmark(channel: string | null): boolean {
   return Boolean(channel && LOCKUPS[channel]);
 }
 
-export function ChannelWordmark({ channel, name }: { channel: string; name: string }) {
+export function ChannelWordmark(
+  { channel, name, size = 'md' }: { channel: string; name: string; size?: 'md' | 'sm' },
+) {
+  const cls = `gr-wordmark${size === 'sm' ? ' is-sm' : ''}`;
   const lockup = LOCKUPS[channel];
   if (lockup) {
     return (
-      <span className="gr-wordmark">
+      <span className={cls}>
         <img src={lockup} alt="" className={`gr-wordmark__img is-${channel}`} />
         <span className="gr-sr-only">{name}</span>
       </span>
@@ -49,10 +52,10 @@ export function ChannelWordmark({ channel, name }: { channel: string; name: stri
   }
   const mark = MARKS[channel];
   return (
-    <span className="gr-wordmark">
+    <span className={cls}>
       {mark
         ? <img src={mark} alt="" className="gr-wordmark__mark" />
-        : <ChannelMark channel={channel as ChannelName} size={22} />}
+        : <ChannelMark channel={channel as ChannelName} size={size === 'sm' ? 16 : 22} />}
       <span className="gr-wordmark__name">{name}</span>
     </span>
   );

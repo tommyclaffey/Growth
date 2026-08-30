@@ -44,7 +44,20 @@
 .gr-setting-row__text { flex: 1; min-width: 0; }
 .gr-setting-row__text strong { display: block; color: var(--text-primary); font-weight: 500; }
 .gr-setting-row__text span   { color: var(--text-muted); }
-.gr-setting-row__channel { display: inline-flex; align-items: center; gap: var(--space-8); }
+/* Fixed width, because the six channels are six different shapes: three
+   lockups of unequal width, a mark-plus-name, and two marks-plus-name. Left
+   to size themselves they ended the column at six different x positions, so
+   every "Synced 4 minutes ago" beside them started somewhere new. The width
+   is the widest member ("Paid Search", the only two-word name) plus headroom;
+   the column is what makes the rows read as a list rather than six rows that
+   happen to be stacked. */
+.gr-setting-row__channel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 128px;
+  flex: none;
+}
 .gr-setting-row__dot { width: 8px; height: 8px; border-radius: var(--radius-pill); flex: none; }
 
 .gr-settings__fields {

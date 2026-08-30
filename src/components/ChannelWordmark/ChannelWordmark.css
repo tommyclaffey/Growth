@@ -24,3 +24,16 @@
 .gr-wordmark { gap: var(--space-10); }
 .gr-wordmark__mark { height: 22px; width: auto; display: block; flex: none; }
 .gr-wordmark__name { min-width: 0; }
+
+/* ---- Small: the same optical relationship, scaled ----------------------
+   In a settings list the neighbouring text is 13px, not the 21px page title,
+   so the md sizes read as oversized. Every value below is its md counterpart
+   x0.73 and rounded, which keeps the cap heights matched to each other --
+   the thing that was actually measured. Picking six fresh numbers by eye
+   would silently discard that. */
+.gr-wordmark.is-sm .gr-wordmark__img          { height: 17px; }
+.gr-wordmark.is-sm .gr-wordmark__img.is-meta  { height: 13px; }
+.gr-wordmark.is-sm .gr-wordmark__img.is-tiktok{ height: 22px; }
+.gr-wordmark.is-sm .gr-wordmark__img.is-youtube { height: 17px; }
+.gr-wordmark.is-sm .gr-wordmark__mark         { height: 16px; }
+.gr-wordmark.is-sm { gap: var(--space-8); }

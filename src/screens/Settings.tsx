@@ -92,7 +92,7 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
                       beside "Paid Search" because the channel is not called
                       Google Ads, the channel mark for the two that have no
                       product behind them. */}
-                  <ChannelWordmark channel={key} name={CHANNEL_LABEL[key]} />
+                  <ChannelWordmark channel={key} name={CHANNEL_LABEL[key]} size="sm" />
                 </span>
 
                 <span className="gr-setting-row__text gr-type-caption">
