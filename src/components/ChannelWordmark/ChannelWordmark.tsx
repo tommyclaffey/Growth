@@ -55,7 +55,7 @@ export function ChannelWordmark(
     <span className={cls}>
       {mark
         ? <img src={mark} alt="" className="gr-wordmark__mark" />
-        : <ChannelMark channel={channel as ChannelName} size={size === 'sm' ? 16 : 22} />}
+        : <ChannelMark channel={channel as ChannelName} size={size === 'sm' ? 14 : 22} />}
       <span className="gr-wordmark__name">{name}</span>
     </span>
   );

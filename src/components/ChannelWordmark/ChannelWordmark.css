@@ -25,15 +25,19 @@
 .gr-wordmark__mark { height: 22px; width: auto; display: block; flex: none; }
 .gr-wordmark__name { min-width: 0; }
 
-/* ---- Small: the same optical relationship, scaled ----------------------
-   In a settings list the neighbouring text is 13px, not the 21px page title,
-   so the md sizes read as oversized. Every value below is its md counterpart
-   x0.73 and rounded, which keeps the cap heights matched to each other --
-   the thing that was actually measured. Picking six fresh numbers by eye
-   would silently discard that. */
-.gr-wordmark.is-sm .gr-wordmark__img          { height: 17px; }
-.gr-wordmark.is-sm .gr-wordmark__img.is-meta  { height: 13px; }
-.gr-wordmark.is-sm .gr-wordmark__img.is-tiktok{ height: 22px; }
-.gr-wordmark.is-sm .gr-wordmark__img.is-youtube { height: 17px; }
-.gr-wordmark.is-sm .gr-wordmark__mark         { height: 16px; }
+/* ---- Small: the same rule as md, against a smaller anchor ---------------
+   md matches each lockup's cap height to the 21px page title. sm matches it
+   to the 13px name it sits beside, so every value is its md counterpart
+   x 13/21. Deriving them keeps the three lockups matched to EACH OTHER,
+   which is the property that was measured and the one eyeballing loses.
+
+   The name is set here too. Left to inherit it came out at the row's 15px
+   while the status beside it was 12px, so the label -- not the logo -- was
+   most of what read as oversized. */
+.gr-wordmark.is-sm .gr-wordmark__img            { height: 14px; }
+.gr-wordmark.is-sm .gr-wordmark__img.is-meta    { height: 11px; }
+.gr-wordmark.is-sm .gr-wordmark__img.is-tiktok  { height: 19px; }
+.gr-wordmark.is-sm .gr-wordmark__img.is-youtube { height: 14px; }
+.gr-wordmark.is-sm .gr-wordmark__mark           { height: 14px; }
+.gr-wordmark.is-sm .gr-wordmark__name { font: 500 13px/18px var(--font-sans); }
 .gr-wordmark.is-sm { gap: var(--space-8); }

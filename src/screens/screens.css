@@ -55,7 +55,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-8);
-  width: 128px;
+  width: 112px;
   flex: none;
 }
 .gr-setting-row__dot { width: 8px; height: 8px; border-radius: var(--radius-pill); flex: none; }
