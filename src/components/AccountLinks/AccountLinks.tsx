@@ -1,86 +1,93 @@
 import { useEffect, useState } from 'react';
 import './AccountLinks.css';
 import { Avatar } from '../Avatar/Avatar';
-import { MEMBERS, type Member } from '../../data/chat';
-import { linkAccount, listPeople, type Person } from '../../data/slackDirectory';
+import { ME, MEMBERS } from '../../data/chat';
+import { connectAs, listPeople, unlinkAccount, type Person } from '../../data/slackDirectory';
 import { slackStatus } from '../../data/slackClient';
+import { useAvatarFor } from '../../data/profile';
 
 /**
- * Point a person in this product at their Slack account.
+ * Your Slack connection, and who else on the team has one.
  *
- * The seeded cast and the workspace are two directories of the same people.
- * Unlinked, the same human appears twice — two names, two photos — and a
- * message from one is not recognisably from the other. A link makes them one
- * person: anything that account says in Slack arrives here under the name and
- * face this product already uses for them.
+ * The first version of this was a row per person with a dropdown of Slack
+ * accounts — which let one person declare that an account belonged to another.
+ * That is not a link, it is an assertion, and it would let someone attribute
+ * messages to a colleague who never agreed to it.
+ *
+ * A connection can only be made by the person it belongs to, through Slack's
+ * own consent screen. So there is one control here — yours — and everyone else
+ * is shown read-only, because their connection is theirs to make.
  */
 export function AccountLinks() {
-  const [people, setPeople] = useState<Person[] | null>(null);
   const [links, setLinks] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState<string | null>(null);
-  const [available, setAvailable] = useState(false);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [ready, setReady] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const avatarFor = useAvatarFor();
 
-  useEffect(() => {
-    void (async () => {
-      const status = await slackStatus();
-      const active = status.workspaces.find((w) => w.teamId === status.active);
-      setAvailable(Boolean(active));
-      setLinks(active?.links ?? {});
-      if (active) setPeople(await listPeople());
-    })();
-  }, []);
-
-  async function set(person: Member, slackUserId: string) {
-    setSaving(person.id);
-    const next = { ...links };
-    if (slackUserId) next[person.id] = slackUserId;
-    else delete next[person.id];
-    /* Optimistic: the select has already moved, so leaving the row stale until
-       a round trip finishes would read as the control not working. */
-    setLinks(next);
-    await linkAccount(person.id, slackUserId || null);
-    setSaving(null);
+  async function load() {
+    const status = await slackStatus();
+    const active = status.workspaces.find((w) => w.teamId === status.active);
+    setConnected(Boolean(active));
+    setLinks(active?.links ?? {});
+    if (active) setPeople(await listPeople());
+    setReady(true);
   }
 
-  if (!available) {
-    return (
-      <p className="gr-type-caption gr-links__empty">
-        Connect a Slack workspace to link accounts.
-      </p>
-    );
-  }
+  useEffect(() => { void load(); }, []);
 
-  const cast = Object.values(MEMBERS);
+  if (!ready) return null;
+
+  const mySlackId = links[ME.id];
+  const mySlack = people.find((p) => p.id === mySlackId);
+  const others = Object.values(MEMBERS).filter((m) => m.id !== ME.id);
 
   return (
     <div className="gr-links">
-      {cast.map((m) => {
-        /* Someone already claimed by another row cannot be claimed twice —
-           two people mapped to one account makes attribution ambiguous. */
-        const takenByOthers = new Set(
-          Object.entries(links).filter(([id]) => id !== m.id).map(([, slackId]) => slackId),
-        );
-        return (
+      <div className="gr-links__self">
+        <Avatar initials={ME.initials} hue={ME.hue} size={36} src={avatarFor(ME)} name={ME.name} />
+        <div className="gr-links__selftext">
+          <span className="gr-type-body-medium">{ME.name}</span>
+          <span className="gr-type-caption gr-links__status">
+            {mySlackId
+              /* Named, because "Connected" alone does not tell you *which*
+                 account — and people have more than one Slack identity. */
+              ? `Connected as ${mySlack?.name ?? mySlackId}`
+              : connected
+                ? 'Not connected to Slack'
+                : 'No Slack workspace connected yet'}
+          </span>
+        </div>
+        {mySlackId ? (
+          <button type="button" className="gr-links__btn gr-type-caption" disabled={busy}
+                  onClick={async () => { setBusy(true); await unlinkAccount(ME.id); await load(); setBusy(false); }}>
+            Disconnect
+          </button>
+        ) : (
+          <button type="button" className="gr-links__btn is-primary gr-type-caption"
+                  onClick={() => connectAs(ME.id)}>
+            Connect Slack
+          </button>
+        )}
+      </div>
+
+      <div className="gr-links__team">
+        <p className="gr-type-overline gr-links__label">Others on this account</p>
+        {others.map((m) => (
           <div key={m.id} className="gr-links__row">
             <Avatar initials={m.initials} hue={m.hue} size={28} src={m.avatar} name={m.name} />
-            <span className="gr-links__name gr-type-body-medium">{m.name}</span>
-            <select
-              className="gr-links__select gr-type-body"
-              aria-label={`Slack account for ${m.name}`}
-              value={links[m.id] ?? ''}
-              disabled={saving === m.id || people === null}
-              onChange={(e) => void set(m, e.target.value)}
-            >
-              <option value="">Not linked</option>
-              {(people ?? []).map((p) => (
-                <option key={p.id} value={p.id} disabled={takenByOthers.has(p.id)}>
-                  {p.name}{takenByOthers.has(p.id) ? ' — already linked' : ''}
-                </option>
-              ))}
-            </select>
+            <span className="gr-links__name gr-type-body">{m.name}</span>
+            <span className={`gr-type-caption gr-links__state ${links[m.id] ? 'is-on' : ''}`}>
+              {links[m.id] ? 'Connected' : 'Not connected'}
+            </span>
           </div>
-        );
-      })}
+        ))}
+        <p className="gr-type-caption gr-links__note">
+          Only they can connect their own Slack — it goes through Slack’s sign-in,
+          not through this screen.
+        </p>
+      </div>
     </div>
   );
 }

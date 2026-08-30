@@ -48,20 +48,22 @@ const SCOPES = [
 
 /** Pending OAuth states. In-memory is correct here: they expire in minutes and
     surviving a restart is not a property you want from a CSRF nonce. */
-const pendingStates = new Map<string, number>();
+const pendingStates = new Map<string, { exp: number; personId?: string }>();
 const STATE_TTL = 10 * 60 * 1000;
 
-function newState(): string {
+/* The state carries who started the flow, so the account that comes back is
+   linked to the person who authorised it — not to whoever an admin picked. */
+function newState(personId?: string): string {
   const s = randomBytes(16).toString('hex');
-  pendingStates.set(s, Date.now() + STATE_TTL);
-  for (const [k, exp] of pendingStates) if (exp < Date.now()) pendingStates.delete(k);
+  pendingStates.set(s, { exp: Date.now() + STATE_TTL, personId });
+  for (const [k, v] of pendingStates) if (v.exp < Date.now()) pendingStates.delete(k);
   return s;
 }
-function consumeState(s: string | null): boolean {
-  if (!s) return false;
-  const exp = pendingStates.get(s);
+function consumeState(s: string | null): { ok: boolean; personId?: string } {
+  if (!s) return { ok: false };
+  const v = pendingStates.get(s);
   pendingStates.delete(s);
-  return Boolean(exp && exp > Date.now());
+  return { ok: Boolean(v && v.exp > Date.now()), personId: v?.personId };
 }
 
 /**
@@ -367,7 +369,10 @@ export function slackApi(): Plugin {
             auth.searchParams.set('client_id', clientId);
             auth.searchParams.set('scope', SCOPES);
             auth.searchParams.set('redirect_uri', redirectUri);
-            auth.searchParams.set('state', newState());
+            /* `person` is who is connecting. It is theirs to connect and
+               nobody else's, which is the whole point of doing this through
+               Slack's own consent screen rather than a dropdown. */
+            auth.searchParams.set('state', newState(url.searchParams.get('person') ?? undefined));
             return redirect(res, auth.toString());
           }
 
@@ -376,7 +381,8 @@ export function slackApi(): Plugin {
             if (url.searchParams.get('error')) {
               return page(res, 'Connection cancelled', 'Slack was not connected. You can try again any time.');
             }
-            if (!consumeState(url.searchParams.get('state'))) {
+            const state = consumeState(url.searchParams.get('state'));
+            if (!state.ok) {
               /* An unrecognised state means this callback did not start here.
                  Rejecting it is what stops someone else's install being
                  attached to this app. */
@@ -410,6 +416,13 @@ export function slackApi(): Plugin {
               installedBy: data.authed_user?.id,
               connectedAt: new Date().toISOString(),
             });
+
+            /* Slack tells us which account approved this. That account belongs
+               to whoever clicked Connect, so the link is made from the consent
+               itself rather than asserted afterwards by someone else. */
+            if (state.personId && data.authed_user?.id) {
+              setLink(data.team.id, state.personId, data.authed_user.id);
+            }
             return redirect(res, '/Growth/?slack=connected');
           }
 
@@ -534,10 +547,14 @@ export function slackApi(): Plugin {
             return send(res, 200, { ok: true, warning: joinWarning });
           }
 
-          if (req.method === 'POST' && path === '/link') {
-            const { personId, slackUserId } = await readBody(req);
+          /* Unlink only. There is no route that sets a link, because the only
+             way one is created is somebody completing Slack's consent screen
+             for their own account. Being able to assert "that account is Dan"
+             from a dropdown would let one person put words in another's mouth. */
+          if (req.method === 'POST' && path === '/unlink') {
+            const { personId } = await readBody(req);
             if (typeof personId !== 'string') return send(res, 400, { error: 'personId required' });
-            setLink(ws.teamId, personId, typeof slackUserId === 'string' ? slackUserId : null);
+            setLink(ws.teamId, personId, null);
             return send(res, 200, { ok: true });
           }
 

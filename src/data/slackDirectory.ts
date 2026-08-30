@@ -65,6 +65,18 @@ export async function startDm(userIds: string[], name: string): Promise<boolean>
   return Boolean((await post('/api/slack/channel', { channelId: id, channelName: name, kind }))?.ok);
 }
 
-export async function linkAccount(personId: string, slackUserId: string | null): Promise<boolean> {
-  return Boolean((await post('/api/slack/link', { personId, slackUserId }))?.ok);
+/**
+ * Disconnect your own Slack account.
+ *
+ * There is no matching `link` — a link is only ever created by completing
+ * Slack's consent screen. Asserting "that account is Dan" from a dropdown
+ * would let one person put words in another's mouth.
+ */
+export async function unlinkAccount(personId: string): Promise<boolean> {
+  return Boolean((await post('/api/slack/unlink', { personId }))?.ok);
+}
+
+/** Sends the browser to Slack to authorise, tagged with who is connecting. */
+export function connectAs(personId: string) {
+  window.location.href = `/api/slack/install?person=${encodeURIComponent(personId)}`;
 }

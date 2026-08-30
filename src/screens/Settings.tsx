@@ -60,7 +60,7 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
             <div className="gr-card__heading">
               <h3 className="gr-card__title gr-type-card-heading">Slack accounts</h3>
               <p className="gr-card__sub gr-type-caption">
-                Link a person here to their Slack account so they are one person, not two.
+                Connect your own Slack so your messages here and there are the same person.
               </p>
             </div>
           </header>
