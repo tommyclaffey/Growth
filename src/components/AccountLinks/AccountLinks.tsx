@@ -18,7 +18,7 @@ import { useAvatarFor } from '../../data/profile';
  * it invents a fact the product does not have.
  *
  * A connection is made by the person it belongs to, through Slack's own
- * sign-in. So there is one control, and it is yours.
+ * consent screen. So there is one control, and it is yours.
  */
 export function AccountLinks() {
   const [links, setLinks] = useState<Record<string, string>>({});
@@ -69,7 +69,7 @@ export function AccountLinks() {
           <button type="button" className="gr-links__btn is-primary gr-type-caption"
                   onClick={() => connectAs(ME.id)}>
             <SlackMark size={14} />
-            Sign in with Slack
+            Connect to Slack
           </button>
         )}
       </div>
