@@ -190,7 +190,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
 
   return (
     <aside className="gr-chat" aria-label="Team chat">
-      <header className="gr-chat__header">
+      <header className={`gr-chat__header ${open ? "" : "is-list"}`}>
         <div className="gr-chat__head-row">
           {open && (
             <button type="button" className="gr-chat__back" onClick={() => setOpenId(null)}
