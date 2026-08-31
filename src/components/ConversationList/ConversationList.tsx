@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import './ConversationList.css';
 import { Avatar } from '../Avatar/Avatar';
 import { useAvatarFor } from '../../data/profile';
-import { MEMBERS, ME } from '../../data/chat';
+import { ME } from '../../data/chat';
 import {
-  conversationName, lastMessage, openDirect, others, sortedConversations, unreadCount,
+  conversationName, directory, lastMessage, memberOf, openDirect, others,
+  sortedConversations, unreadCount,
 } from '../../data/conversations';
 
 /**
@@ -46,7 +47,7 @@ export function ConversationList({ currentId, onOpen, slackChannel }: Conversati
 
   /* Everyone I could start something with. Me excluded — a DM with yourself is
      a feature some products have and none of them explain well. */
-  const roster = Object.values(MEMBERS).filter((m) => m.id !== ME.id);
+  const roster = directory().filter((m) => m.id !== ME.id);
   const rosterShown = q ? roster.filter((m) => m.name.toLowerCase().includes(q)) : roster;
 
   function start() {
@@ -89,7 +90,7 @@ export function ConversationList({ currentId, onOpen, slackChannel }: Conversati
               {picked.map((id) => (
                 <button key={id} type="button" className="gr-convs__chip gr-type-caption"
                         onClick={() => setPicked((p) => p.filter((x) => x !== id))}>
-                  {MEMBERS[id]?.name} <span aria-hidden="true">✕</span>
+                  {memberOf(id).name} <span aria-hidden="true">✕</span>
                 </button>
               ))}
               <button type="button" className="gr-convs__go gr-type-caption" onClick={start}>
@@ -122,7 +123,7 @@ export function ConversationList({ currentId, onOpen, slackChannel }: Conversati
             const last = lastMessage(c);
             const unread = unreadCount(c);
             const people = others(c);
-            const author = last ? (MEMBERS[last.authorId] ?? null) : null;
+            const author = last ? memberOf(last.authorId) : null;
             /* "You: …" because in a DM the other person's name is already the
                conversation's name — repeating it on the preview line says
                nothing, while marking your own last message says who is waiting

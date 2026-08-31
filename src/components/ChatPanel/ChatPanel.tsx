@@ -5,14 +5,14 @@ import { useAvatarFor } from '../../data/profile';
 import { ConversationList } from '../ConversationList/ConversationList';
 import {
   appendMessage, conversationName, getConversation, markRead, replaceMessages,
-  memberOf, others, renameConversation, sortedConversations, unreadCount,
+  memberOf, others, renameConversation, setMemberOverlay, sortedConversations, unreadCount,
 } from '../../data/conversations';
 import { SlackMark } from '../SlackMark/SlackMark';
 import { listPeople, type Person } from '../../data/slackDirectory';
 import { activeMention, applyMention, mentionsMe, toSlackMentions } from '../../data/mentions';
 import { Button } from '../Button/Button';
 import {
-  MEMBERS, ME, groupMessages, nowLabel,
+  ME, groupMessages, nowLabel,
   type Member, type Message, type ViewRef,
 } from '../../data/chat';
 import {
@@ -47,7 +47,6 @@ export interface ChatPanelProps {
  */
 export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) {
   const [pendingFail, setPendingFail] = useState<string | null>(null);
-  const [members, setMembers] = useState(MEMBERS);
   const [source, setSource] = useState<ChatSource>('seed');
   const [origin, setOrigin] = useState<{ team?: string; channel?: string }>({});
   const [draft, setDraft] = useState('');
@@ -80,7 +79,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
 
   const refresh = useCallback(async () => {
     const t = await loadThread();
-    setMembers(t.members);
+    setMemberOverlay(t.members);
     setSource(t.source);
     setOrigin({ team: t.team, channel: t.channel });
     /* Slack is the authority for the ONE conversation it mirrors, and for
@@ -261,7 +260,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
 
       {open && <><div className="gr-chat__messages">
         {groups.map((group, gi) => {
-          const author = members[group[0].authorId] ?? ME;
+          const author = memberOf(group[0].authorId);
           const mine = author.id === ME.id;
           return (
             <article key={gi} className={`gr-msg ${mine ? 'is-mine' : ''}`}>
