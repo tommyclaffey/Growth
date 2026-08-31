@@ -1,0 +1,124 @@
+.gr-convs { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+
+.gr-convs__head {
+  display: flex; align-items: center; gap: var(--space-8);
+  /* --space-18 to match .gr-chat__header, not --space-16. They are different
+     elements but one visual column: the input's left edge has to sit under
+     "Messages", and 2px off reads as a mistake rather than a margin. */
+  padding: var(--space-12) var(--space-18);
+  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+  flex: none;
+}
+
+.gr-convs__search {
+  flex: 1; min-width: 0;
+  height: 36px;                       /* the control grid, same as Button */
+  padding: 0 var(--space-12);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: var(--text-primary);
+}
+.gr-convs__search::placeholder { color: var(--text-muted); }
+.gr-convs__search:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+  border-color: transparent;
+}
+
+.gr-convs__new {
+  height: 36px; flex: none;
+  padding: 0 var(--space-12);
+  white-space: nowrap;
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.gr-convs__new:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-convs__new.is-on { background: var(--accent-tint); border-color: transparent; color: var(--accent-base); }
+.gr-convs__new:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+
+.gr-convs__list {
+  list-style: none; margin: 0; padding: var(--space-8) 0;
+  overflow-y: auto; min-height: 0; flex: 1;
+}
+
+/* A row is a button, not a div with a click handler — it has to be reachable
+   by keyboard and announce itself, and a list of 8 conversations you can only
+   reach with a mouse is not a list. */
+.gr-conv {
+  display: flex; align-items: center; gap: var(--space-10);
+  width: 100%;
+  padding: var(--space-8) var(--space-18);
+  border: none; background: none; cursor: pointer; text-align: left;
+  color: inherit;
+}
+.gr-conv:hover { background: var(--surface-page-top); }
+.gr-conv.is-current { background: var(--accent-tint); }
+.gr-conv:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: -2px; }
+
+.gr-conv__hash {
+  width: 28px; height: 28px; flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--surface-page-top);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.gr-conv__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.gr-conv__row  { display: flex; align-items: baseline; gap: var(--space-8); min-width: 0; }
+.gr-conv__name { color: var(--text-primary); flex: 1; min-width: 0;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-conv__time { color: var(--text-muted); flex: none; }
+
+/* One line, always. A preview that wraps turns a scannable list into a wall,
+   and the second line never says anything the first did not. */
+.gr-conv__preview {
+  color: var(--text-muted); flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.gr-conv.is-unread .gr-conv__name,
+.gr-conv.is-unread .gr-conv__preview { color: var(--text-primary); font-weight: 500; }
+
+.gr-conv__badge {
+  flex: none;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--accent-base); color: var(--brand-on-accent);
+  font: 500 11px/1 var(--font-sans);
+}
+
+.gr-conv__check { flex: none; color: var(--accent-base); width: 16px; text-align: center; }
+.gr-conv.is-picked { background: var(--accent-tint); }
+
+.gr-conv__mirror {
+  margin: 0 0 var(--space-4);
+  padding: 0 var(--space-18) 0 66px;   /* aligns under the name, not the avatar */
+  color: var(--text-muted);
+}
+
+.gr-convs__picked {
+  display: flex; flex-wrap: wrap; gap: var(--space-8);
+  padding: var(--space-12) var(--space-18);
+  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-convs__chip {
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card); color: var(--text-secondary);
+  padding: 3px var(--space-10); cursor: pointer;
+}
+.gr-convs__chip:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-convs__go {
+  border: none; border-radius: var(--radius-pill);
+  background: var(--accent-base); color: var(--brand-on-accent);
+  padding: 4px var(--space-12); cursor: pointer; font-weight: 500;
+}
+.gr-convs__go:hover { filter: brightness(1.06); }
+
+.gr-convs__empty { padding: var(--space-16) var(--space-18); color: var(--text-muted); }

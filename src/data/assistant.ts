@@ -1,5 +1,5 @@
 import {
-  CHANNEL_KEYS, CHANNEL_LABEL, RANGE_LABEL, delta, formatMetric, totals,
+  CHANNEL_LABEL, RANGE_LABEL, activeChannels, delta, formatMetric, totals,
   type Metric, type Range, type Scope,
 } from './metrics';
 import type { ChannelName } from '../styles/tokens';
@@ -25,9 +25,21 @@ export interface Evidence {
   channel?: ChannelName | 'all';
 }
 
+/** A page consulted on the open web. Never merged into `evidence` — see below. */
+export interface Source { title: string; url: string }
+
 export interface Answer {
   text: string;
   evidence?: Evidence[];
+  /**
+   * Outside context, kept separate from `evidence` on purpose.
+   *
+   * `evidence` is this account's actuals. A source is someone else's number
+   * about someone else's business. Listing them together would let the weaker
+   * claim borrow the authority of the stronger one, which is the failure this
+   * panel is built to avoid — so they get different treatments in the UI.
+   */
+  sources?: Source[];
   /** False when nothing matched, so the UI can present it as a limit. */
   answered: boolean;
 }
@@ -47,7 +59,7 @@ function findMetric(q: string): Metric | null {
 }
 
 function findChannels(q: string): ChannelName[] {
-  return CHANNEL_KEYS.filter((k) => {
+  return activeChannels().filter((k) => {
     const label = CHANNEL_LABEL[k].toLowerCase();
     return q.toLowerCase().includes(label) || q.toLowerCase().includes(k.toLowerCase());
   });
@@ -87,7 +99,7 @@ export function ask(question: string, range: Range): Answer {
 
   /* "what should I cut" — worst performer by CAC, with the money at stake. */
   if (/\bcut\b|\bpause\b|\bstop\b|\bkill\b|worst|underperform/i.test(q)) {
-    const ranked = [...CHANNEL_KEYS].sort((a, b) => totals(b, range).cac - totals(a, range).cac);
+    const ranked = [...activeChannels()].sort((a, b) => totals(b, range).cac - totals(a, range).cac);
     const worst = ranked[0];
     const t = totals(worst, range);
     const blended = totals('all', range);
@@ -106,7 +118,7 @@ export function ask(question: string, range: Range): Answer {
   /* "which channel has the best/worst X" — a ranking question. */
   if (metric && /\bwhich\b|\bbest\b|\bworst\b|\btop\b|\bhighest\b|\blowest\b/i.test(q)) {
     const wantWorst = /\bworst\b|\blowest\b/i.test(q) !== lowerIsBetter(metric);
-    const ranked = [...CHANNEL_KEYS].sort((a, b) => {
+    const ranked = [...activeChannels()].sort((a, b) => {
       const d = valueOf(a, metric, range) - valueOf(b, metric, range);
       return wantWorst ? d : -d;
     });

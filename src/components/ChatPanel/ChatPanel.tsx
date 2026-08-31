@@ -1,9 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './ChatPanel.css';
+import { loadThread, postToSlack, subscribeToSlack, type ChatSource } from '../../data/slackClient';
+import { useAvatarFor } from '../../data/profile';
+import { ConversationList } from '../ConversationList/ConversationList';
+import {
+  appendMessage, conversationName, getConversation, markRead, replaceMessages,
+  memberOf, others, renameConversation, sortedConversations, unreadCount,
+} from '../../data/conversations';
+import { SlackMark } from '../SlackMark/SlackMark';
+import { listPeople, type Person } from '../../data/slackDirectory';
+import { activeMention, applyMention, mentionsMe, toSlackMentions } from '../../data/mentions';
 import { Button } from '../Button/Button';
 import {
-  MEMBERS, ME, SEED, groupMessages, nowLabel,
-  type Message, type ViewRef,
+  MEMBERS, ME, groupMessages, nowLabel,
+  type Member, type Message, type ViewRef,
 } from '../../data/chat';
 import {
   CHANNEL_LABEL, RANGE_LABEL, delta, formatMetric, isRatio, totals, type Scope,
@@ -11,11 +21,8 @@ import {
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { Avatar } from '../Avatar/Avatar';
 import type { ChannelName } from '../../styles/tokens';
+import { CSS_CHANNEL } from '../../styles/tokens';
 
-const CSS_CHANNEL: Record<string, string> = {
-  meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
-  affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
-};
 
 export interface ChatPanelProps {
   onClose: () => void;
@@ -39,9 +46,76 @@ export interface ChatPanelProps {
  * one goes stale the moment the data moves, the other does not.
  */
 export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) {
-  const [messages, setMessages] = useState<Message[]>(SEED);
+  const [pendingFail, setPendingFail] = useState<string | null>(null);
+  const [members, setMembers] = useState(MEMBERS);
+  const [source, setSource] = useState<ChatSource>('seed');
+  const [origin, setOrigin] = useState<{ team?: string; channel?: string }>({});
   const [draft, setDraft] = useState('');
+  const avatarFor = useAvatarFor();
+  /* Two levels, list then thread. `null` IS the list — an explicit
+     view: 'list' | 'thread' would be a second source of truth for the same
+     fact, and they drift. */
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [tick, setTick] = useState(0);        /* conversations live outside React */
+  /* The SLACK directory — used only to translate a name into the id Slack
+     stores, and only for the one conversation Slack mirrors. It is not the
+     roster the mention list is built from. */
+  const [slackPeople, setSlackPeople] = useState<Person[]>([]);
+  const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
+  const composerRef = useRef<HTMLInputElement>(null);
+
+  /* Derived above the effects because one of them depends on messages.length.
+     `tick` is read here so a mutation to the conversation store -- which lives
+     outside React -- re-derives this. */
+  void tick;
+  const open = openId ? getConversation(openId) : undefined;
+  const messages: Message[] = open?.messages ?? [];
+  const mirrored = Boolean(open?.mirrorsSlack) && source === 'slack';
+
+  /* The directory is needed to turn "@Dan Kwon" into the id Slack stores, so
+     it is fetched once rather than per keystroke. */
+  useEffect(() => { void listPeople().then(setSlackPeople); }, [source]);
   const endRef = useRef<HTMLDivElement>(null);
+
+  const refresh = useCallback(async () => {
+    const t = await loadThread();
+    setMembers(t.members);
+    setSource(t.source);
+    setOrigin({ team: t.team, channel: t.channel });
+    /* Slack is the authority for the ONE conversation it mirrors, and for
+       nothing else. Writing its messages over whatever is open is what made
+       the old panel show the linked channel no matter what you had chosen. */
+    if (t.source === 'slack') {
+      const mirrored = sortedConversations().find((c) => c.mirrorsSlack);
+      if (mirrored) replaceMessages(mirrored.id, t.messages);
+    }
+    setTick((n) => n + 1);
+  }, []);
+
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  /* Slack sends the browser back here after consent. Clear the marker so a
+     reload does not look like a fresh connection. */
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('slack') === 'connected') {
+      window.history.replaceState({}, '', window.location.pathname);
+      void refresh();
+    }
+  }, [refresh]);
+
+  /* Push, with polling underneath it.
+     Slack posts to /api/slack/events the moment a message lands, and that is
+     relayed here over SSE — so updates are immediate. The slow poll stays as a
+     floor: a stream can be connected and still miss an event (a dropped
+     delivery, a buffering proxy, a reconnect gap), and a chat that is silently
+     stale is worse than one that is a few seconds behind. */
+  useEffect(() => {
+    if (source !== 'slack') return;
+    const unsubscribe = subscribeToSlack(() => { void refresh(); });
+    const id = setInterval(() => { void refresh(); }, 30000);
+    return () => { unsubscribe(); clearInterval(id); };
+  }, [source, refresh]);
 
   // Follow the conversation as it grows, the way every chat client does.
   useEffect(() => {
@@ -53,62 +127,160 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
     if (pending) endRef.current?.scrollIntoView({ block: 'end' });
   }, [pending]);
 
-  function send() {
+  /* You can only mention someone who is in the conversation.
+     This was built from the Slack workspace directory, so typing "@" in a
+     Growth DM offered every account in a linked Slack -- people who are not
+     in the thread, and in a personal workspace, not colleagues at all. A
+     mention is a claim that someone will see it, and mentioning somebody who
+     is not in the conversation is a claim the product cannot honour. */
+  const roster: Member[] = open ? open.memberIds.map(memberOf).filter((m) => m.id !== ME.id) : [];
+  const suggestions = mention
+    ? roster.filter((m) => m.name.toLowerCase().includes(mention.query.toLowerCase())).slice(0, 6)
+    : [];
+
+  function choose(p: Member) {
+    const el = composerRef.current;
+    if (!el || !mention) return;
+    const next = applyMention(draft, mention.start, el.selectionStart ?? draft.length, p.name);
+    setDraft(next.text);
+    setMention(null);
+    /* Caret has to be restored after React re-renders the value, or it jumps
+       to the end and the next character lands in the wrong place. */
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(next.caret, next.caret);
+    });
+  }
+
+  async function send() {
+    if (!openId || !open) return;
     const body = draft.trim();
     if (!body && !pending) return;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `local-${prev.length}`,
-        authorId: ME.id,
-        body: body || 'Sharing this view.',
-        time: nowLabel(),
-        minutesAgo: 0,
-        view: pending ?? undefined,
-      },
-    ]);
+    const text = body || 'Sharing this view.';
+
+    appendMessage(openId, {
+      id: `local-${Date.now()}`,
+      authorId: ME.id,
+      body: text,
+      time: nowLabel(),
+      minutesAgo: 0,
+      view: pending ?? undefined,
+    });
     setDraft('');
+    setTick((n) => n + 1);
     onClearPending();
+
+    /* Only the mirrored conversation goes to Slack. A DM in Growth is a
+       Growth object -- posting it into a Slack channel would broadcast a
+       private message to the whole team, which is the worst possible
+       failure mode for this feature. */
+    if (!mirrored) return;
+
+    const sent = await postToSlack(toSlackMentions(text, slackPeople), pending);
+    /* A message that exists only in this browser but looks identical to one
+       that reached the channel is worse than an error -- the user believes
+       their team saw it. */
+    if (!sent) { setPendingFail(text); return; }
+    setPendingFail(null);
+    await refresh();
   }
+
 
   const groups = groupMessages(messages);
 
   return (
     <aside className="gr-chat" aria-label="Team chat">
-      <header className="gr-chat__header">
-        <div>
-          <h2 className="gr-type-section">Team chat</h2>
-          <p className="gr-type-caption">#growth-analytics · 4 members</p>
+      <header className={`gr-chat__header ${open ? "" : "is-list"}`}>
+        <div className="gr-chat__head-row">
+          {open && (
+            <button type="button" className="gr-chat__back" onClick={() => setOpenId(null)}
+                    aria-label="All conversations">‹</button>
+          )}
+          <div className="gr-chat__head-text">
+            {open ? (
+              renaming ? (
+                /* Rename in place. A modal to type one word is a modal too
+                   many, and the header is where the name already is. */
+                <input
+                  className="gr-chat__rename gr-type-section"
+                  defaultValue={open.title ?? ''}
+                  placeholder={conversationName(open)}
+                  autoFocus
+                  onBlur={(e) => { renameConversation(open.id, e.target.value); setRenaming(false); setTick((n) => n + 1); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') { setRenaming(false); }
+                  }}
+                />
+              ) : (
+                /* The name IS the switcher. A separate "switch" control would
+                   sit beside a label naming the exact thing it switches. */
+                <button type="button" className="gr-chat__switch" onClick={() => setOpenId(null)}>
+                  <span className="gr-type-section">{conversationName(open)}</span>
+                  <span aria-hidden="true"> ⌄</span>
+                </button>
+              )
+            ) : (
+              <h2 className="gr-type-section">Messages</h2>
+            )}
+            {open ? (
+              <p className="gr-type-caption">
+                {open.kind === 'channel'
+                  ? `${open.memberIds.length} people`
+                  : others(open).map((m) => m.name).join(', ')}
+                {mirrored && origin.channel ? ` · mirrored to #${origin.channel}` : ''}
+                {' · '}
+                <button type="button" className="gr-chat__rename-cta" onClick={() => setRenaming(true)}>
+                  {open.title ? 'Rename' : 'Name it'}
+                </button>
+              </p>
+            ) : (
+              <p className="gr-type-caption">
+                {(() => {
+                  const n = sortedConversations().reduce((a, c) => a + unreadCount(c), 0);
+                  return n ? `${n} unread` : 'All caught up';
+                })()}
+              </p>
+            )}
+          </div>
+          <button type="button" className="gr-chat__close" onClick={onClose} aria-label="Close chat">✕</button>
         </div>
-        <button type="button" className="gr-chat__close" onClick={onClose} aria-label="Close chat">✕</button>
+        {/* Connecting a Slack workspace moved to Settings. It is a setup task
+            done once, and it was sitting permanently in a panel used every
+            day — "+ Add workspace" is not something you reach for while
+            reading a message. */}
       </header>
 
-      <div className="gr-chat__messages">
+      {!open && (
+        <ConversationList
+          currentId={openId}
+          slackChannel={source === 'slack' ? origin.channel : undefined}
+          onOpen={(id) => { markRead(id); setOpenId(id); setTick((n) => n + 1); }}
+        />
+      )}
+
+      {open && <><div className="gr-chat__messages">
         {groups.map((group, gi) => {
-          const author = MEMBERS[group[0].authorId] ?? ME;
+          const author = members[group[0].authorId] ?? ME;
           const mine = author.id === ME.id;
           return (
             <article key={gi} className={`gr-msg ${mine ? 'is-mine' : ''}`}>
-              <Avatar initials={author.initials} hue={author.hue} name={author.name} />
+              <Avatar initials={author.initials} hue={author.hue} name={author.name} src={avatarFor(author)} />
               <div className="gr-msg__body">
                 <p className="gr-msg__meta gr-type-caption">
                   <strong>{author.name}</strong>
                   <span>{group[0].time}</span>
                   {group.some((m) => m.fromSlack) && (
-                    <span className="gr-msg__slack gr-type-micro">
-                      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-                        <circle cx="3" cy="3" r="1.4" fill="currentColor" />
-                        <circle cx="7" cy="3" r="1.4" fill="currentColor" />
-                        <circle cx="3" cy="7" r="1.4" fill="currentColor" />
-                        <circle cx="7" cy="7" r="1.4" fill="currentColor" />
-                      </svg>
-                      Slack
+                    <span className="gr-msg__slack" title="Sent from Slack">
+                      <SlackMark size={11} />
+                      <span className="gr-msg__slack-word">slack</span>
+                      <span className="gr-sr-only">Sent from Slack</span>
                     </span>
                   )}
                 </p>
                 {group.map((m) => (
-                  <div key={m.id} className="gr-msg__line">
-                    <p className="gr-type-body">{m.body}</p>
+                  <div key={m.id} className={`gr-msg__line ${mentionsMe(m.body) ? 'is-flagged' : ''}`}>
+                    <p className="gr-type-body">{renderBody(m.body)}</p>
                     {m.view && <ViewCard view={m.view} />}
                   </div>
                 ))}
@@ -127,17 +299,55 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
                     aria-label="Remove attached metric">✕</button>
           </div>
         )}
+        {suggestions.length > 0 && (
+          <ul className="gr-mention" role="listbox" aria-label="People">
+            {suggestions.map((p) => (
+              <li key={p.id}>
+                <button type="button" className="gr-mention__row gr-type-body"
+                        /* onMouseDown, not onClick: click fires after blur, and
+                           the input losing focus first closes this list. */
+                        onMouseDown={(e) => { e.preventDefault(); choose(p); }}>
+                  <Avatar initials={p.initials} hue={p.hue} size={24} name={p.name} src={avatarFor(p)} />
+                  {p.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="gr-chat__row">
           <input
+            ref={composerRef}
             className="gr-chat__input gr-type-body"
-            placeholder={pending ? 'Add a comment…' : 'Message #growth-analytics'}
+            placeholder={pending ? 'Add a comment…'
+              : open ? `Message ${conversationName(open)}` : 'Message'}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setMention(activeMention(e.target.value, e.target.selectionStart ?? e.target.value.length));
+            }}
+            onBlur={() => setMention(null)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') return setMention(null);
+              /* Enter picks the top suggestion while the list is open, rather
+                 than sending a half-typed name. */
+              if (e.key === 'Enter' && suggestions.length > 0) {
+                e.preventDefault();
+                return choose(suggestions[0]);
+              }
+              if (e.key === 'Enter') send();
+            }}
           />
           <Button variant="primary" onClick={send}>Send</Button>
         </div>
-      </div>
+        {/* Named where it happened. A failed post used to be appended to the
+            message body as "(not delivered)", which edits what the person
+            wrote in order to report a delivery fact. */}
+        {pendingFail && (
+          <p className="gr-chat__failed gr-type-caption" role="alert">
+            Not delivered to Slack. It is saved here.
+          </p>
+        )}
+      </div></>}
     </aside>
   );
 }
@@ -188,5 +398,20 @@ function ViewCard({ view, compact = false }: { view: ViewRef; compact?: boolean 
         </p>
       )}
     </div>
+  );
+}
+
+
+
+
+
+
+/** Draws @names as marks rather than plain text, so a mention is findable. */
+function renderBody(body: string) {
+  const parts = body.split(/(@[\p{L}][\p{L}\p{N}. '-]*)/gu);
+  return parts.map((part, i) =>
+    part.startsWith('@')
+      ? <span key={i} className={`gr-mention__tag ${mentionsMe(part) ? 'is-me' : ''}`}>{part.trimEnd()}</span>
+      : part,
   );
 }

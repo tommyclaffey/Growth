@@ -1,3 +1,4 @@
+import mayaPhoto from '../assets/maya.jpg';
 import type { ChannelName } from '../styles/tokens';
 import type { Metric, Range } from './metrics';
 
@@ -5,15 +6,29 @@ export interface Member {
   id: string;
   name: string;
   initials: string;
+  /** Optional — most colleagues have none, and initials are the norm. */
+  avatar?: string;
   /* A stable hue index so a person is the same colour in every message.
      Colour follows the entity, never its position in the list. */
   hue: 0 | 1 | 2 | 3;
 }
 
-export const ME: Member = { id: 'tc', name: 'You', initials: 'TC', hue: 0 };
+/**
+ * The signed-in person.
+ *
+ * One definition, used by the sidebar account row and by every message sent
+ * from this app. It was `name: 'You'` with initials from nobody — which reads
+ * fine in a chat bubble and reads as a placeholder everywhere else. A product
+ * that shows a cast of named colleagues and then calls the user "You" has one
+ * seat at the table that is not a person.
+ */
+export const ME: Member = { id: 'maya', name: 'Maya Okonkwo', initials: 'MO', hue: 0, avatar: mayaPhoto };
+
+/** What the account row shows under her name. */
+export const ME_ROLE = 'Growth lead';
 
 export const MEMBERS: Record<string, Member> = {
-  tc: ME,
+  maya: ME,
   jr: { id: 'jr', name: 'Jess Ramírez', initials: 'JR', hue: 1 },
   dk: { id: 'dk', name: 'Dan Kwon',     initials: 'DK', hue: 2 },
   ap: { id: 'ap', name: 'Amara Price',  initials: 'AP', hue: 3 },
@@ -76,4 +91,36 @@ export function groupMessages(messages: Message[]): Message[][] {
     else groups.push([m]);
   }
   return groups;
+}
+
+/**
+ * A view, encoded so it survives a round trip through Slack.
+ *
+ * A shared metric is a Growth object; Slack only carries text. Posting the
+ * card as prose loses it — the message arrives in Slack readable but comes
+ * back as a sentence, and the unfurl is gone. So the reference is written as a
+ * link and read back out of one.
+ *
+ * A link rather than a marker like `[growth:meta/CAC/30]` for two reasons: it
+ * reads as something a person would send in Slack, and it is clickable, so a
+ * teammate who is not looking at Growth still lands on the right screen.
+ */
+export function encodeView(view: ViewRef, origin: string): string {
+  const q = new URLSearchParams({ c: view.channel, m: view.metric, r: String(view.range) });
+  return `${origin}/Growth/?${q}`;
+}
+
+const VIEW_RE = /https?:\/\/[^\s]*\/Growth\/\?(?:[^\s]*&)?c=([a-zA-Z]+)&m=([A-Za-z]+)&r=(7|30|90)/;
+
+/** Pulls a view back out of message text. Returns null when there isn't one. */
+export function decodeView(text: string): { view: ViewRef; text: string } | null {
+  const m = text.match(VIEW_RE);
+  if (!m) return null;
+  const [full, channel, metric, range] = m;
+  /* Strip the URL from the body — the card renders it, and leaving the raw
+     link in as well shows the same thing twice. */
+  return {
+    view: { channel: channel as ViewRef['channel'], metric: metric as Metric, range: Number(range) as Range },
+    text: text.replace(full, '').replace(/\s{2,}/g, ' ').trim(),
+  };
 }

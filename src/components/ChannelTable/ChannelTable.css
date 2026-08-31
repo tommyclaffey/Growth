@@ -9,7 +9,25 @@
   box-shadow: var(--elevation-card);
 }
 
-.gr-card__header { display: flex; align-items: center; padding-bottom: var(--space-10); }
+/* ⚠️ `gr-card__header` is a shared class that happens to live in this
+   component's stylesheet. Left here on purpose rather than moved to index.css:
+   the rule has no extra specificity, so whichever sheet loads last wins, and
+   moving it would hand that fight to import order. Ownership should follow in
+   a deliberate pass, not as a side effect of adding a gap.
+
+   The gap is the fix: with none, a title sat flush against whatever followed
+   it — "ChannelsAdd channel", "AccountMaya Okonkwo". */
+.gr-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding-bottom: var(--space-10);
+}
+
+/* A subtitle is not an action, so it stacks under the title rather than
+   sitting beside it on the header's main axis. */
+.gr-card__heading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gr-card__sub { color: var(--text-muted); margin: 0; }
 .gr-card__title  { margin: 0; color: var(--text-primary); }
 
 .gr-card__sort {
@@ -70,9 +88,15 @@
 .gr-table__channel { display: inline-flex; align-items: center; gap: var(--space-8); color: var(--text-primary); }
 .gr-table__dot { width: 8px; height: 8px; border-radius: var(--radius-pill); flex: none; }
 
-.gr-table__delta { display: inline-flex; align-items: center; gap: var(--space-4); }
-.gr-table__delta.is-up   { color: var(--semantic-good); }
-.gr-table__delta.is-down { color: var(--semantic-bad); }
+/* .gr-table__delta removed — the cell instances DeltaBadge now, so these rules
+   had no owner and were a second definition of a decision made elsewhere. */
 
 
 @media (prefers-reduced-motion: reduce) { .gr-table__row { transition: none; } }
+
+
+/* The trend cell is right-aligned, but a sparkline is a block with a fixed
+   width — `text-align` cannot move it, so the mark sat hard left while its
+   own column header sat hard right, and the label read as belonging to
+   nothing. `margin-left: auto` is what actually moves a sized block. */
+.gr-table td:last-child .gr-spark { margin-left: auto; }

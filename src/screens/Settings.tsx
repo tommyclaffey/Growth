@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import './screens.css';
 import { Toggle } from '../components/Toggle/Toggle';
-import { Button } from '../components/Button/Button';
 import { Badge } from '../components/Badge/Badge';
 import { FormField } from '../components/FormField/FormField';
 import { CHANNEL_KEYS, CHANNEL_LABEL } from '../data/metrics';
+import { useChannels, toggleChannel } from '../data/channels';
+import { ChannelWordmark } from '../components/ChannelWordmark/ChannelWordmark';
+import { SlackConnect } from '../components/ChatPanel/SlackConnect';
 import type { ChannelName } from '../styles/tokens';
+import { AvatarUpload } from '../components/AvatarUpload/AvatarUpload';
+import { AccountLinks } from '../components/AccountLinks/AccountLinks';
+import { ME, ME_ROLE } from '../data/chat';
 
-const CSS_CHANNEL: Record<string, string> = {
-  meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
-  affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
-};
 
 const SYNCED: Record<ChannelName, string> = {
   meta: '4 minutes ago', tiktok: '11 minutes ago', youtube: '6 minutes ago',
@@ -23,6 +24,7 @@ export interface SettingsProps {
 }
 
 export function Settings({ theme, onThemeChange }: SettingsProps) {
+  const enabled = useChannels();
   const [connected, setConnected] = useState<Set<ChannelName>>(
     new Set(CHANNEL_KEYS.filter((k) => k !== 'podcasts')),
   );
@@ -32,7 +34,7 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
   const [workspace, setWorkspace] = useState('Growth — Acquisition');
   const [digestTo, setDigestTo] = useState('growth@example.com');
 
-  function toggleChannel(key: ChannelName, next: boolean) {
+  function toggleChannel2(key: ChannelName, next: boolean) {
     setConnected((prev) => {
       const s = new Set(prev);
       if (next) s.add(key); else s.delete(key);
@@ -45,32 +47,104 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
       <div className="gr-settings">
         <section className="gr-card">
           <header className="gr-card__header">
-            <h3 className="gr-card__title gr-type-card-heading">Channels</h3>
-            <Button variant="ghost" disabled title="Connecting a channel is an OAuth flow, out of scope for this prototype">
-              Add channel
-            </Button>
+            <div className="gr-card__heading">
+              <h3 className="gr-card__title gr-type-card-heading">Account</h3>
+              <p className="gr-card__sub gr-type-caption">{ME.name} · {ME_ROLE}</p>
+            </div>
+          </header>
+          <div className="gr-card__body">
+            <AvatarUpload />
+          </div>
+        </section>
+
+        <section className="gr-card">
+          <header className="gr-card__header">
+            <div className="gr-card__heading">
+              <h3 className="gr-card__title gr-type-card-heading">Slack account</h3>
+              <p className="gr-card__sub gr-type-caption">
+                Connect your own Slack account. Growth reads and posts as you.
+              </p>
+            </div>
+          </header>
+          <div className="gr-card__body">
+            <AccountLinks />
+          </div>
+        </section>
+
+        {/* Moved here from the chat panel. Connecting a workspace and picking
+            the channel to mirror is setup done once — it does not belong in a
+            surface used every day to read messages. */}
+        <section className="gr-card">
+          <header className="gr-card__header">
+            <div className="gr-card__heading">
+              <h3 className="gr-card__title gr-type-card-heading">Slack workspace</h3>
+              <p className="gr-card__sub gr-type-caption">
+                One conversation in Growth can mirror a Slack channel. Everything
+                else stays here.
+              </p>
+            </div>
+          </header>
+          <div className="gr-card__body">
+            <SlackConnect onConnected={() => { /* Settings shows status, not a thread */ }} />
+          </div>
+        </section>
+
+        <section className="gr-card">
+          <header className="gr-card__header">
+            <div className="gr-card__heading">
+              <h3 className="gr-card__title gr-type-card-heading">Channels</h3>
+              <p className="gr-card__sub gr-type-caption">
+                Switching one off removes it from the whole product — the blend,
+                the tables, the picker and its own page.
+              </p>
+            </div>
           </header>
 
           {CHANNEL_KEYS.map((key) => {
             const isOn = connected.has(key);
+            const runs = enabled.includes(key);
             return (
-              <div key={key} className="gr-setting-row">
-                <span className="gr-setting-row__channel gr-type-body-medium">
-                  <span className="gr-setting-row__dot"
-                        style={{ background: `var(--channel-${CSS_CHANNEL[key]})` }}
-                        aria-hidden="true" />
-                  {CHANNEL_LABEL[key]}
+              <div key={key} className={`gr-setting-row ${runs ? '' : 'is-off'}`}>
+                <span className="gr-setting-row__channel">
+                  {/* The channel named the way the design names it — a lockup
+                      for the three that are products, the Google Ads mark
+                      beside "Paid Search" because the channel is not called
+                      Google Ads, the channel mark for the two that have no
+                      product behind them. */}
+                  <ChannelWordmark channel={key} name={CHANNEL_LABEL[key]} size="sm" />
                 </span>
-                <span className="gr-setting-row__text">
-                  <span className="gr-type-caption">
-                    {isOn ? `Synced ${SYNCED[key].toLowerCase()}` : 'Not connected'}
-                  </span>
+
+                <span className="gr-setting-row__text gr-type-caption">
+                  {!runs ? 'Not in use' : isOn ? `Synced ${SYNCED[key].toLowerCase()}` : 'Not connected'}
                 </span>
-                {isOn && SYNCED[key] === 'Never' && <Badge label="Sync failed" tone="bad" />}
+
+                {runs && isOn && SYNCED[key] === 'Never' && <Badge label="Sync failed" tone="bad" />}
+
+                {/* Connecting is only offered for a channel this account runs.
+                    Offering to connect something they have said they do not do
+                    is the noise the switch exists to remove. */}
+                {runs && (
+                  isOn ? (
+                    <button type="button" className="gr-setting-row__connect gr-type-caption"
+                            onClick={() => toggleChannel2(key, false)}>
+                      Disconnect
+                    </button>
+                  ) : (
+                    /* A real redirect to that platform's own consent screen —
+                       Meta to Meta, Google Ads to Google. It used to flip a
+                       local switch and report "Synced 4 minutes ago", which is
+                       a state that was never established. */
+                    <a className="gr-setting-row__connect is-primary gr-type-caption"
+                       href={`/api/connect/${key}`}>
+                      Connect {CHANNEL_LABEL[key]}
+                    </a>
+                  )
+                )}
+
                 <Toggle
-                  checked={isOn}
-                  onChange={(next) => toggleChannel(key, next)}
-                  label={`${CHANNEL_LABEL[key]} connection`}
+                  checked={runs}
+                  onChange={(next) => toggleChannel(key, next, enabled)}
+                  label={`${CHANNEL_LABEL[key]} in use`}
                   labelHidden
                 />
               </div>

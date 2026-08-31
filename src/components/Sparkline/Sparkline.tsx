@@ -1,11 +1,8 @@
 import './Sparkline.css';
+import { CSS_CHANNEL } from '../../styles/tokens';
 import { channelGradient, type ChannelName } from '../../styles/tokens';
 import { isRatio, type Metric } from '../../data/metrics';
 
-const CSS_CHANNEL: Record<string, string> = {
-  meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
-  affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
-};
 
 export interface SparklineProps {
   /** Raw values. Scaling happens here so callers cannot each invent their own. */

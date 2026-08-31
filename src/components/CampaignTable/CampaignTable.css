@@ -34,3 +34,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) { .gr-campaigns__caret { transition: none; } }
+
+
+/* The trend cell is right-aligned, but a sparkline is a block with a fixed
+   width — `text-align` cannot move it, so the mark sat hard left while its
+   own column header sat hard right, and the label read as belonging to
+   nothing. `margin-left: auto` is what actually moves a sized block. */
+.gr-table td:last-child .gr-spark { margin-left: auto; }

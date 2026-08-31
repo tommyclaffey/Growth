@@ -69,3 +69,14 @@
 .tone-good .gr-strip__pip { background: var(--semantic-good); }
 
 @media (prefers-reduced-motion: reduce) { .gr-strip__pill { transition: none; } }
+
+
+/* Right-aligned pills wrap into a ragged right-hand staircase — one chip per
+   line, each ending somewhere different. Left-align once they stack.
+   This lives here rather than in index.css because the rule has the same
+   specificity as the base one above it, so whichever stylesheet loads last
+   wins — and component CSS loads after index.css. Ownership decides it: the
+   component that sets the alignment is the component that overrides it. */
+@container main (max-width: 880px) {
+  .gr-strip__pills { justify-content: flex-start; }
+}

@@ -4,19 +4,38 @@
 .gr-chat {
   width: 360px;
   flex: none;
-  height: 100vh;
-  position: sticky;
-  top: 0;
+  /* Full height of the shell, which is the viewport. No sticky needed once
+     the shell stops scrolling. */
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--surface-card);
   border-left: var(--border-width-sm) solid var(--border-default);
 }
 .gr-chat__header {
-  display: flex; align-items: flex-start; gap: var(--space-12);
-  padding: var(--space-20) var(--space-18) var(--space-16);
+  display: flex; flex-direction: column; gap: var(--space-12);
+  box-sizing: border-box;
+  min-height: var(--header-h);
+  /* 24 top, matching .gr-header — aligns the text tops, not just the borders. */
+  padding: var(--space-24) var(--space-18) var(--space-16);
   border-bottom: var(--border-width-sm) solid var(--border-subtle);
 }
+/* In list view the search row sits directly beneath, and together they fill
+   the same 140px the app header does -- so the first conversation lines up
+   with the first card in the page beside it. Holding the min-height here as
+   well would stack 140 on top of 60 and leave the gap that SlackConnect used
+   to occupy. */
+.gr-chat__header.is-list {
+  min-height: 0;
+  border-bottom: none;
+  /* Zero, not 12. The search row below brings its own 12 of top padding, and
+     two paddings meeting across a seam add up -- 24 above the input against
+     12 below it. The row owns the space on both of its sides. */
+  padding-bottom: 0;
+}
+.gr-chat__head-row { display: flex; align-items: flex-start; gap: var(--space-12); }
+.gr-chat__head-text { min-width: 0; flex: 1; }
 .gr-chat__header h2 { margin: 0; color: var(--text-primary); }
 .gr-chat__header p  { margin: 3px 0 0; color: var(--text-muted); }
 .gr-chat__close {
@@ -28,9 +47,14 @@
 }
 .gr-chat__messages {
   flex: 1;
-  display: flex; flex-direction: column; gap: var(--space-18);
+  display: flex; flex-direction: column; gap: var(--space-16);
   padding: var(--space-18);
   color: var(--text-secondary);
+  overflow-y: auto;
+  /* Own the scroll here. Without a min-height a flex child refuses to shrink
+     below its content, so the panel grows instead and the page gets a second
+     scrollbar next to the panel's own. */
+  min-height: 0;
 }
 .gr-chat__messages p { margin: 0; }
 .gr-chat__composer {
@@ -53,16 +77,8 @@
   border-color: transparent;
 }
 
-/* Fixed-height crumb row. Present on every screen, occupied only on drill-in,
-   so the header is the same height everywhere and the page never jumps. */
-.gr-crumb-slot { height: 18px; display: flex; align-items: center; }
 
 /* ---------- messages ---------- */
-
-.gr-chat__messages {
-  overflow-y: auto;
-  gap: var(--space-16);
-}
 
 .gr-msg { display: flex; gap: var(--space-10); align-items: flex-start; }
 
@@ -129,10 +145,189 @@
 
 /* Relayed from Slack. The design carries this badge because the channel is
    mirrored, and a message you cannot reply to in-app should say so. */
+/* Slack lockup, on the grid: 8 + 8 + 2 = 18 tall, the same height as the other
+   inline chips in this panel. Brand colours and the lowercase wordmark are
+   reproduced as Slack ships them — brand artwork is externally owned and is
+   not tokenised, the same exception the design system makes for TikTok pink. */
 .gr-msg__slack {
-  display: inline-flex; align-items: center; gap: var(--space-4);
-  height: 18px; padding: 0 var(--space-6);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 18px;
+  padding: 0 var(--space-8);
   border-radius: var(--radius-sm);
   background: var(--surface-page-top);
-  color: var(--text-muted);
+  flex: none;
 }
+.gr-msg__slack svg { display: block; flex: none; }
+.gr-msg__slack-word {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  /* Slack black, not this system's ink — it is part of the lockup. */
+  color: #1D1C1D;
+}
+/* In dark mode the lockup sits on a dark surface, so the wordmark inverts to
+   stay legible. Slack ships a white-wordmark lockup for exactly this. */
+[data-theme="dark"] .gr-msg__slack-word { color: #FFFFFF; }
+
+/* ---------- Slack connect ---------- */
+
+.gr-slack {
+  display: flex; flex-direction: column; gap: var(--space-10);
+  padding: var(--space-16);
+  border-radius: var(--radius-lg);
+  border: var(--border-width-sm) dashed var(--border-default);
+  background: var(--surface-page-top);
+}
+.gr-slack__hint { color: var(--text-muted); }
+.gr-slack__hint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+}
+.gr-slack__cta {
+  align-self: flex-start;
+  padding: var(--space-8) var(--space-16);
+  border: none; border-radius: var(--radius-md);
+  background: var(--accent-base); color: var(--brand-on-accent);
+  cursor: pointer; font-family: inherit;
+}
+.gr-slack__cta:hover { filter: brightness(1.06); }
+.gr-slack__cta:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px;
+}
+
+.gr-slack__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); max-height: 260px; overflow-y: auto; }
+.gr-slack__channel {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card); color: var(--text-primary);
+  cursor: pointer; font-family: inherit; text-align: left;
+}
+.gr-slack__channel:hover { border-color: var(--border-strong); }
+.gr-slack__channel:disabled { opacity: 0.5; cursor: wait; }
+.gr-slack__channel:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px;
+}
+.gr-slack__tag { color: var(--text-muted); }
+
+/* Connected: a quiet row of workspaces, not a banner. Once it works it should
+   stop announcing itself. */
+/* Connected state is a quiet row, not a panel. Once it works it should stop
+   announcing itself — no surface, no border, just the affordance. */
+.gr-slack--compact {
+  flex-direction: row; flex-wrap: wrap; gap: var(--space-8);
+  padding: 0;
+  border: none;
+  background: none;
+}
+.gr-slack__ws, .gr-slack__add {
+  padding: var(--space-4) var(--space-10);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card); color: var(--text-muted);
+  cursor: pointer; font-family: inherit;
+}
+.gr-slack__ws.is-active { border-color: var(--accent-base); color: var(--accent-text); }
+.gr-slack__ws:focus-visible, .gr-slack__add:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px;
+}
+
+/* The conversation name doubles as the control that changes it. */
+.gr-chat__switch {
+  border: none; background: none; padding: 0;
+  color: var(--text-muted); cursor: pointer; font-family: inherit;
+  text-align: left; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gr-chat__switch:hover { color: var(--accent-text); }
+.gr-chat__switch:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px; border-radius: var(--radius-sm);
+}
+
+/* Takes the message list's place rather than floating over it: an overlay in a
+   360px panel covers the thing you are switching away from anyway. */
+.gr-chat__picker {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: var(--space-14) var(--space-18);
+  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+}
+
+/* ---------- mentions ---------- */
+
+.gr-mention {
+  list-style: none; margin: 0 0 var(--space-8); padding: var(--space-4);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  box-shadow: var(--elevation-raised);
+  max-height: 200px; overflow-y: auto;
+}
+.gr-mention__row {
+  display: flex; align-items: center; gap: var(--space-8);
+  width: 100%; padding: var(--space-6) var(--space-8);
+  border: none; border-radius: var(--radius-sm);
+  background: none; color: var(--text-primary);
+  cursor: pointer; font-family: inherit; text-align: left;
+}
+.gr-mention__row:hover { background: var(--surface-page-top); }
+
+.gr-mention__tag { color: var(--accent-text); font-weight: 500; }
+/* A mention of you is the one you must not miss, so it carries a surface the
+   others do not. */
+.gr-mention__tag.is-me {
+  background: var(--accent-tint);
+  border-radius: var(--radius-sm);
+  padding: 0 3px;
+}
+
+/* Marks the whole line, not just the name — scanning a thread for "was I
+   asked something" should not require reading every message. */
+.gr-msg__line.is-flagged {
+  border-left: var(--border-width-md) solid var(--accent-base);
+  padding-left: var(--space-8);
+  margin-left: calc(var(--space-8) * -1);
+}
+
+/* The way out of a thread. A header control rather than a gesture, because a
+   swipe that only exists on touch is not a way out on a desktop. */
+.gr-chat__back {
+  width: 28px; height: 28px; flex: none;
+  display: grid; place-items: center;
+  border: none; background: none; cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  font-size: 20px; line-height: 1;
+}
+.gr-chat__back:hover { background: var(--surface-page-top); color: var(--text-primary); }
+.gr-chat__back:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+
+.gr-chat__failed { margin: var(--space-8) 0 0; color: var(--semantic-bad); }
+
+.gr-chat__switch {
+  display: inline-flex; align-items: baseline; gap: 2px;
+  border: none; background: none; padding: 0; cursor: pointer;
+  color: var(--text-primary); text-align: left;
+  border-radius: var(--radius-sm);
+}
+.gr-chat__switch:hover { color: var(--accent-base); }
+.gr-chat__switch:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 3px; }
+
+.gr-chat__rename {
+  width: 100%;
+  border: none; border-bottom: var(--border-width-md) solid var(--accent-base);
+  background: none; padding: 0 0 2px; color: var(--text-primary);
+}
+.gr-chat__rename:focus-visible { outline: none; }
+
+.gr-chat__rename-cta {
+  border: none; background: none; padding: 0; cursor: pointer;
+  color: var(--text-muted); text-decoration: underline; font: inherit;
+}
+.gr-chat__rename-cta:hover { color: var(--text-primary); }

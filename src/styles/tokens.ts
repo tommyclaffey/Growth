@@ -118,3 +118,25 @@ export function channelGradient(name: ChannelName): string {
 }
 
 export type Theme = 'light' | 'dark';
+
+/**
+ * Channel key → the suffix used in `--channel-*` CSS variables.
+ *
+ * `paidSearch` in TypeScript is `paid-search` in CSS, so a lookup is needed —
+ * and it was copy-pasted into six files. Six identical tables is six places a
+ * new channel has to be added, and five of them fail silently by rendering the
+ * fallback colour rather than erroring.
+ */
+export const CSS_CHANNEL: Record<string, string> = {
+  meta: 'meta',
+  tiktok: 'tiktok',
+  youtube: 'youtube',
+  affiliates: 'affiliates',
+  paidSearch: 'paid-search',
+  podcasts: 'podcasts',
+};
+
+/** The CSS custom property for a channel's colour. */
+export function channelVar(channel: string): string {
+  return `var(--channel-${CSS_CHANNEL[channel] ?? 'meta'})`;
+}

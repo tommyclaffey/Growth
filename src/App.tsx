@@ -8,6 +8,8 @@ import { ChannelTable, type ChannelRow } from './components/ChannelTable/Channel
 import { CampaignTable } from './components/CampaignTable/CampaignTable';
 import { ThemeToggle } from './components/ThemeToggle/ThemeToggle';
 import { ChannelSwitcher } from './components/ChannelSwitcher/ChannelSwitcher';
+import { ChannelWordmark } from './components/ChannelWordmark/ChannelWordmark';
+import { useChannels } from './data/channels';
 import { RangePicker } from './components/RangePicker/RangePicker';
 import { ChatPanel } from './components/ChatPanel/ChatPanel';
 import { Assistant } from './components/Assistant/Assistant';
@@ -16,7 +18,7 @@ import { Reports } from './screens/Reports';
 import { Notifications } from './screens/Notifications';
 import { Settings } from './screens/Settings';
 import {
-  CHANNEL_KEYS, CHANNEL_LABEL, delta, formatMetric, series, sparkline, totals,
+  CHANNEL_LABEL, activeChannels, delta, formatMetric, isActive, series, sparkline, totals,
   RANGE_LABEL,
   type Metric, type Range, type Scope,
 } from './data/metrics';
@@ -32,6 +34,14 @@ export default function App() {
   const [range, setRange] = useState<Range>(30);
   const [pendingView, setPendingView] = useState<ViewRef | null>(null);
   const [assistOpen, setAssistOpen] = useState(false);
+  const enabled = useChannels();
+
+  /* Switching off the channel you are looking at has to move you somewhere
+     that still exists. Leaving the page up would show a screen for something
+     the account does not run, built from a series nothing else is counting. */
+  useEffect(() => {
+    if (channel && !isActive(channel)) setChannel(null);
+  }, [enabled, channel]);
 
   // Cmd/Ctrl-K, the shortcut people already try in a product like this.
   useEffect(() => {
@@ -74,7 +84,7 @@ export default function App() {
     return {
       totals: t,
       data,
-      rows: CHANNEL_KEYS.map<ChannelRow>((key) => {
+      rows: activeChannels().map<ChannelRow>((key) => {
         const ct = totals(key, range);
         return {
           key,
@@ -109,34 +119,60 @@ export default function App() {
 
       <div className={`gr-main ${chatOpen ? 'is-chat-open' : ''}`}>
         <header className="gr-header">
+          {/* The crumb row is always present, empty on screens without one.
+              Rendering it conditionally made the header a different height on
+              channel screens, so the whole page shifted on drill-in.
+
+              It sits ABOVE the toolbar, not inside the title column. Nested, it
+              added 18px of invisible space to the title block, and the toolbar
+              centred the buttons on that — so they floated above the visible
+              text with a gap under them. A spacer should reserve height for the
+              row it belongs to, not silently reposition its neighbours. */}
+          <div className="gr-crumb-slot">
+            {onChannelScreen && (
+              <button type="button" className="gr-crumb gr-type-caption" onClick={() => setChannel(null)}>
+                {/* Parent only. It read "Channels › Meta" directly above an
+                    <h1> reading "Meta" — the same word twice, two lines apart.
+                    A breadcrumb's job is the way back, and the title already
+                    says where you are. */}
+                <span aria-hidden="true">‹</span> Channels
+              </button>
+            )}
+          </div>
           <div className="gr-toolbar">
             <div className="gr-toolbar__title">
-              {/* The crumb row is always present, empty on screens without one.
-                  Rendering it conditionally made the header a different height
-                  on channel screens, so the whole page shifted on drill-in. */}
-              <div className="gr-crumb-slot">
-                {onChannelScreen && (
-                  <button type="button" className="gr-crumb gr-type-caption" onClick={() => setChannel(null)}>
-                    Channels <span aria-hidden="true">›</span> {title}
-                  </button>
-                )}
-              </div>
-              <h1 className="gr-type-page-title">{title}</h1>
+              <h1 className="gr-type-page-title">
+                {/* On a channel screen the title is the channel's own logo,
+                    matching the design — where each brand lockup appears
+                    exactly once, in this slot. Channels without a logo keep
+                    the text. */}
+                {onChannelScreen && channel
+                  ? <ChannelWordmark channel={channel} name={title} />
+                  : title}
+              </h1>
               <p className="gr-type-caption">{sub}</p>
             </div>
             <div className="gr-toolbar__spacer" />
-            <ChannelSwitcher
-              value={channel}
-              onChange={(next) => {
-                setChannel(next);
-                if (next) setNav('channels');
-              }}
-            />
-            <RangePicker value={range} onChange={setRange} />
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
-            <Button variant="ghost" onClick={() => setAssistOpen(true)}>Ask</Button>
-            <Button variant="ghost" onClick={() => setChatOpen(!chatOpen)}>Chat</Button>
-            <Button variant="primary" onClick={() => downloadCsv(scope, range)}>Export</Button>
+            {/* Two groups, not six loose controls. As flat siblings they wrapped
+                one at a time wherever the row ran out of room, which orphaned
+                Export onto a line by itself. Filters and actions are separate
+                ideas, so they wrap as units. */}
+            <div className="gr-toolbar__group">
+              <ChannelSwitcher
+                value={channel}
+                onChange={(next) => {
+                  setChannel(next);
+                  if (next) setNav('channels');
+                }}
+              />
+              <RangePicker value={range} onChange={setRange} />
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            </div>
+            <div className="gr-toolbar__group">
+              <Button variant="ghost" onClick={() => setAssistOpen(true)}>Ask</Button>
+              <Button variant="ghost" onClick={() => setChatOpen(!chatOpen)}>Chat</Button>
+              <Button variant="primary" onClick={() => downloadCsv(scope, range)}>Export</Button>
+            </div>
           </div>
         </header>
 

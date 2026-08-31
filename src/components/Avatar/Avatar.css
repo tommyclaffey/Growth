@@ -11,3 +11,12 @@
 .gr-avatar--1 { background: var(--channel-meta); }
 .gr-avatar--2 { background: var(--channel-affiliates); }
 .gr-avatar--3 { background: var(--channel-youtube); }
+
+/* Photo variant. `cover` because a portrait cropped to a square still is not
+   guaranteed square, and a squashed face is worse than a tight crop. */
+.gr-avatar--photo {
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  flex: none;
+  display: block;
+}

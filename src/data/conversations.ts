@@ -1,0 +1,268 @@
+import { ME, MEMBERS, SEED, type Member, type Message } from './chat';
+
+/**
+ * Conversations, as objects this app owns.
+ *
+ * The previous model had no conversations in it. `loadThread()` returned one
+ * thread — whichever Slack channel was linked — so "message someone directly"
+ * could only mean "ask Slack to open a DM", and with Slack disconnected there
+ * was nothing to organise at all. The picker could create a DM it then had
+ * nowhere to put.
+ *
+ * So the direction is inverted: Growth holds the conversations, and Slack
+ * mirrors ONE of them. That is also the honest model — a DM between two people
+ * in this product is not a Slack DM, and pretending otherwise is how you end
+ * up with two sources for one thread.
+ *
+ * Kinds exist because they change behaviour, not because they look different:
+ *
+ *   channel  a named room. Name is stored; membership can change under it.
+ *   dm       exactly one other person. Name is DERIVED, never stored — a
+ *            renamed teammate must not leave a stale name in a list.
+ *   group    two or more others. Same derivation, truncated.
+ */
+
+export type ConversationKind = 'channel' | 'dm' | 'group';
+
+export interface Conversation {
+  id: string;
+  kind: ConversationKind;
+  /**
+   * A name someone chose. Optional everywhere, because most conversations do
+   * not need one — a DM with Dan is "Dan Kwon" and naming it adds nothing.
+   * When it IS set it wins, including on a DM, because a name someone typed
+   * is a stronger signal than a name derived from membership.
+   */
+  title?: string;
+  /** Everyone in it, including me — so a group of 3 has 3 ids, not 2. */
+  memberIds: string[];
+  messages: Message[];
+  /**
+   * How many messages had been seen when this was last opened. Stored as a
+   * count rather than a timestamp because the seed data has no real clock —
+   * `minutesAgo` is an ordering key, and deriving unread from it would make
+   * every conversation unread again on every reload.
+   */
+  readCount: number;
+  /** The one conversation Slack mirrors, when a channel is linked. */
+  mirrorsSlack?: boolean;
+}
+
+const KEY = 'growth.conversations';
+
+/* ---------------------------------------------------------------- seeds -- */
+
+function msg(authorId: string, minutesAgo: number, time: string, body: string, fromSlack = false): Message {
+  return { id: `${authorId}-${minutesAgo}`, authorId, minutesAgo, time, body, ...(fromSlack ? { fromSlack } : {}) };
+}
+
+/* Seeded so the list is a list on first run. An empty inbox teaches nothing
+   about how the product works, and this account is a demo end to end. */
+function seeds(): Conversation[] {
+  return [
+    {
+      id: 'team',
+      kind: 'channel',
+      title: 'growth-analytics',
+      memberIds: ['maya', 'jr', 'dk', 'ap'],
+      messages: SEED,
+      readCount: SEED.length,
+      mirrorsSlack: true,
+    },
+    {
+      id: 'dm-jr',
+      kind: 'dm',
+      memberIds: ['maya', 'jr'],
+      messages: [
+        msg('jr', 63, '11:03 AM', 'Do you want the Monday report split by channel or blended?'),
+        msg('maya', 61, '11:05 AM', 'Split. Blended hides the Affiliates story.'),
+        msg('jr', 26, '11:40 AM', 'Makes sense. I will have a draft by 4.'),
+      ],
+      readCount: 3,
+    },
+    {
+      id: 'dm-dk',
+      kind: 'dm',
+      memberIds: ['maya', 'dk'],
+      messages: [
+        msg('dk', 34, '11:32 AM', 'Re-baselined the Advantage+ target. CAC should settle by Thursday.', true),
+        msg('dk', 33, '11:33 AM', 'Flagging early in case Friday looks worse before it looks better.', true),
+      ],
+      /* One unread, deliberately — the list needs to show what unread looks
+         like, and every conversation being read makes the affordance dead. */
+      readCount: 1,
+    },
+    {
+      id: 'grp-budget',
+      kind: 'group',
+      memberIds: ['maya', 'dk', 'ap'],
+      messages: [
+        msg('ap', 96, '10:30 AM', 'Starting a thread for the reallocation so it does not get lost in the main channel.'),
+        msg('dk', 94, '10:32 AM', 'Good call. 15% of Meta prospecting, two weeks, then we measure.'),
+        msg('ap', 18, '11:48 AM', 'I can pull the before numbers this afternoon.'),
+      ],
+      readCount: 3,
+    },
+  ];
+}
+
+/* ---------------------------------------------------------- persistence -- */
+
+let cache: Conversation[] | null = null;
+
+export function allConversations(): Conversation[] {
+  if (cache) return cache;
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Conversation[];
+      /* A stored shape from an older build is not worth migrating for a demo,
+         but it is worth not crashing on. */
+      if (Array.isArray(parsed) && parsed.every((c) => c && Array.isArray(c.messages))) {
+        cache = parsed;
+        return cache;
+      }
+    }
+  } catch { /* private mode, quota, corrupt JSON — fall through to seeds */ }
+  cache = seeds();
+  save();
+  return cache;
+}
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(cache ?? [])); } catch { /* not fatal */ }
+}
+
+export function getConversation(id: string): Conversation | undefined {
+  return allConversations().find((c) => c.id === id);
+}
+
+/* -------------------------------------------------------------- naming -- */
+
+export function memberOf(id: string): Member {
+  return MEMBERS[id] ?? { id, name: id, initials: id.slice(0, 2).toUpperCase(), hue: 0 };
+}
+
+/** Everyone except me — the people a DM or group is actually *with*. */
+export function others(c: Conversation): Member[] {
+  return c.memberIds.filter((id) => id !== ME.id).map(memberOf);
+}
+
+/**
+ * A chosen name if there is one, otherwise derived from membership.
+ *
+ * Derivation is the default rather than the fallback, because a stored DM name
+ * goes stale the moment someone is renamed — the old picker stored exactly
+ * that, `selected.map(p => p.name).join(', ')` frozen at creation time. A name
+ * a person typed does not have that problem: it was never a description of
+ * membership in the first place.
+ */
+export function conversationName(c: Conversation): string {
+  if (c.kind === 'channel') return `#${c.title ?? 'channel'}`;
+  if (c.title) return c.title;
+  const people = others(c);
+  if (people.length === 0) return 'Just you';
+  if (people.length === 1) return people[0].name;
+  if (people.length === 2) return people.map((p) => p.name.split(' ')[0]).join(' & ');
+  const first = people.slice(0, 2).map((p) => p.name.split(' ')[0]).join(', ');
+  return `${first} +${people.length - 2}`;
+}
+
+export function unreadCount(c: Conversation): number {
+  return Math.max(0, c.messages.length - c.readCount);
+}
+
+export function lastMessage(c: Conversation): Message | undefined {
+  return c.messages[c.messages.length - 1];
+}
+
+/**
+ * Most recent first. `minutesAgo` counts backwards, so the smallest value is
+ * the newest — sorting it ascending is what puts the live conversation on top.
+ */
+export function sortedConversations(): Conversation[] {
+  return [...allConversations()].sort((a, b) => {
+    const am = lastMessage(a)?.minutesAgo ?? Number.MAX_SAFE_INTEGER;
+    const bm = lastMessage(b)?.minutesAgo ?? Number.MAX_SAFE_INTEGER;
+    return am - bm;
+  });
+}
+
+/* ------------------------------------------------------------- mutation -- */
+
+function mutate(id: string, fn: (c: Conversation) => void) {
+  const list = allConversations();
+  const c = list.find((x) => x.id === id);
+  if (!c) return;
+  fn(c);
+  save();
+}
+
+/**
+ * Naming a conversation.
+ *
+ * An empty name clears it rather than storing "", so a cleared name falls back
+ * to derivation instead of rendering a blank header.
+ */
+export function renameConversation(id: string, title: string) {
+  const next = title.trim();
+  mutate(id, (c) => {
+    if (next) c.title = next;
+    else if (c.kind !== 'channel') delete c.title;
+  });
+}
+
+export function markRead(id: string) {
+  mutate(id, (c) => { c.readCount = c.messages.length; });
+}
+
+export function appendMessage(id: string, message: Message) {
+  mutate(id, (c) => {
+    c.messages = [...c.messages, message];
+    c.readCount = c.messages.length;
+  });
+}
+
+/** Replaces a mirrored conversation's messages with what Slack actually holds. */
+export function replaceMessages(id: string, messages: Message[]) {
+  mutate(id, (c) => {
+    const wasUnread = unreadCount(c);
+    c.messages = messages;
+    c.readCount = Math.max(0, messages.length - wasUnread);
+  });
+}
+
+/**
+ * One entry point for both, because the choice a person is making is the same
+ * one — pick who, then talk. Slack models `im` and `mpim` as different
+ * conversation types; that is Slack's problem, not the user's.
+ *
+ * Returns an existing conversation when the same set of people already has
+ * one. Two threads with identical membership is the bug that makes people ask
+ * "which Dan chat did I send that in".
+ */
+export function openDirect(memberIds: string[]): Conversation {
+  const ids = Array.from(new Set([ME.id, ...memberIds]));
+  const key = [...ids].sort().join('|');
+  const existing = allConversations().find(
+    (c) => c.kind !== 'channel' && [...c.memberIds].sort().join('|') === key,
+  );
+  if (existing) return existing;
+
+  const created: Conversation = {
+    id: `c-${key.replace(/\|/g, '-')}`,
+    kind: ids.length > 2 ? 'group' : 'dm',
+    memberIds: ids,
+    messages: [],
+    readCount: 0,
+  };
+  cache = [created, ...allConversations()];
+  save();
+  return created;
+}
+
+/** Test seam and a way out of a bad stored state. */
+export function resetConversations() {
+  cache = seeds();
+  save();
+}

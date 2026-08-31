@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import './ChannelTable.css';
+import { ChannelMark } from '../ChannelMark/ChannelMark';
 import { formatMetric, type Metric } from '../../data/metrics';
+import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { Sparkline } from '../Sparkline/Sparkline';
 import type { ChannelName } from '../../styles/tokens';
 
@@ -33,10 +35,6 @@ export interface ChannelTableProps {
   metric?: Metric;
 }
 
-const CSS_CHANNEL: Record<string, string> = {
-  meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
-  affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
-};
 
 const COLUMNS: { key: SortKey; label: string; wideOnly?: boolean; numeric?: boolean }[] = [
   { key: 'name',  label: 'Channel' },
@@ -99,14 +97,11 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
         </thead>
         <tbody>
           {sorted.map((r) => {
-            const up = r.delta >= 0;
             return (
               <tr key={r.key} className="gr-table__row" onClick={() => onRowClick?.(r.key)} tabIndex={0}>
                 <td>
                   <span className="gr-table__channel gr-type-body-medium">
-                    <span className="gr-table__dot"
-                          style={{ background: `var(--channel-${CSS_CHANNEL[r.key] ?? r.key})` }}
-                          aria-hidden="true" />
+                    <ChannelMark channel={r.key} size={16} />
                     {r.name}
                   </span>
                 </td>
@@ -115,9 +110,10 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
                 {wideColumns && <td className="gr-type-body">{formatMetric('CAC', r.cac)}</td>}
                 {wideColumns && <td className="gr-type-body">{formatMetric('ROAS', r.roas)}</td>}
                 <td>
-                  <span className={`gr-table__delta gr-type-caption-med ${up ? 'is-up' : 'is-down'}`}>
-                    {up ? '↑' : '↓'} {Math.abs(r.delta)}%
-                  </span>
+                  {/* Instanced, not redrawn. This cell used to own a second
+                      copy of the arrow-and-colour logic, so a fix to one never
+                      reached the other. */}
+                  <DeltaBadge percent={r.delta} bare />
                 </td>
                 <td>
                   <Sparkline values={r.trend} metric={metric} channel={r.key} />

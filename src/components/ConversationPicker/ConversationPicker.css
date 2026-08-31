@@ -1,0 +1,74 @@
+.gr-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  min-height: 0;
+  flex: 1;
+}
+
+.gr-picker__head { display: flex; align-items: center; gap: var(--space-8); }
+.gr-picker__search {
+  flex: 1; height: 34px;
+  padding: 0 var(--space-12);
+  border-radius: var(--radius-md);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-page-top);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+.gr-picker__search:focus {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+.gr-picker__close {
+  width: 28px; height: 28px; flex: none;
+  border: none; border-radius: var(--radius-pill);
+  background: var(--surface-page-top); color: var(--icon-default);
+  cursor: pointer;
+}
+
+.gr-picker__selected { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
+.gr-picker__chip {
+  display: inline-flex; align-items: center; gap: var(--space-6);
+  padding: var(--space-4) var(--space-10);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card); color: var(--text-secondary);
+  cursor: pointer; font-family: inherit;
+}
+.gr-picker__go {
+  margin-left: auto;
+  padding: var(--space-6) var(--space-12);
+  border: none; border-radius: var(--radius-md);
+  background: var(--accent-base); color: var(--brand-on-accent);
+  cursor: pointer; font-family: inherit;
+}
+.gr-picker__go:disabled { opacity: 0.5; cursor: wait; }
+
+.gr-picker__list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.gr-picker__label { color: var(--text-muted); margin: var(--space-8) 0 var(--space-4); }
+
+.gr-picker__row {
+  display: flex; align-items: center; gap: var(--space-10);
+  width: 100%;
+  padding: var(--space-6) var(--space-8);
+  border: none; border-radius: var(--radius-md);
+  background: none; color: var(--text-primary);
+  cursor: pointer; font-family: inherit; text-align: left;
+}
+.gr-picker__row:hover { background: var(--surface-page-top); }
+.gr-picker__row.is-current { background: var(--accent-tint); color: var(--accent-text); }
+.gr-picker__row:disabled { opacity: 0.5; cursor: wait; }
+.gr-picker__row:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: -2px; }
+
+/* Fixed width so names start on the same line whether the mark is a glyph or
+   an avatar — a ragged left edge in a list reads as broken alignment. */
+.gr-picker__glyph {
+  width: 24px; height: 24px; flex: none;
+  display: grid; place-items: center;
+  color: var(--text-muted);
+}
+.gr-picker__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-picker__tag { color: var(--text-muted); flex: none; }
+.gr-picker__empty { color: var(--text-muted); padding: var(--space-8); }

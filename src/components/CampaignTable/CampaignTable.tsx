@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react';
 import './CampaignTable.css';
+import { ChannelMark } from '../ChannelMark/ChannelMark';
 import { StatusMenu } from '../StatusMenu/StatusMenu';
 import { StatusPill, type Stage } from '../StatusPill/StatusPill';
 import { Chip } from '../Chip/Chip';
@@ -7,10 +8,6 @@ import { CAMPAIGNS, type Campaign } from '../../data/campaigns';
 import { CHANNEL_LABEL } from '../../data/metrics';
 import type { ChannelName } from '../../styles/tokens';
 
-const CSS_CHANNEL: Record<string, string> = {
-  meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
-  affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
-};
 
 const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
 const cacOf = (c: { spend: number; leads: number }) =>
@@ -90,9 +87,7 @@ export function CampaignTable({ channel = null, wideColumns = true }: CampaignTa
                   </td>
                   <td>
                     <span className="gr-table__channel gr-type-body-medium">
-                      <span className="gr-table__dot"
-                            style={{ background: `var(--channel-${CSS_CHANNEL[c.channel]})` }}
-                            aria-hidden="true" />
+                      <ChannelMark channel={c.channel} size={16} />
                       {c.name}
                     </span>
                     <span className="gr-campaigns__meta gr-type-caption">

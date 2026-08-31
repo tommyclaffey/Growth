@@ -1,0 +1,43 @@
+.gr-wordmark { display: inline-flex; align-items: center; }
+
+/* Matched on CAP HEIGHT, not box height.
+   Each brand's export carries its own padding — Meta's lockup is 113x23 and
+   nearly fills its box, TikTok's is 120x36 with air above and below. Setting
+   one height for all three therefore renders three different optical sizes:
+   at 24px Meta's wordmark stood a third taller than the page title beside it.
+   These are the values at which each wordmark's capitals match the 21px page
+   title's, measured rather than guessed. */
+.gr-wordmark__img { height: 23px; width: auto; display: block; }
+.gr-wordmark__img.is-meta    { height: 18px; }
+.gr-wordmark__img.is-tiktok  { height: 30px; }
+.gr-wordmark__img.is-youtube { height: 23px; }
+
+/* ⚠️ The Figma file has no reversed lockup — each brand exists once, in its
+   light form, and the wordmarks are near-black. On the dark surface they
+   vanish. Knocking the whole lockup to white is the standard reversed
+   treatment brands ship for exactly this, and it is honest about what it is:
+   a mono logo, not a recolour. */
+[data-theme="dark"] .gr-wordmark__img { filter: brightness(0) invert(1); }
+
+/* A product mark shown beside the channel name, not instead of it. Sized to
+   the name's cap height rather than its own export box. */
+.gr-wordmark { gap: var(--space-10); }
+.gr-wordmark__mark { height: 22px; width: auto; display: block; flex: none; }
+.gr-wordmark__name { min-width: 0; }
+
+/* ---- Small: the same rule as md, against a smaller anchor ---------------
+   md matches each lockup's cap height to the 21px page title. sm matches it
+   to the 13px name it sits beside, so every value is its md counterpart
+   x 13/21. Deriving them keeps the three lockups matched to EACH OTHER,
+   which is the property that was measured and the one eyeballing loses.
+
+   The name is set here too. Left to inherit it came out at the row's 15px
+   while the status beside it was 12px, so the label -- not the logo -- was
+   most of what read as oversized. */
+.gr-wordmark.is-sm .gr-wordmark__img            { height: 14px; }
+.gr-wordmark.is-sm .gr-wordmark__img.is-meta    { height: 11px; }
+.gr-wordmark.is-sm .gr-wordmark__img.is-tiktok  { height: 19px; }
+.gr-wordmark.is-sm .gr-wordmark__img.is-youtube { height: 14px; }
+.gr-wordmark.is-sm .gr-wordmark__mark           { height: 14px; }
+.gr-wordmark.is-sm .gr-wordmark__name { font: 500 13px/18px var(--font-sans); }
+.gr-wordmark.is-sm { gap: var(--space-8); }

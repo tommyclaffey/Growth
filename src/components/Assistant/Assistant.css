@@ -129,3 +129,61 @@
   padding: 0 var(--space-20) var(--space-14);
   color: var(--text-muted);
 }
+
+/* Thinking state — the model turn takes a few seconds, and a panel that sits
+   silent for that long reads as broken. */
+.gr-assist__thinking {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--text-muted);
+}
+
+.gr-assist__pip {
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-base);
+  opacity: 0.35;
+  animation: gr-assist-pip 1.2s ease-in-out infinite;
+}
+.gr-assist__pip:nth-child(2) { animation-delay: 0.15s; }
+.gr-assist__pip:nth-child(3) { animation-delay: 0.3s; margin-right: var(--space-4); }
+
+@keyframes gr-assist-pip {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  50%      { opacity: 1;    transform: translateY(-2px); }
+}
+
+/* Respect the OS setting — a looping animation is a real problem for some
+   users, and "it's only a dot" is not the standard. */
+@media (prefers-reduced-motion: reduce) {
+  .gr-assist__pip { animation: none; opacity: 0.5; }
+}
+
+.gr-assist__input:disabled { opacity: 0.5; cursor: wait; }
+
+/* Outside context — deliberately NOT styled like the evidence block.
+   Evidence is this account's actuals; a source is somebody else's number about
+   somebody else's business. Same treatment would let the weaker claim borrow
+   the stronger one's authority, so: no surface, muted, links not values. */
+.gr-assist__sources {
+  margin-top: var(--space-12);
+  padding-top: var(--space-12);
+  border-top: var(--border-width-sm) dashed var(--border-default);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.gr-assist__source {
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.gr-assist__source:hover { color: var(--text-default); }
+.gr-assist__source:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}

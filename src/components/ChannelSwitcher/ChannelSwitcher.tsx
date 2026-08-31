@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import './ChannelSwitcher.css';
-import { CHANNEL_KEYS, CHANNEL_LABEL } from '../../data/metrics';
+import { ChannelMark } from '../ChannelMark/ChannelMark';
+import { CHANNEL_LABEL, activeChannels } from '../../data/metrics';
+import { useChannels } from '../../data/channels';
 import type { ChannelName } from '../../styles/tokens';
 
-const CSS_CHANNEL: Record<string, string> = {
-  meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
-  affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
-};
 
 export interface ChannelSwitcherProps {
   value: ChannelName | null;
@@ -27,6 +25,9 @@ export interface ChannelSwitcherProps {
  * which is what keeps channel identity out of colour-only territory.
  */
 export function ChannelSwitcher({ value, onChange }: ChannelSwitcherProps) {
+  /* Subscribed so the list re-renders when a channel is switched off —
+     activeChannels() is read at render time and would otherwise go stale. */
+  useChannels();
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
 
@@ -61,9 +62,7 @@ export function ChannelSwitcher({ value, onChange }: ChannelSwitcherProps) {
         aria-expanded={open}
       >
         {value && (
-          <span className="gr-switcher__dot"
-                style={{ background: `var(--channel-${CSS_CHANNEL[value]})` }}
-                aria-hidden="true" />
+          <ChannelMark channel={value} size={16} />
         )}
         {value ? CHANNEL_LABEL[value] : 'All channels'}
         <svg width="8" height="5" viewBox="0 0 8 5" aria-hidden="true" className="gr-switcher__caret">
@@ -84,15 +83,13 @@ export function ChannelSwitcher({ value, onChange }: ChannelSwitcherProps) {
             {value === null && <span className="gr-switcher__check" aria-hidden="true">✓</span>}
           </button>
 
-          {CHANNEL_KEYS.map((key) => (
+          {activeChannels().map((key) => (
             <button
               key={key} type="button" role="option" aria-selected={value === key}
               className={`gr-switcher__row gr-type-body ${value === key ? 'is-selected' : ''}`}
               onClick={() => pick(key)}
             >
-              <span className="gr-switcher__dot"
-                    style={{ background: `var(--channel-${CSS_CHANNEL[key]})` }}
-                    aria-hidden="true" />
+              <ChannelMark channel={key} size={16} />
               <span className="gr-switcher__label">{CHANNEL_LABEL[key]}</span>
               {value === key && <span className="gr-switcher__check" aria-hidden="true">✓</span>}
             </button>

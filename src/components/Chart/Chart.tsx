@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CSS_CHANNEL } from '../../styles/tokens';
 import './Chart.css';
 import { channelGradient, type ChannelName } from '../../styles/tokens';
 import {
@@ -23,10 +24,6 @@ export interface ChartProps {
   state?: 'ready' | 'loading' | 'error' | 'empty';
 }
 
-const CSS_CHANNEL: Record<string, string> = {
-  meta: 'meta', tiktok: 'tiktok', youtube: 'youtube',
-  affiliates: 'affiliates', paidSearch: 'paid-search', podcasts: 'podcasts',
-};
 
 export function Chart({
   title,
