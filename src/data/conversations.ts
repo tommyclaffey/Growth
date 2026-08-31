@@ -139,8 +139,37 @@ export function getConversation(id: string): Conversation | undefined {
 
 /* -------------------------------------------------------------- naming -- */
 
+/**
+ * ONE directory, so a person looks the same everywhere.
+ *
+ * There were two. The conversation list resolved people through the static
+ * MEMBERS map, while the open thread resolved them through the merged
+ * Slack-aware map held in ChatPanel state — so the same colleague rendered as
+ * coloured initials in the list and as their real Slack photo one click later.
+ * Nothing was broken; the two surfaces just disagreed about where a person's
+ * picture comes from.
+ *
+ * The overlay is set once, when a Slack thread loads, and every caller reads
+ * through here. A second lookup path is what produced the bug, so there is
+ * exactly one.
+ */
+let overlay: Record<string, Member> = {};
+
+export function setMemberOverlay(next: Record<string, Member>) {
+  overlay = next;
+}
+
 export function memberOf(id: string): Member {
-  return MEMBERS[id] ?? { id, name: id, initials: id.slice(0, 2).toUpperCase(), hue: 0 };
+  return overlay[id] ?? MEMBERS[id]
+    ?? { id, name: id, initials: id.slice(0, 2).toUpperCase(), hue: 0 };
+}
+
+/** Everyone we know about — Growth's own people plus anyone Slack added. */
+export function directory(): Member[] {
+  const seen = new Map<string, Member>();
+  for (const m of Object.values(MEMBERS)) seen.set(m.id, m);
+  for (const m of Object.values(overlay)) seen.set(m.id, m);
+  return [...seen.values()];
 }
 
 /** Everyone except me — the people a DM or group is actually *with*. */
