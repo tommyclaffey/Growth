@@ -95,3 +95,12 @@
 /* The connect control is a link, because it navigates away to the platform's
    own consent screen. A button would be lying about what happens next. */
 a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-items: center; }
+
+/* Not a button and not a link — there is nothing to press. Rendered as a span
+   so it is not focusable or announced as an action a visitor could take. */
+.gr-setting-row__connect.is-unavailable {
+  background: var(--surface-page-top);
+  border-color: transparent;
+  color: var(--text-muted);
+  cursor: default;
+}

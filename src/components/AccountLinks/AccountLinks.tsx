@@ -3,6 +3,7 @@ import './AccountLinks.css';
 import { Avatar } from '../Avatar/Avatar';
 import { ME } from '../../data/chat';
 import { connectAs, listPeople, unlinkAccount, type Person } from '../../data/slackDirectory';
+import { useBackend } from '../../data/backend';
 import { slackStatus } from '../../data/slackClient';
 import { SlackMark } from '../SlackMark/SlackMark';
 import { useAvatarFor } from '../../data/profile';
@@ -22,6 +23,7 @@ import { useAvatarFor } from '../../data/profile';
  */
 export function AccountLinks() {
   const [links, setLinks] = useState<Record<string, string>>({});
+  const backend = useBackend();
   const [people, setPeople] = useState<Person[]>([]);
   const [ready, setReady] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -65,6 +67,15 @@ export function AccountLinks() {
                   onClick={async () => { setBusy(true); await unlinkAccount(ME.id); await load(); setBusy(false); }}>
             Disconnect
           </button>
+        ) : backend === false ? (
+          /* Same reason as the channel Connect buttons: /api/slack/install does
+             not exist on the static build, so this would navigate to a 404. A
+             control that cannot do its job should not look like it can. */
+          <span className="gr-links__btn is-unavailable gr-type-caption"
+                title="Connecting a Slack account needs a server for OAuth">
+            <SlackMark size={14} />
+            Local build only
+          </span>
         ) : (
           <button type="button" className="gr-links__btn is-primary gr-type-caption"
                   onClick={() => connectAs(ME.id)}>

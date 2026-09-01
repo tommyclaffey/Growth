@@ -38,3 +38,12 @@
 .gr-links__state { color: var(--text-muted); }
 .gr-links__state.is-on { color: var(--semantic-good); }
 .gr-links__note { color: var(--text-muted); margin: 0; }
+
+/* Not a button. There is nothing to press on a static build, so it is not
+   focusable and not announced as an action. */
+.gr-links__btn.is-unavailable {
+  background: var(--surface-page-top);
+  border-color: transparent;
+  color: var(--text-muted);
+  cursor: default;
+}

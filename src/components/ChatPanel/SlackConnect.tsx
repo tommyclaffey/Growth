@@ -3,6 +3,7 @@ import {
   chooseChannel, listChannels, slackStatus, startInstall, switchWorkspace,
   type SlackChannel, type SlackStatus,
 } from '../../data/slackClient';
+import { useBackend } from '../../data/backend';
 
 /**
  * Connect-a-workspace flow.
@@ -16,6 +17,7 @@ export function SlackConnect({ onConnected }: { onConnected: () => void }) {
   const [status, setStatus] = useState<SlackStatus | null>(null);
   const [channels, setChannels] = useState<SlackChannel[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const backend = useBackend();
 
   useEffect(() => { void slackStatus().then(setStatus); }, []);
 
@@ -25,7 +27,21 @@ export function SlackConnect({ onConnected }: { onConnected: () => void }) {
     if (hasWorkspace && !status?.connected) void listChannels().then(setChannels);
   }, [hasWorkspace, status?.connected]);
 
-  if (!status) return null;
+  if (!status || backend === null) return null;
+
+  /* No server at all -- the deployed static build. Says what is true without
+     handing a visitor a list of environment variables to set. */
+  if (!backend) {
+    return (
+      <div className="gr-slack">
+        <p className="gr-type-body">Slack sync runs in the local build.</p>
+        <p className="gr-type-caption gr-slack__hint">
+          It needs a server for OAuth and for Slack to post events back to.
+          Everything else on this page works here.
+        </p>
+      </div>
+    );
+  }
 
   if (!status.configured) {
     return (

@@ -7,6 +7,7 @@ import { CHANNEL_KEYS, CHANNEL_LABEL } from '../data/metrics';
 import { useChannels, toggleChannel } from '../data/channels';
 import { ChannelWordmark } from '../components/ChannelWordmark/ChannelWordmark';
 import { SlackConnect } from '../components/ChatPanel/SlackConnect';
+import { useBackend } from '../data/backend';
 import type { ChannelName } from '../styles/tokens';
 import { AvatarUpload } from '../components/AvatarUpload/AvatarUpload';
 import { AccountLinks } from '../components/AccountLinks/AccountLinks';
@@ -24,6 +25,7 @@ export interface SettingsProps {
 }
 
 export function Settings({ theme, onThemeChange }: SettingsProps) {
+  const backend = useBackend();
   const enabled = useChannels();
   const [connected, setConnected] = useState<Set<ChannelName>>(
     new Set(CHANNEL_KEYS.filter((k) => k !== 'podcasts')),
@@ -133,11 +135,24 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
                     /* A real redirect to that platform's own consent screen —
                        Meta to Meta, Google Ads to Google. It used to flip a
                        local switch and report "Synced 4 minutes ago", which is
-                       a state that was never established. */
-                    <a className="gr-setting-row__connect is-primary gr-type-caption"
-                       href={`/api/connect/${key}`}>
-                      Connect {CHANNEL_LABEL[key]}
-                    </a>
+                       a state that was never established.
+
+                       On the deployed static build there is no /api/connect to
+                       redirect to, so the link would be a 404. A disabled
+                       control that says why beats a live-looking one that
+                       breaks — the whole reason this stopped being a fake
+                       toggle in the first place. */
+                    backend === false ? (
+                      <span className="gr-setting-row__connect is-unavailable gr-type-caption"
+                            title="Connecting an ad account needs a server for OAuth">
+                        Connect in local build
+                      </span>
+                    ) : (
+                      <a className="gr-setting-row__connect is-primary gr-type-caption"
+                         href={`/api/connect/${key}`}>
+                        Connect {CHANNEL_LABEL[key]}
+                      </a>
+                    )
                   )
                 )}
 
