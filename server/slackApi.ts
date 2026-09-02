@@ -628,6 +628,55 @@ export function slackApi(): Plugin {
             });
           }
 
+          /* ---- send to a DM, addressed by Growth person id ----
+
+             A direct message in Growth used to go nowhere. The send path
+             posted only from the one conversation mirroring a Slack channel,
+             because posting a DM INTO a channel would broadcast a private
+             message to the whole team.
+
+             That reasoning was right and the conclusion was wrong: the answer
+             is to post it to a Slack DM, not to drop it. Slack has the
+             conversation type; it just was not being used.
+
+             Recipients arrive as Growth person ids and are resolved through
+             the link table written at OAuth consent, so this can only reach
+             someone who connected their own account. Anyone unlinked comes
+             back in `unreachable` rather than being silently skipped. */
+          if (req.method === 'POST' && path === '/dm-send') {
+            const { personIds, text, view, link } = await readBody(req);
+            if (!Array.isArray(personIds) || typeof text !== 'string') {
+              return send(res, 400, { error: 'personIds and text required' });
+            }
+            const links = ws.links ?? {};
+            const userIds: string[] = [];
+            const unreachable: string[] = [];
+            for (const pid of personIds) {
+              const uid = links[pid as string];
+              if (uid) userIds.push(uid);
+              else unreachable.push(pid as string);
+            }
+            if (userIds.length === 0) {
+              return send(res, 200, { delivered: false, unreachable });
+            }
+            /* Idempotent: the same set of people always returns the same
+               conversation, so this both finds and creates. */
+            const opened = await slack<{ channel: { id: string } }>(
+              'conversations.open', ws.accessToken, { users: userIds.join(',') });
+            const dmPayload: Record<string, unknown> = { channel: opened.channel.id, text };
+            /* Same treatment as a channel post: the view rides as Block Kit so
+               it renders as a card, and `text` stays the notification fallback
+               because blocks do not render in the sidebar or in push. */
+            if (view && typeof view === 'object' && typeof link === 'string') {
+              const v = view as { channel: string; metric: string; range: number };
+              const m = (await server.ssrLoadModule('/src/data/metrics.ts')) as unknown as MetricsMod;
+              dmPayload.text = text.replace(link, '').trim() || `${v.metric} · ${v.channel}`;
+              dmPayload.attachments = JSON.stringify(buildMetricBlocks(m, v, '', link));
+            }
+            await slack<{ ts: string }>('chat.postMessage', ws.accessToken, dmPayload);
+            return send(res, 200, { delivered: true, unreachable, channel: opened.channel.id });
+          }
+
           if (req.method === 'POST' && path === '/messages') {
             const { text, view, link } = await readBody(req);
             if (typeof text !== 'string' || !text.trim()) return send(res, 400, { error: 'Text required.' });

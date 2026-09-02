@@ -142,6 +142,32 @@ export async function disconnect(teamId: string): Promise<boolean> {
 
 /** Returns false if it did not land, so the UI can say so rather than showing a
     message that only exists in this browser. */
+/**
+ * Send a Growth direct message to the same people in Slack.
+ *
+ * Recipients are Growth person ids, not Slack ids -- the server resolves them
+ * through the link table written at OAuth consent, so a message can only reach
+ * somebody who connected their own account. Anyone unlinked comes back in
+ * `unreachable` so the UI can say who did not get it, rather than reporting a
+ * success that was partly a no-op.
+ */
+export interface DmResult { delivered: boolean; unreachable: string[] }
+
+export async function postDirectToSlack(
+  personIds: string[], text: string, view?: ViewRef | null,
+): Promise<DmResult> {
+  const link = view ? encodeView(view, window.location.origin) : null;
+  const body = link ? `${text} ${link}`.trim() : text;
+  try {
+    const res = await fetch('/api/slack/dm-send', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ personIds, text: body, view, link }),
+    });
+    if (!res.ok) return { delivered: false, unreachable: personIds };
+    return (await res.json()) as DmResult;
+  } catch { return { delivered: false, unreachable: personIds }; }
+}
+
 export async function postToSlack(text: string, view?: ViewRef | null): Promise<boolean> {
   /* The view rides along as a link, so it comes back as a card on the next
      read instead of being flattened into prose. */

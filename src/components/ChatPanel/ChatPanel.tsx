@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './ChatPanel.css';
-import { loadThread, postToSlack, subscribeToSlack, type ChatSource } from '../../data/slackClient';
+import {
+  loadThread, postDirectToSlack, postToSlack, subscribeToSlack, type ChatSource,
+} from '../../data/slackClient';
 import { useAvatarFor } from '../../data/profile';
 import { ConversationList } from '../ConversationList/ConversationList';
 import {
@@ -169,11 +171,35 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
     setTick((n) => n + 1);
     onClearPending();
 
-    /* Only the mirrored conversation goes to Slack. A DM in Growth is a
-       Growth object -- posting it into a Slack channel would broadcast a
-       private message to the whole team, which is the worst possible
-       failure mode for this feature. */
-    if (!mirrored) return;
+    if (source !== 'slack') return;
+
+    /* A DM goes to a Slack DM; the mirrored channel goes to the channel.
+
+       This used to return early for anything that was not the mirrored
+       conversation, on the grounds that posting a private message into a team
+       channel is the worst thing this feature could do. That was true, and
+       the conclusion was still wrong -- the answer is to use Slack's own DM
+       conversation, not to deliver nothing. Slack had the right destination
+       all along; it just was not being addressed. */
+    if (!mirrored) {
+      const recipients = open.memberIds.filter((id) => id !== ME.id);
+      const { delivered, unreachable } = await postDirectToSlack(
+        recipients, toSlackMentions(text, slackPeople), pending);
+      /* Partial delivery is still a failure to be honest about: naming who did
+         not receive it beats a silent success, which is what "message sent"
+         would be for someone who never linked an account. */
+      if (!delivered) {
+        setPendingFail(recipients.length === unreachable.length
+          ? 'No Slack account linked for anyone in this conversation. Saved here only.'
+          : 'Not delivered to Slack. Saved here.');
+      } else if (unreachable.length > 0) {
+        const names = unreachable.map((id) => memberOf(id).name).join(', ');
+        setPendingFail(`Sent, but ${names} has no linked Slack account.`);
+      } else {
+        setPendingFail(null);
+      }
+      return;
+    }
 
     const sent = await postToSlack(toSlackMentions(text, slackPeople), pending);
     /* A message that exists only in this browser but looks identical to one
