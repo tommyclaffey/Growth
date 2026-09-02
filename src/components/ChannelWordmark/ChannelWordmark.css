@@ -1,4 +1,4 @@
-.gr-wordmark { display: inline-flex; align-items: center; }
+.gr-wordmark { display: inline-flex; align-items: center; gap: var(--space-10); }
 
 /* Matched on CAP HEIGHT, not box height.
    Each brand's export carries its own padding — Meta's lockup is 113x23 and
@@ -21,7 +21,6 @@
 
 /* A product mark shown beside the channel name, not instead of it. Sized to
    the name's cap height rather than its own export box. */
-.gr-wordmark { gap: var(--space-10); }
 .gr-wordmark__mark { height: 22px; width: auto; display: block; flex: none; }
 .gr-wordmark__name { min-width: 0; }
 

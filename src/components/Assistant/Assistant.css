@@ -181,7 +181,11 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.gr-assist__source:hover { color: var(--text-default); }
+/* --text-default does not exist in this system; the tokens are primary,
+   secondary, muted and disabled. An undefined custom property makes the whole
+   declaration invalid, so this hover silently did nothing -- the link stayed
+   muted. No error, and it reads as correct. */
+.gr-assist__source:hover { color: var(--text-primary); }
 .gr-assist__source:focus-visible {
   outline: var(--border-width-md) solid var(--focus-ring);
   outline-offset: 2px;

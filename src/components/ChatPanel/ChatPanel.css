@@ -58,7 +58,7 @@
 }
 .gr-chat__messages p { margin: 0; }
 .gr-chat__composer {
-  display: flex; gap: var(--space-10);
+  display: flex; flex-direction: column; gap: var(--space-10);
   padding: var(--space-14) var(--space-18) var(--space-18);
   border-top: var(--border-width-sm) solid var(--border-subtle);
 }
@@ -127,7 +127,6 @@
 
 /* ---------- composer ---------- */
 
-.gr-chat__composer { flex-direction: column; gap: var(--space-10); }
 .gr-chat__row { display: flex; align-items: center; gap: var(--space-10); }
 
 .gr-chat__attachment { display: flex; align-items: center; gap: var(--space-8); }
@@ -237,17 +236,6 @@
 }
 
 /* The conversation name doubles as the control that changes it. */
-.gr-chat__switch {
-  border: none; background: none; padding: 0;
-  color: var(--text-muted); cursor: pointer; font-family: inherit;
-  text-align: left; max-width: 100%;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.gr-chat__switch:hover { color: var(--accent-text); }
-.gr-chat__switch:focus-visible {
-  outline: var(--border-width-md) solid var(--focus-ring);
-  outline-offset: 2px; border-radius: var(--radius-sm);
-}
 
 /* Takes the message list's place rather than floating over it: an overlay in a
    360px panel covers the thing you are switching away from anyway. */
@@ -310,11 +298,27 @@
 
 .gr-chat__failed { margin: var(--space-8) 0 0; color: var(--semantic-bad); }
 
+/* ONE rule. This was declared twice, 70 lines apart -- an older version from
+   the Slack channel switcher and the one written when the conversation name
+   became the switcher. The cascade merged them into something neither
+   intended: display and colour from the second, and overflow/text-overflow/
+   white-space from the first, which the second never redeclared.
+
+   That mix does not truncate. text-overflow: ellipsis needs a block-ish box,
+   and the surviving display was inline-flex, so a long conversation name
+   overflowed instead of clipping. The truncation now lives on the inner span,
+   which is the element that actually holds the text. */
 .gr-chat__switch {
   display: inline-flex; align-items: baseline; gap: 2px;
   border: none; background: none; padding: 0; cursor: pointer;
   color: var(--text-primary); text-align: left;
+  font-family: inherit;
+  max-width: 100%;
   border-radius: var(--radius-sm);
+}
+.gr-chat__switch > span:first-child {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0;
 }
 .gr-chat__switch:hover { color: var(--accent-base); }
 .gr-chat__switch:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 3px; }

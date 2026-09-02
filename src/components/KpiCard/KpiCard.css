@@ -83,9 +83,12 @@
   transition: opacity 120ms ease, color 120ms ease;
 }
 .gr-kpi:hover .gr-kpi__discuss,
-.gr-kpi__discuss:focus-visible { opacity: 1; }
 .gr-kpi__discuss:hover { color: var(--accent-text); background: var(--accent-tint); }
+/* One rule. The opacity and the outline were two separate :focus-visible
+   blocks with a :hover between them -- both applied, but a reader had to
+   notice the second to know the control was focusable at all. */
 .gr-kpi__discuss:focus-visible {
+  opacity: 1;
   outline: var(--border-width-md) solid var(--focus-ring);
   outline-offset: 2px;
 }
