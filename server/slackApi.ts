@@ -339,6 +339,19 @@ export function slackApi(): Plugin {
           info: (m) => server.config.logger.info(m),
           warn: (m) => server.config.logger.warn(m),
         });
+      } else {
+        /* Say so out loud. Skipping silently is how the last two failures hid:
+           realtime was down for hours with nothing in the log to look at.
+
+           The trap worth naming: enabling Socket Mode in Slack's UI DISABLES
+           the HTTP Request URL. Toggle it there without setting this token and
+           BOTH transports are off -- which reads as "Slack broke" rather than
+           "half a config change". */
+        server.config.logger.warn(
+          '[slack] SLACK_APP_TOKEN is not set — Socket Mode is off, so realtime '
+          + 'depends on the tunnel URL still being valid. If Socket Mode is enabled '
+          + 'in the Slack app, HTTP events are disabled there and NOTHING will arrive.',
+        );
       }
 
       server.middlewares.use('/api/slack', async (req, res) => {
