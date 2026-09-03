@@ -255,9 +255,19 @@ export function appendMessage(id: string, message: Message) {
 /** Replaces a mirrored conversation's messages with what Slack actually holds. */
 export function replaceMessages(id: string, messages: Message[]) {
   mutate(id, (c) => {
-    const wasUnread = unreadCount(c);
+    /* readCount is carried across unchanged, so anything the new list adds is
+       unread by construction.
+
+       It used to be recomputed as (newLength - previousUnread), which PINNED
+       unread to whatever it already was: a conversation sitting at zero stayed
+       at zero no matter how many messages Slack delivered. Every inbound
+       message was silently marked as already read, which is the one thing an
+       unread count exists to prevent.
+
+       Clamped only so a shorter list -- an edit, a deletion, a narrower
+       history window -- cannot leave readCount pointing past the end. */
     c.messages = messages;
-    c.readCount = Math.max(0, messages.length - wasUnread);
+    c.readCount = Math.min(c.readCount, messages.length);
   });
 }
 

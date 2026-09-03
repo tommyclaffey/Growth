@@ -59,6 +59,9 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
      fact, and they drift. */
   const [openId, setOpenId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
+  /* Read inside a stable callback, so syncDirect does not need openId in its
+     dependency list and get rebuilt on every conversation change. */
+  const openIdRef = useRef<string | null>(null);
   const [tick, setTick] = useState(0);        /* conversations live outside React */
   /* The SLACK directory — used only to translate a name into the id Slack
      stores, and only for the one conversation Slack mirrors. It is not the
@@ -114,9 +117,15 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
        local messages alone rather than blanking a working conversation. */
     if (t.channel && t.messages.length > 0) {
       replaceMessages(conversationId, t.messages);
+      /* Reading a conversation you are looking at is reading it. Without this
+         the panel would show an unread badge on the thread currently open,
+         which is the sort of counter people stop trusting. */
+      if (conversationId === openIdRef.current) markRead(conversationId);
       setTick((n) => n + 1);
     }
   }, []);
+
+  useEffect(() => { openIdRef.current = openId; }, [openId]);
 
   useEffect(() => {
     if (openId && source === 'slack') void syncDirect(openId);
