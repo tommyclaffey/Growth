@@ -82,7 +82,10 @@
   opacity: 0;
   transition: opacity 120ms ease, color 120ms ease;
 }
-.gr-kpi:hover .gr-kpi__discuss,
+/* Revealed by hovering the CARD, not the button -- you cannot hover a control
+   you cannot see. This line was lost when a selector-list member got deleted
+   as a duplicate, which left the button at opacity 0 with nothing to raise it. */
+.gr-kpi:hover .gr-kpi__discuss { opacity: 1; }
 .gr-kpi__discuss:hover { color: var(--accent-text); background: var(--accent-tint); }
 /* One rule. The opacity and the outline were two separate :focus-visible
    blocks with a :hover between them -- both applied, but a reader had to
