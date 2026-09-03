@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './ChannelTable.css';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
-import { formatMetric, type Metric , deltaTone, higherIsBetter } from '../../data/metrics';
+import { formatMetric, type Metric, higherIsBetter } from '../../data/metrics';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { Sparkline } from '../Sparkline/Sparkline';
 import type { ChannelName } from '../../styles/tokens';
@@ -119,8 +119,7 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
                   <DeltaBadge percent={r.delta} higherIsBetter={higherIsBetter(metric)} bare />
                 </td>
                 <td>
-                  <Sparkline values={r.trend} metric={metric} channel={r.key}
-                             tone={deltaTone(r.delta, higherIsBetter(metric))} />
+                  <Sparkline values={r.trend} metric={metric} channel={r.key} />
                 </td>
               </tr>
             );
