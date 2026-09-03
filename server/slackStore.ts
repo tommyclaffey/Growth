@@ -30,6 +30,11 @@ export interface Workspace {
   accessToken: string;
   /** Who installed it — useful when one person's grant is revoked. */
   installedBy?: string;
+  /**
+   * The Slack APP id (A...). Stable across reinstalls, unlike the bot user id
+   * and the installing account, which is why ownership is keyed to it.
+   */
+  appId?: string;
   /** Conversation the panel reads. Chosen after install, per workspace. */
   channelId?: string;
   channelName?: string;
@@ -81,6 +86,15 @@ export function setChannel(teamId: string, channelId: string, channelName: strin
   w.channelId = channelId;
   w.channelName = channelName;
   w.channelKind = kind;
+  write(s);
+}
+
+/** Record the app id once it is known, so ownership survives a reinstall. */
+export function setAppId(teamId: string, appId: string) {
+  const s = read();
+  const w = s.workspaces[teamId];
+  if (!w || w.appId === appId) return;
+  w.appId = appId;
   write(s);
 }
 

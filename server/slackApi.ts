@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
 import {
-  activeWorkspace, publicView, removeWorkspace, saveWorkspace, setActive, setChannel, setLink,
+  activeWorkspace, publicView, removeWorkspace, saveWorkspace, setActive, setAppId, setChannel, setLink,
 } from './slackStore.js';
 import { addSubscriber, eventStats, noteEvent, rawBody, subscriberCount, verifySlack } from './slackEvents.js';
 import { handleEvent, socketConnected, startSocketMode } from './slackSocket.js';
@@ -541,6 +541,7 @@ export function slackApi(): Plugin {
               /* The user token lives here, not at the top level — that one is
                  the bot's, and there is no bot in this flow. */
               authed_user?: { id: string; access_token?: string };
+              app_id?: string;
             };
             const userToken = data.authed_user?.access_token;
             if (!data.ok || !userToken || !data.team) {
@@ -552,6 +553,7 @@ export function slackApi(): Plugin {
               teamName: data.team.name,
               accessToken: userToken,
               installedBy: data.authed_user?.id,
+              appId: data.app_id,
               connectedAt: new Date().toISOString(),
             });
 
@@ -713,7 +715,7 @@ export function slackApi(): Plugin {
           if (!ws.channelId) return send(res, 503, { error: 'no_channel', message: 'Pick a channel first.' });
 
           if (req.method === 'GET' && path === '/messages') {
-            const r = await slack<{ messages: { subtype?: string; user?: string; bot_id?: string; text?: string; ts: string; attachments?: unknown }[] }>(
+            const r = await slack<{ messages: { subtype?: string; user?: string; bot_id?: string; app_id?: string; text?: string; ts: string; attachments?: unknown }[] }>(
               'conversations.history', ws.accessToken, { channel: ws.channelId, limit: 40 });
             const self = await selfIdentity(ws.accessToken);
             /* Reverse the person -> Slack map so a Slack author can be resolved
@@ -732,9 +734,45 @@ export function slackApi(): Plugin {
               /* The badge means "this was written in Slack, not here". A message
                  Growth posted came from here, so it does not get one — even
                  though it is read back out of Slack like everything else. */
-              const isOwn = (self.userId && m.user === self.userId) || (self.botId && m.bot_id === self.botId);
+              /* Ownership is a fact about the APP, not about whichever
+                 identity the token happened to be when it was installed.
+
+                 This compared m.user to the installing account and m.bot_id to
+                 the current bot. Both change on reinstall, so Growth's own
+                 older messages stopped being recognised as its own and
+                 rendered as a stranger called "Growth" -- a participant nobody
+                 added, posting in your team chat. app_id survives reinstalls;
+                 the other two do not.
+
+                 Backfilled lazily so installs predating this do not have to
+                 reconnect: a message from the installing account that carries
+                 an app_id was posted through an app on that account's behalf,
+                 and this is that app. */
+              if (!ws.appId && m.app_id && self.userId && m.user === self.userId) {
+                setAppId(ws.teamId, m.app_id);
+                ws.appId = m.app_id;
+              }
+              /* Once the app id is known it is the WHOLE answer, and the
+                 identity checks below it are not just redundant, they are
+                 wrong: `m.user === self.userId` also matches messages Tommy
+                 TYPES in Slack, which are the exact thing the badge exists to
+                 mark. Keeping them as a fallback while app_id is unknown is
+                 fine; keeping them alongside it is not. */
+              const isOwn = ws.appId
+                ? m.app_id === ws.appId
+                : Boolean((self.userId && m.user === self.userId)
+                  || (self.botId && m.bot_id === self.botId));
               /* A linked Slack account speaks as its local person. */
-              const authorId = bySlackId[u.id] ?? u.id;
+              /* Our own messages wear the account they were sent on behalf of,
+                 not the bot that transmitted them.
+
+                 Recognising them as ours removed the Slack badge but left the
+                 author as the app's bot user, so they still rendered as
+                 "Growth" -- a name nobody in the conversation has. Growth posts
+                 FOR the connected account; that account is the author. */
+              const authorId = isOwn
+                ? (bySlackId[self.userId ?? ''] ?? bySlackId[u.id] ?? u.id)
+                : (bySlackId[u.id] ?? u.id);
               const recovered = linkFromAttachments(m.attachments);
               const withLink = recovered ? `${m.text} ${recovered}` : m.text;
               messages.push({
