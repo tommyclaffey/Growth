@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Sidebar, type NavKey } from './components/Sidebar/Sidebar';
 import { Button } from './components/Button/Button';
 import { KpiCard } from './components/KpiCard/KpiCard';
@@ -51,13 +51,19 @@ export default function App() {
      default dashboard for a frame and then jump. */
   const [deepLink] = useState(() => readDeepLink(window.location.search));
 
+  /* Go to a view. ONE definition, used by the deep link and by clicking a card
+     in the chat -- they are the same action arriving from two directions, and
+     two copies would drift the moment either grew a case. */
+  const applyView = useCallback((v: ViewRef) => {
+    setMetric(v.metric);
+    setRange(v.range);
+    if (v.channel === 'all') { setChannel(null); setNav('overview'); }
+    else { setChannel(v.channel as ChannelName); setNav('channels'); }
+  }, []);
+
   useEffect(() => {
     if (!deepLink) return;
-    const { channel: c, metric: m, range: r } = deepLink.view;
-    setMetric(m);
-    setRange(r);
-    if (c === 'all') { setChannel(null); setNav('overview'); }
-    else { setChannel(c as ChannelName); setNav('channels'); }
+    applyView(deepLink.view);
     /* The link points at a conversation, so the conversation is the point.
        Landing on the right chart with the chat closed would strand you one
        click from the thing you followed the link to read. */
@@ -66,7 +72,7 @@ export default function App() {
     /* Clear the query so a refresh does not re-apply it and yank you back to
        the linked view after you have navigated away. */
     window.history.replaceState({}, '', window.location.pathname);
-  }, [deepLink]);
+  }, [deepLink, applyView]);
 
   /* Switching off the channel you are looking at has to move you somewhere
      that still exists. Leaving the page up would show a screen for something
@@ -295,6 +301,7 @@ export default function App() {
           pending={pendingView}
           onClearPending={() => setPendingView(null)}
           initialConversationId={deepLink?.conversationId ?? null}
+          onOpenView={applyView}
         />
       )}
     </div>

@@ -45,6 +45,8 @@ export interface ChatPanelProps {
    * away from it.
    */
   initialConversationId?: string | null;
+  /** Clicking a card in the thread navigates the dashboard to that view. */
+  onOpenView?: (view: ViewRef) => void;
 }
 
 /**
@@ -56,7 +58,7 @@ export interface ChatPanelProps {
  * "Meta CAC is up" and a screenshot of Meta CAC are different artifacts —
  * one goes stale the moment the data moves, the other does not.
  */
-export function ChatPanel({ onClose, pending, onClearPending, initialConversationId }: ChatPanelProps) {
+export function ChatPanel({ onClose, pending, onClearPending, initialConversationId, onOpenView }: ChatPanelProps) {
   const [pendingFail, setPendingFail] = useState<string | null>(null);
   const [source, setSource] = useState<ChatSource>('seed');
   const [origin, setOrigin] = useState<{ team?: string; channel?: string }>({});
@@ -423,7 +425,7 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
                 {group.map((m) => (
                   <div key={m.id} className={`gr-msg__line ${mentionsMe(m.body) ? 'is-flagged' : ''}`}>
                     <p className="gr-type-body">{renderBody(m.body)}</p>
-                    {m.view && <ViewCard view={m.view} />}
+                    {m.view && <ViewCard view={m.view} onOpen={onOpenView} />}
                   </div>
                 ))}
               </div>
@@ -501,7 +503,8 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
  * period it is "as of" — because a number in a thread without a date is the
  * thing people argue about three weeks later.
  */
-function ViewCard({ view, compact = false }: { view: ViewRef; compact?: boolean }) {
+function ViewCard({ view, compact = false, onOpen }:
+  { view: ViewRef; compact?: boolean; onOpen?: (view: ViewRef) => void }) {
   const scope = view.channel as Scope;
   const t = totals(scope, view.range);
 
@@ -520,8 +523,22 @@ function ViewCard({ view, compact = false }: { view: ViewRef; compact?: boolean 
 
   const label = view.channel === 'all' ? 'All channels' : CHANNEL_LABEL[view.channel as ChannelName];
 
+  /* A real <button> when it navigates, a plain div when it does not.
+
+     The staged card in the composer goes nowhere, and giving it a button role
+     would put a lie in the tab order -- announcing an action to a screen
+     reader that does not exist. Interactivity is stated where it is true, not
+     applied uniformly because the two look alike. */
+  const Tag = onOpen ? 'button' : 'div';
   return (
-    <div className={`gr-viewcard ${compact ? 'is-compact' : ''}`}>
+    <Tag
+      className={`gr-viewcard ${compact ? 'is-compact' : ''} ${onOpen ? 'is-clickable' : ''}`}
+      {...(onOpen ? {
+        type: 'button' as const,
+        onClick: () => onOpen(view),
+        'aria-label': `Open ${label} ${view.metric}, ${RANGE_LABEL[view.range]}`,
+      } : {})}
+    >
       <p className="gr-viewcard__head gr-type-caption">
         {/* The mark, not a coloured dot.
 
@@ -543,7 +560,7 @@ function ViewCard({ view, compact = false }: { view: ViewRef; compact?: boolean 
           Ratio — computed from the period, not summed
         </p>
       )}
-    </div>
+    </Tag>
   );
 }
 

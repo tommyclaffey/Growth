@@ -340,3 +340,18 @@
   color: var(--text-muted); text-decoration: underline; font: inherit;
 }
 .gr-chat__rename-cta:hover { color: var(--text-primary); }
+
+/* A card that navigates says so before it is clicked. Hover alone is invisible
+   to a keyboard, so the focus ring is the same affordance by another route. */
+.gr-viewcard.is-clickable {
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font: inherit;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.gr-viewcard.is-clickable:hover { border-color: var(--accent-base); background: var(--surface-page-top); }
+.gr-viewcard.is-clickable:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}

@@ -152,7 +152,15 @@ export function readDeepLink(search: string): DeepLink | null {
   };
 }
 
-const VIEW_RE = /https?:\/\/[^\s]*\/Growth\/\?(?:[^\s]*&)?c=([a-zA-Z]+)&m=([A-Za-z]+)&r=(7|30|90)/;
+/* The trailing (?:&[^\s]*)? is load-bearing.
+
+   Without it the pattern matched c/m/r and STOPPED, so when `&t=` was added to
+   the link the match ended mid-URL: the view decoded fine, but replace() only
+   removed the part it matched and the rest of the query stayed in the message
+   body as "&t=c-U0BCFJ0CKQV-maya". I verified the regex still MATCHED and
+   never verified it still consumed the whole URL -- a passing check on a
+   partial assertion, again. */
+const VIEW_RE = /https?:\/\/[^\s]*\/Growth\/\?(?:[^\s]*&)?c=([a-zA-Z]+)&m=([A-Za-z]+)&r=(7|30|90)(?:&[^\s]*)?/;
 
 /** Pulls a view back out of message text. Returns null when there isn't one. */
 export function decodeView(text: string): { view: ViewRef; text: string } | null {
