@@ -338,12 +338,19 @@ export function slackApi(): Plugin {
               return res.end(evt.challenge);
             }
 
-            const ws = activeWorkspace();
-            if (evt.event?.type === 'message' && ws?.channelId && evt.event.channel === ws.channelId) {
-              /* Tell the browser something changed and let it re-read, rather
-                 than pushing the message itself. One code path builds a
-                 message — if the event pushed its own shape there would be two,
-                 and they would drift. */
+            if (evt.event?.type === 'message' && evt.event.channel) {
+              /* Any message channel, not only the mirrored one.
+
+                 This used to require `channel === ws.channelId`, so a DM reply
+                 arrived, failed the comparison and was dropped -- which is why
+                 replying in Slack never came back. The client knows which
+                 conversation it has open and which Slack channel that maps to,
+                 so the server's job is to say WHICH channel changed and let it
+                 decide, not to filter on the server's single idea of "the"
+                 channel.
+
+                 Still just a nudge, never the message itself. One code path
+                 builds a message; a second one here would drift from it. */
               broadcast('message', { channel: evt.event.channel });
             }
 
@@ -667,6 +674,57 @@ export function slackApi(): Plugin {
              the link table written at OAuth consent, so this can only reach
              someone who connected their own account. Anyone unlinked comes
              back in `unreachable` rather than being silently skipped. */
+          /* ---- read the history of a DM, addressed by Growth person id ----
+
+             The mirror of dm-send. Same resolution: person ids -> Slack user
+             ids -> conversations.open, which is idempotent and so returns the
+             same conversation the outbound path posts into. That symmetry is
+             the point -- if the two resolved differently, a thread would send
+             to one place and read from another. */
+          if (req.method === 'POST' && path === '/dm-history') {
+            const { personIds } = await readBody(req);
+            if (!Array.isArray(personIds)) return send(res, 400, { error: 'personIds required' });
+
+            const links = ws.links ?? {};
+            const isSlackId = (v: string) => /^[UW][A-Z0-9]{6,}$/.test(v);
+            const userIds = personIds
+              .map((raw) => { const pid = String(raw); return links[pid] ?? (isSlackId(pid) ? pid : null); })
+              .filter((v): v is string => Boolean(v));
+            if (userIds.length === 0) return send(res, 200, { messages: [], members: {}, channel: null });
+
+            let opened: { channel: { id: string } };
+            try {
+              opened = await slack<{ channel: { id: string } }>(
+                'conversations.open', ws.accessToken, { users: userIds.join(',') });
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              if (msg.includes('missing_scope')) return send(res, 200, { messages: [], members: {}, channel: null });
+              throw err;
+            }
+
+            const r = await slack<{ messages: { subtype?: string; user?: string; bot_id?: string; text?: string; ts: string }[] }>(
+              'conversations.history', ws.accessToken, { channel: opened.channel.id, limit: 40 });
+            const self = await selfIdentity(ws.accessToken);
+            const bySlackId: Record<string, string> = {};
+            for (const [personId, slackId] of Object.entries(ws.links ?? {})) bySlackId[slackId] = personId;
+
+            const members: Record<string, SlackUser> = {};
+            const messages = [];
+            for (const m of [...r.messages].reverse()) {
+              if (m.subtype || !m.text) continue;
+              const u = await resolveUser(m.user ?? m.bot_id ?? 'unknown', ws.accessToken);
+              members[u.id] = u;
+              const isOwn = (self.userId && m.user === self.userId) || (self.botId && m.bot_id === self.botId);
+              messages.push({
+                id: m.ts, authorId: bySlackId[u.id] ?? u.id,
+                body: await render(m.text, ws.accessToken),
+                time: clock(m.ts), minutesAgo: minutesAgo(m.ts),
+                fromSlack: !isOwn,
+              });
+            }
+            return send(res, 200, { messages, members, channel: opened.channel.id });
+          }
+
           if (req.method === 'POST' && path === '/dm-send') {
             const { personIds, text, view, link } = await readBody(req);
             if (!Array.isArray(personIds) || typeof text !== 'string') {

@@ -155,6 +155,48 @@ export async function disconnect(teamId: string): Promise<boolean> {
  */
 export interface DmResult { delivered: boolean; unreachable: string[]; message?: string }
 
+/**
+ * The Slack side of a Growth direct message.
+ *
+ * Resolves the same way postDirectToSlack does, so a thread reads from the
+ * conversation it writes to. Returns an empty result rather than throwing when
+ * nobody is reachable -- a DM with no linked recipient is a normal state, not
+ * an error, and it still works as a local conversation.
+ */
+export interface DirectThread {
+  messages: Message[];
+  members: Record<string, Member>;
+  source: ChatSource;
+  /** The Slack DM this maps to, or null when nobody is reachable. */
+  channel: string | null;
+}
+
+export async function loadDirectThread(personIds: string[]): Promise<DirectThread> {
+  try {
+    const res = await fetch('/api/slack/dm-history', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ personIds }),
+    });
+    if (!res.ok) return { messages: [], members: {}, source: 'seed', channel: null };
+    const d = (await res.json()) as { messages?: unknown; members?: unknown; channel?: unknown };
+    const raw = (d.messages ?? []) as Message[];
+    return {
+      /* Same rebuild as the channel path: a shared metric rides through Slack
+         as a link and becomes a card again on the way back. */
+      messages: raw.map((m) => {
+        const found = decodeView(m.body);
+        const base = found ? { ...m, body: found.text, view: found.view } : m;
+        return base.fromSlack ? base : { ...base, authorId: ME.id };
+      }),
+      members: { ...MEMBERS, ...((d.members ?? {}) as Record<string, Member>) },
+      source: 'slack',
+      channel: (d.channel ?? null) as string | null,
+    };
+  } catch {
+    return { messages: [], members: {}, source: 'seed', channel: null };
+  }
+}
+
 export async function postDirectToSlack(
   personIds: string[], text: string, view?: ViewRef | null,
 ): Promise<DmResult> {

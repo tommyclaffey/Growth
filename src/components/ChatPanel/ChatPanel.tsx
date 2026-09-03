@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './ChatPanel.css';
 import {
-  loadThread, postDirectToSlack, postToSlack, subscribeToSlack, type ChatSource,
+  loadDirectThread, loadThread, postDirectToSlack, postToSlack, subscribeToSlack,
+  type ChatSource,
 } from '../../data/slackClient';
 import { useAvatarFor } from '../../data/profile';
 import { ConversationList } from '../ConversationList/ConversationList';
@@ -96,6 +97,31 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
 
   useEffect(() => { void refresh(); }, [refresh]);
 
+  /* A DM's history comes from Slack too, not just the mirrored channel.
+
+     Growth still owns the conversation -- this replaces its messages with what
+     Slack holds, the same way the mirrored channel does, so a reply typed in
+     Slack appears here. Only for conversations that are NOT the mirror: the
+     mirror already reads through loadThread, and doing both would fetch the
+     same thread twice and race. */
+  const syncDirect = useCallback(async (conversationId: string) => {
+    const c = getConversation(conversationId);
+    if (!c || c.mirrorsSlack) return;
+    const recipients = c.memberIds.filter((id) => id !== ME.id);
+    if (recipients.length === 0) return;
+    const t = await loadDirectThread(recipients);
+    /* An empty result means nobody in it is reachable on Slack. Leave the
+       local messages alone rather than blanking a working conversation. */
+    if (t.channel && t.messages.length > 0) {
+      replaceMessages(conversationId, t.messages);
+      setTick((n) => n + 1);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (openId && source === 'slack') void syncDirect(openId);
+  }, [openId, source, syncDirect]);
+
   /* Slack sends the browser back here after consent. Clear the marker so a
      reload does not look like a fresh connection. */
   useEffect(() => {
@@ -113,10 +139,17 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
      stale is worse than one that is a few seconds behind. */
   useEffect(() => {
     if (source !== 'slack') return;
-    const unsubscribe = subscribeToSlack(() => { void refresh(); });
+    const unsubscribe = subscribeToSlack(() => {
+      void refresh();
+      /* Slack does not tell us which Growth conversation changed, only which
+         Slack channel did. Re-reading the open one is cheap and correct;
+         mapping every channel back to a conversation would duplicate the
+         resolution the server already does. */
+      if (openId) void syncDirect(openId);
+    });
     const id = setInterval(() => { void refresh(); }, 30000);
     return () => { unsubscribe(); clearInterval(id); };
-  }, [source, refresh]);
+  }, [source, refresh, openId, syncDirect]);
 
   // Follow the conversation as it grows, the way every chat client does.
   useEffect(() => {
