@@ -269,6 +269,36 @@ function buildMetricBlocks(
   }];
 }
 
+/**
+ * Recover a shared view's link from a message's attachments.
+ *
+ * Posting a view strips the URL out of `text` and puts it in a Block Kit
+ * button, so Slack renders a card instead of a bare link. Reading the message
+ * back only ever looked at `text` -- so the link was gone, decodeView found
+ * nothing, and every shared metric came home as the sentence that introduced
+ * it with the card missing.
+ *
+ * The link is put back on the end of the body here so the ONE decoder on the
+ * client keeps working unchanged. Recovering it into a second `view` field
+ * would mean two ways a card can arrive, and they would drift.
+ */
+function linkFromAttachments(atts: unknown): string | null {
+  if (!Array.isArray(atts)) return null;
+  for (const a of atts) {
+    const blocks = (a as { blocks?: unknown }).blocks;
+    if (!Array.isArray(blocks)) continue;
+    for (const b of blocks) {
+      const els = (b as { elements?: unknown }).elements;
+      if (!Array.isArray(els)) continue;
+      for (const e of els) {
+        const url = (e as { url?: unknown }).url;
+        if (typeof url === 'string' && /\/Growth\/\?.*\bc=/.test(url)) return url;
+      }
+    }
+  }
+  return null;
+}
+
 async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
   const c: Buffer[] = [];
   for await (const x of req) c.push(x as Buffer);
@@ -624,7 +654,7 @@ export function slackApi(): Plugin {
           if (!ws.channelId) return send(res, 503, { error: 'no_channel', message: 'Pick a channel first.' });
 
           if (req.method === 'GET' && path === '/messages') {
-            const r = await slack<{ messages: { subtype?: string; user?: string; bot_id?: string; text?: string; ts: string }[] }>(
+            const r = await slack<{ messages: { subtype?: string; user?: string; bot_id?: string; text?: string; ts: string; attachments?: unknown }[] }>(
               'conversations.history', ws.accessToken, { channel: ws.channelId, limit: 40 });
             const self = await selfIdentity(ws.accessToken);
             /* Reverse the person -> Slack map so a Slack author can be resolved
@@ -646,8 +676,10 @@ export function slackApi(): Plugin {
               const isOwn = (self.userId && m.user === self.userId) || (self.botId && m.bot_id === self.botId);
               /* A linked Slack account speaks as its local person. */
               const authorId = bySlackId[u.id] ?? u.id;
+              const recovered = linkFromAttachments(m.attachments);
+              const withLink = recovered ? `${m.text} ${recovered}` : m.text;
               messages.push({
-                id: m.ts, authorId, body: await render(m.text, ws.accessToken),
+                id: m.ts, authorId, body: await render(withLink, ws.accessToken),
                 time: clock(m.ts), minutesAgo: minutesAgo(m.ts),
                 fromSlack: !isOwn,
               });
@@ -702,7 +734,7 @@ export function slackApi(): Plugin {
               throw err;
             }
 
-            const r = await slack<{ messages: { subtype?: string; user?: string; bot_id?: string; text?: string; ts: string }[] }>(
+            const r = await slack<{ messages: { subtype?: string; user?: string; bot_id?: string; text?: string; ts: string; attachments?: unknown }[] }>(
               'conversations.history', ws.accessToken, { channel: opened.channel.id, limit: 40 });
             const self = await selfIdentity(ws.accessToken);
             const bySlackId: Record<string, string> = {};
@@ -715,9 +747,11 @@ export function slackApi(): Plugin {
               const u = await resolveUser(m.user ?? m.bot_id ?? 'unknown', ws.accessToken);
               members[u.id] = u;
               const isOwn = (self.userId && m.user === self.userId) || (self.botId && m.bot_id === self.botId);
+              const recovered = linkFromAttachments(m.attachments);
+              const withLink = recovered ? `${m.text} ${recovered}` : m.text;
               messages.push({
                 id: m.ts, authorId: bySlackId[u.id] ?? u.id,
-                body: await render(m.text, ws.accessToken),
+                body: await render(withLink, ws.accessToken),
                 time: clock(m.ts), minutesAgo: minutesAgo(m.ts),
                 fromSlack: !isOwn,
               });
