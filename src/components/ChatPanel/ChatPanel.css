@@ -15,10 +15,18 @@
 }
 .gr-chat__header {
   display: flex; flex-direction: column; gap: var(--space-12);
+  /* Centred in the 140px rather than pinned to the top.
+
+     The height exists so this divider lines up with where the app column's
+     content starts, and that alignment is worth keeping. But the header used
+     to hold SlackConnect as well; with that moved to Settings, two lines of
+     text sat at the top with ~60px of nothing under them. Centring
+     redistributes it -- the same total height, read as padding instead of as
+     a gap. */
+  justify-content: center;
   box-sizing: border-box;
   min-height: var(--header-h);
-  /* 24 top, matching .gr-header — aligns the text tops, not just the borders. */
-  padding: var(--space-24) var(--space-18) var(--space-16);
+  padding: var(--space-20) var(--space-18);
   border-bottom: var(--border-width-sm) solid var(--border-subtle);
 }
 /* In list view the search row sits directly beneath, and together they fill
