@@ -148,33 +148,63 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
      stale is worse than one that is a few seconds behind. */
   useEffect(() => {
     if (source !== 'slack') return;
-    const unsubscribe = subscribeToSlack(() => {
-      void refresh();
-      /* Slack does not tell us which Growth conversation changed, only which
-         Slack channel did. Re-reading the open one is cheap and correct;
-         mapping every channel back to a conversation would duplicate the
-         resolution the server already does. */
-      if (openId) void syncDirect(openId);
-    });
-    /* The fallback poll is what you actually experience whenever a push does
-       not arrive, so its interval IS the worst-case delay -- not a background
-       detail. At 30s a single missing event subscription read as "Slack sync
-       is slow" rather than "that event type never arrives", which is the wrong
-       conclusion to be nudged toward.
 
-       10s while the tab is visible, nothing while it is hidden. A hidden tab
-       has nobody waiting on it, so this is cheaper than the old constant 30s
-       AND three times fresher when someone is actually looking. */
-    let id: number | undefined;
+    /* Push when it is available, and poll fast enough to feel live when it is
+       not.
+
+       Push needs Slack to reach this machine, which needs a tunnel, which
+       re-rolls its hostname on every restart. When that happens realtime dies
+       silently and there is nothing the app can do about it. So the poll is
+       not a safety net here -- it is the transport that always works, and it
+       is tuned to be good enough on its own.
+
+       The split is what keeps it cheap: sync the conversation you are LOOKING
+       at every 3s, and the rest of the list every 15s. Latency is only felt in
+       the open thread. Polling everything at 3s would triple the API cost to
+       make stale numbers refresh faster in a list nobody is reading.
+
+       conversations.history is Tier 3 (50/min). This spends ~20/min on the
+       open thread plus ~4/min on the list. */
+    const FAST = 3000;
+    const SLOW = 15000;
+
+    let busy = false;
+    /* An in-flight guard, not a debounce. Slack occasionally takes a second,
+       and without this a slow response would let ticks stack up and turn one
+       lagging request into a queue of them. */
+    const syncOpen = async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const id = openIdRef.current;
+        if (!id) { await refresh(); return; }
+        /* The mirrored channel reads through loadThread; a DM reads through
+           its own history. syncDirect already declines the mirror, so asking
+           both would fetch the same thread twice and race. */
+        if (getConversation(id)?.mirrorsSlack) await refresh();
+        else await syncDirect(id);
+      } finally { busy = false; }
+    };
+
+    const unsubscribe = subscribeToSlack(() => { void syncOpen(); void refresh(); });
+
+    let fast: number | undefined;
+    let slow: number | undefined;
     const start = () => {
-      if (id === undefined && document.visibilityState === 'visible') {
-        id = window.setInterval(() => { void refresh(); }, 10000);
-      }
+      if (document.visibilityState !== 'visible') return;
+      fast ??= window.setInterval(() => { void syncOpen(); }, FAST);
+      slow ??= window.setInterval(() => { void refresh(); }, SLOW);
     };
-    const stop = () => { if (id !== undefined) { clearInterval(id); id = undefined; } };
+    const stop = () => {
+      if (fast !== undefined) { clearInterval(fast); fast = undefined; }
+      if (slow !== undefined) { clearInterval(slow); slow = undefined; }
+    };
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') { void refresh(); start(); } else stop();
+      if (document.visibilityState === 'visible') { void syncOpen(); void refresh(); start(); }
+      else stop();
     };
+
+    void syncOpen();
     start();
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
@@ -182,7 +212,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
       stop();
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [source, refresh, openId, syncDirect]);
+  }, [source, refresh, syncDirect]);
 
   // Follow the conversation as it grows, the way every chat client does.
   useEffect(() => {
