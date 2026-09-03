@@ -156,8 +156,32 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
          resolution the server already does. */
       if (openId) void syncDirect(openId);
     });
-    const id = setInterval(() => { void refresh(); }, 30000);
-    return () => { unsubscribe(); clearInterval(id); };
+    /* The fallback poll is what you actually experience whenever a push does
+       not arrive, so its interval IS the worst-case delay -- not a background
+       detail. At 30s a single missing event subscription read as "Slack sync
+       is slow" rather than "that event type never arrives", which is the wrong
+       conclusion to be nudged toward.
+
+       10s while the tab is visible, nothing while it is hidden. A hidden tab
+       has nobody waiting on it, so this is cheaper than the old constant 30s
+       AND three times fresher when someone is actually looking. */
+    let id: number | undefined;
+    const start = () => {
+      if (id === undefined && document.visibilityState === 'visible') {
+        id = window.setInterval(() => { void refresh(); }, 10000);
+      }
+    };
+    const stop = () => { if (id !== undefined) { clearInterval(id); id = undefined; } };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') { void refresh(); start(); } else stop();
+    };
+    start();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      unsubscribe();
+      stop();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [source, refresh, openId, syncDirect]);
 
   // Follow the conversation as it grows, the way every chat client does.
