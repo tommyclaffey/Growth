@@ -150,3 +150,36 @@
   text-decoration: underline;
   font: inherit;
 }
+
+/* ---- mark toggle -------------------------------------------------------
+   Sits beside the metric toggle but is deliberately quieter: which metric
+   you are looking at is the question, and how it is drawn is a preference.
+   Same 24px control height as MetricToggle so the header row stays level. */
+.gr-chart__marks {
+  display: flex;
+  gap: var(--space-4);
+  margin-left: auto;
+}
+.gr-chart__mark {
+  width: 24px; height: 24px;
+  display: grid; place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--icon-muted);
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+.gr-chart__mark:hover:not(:disabled) { color: var(--icon-default); background: var(--surface-page-top); }
+.gr-chart__mark.is-on { color: var(--accent-text); background: var(--accent-tint); }
+.gr-chart__mark svg { fill: currentColor; }
+/* The line icon is stroked, not filled — its own stroke attribute wins, but
+   the fill rule above would otherwise flood the path. */
+.gr-chart__mark svg[fill="none"] { fill: none; }
+.gr-chart__mark:disabled { opacity: 0.35; cursor: default; }
+.gr-chart__mark:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) { .gr-chart__mark { transition: none; } }

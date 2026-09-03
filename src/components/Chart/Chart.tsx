@@ -36,7 +36,20 @@ export function Chart({
 }: ChartProps) {
   const [hover, setHover] = useState<number | null>(null);
 
-  const resolved = resolveMark(metric, data.length, mark);
+  /* A reader's override of the automatic choice, null while they have not
+     expressed one. Kept separate from the `mark` prop rather than replacing
+     it: `auto` still means "let the rule decide", so switching metric goes
+     back to the right default for that metric instead of pinning bars onto a
+     ratio the rule would never have drawn as bars. */
+  const [chosen, setChosen] = useState<'bar' | 'line' | null>(null);
+
+  const auto = resolveMark(metric, data.length, mark);
+  /* A ratio is never drawn as bars, whatever is clicked. A bar encodes
+     magnitude as length from zero, and CAC or ROAS has no zero to measure
+     from -- the rule in mark.ts exists for that reason and an override should
+     not be able to walk past it. */
+  const canBar = !isRatio(metric);
+  const resolved = chosen && (chosen === 'line' || canBar) ? chosen : auto;
   // Bars must start at zero; a ratio line must not.
   const zeroBased = resolved === 'bar' || !isRatio(metric);
   const ticks = computeTicks(metric, data, zeroBased);
@@ -76,6 +89,41 @@ export function Chart({
       <header className="gr-chart__header">
         <h3 className="gr-chart__title gr-type-card-heading">{title ?? `${metric} over time`}</h3>
         <MetricToggle value={metric} onChange={(m) => onMetricChange?.(m)} />
+
+        {/* Bar or line. Disabled rather than hidden for a ratio: a control
+            that disappears leaves the reader wondering whether they imagined
+            it, where a disabled one with a reason is answerable. */}
+        <div className="gr-chart__marks" role="group" aria-label="Chart type">
+          <button
+            type="button"
+            className={`gr-chart__mark ${resolved === 'bar' ? 'is-on' : ''}`}
+            aria-pressed={resolved === 'bar'}
+            disabled={!canBar}
+            title={canBar ? 'Bars' : 'A ratio has no zero to measure a bar from'}
+            onClick={() => setChosen('bar')}
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <rect x="1.5" y="7" width="3" height="7.5" rx="1" />
+              <rect x="6.5" y="3.5" width="3" height="11" rx="1" />
+              <rect x="11.5" y="9" width="3" height="5.5" rx="1" />
+            </svg>
+            <span className="gr-sr-only">Bar chart</span>
+          </button>
+          <button
+            type="button"
+            className={`gr-chart__mark ${resolved === 'line' ? 'is-on' : ''}`}
+            aria-pressed={resolved === 'line'}
+            title="Line"
+            onClick={() => setChosen('line')}
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"
+                 fill="none" stroke="currentColor" strokeWidth="1.6"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1.5 11.5 5.5 6.5 9 9.5 14.5 3.5" />
+            </svg>
+            <span className="gr-sr-only">Line chart</span>
+          </button>
+        </div>
       </header>
 
       {state === 'ready' ? (
