@@ -258,13 +258,27 @@ function buildMetricBlocks(
             : `${scopeLabel} · Last ${view.range} days`,
         }],
       },
+      /* A link, not a button -- deliberately.
+
+         Slack fires an interaction payload for EVERY button click, including
+         buttons that carry a `url` and need no server round trip. With no
+         Interactivity Request URL configured it renders a warning triangle
+         reading "This app is not configured to handle interactive responses"
+         next to the card, for everyone who sees it. The button worked; it just
+         looked broken.
+
+         Configuring interactivity would mean a public HTTPS endpoint, which
+         means the tunnel -- the same dependency whose stale hostname silently
+         killed realtime twice. Trading a working link for a prettier one that
+         breaks whenever a laptop sleeps is a bad trade.
+
+         A mrkdwn link needs no configuration, cannot warn, and does the one
+         thing the button was there for. If interactivity is ever wanted for
+         its own sake, Socket Mode already carries those payloads without a
+         public URL -- the button can come back then. */
       {
-        type: 'actions',
-        elements: [{
-          type: 'button',
-          text: { type: 'plain_text', text: 'Open in Growth' },
-          url: link,
-        }],
+        type: 'context',
+        elements: [{ type: 'mrkdwn', text: `<${link}|Open in Growth →>` }],
       },
     ],
   }];
@@ -283,21 +297,32 @@ function buildMetricBlocks(
  * client keeps working unchanged. Recovering it into a second `view` field
  * would mean two ways a card can arrive, and they would drift.
  */
+const GROWTH_URL_RE = /https?:\/\/[^\s"'<>|]*\/Growth\/\?[^\s"'<>|]*\bc=[^\s"'<>|]*/;
+
+/**
+ * Find the shared link anywhere in the attachment, without knowing its shape.
+ *
+ * This used to walk blocks -> elements -> `url`, which is precisely where the
+ * button kept it. Replacing the button with a mrkdwn link moved the URL inside
+ * `text` and this returned null: cards posted from Growth stopped unfurling on
+ * read, and the write change looked fine in isolation because the failure was
+ * in a different function.
+ *
+ * Structural coupling is the bug. The reader does not need the layout, only
+ * the link -- so it serialises the attachment and takes the first Growth URL
+ * it finds. That recovers the OLD button-shaped messages already sitting in
+ * Slack and the new link-shaped ones through one path, and survives the next
+ * layout change without being told about it.
+ */
 function linkFromAttachments(atts: unknown): string | null {
-  if (!Array.isArray(atts)) return null;
-  for (const a of atts) {
-    const blocks = (a as { blocks?: unknown }).blocks;
-    if (!Array.isArray(blocks)) continue;
-    for (const b of blocks) {
-      const els = (b as { elements?: unknown }).elements;
-      if (!Array.isArray(els)) continue;
-      for (const e of els) {
-        const url = (e as { url?: unknown }).url;
-        if (typeof url === 'string' && /\/Growth\/\?.*\bc=/.test(url)) return url;
-      }
-    }
-  }
-  return null;
+  if (!Array.isArray(atts) || atts.length === 0) return null;
+  let blob: string;
+  try { blob = JSON.stringify(atts); } catch { return null; }
+  const m = blob.match(GROWTH_URL_RE);
+  /* JSON-escaped slashes do not occur in JSON.stringify output, but the URL
+     may still carry escaped unicode; decode defensively rather than handing
+     back something that will not parse. */
+  return m ? m[0].replace(/\\\//g, '/') : null;
 }
 
 async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
