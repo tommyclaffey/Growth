@@ -1,4 +1,5 @@
 import './DeltaBadge.css';
+import { deltaTone } from '../../data/metrics';
 
 export interface DeltaBadgeProps {
   /** e.g. 22 for +22%. Sign drives the arrow and the colour. */
@@ -27,7 +28,8 @@ export function DeltaBadge({ percent, higherIsBetter = true, bare = false }: Del
      and a verdict: blended CAC rendered "up 0%" in red while blended ROAS
      rendered "up 0%" in green, on the same screen, both describing nothing
      happening. Flat is its own state and reads as flat. */
-  if (percent === 0) {
+  const tone = deltaTone(percent, higherIsBetter);
+  if (tone === 'flat') {
     return (
       <span className={`gr-delta gr-type-caption-med is-flat ${bare ? "is-bare" : ""}`}>
         <span aria-hidden="true">–</span>
@@ -38,9 +40,8 @@ export function DeltaBadge({ percent, higherIsBetter = true, bare = false }: Del
   }
 
   const up = percent > 0;
-  const good = up === higherIsBetter;
   return (
-    <span className={`gr-delta gr-type-caption-med ${good ? 'is-good' : 'is-bad'} ${bare ? 'is-bare' : ''}`}>
+    <span className={`gr-delta gr-type-caption-med ${tone === 'good' ? 'is-good' : 'is-bad'} ${bare ? 'is-bare' : ''}`}>
       <span aria-hidden="true">{up ? '↑' : '↓'}</span>
       {Math.abs(percent)}%
       <span className="gr-sr-only">{up ? 'increase' : 'decrease'}</span>

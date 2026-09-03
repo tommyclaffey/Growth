@@ -1,7 +1,7 @@
 import './Sparkline.css';
 import { CSS_CHANNEL } from '../../styles/tokens';
 import { channelGradient, type ChannelName } from '../../styles/tokens';
-import { isRatio, type Metric } from '../../data/metrics';
+import { isRatio, type Metric, type Tone } from '../../data/metrics';
 
 
 export interface SparklineProps {
@@ -11,6 +11,18 @@ export interface SparklineProps {
   metric?: Metric;
   /** Tints to the channel, matching the chart it summarises. */
   channel?: ChannelName | 'all';
+  /**
+   * The verdict on the change this trend describes.
+   *
+   * Without it the mark was tinted by channel while the badge beside it was
+   * tinted by good/bad -- so a declining ROAS showed a red badge next to an
+   * amber line, and the two halves of one statement disagreed. Passing the
+   * tone makes the mark carry the same reading as the number.
+   *
+   * Channel identity is not lost: every place a sparkline appears, the channel
+   * is already named and marked in the same row or card header.
+   */
+  tone?: Tone;
   width?: number;
   height?: number;
 }
@@ -35,6 +47,7 @@ export function Sparkline({
   values,
   metric,
   channel = 'all',
+  tone,
   width = 56,
   height = 14,
 }: SparklineProps) {
@@ -46,10 +59,18 @@ export function Sparkline({
   const norm = values.map((v) => 0.15 + ((v - min) / span) * 0.85);
 
   const key = channel === 'all' ? null : (CSS_CHANNEL[channel] ?? channel);
-  const fill = channel === 'all'
+
+  /* A verdict outranks channel identity here. `flat` deliberately falls back
+     to the channel tint rather than inventing a third colour -- no change is
+     not a third kind of news. */
+  const semantic = tone === 'good' ? 'var(--semantic-good)'
+    : tone === 'bad' ? 'var(--semantic-bad)'
+    : null;
+
+  const fill = semantic ?? (channel === 'all'
     ? 'linear-gradient(to bottom, var(--accent-gradient-top), var(--accent-gradient-bottom))'
-    : channelGradient(channel);
-  const stroke = key ? `var(--channel-${key})` : 'var(--accent-base)';
+    : channelGradient(channel));
+  const stroke = semantic ?? (key ? `var(--channel-${key})` : 'var(--accent-base)');
 
   if (metric && isRatio(metric)) {
     const d = norm.map((n, i) => {

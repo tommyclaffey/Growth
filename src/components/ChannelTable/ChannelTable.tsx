@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './ChannelTable.css';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
-import { formatMetric, type Metric } from '../../data/metrics';
+import { formatMetric, type Metric , deltaTone, higherIsBetter } from '../../data/metrics';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { Sparkline } from '../Sparkline/Sparkline';
 import type { ChannelName } from '../../styles/tokens';
@@ -113,10 +113,14 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
                   {/* Instanced, not redrawn. This cell used to own a second
                       copy of the arrow-and-colour logic, so a fix to one never
                       reached the other. */}
-                  <DeltaBadge percent={r.delta} bare />
+                  {/* higherIsBetter was never passed here, so it defaulted to true
+                      and a rising CAC rendered GREEN in this column while the KPI
+                      card above rendered the same number red. */}
+                  <DeltaBadge percent={r.delta} higherIsBetter={higherIsBetter(metric)} bare />
                 </td>
                 <td>
-                  <Sparkline values={r.trend} metric={metric} channel={r.key} />
+                  <Sparkline values={r.trend} metric={metric} channel={r.key}
+                             tone={deltaTone(r.delta, higherIsBetter(metric))} />
                 </td>
               </tr>
             );

@@ -2,7 +2,7 @@ import './KpiCard.css';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { Sparkline } from '../Sparkline/Sparkline';
-import type { Metric } from '../../data/metrics';
+import { deltaTone, type Metric } from '../../data/metrics';
 import type { ChannelName } from '../../styles/tokens';
 
 export interface KpiCardProps {
@@ -99,7 +99,9 @@ export function KpiCard({
         {progress !== undefined ? (
           <ProgressBar value={progress} label={label} />
         ) : sparkline && sparkline.length > 0 ? (
-          <Sparkline values={sparkline} metric={metric} channel={channel} />
+          <Sparkline values={sparkline} metric={metric} channel={channel}
+                     tone={deltaPercent === undefined ? undefined
+                       : deltaTone(deltaPercent, higherIsBetter)} />
         ) : null}
       </span>
     </div>

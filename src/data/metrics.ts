@@ -272,6 +272,45 @@ export function totals(scope: Scope, range: Range = 30) {
 }
 
 /** Percentage change, last 12 days against the 12 before them. */
+/* ------------------------------------------------- direction & verdict -- */
+
+/**
+ * Whether a rise in this metric is good news.
+ *
+ * This lived as an inline `metric !== 'CAC'` in KpiCard's callers, in
+ * ChatPanel, and NOT AT ALL in ChannelTable -- which is why the table coloured
+ * a rising CAC green while the card above it coloured the same number red.
+ * One rule, one place. Adding a second cost metric later is a one-line change
+ * here instead of a hunt.
+ */
+export function higherIsBetter(metric: Metric | undefined): boolean {
+  /* Undefined is answered here rather than at each call site, because the two
+     callers that can pass it would otherwise each pick their own default and
+     one of them would eventually pick the wrong one. Unknown metric => a rise
+     is good, which is true for every metric in the set except CAC. */
+  return metric !== 'CAC';
+}
+
+/** good | bad | flat -- the verdict on a change. */
+export type Tone = 'good' | 'bad' | 'flat';
+
+/**
+ * The single definition of what a delta MEANS.
+ *
+ * DeltaBadge owned this, and the sparkline beside it was tinted by channel, so
+ * a card could show a red badge next to an amber trend line describing the
+ * same decline. Both now read the verdict from here, so the badge and the mark
+ * cannot disagree.
+ *
+ * Zero is deliberately not a direction -- an unchanged metric gets no verdict,
+ * or blended CAC renders "up 0%" red while blended ROAS renders "up 0%" green
+ * on the same screen, both describing nothing happening.
+ */
+export function deltaTone(percent: number, better = true): Tone {
+  if (percent === 0) return 'flat';
+  return (percent > 0) === better ? 'good' : 'bad';
+}
+
 export function delta(scope: Scope, metric: Metric, range: Range = 30): number {
   const s = series(scope, metric, range).map((d) => d.value);
   const half = Math.floor(s.length / 2);
