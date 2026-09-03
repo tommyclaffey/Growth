@@ -112,6 +112,18 @@ body {
   overflow-y: auto;
   min-height: 0;
 }
+/* Nothing in a scrolling column shrinks.
+
+   .gr-content is a flex column, and a flex item's default flex-shrink is 1 --
+   so once the content is taller than the viewport, every child gets compressed
+   below its own content height. The Needs-attention strip showed it first: at
+   a narrow width its pills wrap to two rows, the strip was squashed back
+   toward its 50px min-height, and the second row rendered outside the card.
+
+   Shrinking is wrong for every child here. The column scrolls; that is what
+   absorbs the overflow. Each child should be exactly as tall as its content. */
+.gr-content > * { flex: none; }
+
 .gr-content__spacer { height: var(--space-40); flex: none; }
 
 .gr-kpi-row { display: flex; gap: var(--space-14); flex-wrap: wrap; }
