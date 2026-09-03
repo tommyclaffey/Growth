@@ -651,18 +651,51 @@ export function slackApi(): Plugin {
             const links = ws.links ?? {};
             const userIds: string[] = [];
             const unreachable: string[] = [];
-            for (const pid of personIds) {
-              const uid = links[pid as string];
+            /* Two kinds of id arrive here and only one of them needs the link
+               table.
+
+               Someone chosen from the Slack directory already carries their
+               Slack user id AS their id -- listPeople returns Slack members
+               verbatim. Looking those up in `links` finds nothing, which is
+               why a DM to a real Slack colleague reported "not delivered"
+               while the id needed to reach them was sitting in the request.
+
+               A seeded Growth person ('maya', 'jr') has no Slack id of its
+               own and does need the link written at OAuth consent. */
+            const isSlackId = (v: string) => /^[UW][A-Z0-9]{6,}$/.test(v);
+            for (const raw of personIds) {
+              const pid = String(raw);
+              const uid = links[pid] ?? (isSlackId(pid) ? pid : undefined);
               if (uid) userIds.push(uid);
-              else unreachable.push(pid as string);
+              else unreachable.push(pid);
             }
             if (userIds.length === 0) {
               return send(res, 200, { delivered: false, unreachable });
             }
             /* Idempotent: the same set of people always returns the same
                conversation, so this both finds and creates. */
-            const opened = await slack<{ channel: { id: string } }>(
-              'conversations.open', ws.accessToken, { users: userIds.join(',') });
+            let opened: { channel: { id: string } };
+            try {
+              opened = await slack<{ channel: { id: string } }>(
+                'conversations.open', ws.accessToken, { users: userIds.join(',') });
+            } catch (err) {
+              /* missing_scope means the token predates im:write / mpim:write --
+                 the workspace was connected before DMs existed in this app, and
+                 Slack does not add scopes to a token retroactively. Saying that
+                 beats "not delivered", which reads as a bug in the send rather
+                 than a reconnect the user has to perform. */
+              const msg = err instanceof Error ? err.message : String(err);
+              if (msg.includes('missing_scope')) {
+                return send(res, 200, {
+                  delivered: false, unreachable: [],
+                  reason: 'reconnect',
+                  message: 'Slack needs reconnecting: this workspace was linked before '
+                    + 'direct messages were added, so its token cannot open a DM. '
+                    + 'Settings -> Slack workspace -> reconnect.',
+                });
+              }
+              throw err;
+            }
             const dmPayload: Record<string, unknown> = { channel: opened.channel.id, text };
             /* Same treatment as a channel post: the view rides as Block Kit so
                it renders as a card, and `text` stays the notification fallback

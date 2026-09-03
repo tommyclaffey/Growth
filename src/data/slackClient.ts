@@ -151,7 +151,7 @@ export async function disconnect(teamId: string): Promise<boolean> {
  * `unreachable` so the UI can say who did not get it, rather than reporting a
  * success that was partly a no-op.
  */
-export interface DmResult { delivered: boolean; unreachable: string[] }
+export interface DmResult { delivered: boolean; unreachable: string[]; message?: string }
 
 export async function postDirectToSlack(
   personIds: string[], text: string, view?: ViewRef | null,

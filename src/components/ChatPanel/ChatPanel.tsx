@@ -183,15 +183,15 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
        all along; it just was not being addressed. */
     if (!mirrored) {
       const recipients = open.memberIds.filter((id) => id !== ME.id);
-      const { delivered, unreachable } = await postDirectToSlack(
+      const { delivered, unreachable, message } = await postDirectToSlack(
         recipients, toSlackMentions(text, slackPeople), pending);
       /* Partial delivery is still a failure to be honest about: naming who did
          not receive it beats a silent success, which is what "message sent"
          would be for someone who never linked an account. */
       if (!delivered) {
-        setPendingFail(recipients.length === unreachable.length
+        setPendingFail(message ?? (recipients.length === unreachable.length
           ? 'No Slack account linked for anyone in this conversation. Saved here only.'
-          : 'Not delivered to Slack. Saved here.');
+          : 'Not delivered to Slack. Saved here.'));
       } else if (unreachable.length > 0) {
         const names = unreachable.map((id) => memberOf(id).name).join(', ');
         setPendingFail(`Sent, but ${names} has no linked Slack account.`);
