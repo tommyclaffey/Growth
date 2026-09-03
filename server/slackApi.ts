@@ -4,7 +4,8 @@ import type { Plugin, ViteDevServer } from 'vite';
 import {
   activeWorkspace, publicView, removeWorkspace, saveWorkspace, setActive, setChannel, setLink,
 } from './slackStore.js';
-import { addSubscriber, broadcast, eventStats, noteEvent, rawBody, subscriberCount, verifySlack } from './slackEvents.js';
+import { addSubscriber, eventStats, noteEvent, rawBody, subscriberCount, verifySlack } from './slackEvents.js';
+import { handleEvent, socketConnected, startSocketMode } from './slackSocket.js';
 
 /**
  * Slack — multi-workspace, via OAuth.
@@ -328,6 +329,18 @@ export function slackApi(): Plugin {
     name: 'growth-slack-api',
     apply: 'serve',
     configureServer(server: ViteDevServer) {
+      /* Realtime over an OUTBOUND socket, so it does not depend on the tunnel.
+         A quick tunnel re-rolls its hostname on every restart, which silently
+         invalidated the registered Request URL twice -- events just stopped
+         and the counters flatlined with nothing to point at. */
+      const appToken = process.env.SLACK_APP_TOKEN;
+      if (appToken) {
+        void startSocketMode(appToken, {
+          info: (m) => server.config.logger.info(m),
+          warn: (m) => server.config.logger.warn(m),
+        });
+      }
+
       server.middlewares.use('/api/slack', async (req, res) => {
         const url = new URL(req.url ?? '/', 'http://localhost');
         const path = url.pathname.replace(/\/$/, '');
@@ -374,21 +387,12 @@ export function slackApi(): Plugin {
                made this failure invisible. */
             noteEvent(evt.event?.type ?? evt.type);
 
-            if (evt.event?.type === 'message' && evt.event.channel) {
-              /* Any message channel, not only the mirrored one.
-
-                 This used to require `channel === ws.channelId`, so a DM reply
-                 arrived, failed the comparison and was dropped -- which is why
-                 replying in Slack never came back. The client knows which
-                 conversation it has open and which Slack channel that maps to,
-                 so the server's job is to say WHICH channel changed and let it
-                 decide, not to filter on the server's single idea of "the"
-                 channel.
-
-                 Still just a nudge, never the message itself. One code path
-                 builds a message; a second one here would drift from it. */
-              broadcast('message', { channel: evt.event.channel });
-            }
+            /* Delegated, not handled here. Socket Mode delivers the identical
+               event over a WebSocket, and two copies of this branch would
+               drift -- the exact bug shape this project keeps producing: a
+               second read path inheriting the first one's blind spots without
+               its fixes. */
+            if (evt.event) handleEvent(evt.event);
 
             /* Slack retries anything that is not answered within 3 seconds, so
                acknowledge immediately and never block on work. */
@@ -428,7 +432,13 @@ export function slackApi(): Plugin {
 
             return send(res, 200, {
               configured: Boolean(clientId && clientSecret && redirectUri),
-              realtime: Boolean(process.env.SLACK_SIGNING_SECRET),
+              /* `realtime` used to mean "a signing secret exists", which is a
+                 statement about config, not about whether anything can reach
+                 us. Socket Mode makes the true answer observable, so report
+                 that instead of a proxy for it. */
+              realtime: socketConnected() || Boolean(process.env.SLACK_SIGNING_SECRET),
+              socketMode: socketConnected(),
+              socketConfigured: Boolean(process.env.SLACK_APP_TOKEN),
               /* realtime:true only means a signing secret is set. It says
                  nothing about whether Slack has ever pushed anything -- an app
                  subscribed to the wrong event list looks identical. These do. */
