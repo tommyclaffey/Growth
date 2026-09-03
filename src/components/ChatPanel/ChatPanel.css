@@ -14,18 +14,17 @@
   border-left: var(--border-width-sm) solid var(--border-default);
 }
 .gr-chat__header {
-  display: flex; flex-direction: column; gap: var(--space-12);
-  /* Centred in the 140px rather than pinned to the top.
-
-     The height exists so this divider lines up with where the app column's
-     content starts, and that alignment is worth keeping. But the header used
-     to hold SlackConnect as well; with that moved to Settings, two lines of
-     text sat at the top with ~60px of nothing under them. Centring
-     redistributes it -- the same total height, read as padding instead of as
-     a gap. */
-  justify-content: center;
+  display: flex; flex-direction: column; gap: var(--space-4);
   box-sizing: border-box;
-  min-height: var(--header-h);
+  /* Sized to its content, not to 140px.
+
+     It held 140 so this divider lined up with where the app column's content
+     starts. That was worth keeping while the header also held SlackConnect;
+     with two lines of text in it, the alignment bought a third of a header's
+     worth of empty space. Centring the content redistributed the gap without
+     reducing it, which is why it still read as too much.
+
+     ~88px now: two lines plus 20px of air either side. */
   padding: var(--space-20) var(--space-18);
   border-bottom: var(--border-width-sm) solid var(--border-subtle);
 }
@@ -35,7 +34,6 @@
    well would stack 140 on top of 60 and leave the gap that SlackConnect used
    to occupy. */
 .gr-chat__header.is-list {
-  min-height: 0;
   border-bottom: none;
   /* Zero, not 12. The search row below brings its own 12 of top padding, and
      two paddings meeting across a seam add up -- 24 above the input against
