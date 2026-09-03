@@ -90,7 +90,6 @@
   margin: 0 !important; padding: 3px 0;
   color: var(--text-secondary) !important;
 }
-.gr-assist__dot { width: 8px; height: 8px; border-radius: var(--radius-pill); flex: none; }
 .gr-assist__row-label { flex: 1; min-width: 0; }
 .gr-assist__row-value { color: var(--text-primary); }
 

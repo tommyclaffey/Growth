@@ -118,7 +118,6 @@
   margin: 0 !important;
   color: var(--text-muted) !important;
 }
-.gr-viewcard__dot { width: 8px; height: 8px; border-radius: var(--radius-pill); flex: none; }
 
 .gr-viewcard__metric { margin: 0 !important; color: var(--text-secondary) !important; }
 

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { CSS_CHANNEL } from '../../styles/tokens';
 import './Assistant.css';
 import { SUGGESTIONS, type Answer } from '../../data/assistant';
 import { askAssistant, probeModel, type AnswerSource } from '../../data/assistantClient';
 import { RANGE_LABEL, type Range } from '../../data/metrics';
+import { ChannelMark } from '../ChannelMark/ChannelMark';
 
 
 interface Turn { id: number; question: string; answer: Answer; source: AnswerSource }
@@ -118,9 +118,7 @@ export function Assistant({ open, onClose, range }: AssistantProps) {
                     {t.answer.evidence.map((e, i) => (
                       <p key={i} className="gr-assist__row gr-type-caption">
                         {e.channel && e.channel !== 'all' && (
-                          <span className="gr-assist__dot"
-                                style={{ background: `var(--channel-${CSS_CHANNEL[e.channel]})` }}
-                                aria-hidden="true" />
+                          <ChannelMark channel={e.channel} size={14} />
                         )}
                         <span className="gr-assist__row-label">{e.label}</span>
                         <span className="gr-assist__row-value gr-type-caption-med">{e.value}</span>

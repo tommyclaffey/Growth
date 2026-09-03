@@ -110,22 +110,55 @@ function seeds(): Conversation[] {
 
 let cache: Conversation[] | null = null;
 
+/** A record is usable if we can read its messages. Nothing else is load-bearing. */
+function usable(c: unknown): c is Conversation {
+  return Boolean(c) && Array.isArray((c as Conversation).messages)
+    && typeof (c as Conversation).id === 'string';
+}
+
+/**
+ * Read the store WITHOUT ever destroying what is in it.
+ *
+ * This used to validate all-or-nothing and then call save() on the failure
+ * path: one malformed record meant every real conversation was replaced by
+ * the four demo seeds AND written over, so the original was unrecoverable.
+ * A read that can delete your data is not a read. It is also the worst
+ * possible failure mode for the one thing in here the user actually created
+ * rather than received.
+ *
+ * Now: keep every record that parses, drop only the ones that do not, and add
+ * seeds by id-union so the demo threads come back without clobbering anything
+ * that shares the list with them. Nothing is written unless the result
+ * actually differs from what was stored.
+ */
 export function allConversations(): Conversation[] {
   if (cache) return cache;
+
+  let stored: Conversation[] = [];
+  let raw: string | null = null;
   try {
-    const raw = localStorage.getItem(KEY);
+    raw = localStorage.getItem(KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Conversation[];
-      /* A stored shape from an older build is not worth migrating for a demo,
-         but it is worth not crashing on. */
-      if (Array.isArray(parsed) && parsed.every((c) => c && Array.isArray(c.messages))) {
-        cache = parsed;
-        return cache;
-      }
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) stored = parsed.filter(usable);
     }
-  } catch { /* private mode, quota, corrupt JSON — fall through to seeds */ }
-  cache = seeds();
-  save();
+  } catch {
+    /* Private mode, quota, corrupt JSON. Keep the raw copy rather than
+       overwriting it -- if it is recoverable, it is recoverable from here and
+       nowhere else. */
+    if (raw) { try { localStorage.setItem(`${KEY}.unreadable`, raw); } catch { /* nothing left to try */ } }
+  }
+
+  /* Seeds fill gaps; they never replace. A stored record wins on id collision
+     because it has the user's messages in it and the seed does not. */
+  const byId = new Map<string, Conversation>();
+  for (const c of seeds()) byId.set(c.id, c);
+  for (const c of stored) byId.set(c.id, c);
+
+  cache = [...byId.values()];
+  /* Only write when the merge actually changed something, so a normal read
+     stays a read. */
+  if (stored.length !== cache.length) save();
   return cache;
 }
 

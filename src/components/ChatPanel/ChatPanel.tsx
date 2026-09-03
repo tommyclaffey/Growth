@@ -21,10 +21,10 @@ import {
 import {
   CHANNEL_LABEL, RANGE_LABEL, delta, formatMetric, isRatio, totals, type Scope,
 } from '../../data/metrics';
+import { ChannelMark } from '../ChannelMark/ChannelMark';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { Avatar } from '../Avatar/Avatar';
 import type { ChannelName } from '../../styles/tokens';
-import { CSS_CHANNEL } from '../../styles/tokens';
 
 
 export interface ChatPanelProps {
@@ -468,14 +468,18 @@ function ViewCard({ view, compact = false }: { view: ViewRef; compact?: boolean 
   const higherIsBetter = view.metric !== 'CAC';
 
   const label = view.channel === 'all' ? 'All channels' : CHANNEL_LABEL[view.channel as ChannelName];
-  const dot = view.channel === 'all'
-    ? 'var(--accent-base)'
-    : `var(--channel-${CSS_CHANNEL[view.channel]})`;
 
   return (
     <div className={`gr-viewcard ${compact ? 'is-compact' : ''}`}>
       <p className="gr-viewcard__head gr-type-caption">
-        <span className="gr-viewcard__dot" style={{ background: dot }} aria-hidden="true" />
+        {/* The mark, not a coloured dot.
+
+            A dot distinguishes a channel; it does not identify one -- you
+            either know the legend or you count colours. Everywhere else in the
+            product (channel table, campaign table, switcher) already uses the
+            real mark, so a dot here made the card look like it came from a
+            different product than the row it was quoting. */}
+        <ChannelMark channel={view.channel} size={14} />
         {label} · {RANGE_LABEL[view.range]}
       </p>
       <p className="gr-viewcard__metric gr-type-body">{view.metric}</p>

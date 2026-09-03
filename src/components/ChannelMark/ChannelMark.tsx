@@ -42,6 +42,19 @@ export interface ChannelMarkProps {
   title?: string;
 }
 
+/**
+ * `all` is not a channel, so it must not borrow a channel's colour.
+ *
+ * CSS_CHANNEL has no `all` key, so the old `?? 'meta'` fallback painted the
+ * aggregate view in META BLUE -- the roll-up of six channels wearing the brand
+ * of one of its own members. The fallback was matching on absence rather than
+ * meaning, which is the same shape as every other token bug in this project.
+ */
+function colourFor(channel: string): string {
+  if (channel === 'all') return 'var(--accent-base)';
+  return `var(--channel-${CSS_CHANNEL[channel]})`;
+}
+
 const PATHS: Record<string, ReactNode> = {
   meta: (
     <path d="M3.2 8c0-1.6 1-2.7 2.3-2.7 1 0 1.7.6 2.5 2.7s1.5 2.7 2.5 2.7c1.3 0 2.3-1.1 2.3-2.7s-1-2.7-2.3-2.7c-1 0-1.7.6-2.5 2.7S6.5 10.7 5.5 10.7C4.2 10.7 3.2 9.6 3.2 8Z"
@@ -111,7 +124,7 @@ export function ChannelMark({ channel, size = 16, title }: ChannelMarkProps) {
   return (
     <svg
       width={size} height={size} viewBox="0 0 16 16"
-      style={{ color: `var(--channel-${CSS_CHANNEL[channel] ?? 'meta'})`, flex: 'none', display: 'block' }}
+      style={{ color: colourFor(channel), flex: 'none', display: 'block' }}
       role={title ? 'img' : undefined}
       aria-label={title}
       aria-hidden={title ? undefined : true}
