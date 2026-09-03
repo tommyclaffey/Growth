@@ -9,10 +9,19 @@
   border: none; border-radius: var(--radius-sm);
   background: none; color: var(--icon-muted); cursor: pointer;
   transition: transform 140ms ease, color 140ms ease;
+  /* Closed points IN, open points DOWN -- the disclosure convention, where the
+     arrow indicates the direction content will appear rather than which way
+     the control last moved.
+
+     It was down-when-closed and up-when-open, which reads as a sort control:
+     up/down is the vocabulary of ascending and descending, and this row does
+     not sort. The glyph is drawn pointing down, so the CLOSED state is the one
+     that gets rotated. */
+  transform: rotate(-90deg);
 }
 .gr-campaigns__caret:hover { color: var(--text-primary); background: var(--surface-page-top); }
 .gr-campaigns__caret:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
-.gr-campaigns__caret.is-open { transform: rotate(180deg); color: var(--accent-text); }
+.gr-campaigns__caret.is-open { transform: rotate(0deg); color: var(--accent-text); }
 
 /* The campaign row is 2 lines, so it cannot use the 44px row height. */
 .gr-campaigns__row { height: auto; cursor: default; }
