@@ -4,7 +4,7 @@ import type { Plugin, ViteDevServer } from 'vite';
 import {
   activeWorkspace, publicView, removeWorkspace, saveWorkspace, setActive, setChannel, setLink,
 } from './slackStore.js';
-import { addSubscriber, broadcast, rawBody, verifySlack } from './slackEvents.js';
+import { addSubscriber, broadcast, eventStats, noteEvent, rawBody, subscriberCount, verifySlack } from './slackEvents.js';
 
 /**
  * Slack — multi-workspace, via OAuth.
@@ -368,6 +368,12 @@ export function slackApi(): Plugin {
               return res.end(evt.challenge);
             }
 
+            /* Counted after verification, before any filtering -- so the
+               number answers "did Slack deliver?" rather than "did we act on
+               it?". Those are different questions, and conflating them is what
+               made this failure invisible. */
+            noteEvent(evt.event?.type ?? evt.type);
+
             if (evt.event?.type === 'message' && evt.event.channel) {
               /* Any message channel, not only the mirrored one.
 
@@ -423,6 +429,11 @@ export function slackApi(): Plugin {
             return send(res, 200, {
               configured: Boolean(clientId && clientSecret && redirectUri),
               realtime: Boolean(process.env.SLACK_SIGNING_SECRET),
+              /* realtime:true only means a signing secret is set. It says
+                 nothing about whether Slack has ever pushed anything -- an app
+                 subscribed to the wrong event list looks identical. These do. */
+              ...eventStats(),
+              listeners: subscriberCount(),
               connected: Boolean(ws?.channelId) && tokenLive,
               available: Boolean(ws?.channelId) && tokenLive,
               tokenRevoked: Boolean(ws?.accessToken) && !tokenLive,

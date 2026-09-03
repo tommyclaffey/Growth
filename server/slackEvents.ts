@@ -83,6 +83,34 @@ export function broadcast(event: string, data: unknown) {
   }
 }
 
+/* ---------- delivery evidence ---------- */
+
+/**
+ * Proof that Slack has actually delivered something.
+ *
+ * The push chain has two halves and only one of them is ours. Everything from
+ * the public URL inward can be verified locally; whether Slack is SENDING is
+ * invisible from here -- an app subscribed to the wrong event list produces
+ * exactly the same silence as a broken server, and no error anywhere.
+ *
+ * That cost real time: Growth -> Slack worked, Slack -> Growth did not, and
+ * there was nothing to look at that distinguished "not delivered" from "not
+ * handled". Counting arrivals separates those two in one glance.
+ */
+let received = 0;
+let lastAt: string | null = null;
+let lastType: string | null = null;
+
+export function noteEvent(type: string) {
+  received += 1;
+  lastAt = new Date().toISOString();
+  lastType = type;
+}
+
+export function eventStats() {
+  return { eventsReceived: received, lastEventAt: lastAt, lastEventType: lastType };
+}
+
 export function subscriberCount(): number {
   return subscribers.size;
 }
