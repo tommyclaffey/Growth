@@ -86,7 +86,15 @@ export function groupMessages(messages: Message[]): Message[][] {
   for (const m of messages) {
     const last = groups[groups.length - 1];
     const sameAuthor = last && last[0].authorId === m.authorId;
-    const closeInTime = last && Math.abs(last[last.length - 1].minutesAgo - m.minutesAgo) < 10;
+    /* Measured against the group's FIRST message, not its last.
+       Comparing to the previous message let small gaps chain: 39 -> 37 -> 28
+       -> 27 -> 19 -> 11 minutes ago is eleven steps of under ten minutes and
+       one group spanning twenty-eight. The header renders group[0].time, so a
+       message sent at 11:05 was labelled 10:38.
+       Anchoring to the first message caps the whole group at the window,
+       which is the only version where the timestamp shown is true for every
+       message under it. */
+    const closeInTime = last && Math.abs(last[0].minutesAgo - m.minutesAgo) < 10;
     if (sameAuthor && closeInTime) last.push(m);
     else groups.push([m]);
   }
