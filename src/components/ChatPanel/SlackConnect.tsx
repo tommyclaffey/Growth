@@ -55,6 +55,24 @@ export function SlackConnect({ onConnected }: { onConnected: () => void }) {
     );
   }
 
+  /* Named, not silent. A revoked token used to present as a working
+     connection whose every call failed, which is indistinguishable from a
+     broken app. */
+  if (status.tokenRevoked) {
+    return (
+      <div className="gr-slack">
+        <p className="gr-type-body">Slack disconnected this workspace.</p>
+        <p className="gr-type-caption gr-slack__hint">
+          The saved token was revoked — that happens when the app is reinstalled
+          or its permissions change. Reconnecting issues a new one.
+        </p>
+        <button type="button" className="gr-slack__cta gr-type-body-medium" onClick={startInstall}>
+          Reconnect Slack
+        </button>
+      </div>
+    );
+  }
+
   if (!hasWorkspace) {
     return (
       <div className="gr-slack">

@@ -360,11 +360,35 @@ export function slackApi(): Plugin {
           /* ---- status: what the client is allowed to know ---- */
           if (req.method === 'GET' && (path === '' || path === '/status')) {
             const ws = activeWorkspace();
+
+            /* Ask Slack whether the token still works, rather than reporting
+               "connected" because one is stored.
+
+               Slack revokes tokens -- an app reinstall, a permission change, a
+               workspace admin action -- and the stored copy is unchanged when
+               it happens. This route answered connected:true against a token
+               Slack had already killed, so the UI showed a working connection
+               while every call underneath returned account_inactive. A status
+               that reports what was saved instead of what is true is worse
+               than no status. */
+            let tokenLive = false;
+            let tokenError: string | null = null;
+            if (ws?.accessToken) {
+              try {
+                await slack<{ ok: boolean }>('auth.test', ws.accessToken);
+                tokenLive = true;
+              } catch (err) {
+                tokenError = err instanceof Error ? err.message : String(err);
+                server.config.logger.warn(`[slack] stored token is not usable: ${tokenError}`);
+              }
+            }
+
             return send(res, 200, {
               configured: Boolean(clientId && clientSecret && redirectUri),
               realtime: Boolean(process.env.SLACK_SIGNING_SECRET),
-              connected: Boolean(ws?.channelId),
-              available: Boolean(ws?.channelId),
+              connected: Boolean(ws?.channelId) && tokenLive,
+              available: Boolean(ws?.channelId) && tokenLive,
+              tokenRevoked: Boolean(ws?.accessToken) && !tokenLive,
               ...publicView(),
             });
           }

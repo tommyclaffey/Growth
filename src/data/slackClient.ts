@@ -21,6 +21,8 @@ export interface WorkspaceSummary {
 }
 
 export interface SlackStatus {
+  /** A token is stored but Slack has revoked it -- reconnecting is the only fix. */
+  tokenRevoked?: boolean;
   /** Slack can push to us — the signing secret is set. */
   realtime?: boolean;
   /** The app has OAuth credentials — i.e. connecting is even possible. */
