@@ -37,6 +37,14 @@ export interface ChatPanelProps {
    */
   pending: ViewRef | null;
   onClearPending: () => void;
+  /**
+   * A conversation to open on mount, from a shared link.
+   *
+   * Applied once. Treating it as a live prop would drag the panel back to the
+   * linked thread every time the parent re-rendered, so you could not navigate
+   * away from it.
+   */
+  initialConversationId?: string | null;
 }
 
 /**
@@ -48,7 +56,7 @@ export interface ChatPanelProps {
  * "Meta CAC is up" and a screenshot of Meta CAC are different artifacts —
  * one goes stale the moment the data moves, the other does not.
  */
-export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) {
+export function ChatPanel({ onClose, pending, onClearPending, initialConversationId }: ChatPanelProps) {
   const [pendingFail, setPendingFail] = useState<string | null>(null);
   const [source, setSource] = useState<ChatSource>('seed');
   const [origin, setOrigin] = useState<{ team?: string; channel?: string }>({});
@@ -126,6 +134,19 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
   }, []);
 
   useEffect(() => { openIdRef.current = openId; }, [openId]);
+
+  /* Open the linked thread once, and only if it still exists -- a link can
+     outlive the conversation it points at, and landing on a blank thread is
+     worse than landing on the list. */
+  const applied = useRef(false);
+  useEffect(() => {
+    if (applied.current || !initialConversationId) return;
+    applied.current = true;
+    if (getConversation(initialConversationId)) {
+      setOpenId(initialConversationId);
+      markRead(initialConversationId);
+    }
+  }, [initialConversationId]);
 
   useEffect(() => {
     if (openId && source === 'slack') void syncDirect(openId);
@@ -280,7 +301,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
     if (!mirrored) {
       const recipients = open.memberIds.filter((id) => id !== ME.id);
       const { delivered, unreachable, message } = await postDirectToSlack(
-        recipients, toSlackMentions(text, slackPeople), pending);
+        recipients, toSlackMentions(text, slackPeople), pending, openId);
       /* Partial delivery is still a failure to be honest about: naming who did
          not receive it beats a silent success, which is what "message sent"
          would be for someone who never linked an account. */
@@ -297,7 +318,7 @@ export function ChatPanel({ onClose, pending, onClearPending }: ChatPanelProps) 
       return;
     }
 
-    const sent = await postToSlack(toSlackMentions(text, slackPeople), pending);
+    const sent = await postToSlack(toSlackMentions(text, slackPeople), pending, openId);
     /* A message that exists only in this browser but looks identical to one
        that reached the channel is worse than an error -- the user believes
        their team saw it. */

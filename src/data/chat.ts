@@ -113,9 +113,43 @@ export function groupMessages(messages: Message[]): Message[][] {
  * reads as something a person would send in Slack, and it is clickable, so a
  * teammate who is not looking at Growth still lands on the right screen.
  */
-export function encodeView(view: ViewRef, origin: string): string {
+export function encodeView(view: ViewRef, origin: string, conversationId?: string): string {
   const q = new URLSearchParams({ c: view.channel, m: view.metric, r: String(view.range) });
+  /* The thread rides along so the link lands you in the CONVERSATION, not just
+     on the screen. A number without the discussion around it is the least
+     useful half -- you can already see the number; what you cannot see is what
+     anyone said about it.
+
+     Appended after r so the decode regex, which anchors on c/m/r in order, is
+     unaffected by its presence or absence. */
+  if (conversationId) q.set('t', conversationId);
   return `${origin}/Growth/?${q}`;
+}
+
+export interface DeepLink {
+  view: ViewRef;
+  /** The conversation the link was shared in, when it carried one. */
+  conversationId?: string;
+}
+
+/**
+ * Read a shared link back out of a URL.
+ *
+ * This did not exist. Links were generated, posted to Slack, and then ignored
+ * on arrival -- clicking one opened Growth on the default Overview and threw
+ * the view away. The card rendered inside Growth because decodeView parses
+ * message TEXT, which hid the fact that the clickable link itself did nothing.
+ */
+export function readDeepLink(search: string): DeepLink | null {
+  const q = new URLSearchParams(search);
+  const c = q.get('c'), m = q.get('m'), r = q.get('r');
+  if (!c || !m || !r) return null;
+  const range = Number(r);
+  if (range !== 7 && range !== 30 && range !== 90) return null;
+  return {
+    view: { channel: c as ViewRef['channel'], metric: m as Metric, range },
+    conversationId: q.get('t') ?? undefined,
+  };
 }
 
 const VIEW_RE = /https?:\/\/[^\s]*\/Growth\/\?(?:[^\s]*&)?c=([a-zA-Z]+)&m=([A-Za-z]+)&r=(7|30|90)/;

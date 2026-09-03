@@ -198,9 +198,9 @@ export async function loadDirectThread(personIds: string[]): Promise<DirectThrea
 }
 
 export async function postDirectToSlack(
-  personIds: string[], text: string, view?: ViewRef | null,
+  personIds: string[], text: string, view?: ViewRef | null, conversationId?: string,
 ): Promise<DmResult> {
-  const link = view ? encodeView(view, window.location.origin) : null;
+  const link = view ? encodeView(view, window.location.origin, conversationId) : null;
   const body = link ? `${text} ${link}`.trim() : text;
   try {
     const res = await fetch('/api/slack/dm-send', {
@@ -212,10 +212,12 @@ export async function postDirectToSlack(
   } catch { return { delivered: false, unreachable: personIds }; }
 }
 
-export async function postToSlack(text: string, view?: ViewRef | null): Promise<boolean> {
+export async function postToSlack(
+  text: string, view?: ViewRef | null, conversationId?: string,
+): Promise<boolean> {
   /* The view rides along as a link, so it comes back as a card on the next
      read instead of being flattened into prose. */
-  const link = view ? encodeView(view, window.location.origin) : null;
+  const link = view ? encodeView(view, window.location.origin, conversationId) : null;
   const body = link ? `${text} ${link}`.trim() : text;
   try {
     const res = await fetch('/api/slack/messages', {

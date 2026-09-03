@@ -24,6 +24,7 @@ import {
 } from './data/metrics';
 import type { ChannelName } from './styles/tokens';
 import type { ViewRef } from './data/chat';
+import { readDeepLink } from './data/chat';
 
 export default function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -35,6 +36,37 @@ export default function App() {
   const [pendingView, setPendingView] = useState<ViewRef | null>(null);
   const [assistOpen, setAssistOpen] = useState(false);
   const enabled = useChannels();
+
+  /* A shared link, applied once on load.
+
+     Links were being generated and posted to Slack and then IGNORED on
+     arrival: clicking one opened the default Overview and dropped the view
+     entirely. It looked like it worked because the card renders inside
+     Growth's own chat -- that path parses message text, not the URL -- so the
+     one case nobody tested was the case the link exists for: a teammate
+     clicking it from Slack.
+
+     Read from the initialiser rather than an effect, so the first paint is
+     already the linked view. Applying it in an effect would render the
+     default dashboard for a frame and then jump. */
+  const [deepLink] = useState(() => readDeepLink(window.location.search));
+
+  useEffect(() => {
+    if (!deepLink) return;
+    const { channel: c, metric: m, range: r } = deepLink.view;
+    setMetric(m);
+    setRange(r);
+    if (c === 'all') { setChannel(null); setNav('overview'); }
+    else { setChannel(c as ChannelName); setNav('channels'); }
+    /* The link points at a conversation, so the conversation is the point.
+       Landing on the right chart with the chat closed would strand you one
+       click from the thing you followed the link to read. */
+    if (deepLink.conversationId) setChatOpen(true);
+
+    /* Clear the query so a refresh does not re-apply it and yank you back to
+       the linked view after you have navigated away. */
+    window.history.replaceState({}, '', window.location.pathname);
+  }, [deepLink]);
 
   /* Switching off the channel you are looking at has to move you somewhere
      that still exists. Leaving the page up would show a screen for something
@@ -262,6 +294,7 @@ export default function App() {
           onClose={() => setChatOpen(false)}
           pending={pendingView}
           onClearPending={() => setPendingView(null)}
+          initialConversationId={deepLink?.conversationId ?? null}
         />
       )}
     </div>
