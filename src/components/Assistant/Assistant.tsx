@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useOverlay } from '../../data/useOverlay';
 import './Assistant.css';
 import { SUGGESTIONS, type Answer } from '../../data/assistant';
 import { askAssistant, probeModel, type AnswerSource } from '../../data/assistantClient';
@@ -41,11 +42,12 @@ export function Assistant({ open, onClose, range }: AssistantProps) {
     if (open && hasModel === null) void probeModel().then(setHasModel);
   }, [open, hasModel]);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
-    if (open) document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  /* Escape, focus trap and focus restore -- previously only Escape.
+     aria-modal was declared on the dialog while Tab walked out into the
+     dashboard behind it, which is a containment claim the DOM did not honour;
+     and closing dropped focus to <body> rather than back to the Ask button. */
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useOverlay(open, dialogRef, onClose);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -79,6 +81,7 @@ export function Assistant({ open, onClose, range }: AssistantProps) {
   return (
     <div className="gr-assist__scrim" onClick={onClose} role="presentation">
       <div
+        ref={dialogRef}
         className="gr-assist"
         role="dialog"
         aria-modal="true"

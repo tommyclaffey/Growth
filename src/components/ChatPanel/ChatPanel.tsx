@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useOverlay } from '../../data/useOverlay';
 import './ChatPanel.css';
 import {
   loadDirectThread, loadThread, postDirectToSlack, postToSlack, subscribeToSlack,
@@ -78,7 +79,28 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
      roster the mention list is built from. */
   const [slackPeople, setSlackPeople] = useState<Person[]>([]);
   const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
+  /* Mirrored into a ref so the Escape handler can read it without being
+     rebuilt on every keystroke, which would re-register the listener. */
+  const mentionRef = useRef<typeof mention>(null);
+  useEffect(() => { mentionRef.current = mention; }, [mention]);
   const composerRef = useRef<HTMLInputElement>(null);
+
+  /* The panel had no Escape and no focus restore: closing unmounted the whole
+     subtree, so focus fell to <body> and a keyboard user was returned to the
+     top of the document, 20+ tab stops from where they were. */
+  /* Escape and focus-restore, but NOT a focus trap: the panel sits beside the
+     dashboard rather than over it, and the dashboard stays usable while it is
+     open. Trapping would confine a keyboard user to a panel they can see past.
+
+     Escape closes the mention list FIRST when one is showing. Two things
+     respond to the same key, and the innermost one wins -- closing the whole
+     panel because someone dismissed an autocomplete would lose their draft. */
+  const panelRef = useRef<HTMLElement>(null);
+  const escape = useCallback(() => {
+    if (mentionRef.current) { setMention(null); return; }
+    onClose();
+  }, [onClose]);
+  useOverlay(true, panelRef, escape, false);
 
   /* Derived above the effects because one of them depends on messages.length.
      `tick` is read here so a mutation to the conversation store -- which lives
@@ -347,7 +369,7 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
   const groups = groupMessages(messages);
 
   return (
-    <aside className="gr-chat" aria-label="Team chat">
+    <aside ref={panelRef} className="gr-chat" aria-label="Team chat">
       <header className={`gr-chat__header ${open ? "" : "is-list"}`}>
         <div className="gr-chat__head-row">
           {open && (

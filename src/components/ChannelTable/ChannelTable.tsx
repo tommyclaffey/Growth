@@ -98,7 +98,32 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
         <tbody>
           {sorted.map((r) => {
             return (
-              <tr key={r.key} className="gr-table__row" onClick={() => onRowClick?.(r.key)} tabIndex={0}>
+              /* Focusable AND activatable.
+
+                 The row took focus and showed a ring, but Enter and Space did
+                 nothing -- a keyboard user could reach every channel and open
+                 none of them, while a mouse user drilled in by clicking. The
+                 focus ring made it worse than a plainly inert row, because it
+                 advertised an interaction that was not there.
+
+                 role="button" so it announces as activatable rather than as a
+                 row that mysteriously responds, and Space is preventDefault'd
+                 because its default action is to scroll the page. */
+              <tr
+                key={r.key}
+                className="gr-table__row"
+                role={onRowClick ? 'button' : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                aria-label={onRowClick ? `Open ${r.name}` : undefined}
+                onClick={() => onRowClick?.(r.key)}
+                onKeyDown={(e) => {
+                  if (!onRowClick) return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onRowClick(r.key);
+                  }
+                }}
+              >
                 <td>
                   <span className="gr-table__channel gr-type-body-medium">
                     <ChannelMark channel={r.key} size={16} />

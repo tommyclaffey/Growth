@@ -84,8 +84,38 @@ export function Chart({
   const hovered = hover !== null ? data[hover] : null;
   const hoverX = hover !== null ? pointAt(hover).x : 0;
 
+  /* The chart's numbers, reachable without sight.
+
+     Every part of the visualisation is aria-hidden or an unlabelled <span>:
+     the axes, the bars, the line. So the section announced its own name and
+     then nothing -- the primary visualisation in the product conveyed no data
+     at all. The hover tooltip carried the only readable values and needs a
+     mouse to produce them.
+
+     A table rather than a summary sentence, because the underlying thing IS
+     tabular and a screen reader can navigate one cell by cell. Same numbers,
+     same formatter -- it cannot drift from the chart because it is built from
+     the same array. */
+  const dataTable = (
+    <table className="gr-sr-only">
+      <caption>{title ?? `${metric} over time`}</caption>
+      <thead>
+        <tr><th scope="col">Date</th><th scope="col">{metric}</th></tr>
+      </thead>
+      <tbody>
+        {data.map((d, i) => (
+          <tr key={i}>
+            <th scope="row">{d.label}</th>
+            <td>{formatMetric(metric, d.value)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
   return (
     <section className="gr-chart" aria-label={title ?? `${metric} over time`}>
+      {dataTable}
       <header className="gr-chart__header">
         <h3 className="gr-chart__title gr-type-card-heading">{title ?? `${metric} over time`}</h3>
         <MetricToggle value={metric} onChange={(m) => onMetricChange?.(m)} />
@@ -189,10 +219,17 @@ export function Chart({
                       aria-hidden="true"
                     />
                   )}
+                  {/* No role="status". onMouseMove fires per pixel of travel, so
+                      a live region here queued an announcement for every index
+                      crossed -- one sweep across the chart floods the speech
+                      queue with thirty readings nobody asked for. It is
+                      pointer-only UI; the table above is what serves AT. The
+                      loading and error states keep their live region, because
+                      those are state changes a user needs told about. */}
                   <div
                     className="gr-chart__tip"
                     style={{ left: `${hoverX}%` }}
-                    role="status"
+                    aria-hidden="true"
                   >
                     <span className="gr-chart__tip-label gr-type-micro">{hovered.label}</span>
                     <span className="gr-chart__tip-value gr-type-caption-med">

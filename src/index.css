@@ -169,3 +169,23 @@ body {
      nothing to push against, and leaving it in reserves a column of dead space. */
   .gr-toolbar__spacer { display: none; }
 }
+
+
+/* Visually hidden, still announced. A GLOBAL utility, so it lives with the
+   global styles.
+
+   It was defined inside KpiCard.css while seven components used it -- Chart,
+   DeltaBadge, ChannelWordmark, Notifications and others. Nothing enforced that
+   KpiCard's stylesheet was loaded, so deleting one component, or a bundler
+   dropping an unreferenced import, would have turned every screen-reader-only
+   string in the product into visible text. A utility owned by a component is
+   a utility one refactor away from vanishing. */
+.gr-sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
