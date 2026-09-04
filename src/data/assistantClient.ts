@@ -46,8 +46,31 @@ export async function probeModel(): Promise<boolean> {
 /** Cached after the first miss so a static build stops re-attempting the fetch. */
 let endpointAvailable: boolean | null = null;
 
+/**
+ * The local engine, wrapped so it can never be the thing that breaks.
+ *
+ * ask() is the FALLBACK, and it was being called from three places -- once
+ * before the try block and twice inside catch handlers -- so when it threw, the
+ * throw escaped every one of them. Assistant.tsx has no try/finally, so
+ * setPending(null) never ran and the panel sat on its spinner, rejecting every
+ * later question for the life of the session. One bad answer bricked the
+ * feature.
+ *
+ * A fallback that can throw is not a fallback.
+ */
+function askSafely(question: string, range: Range): Answer {
+  try {
+    return ask(question, range);
+  } catch {
+    return {
+      answered: false,
+      text: 'I could not work that one out. Try naming a channel and a metric — for example, "Meta CAC over the last 30 days".',
+    };
+  }
+}
+
 export async function askAssistant(question: string, range: Range): Promise<Reply> {
-  if (endpointAvailable === false) return { answer: ask(question, range), source: 'local' };
+  if (endpointAvailable === false) return { answer: askSafely(question, range), source: 'local' };
 
   try {
     const res = await fetch('/api/assistant', {
@@ -60,16 +83,16 @@ export async function askAssistant(question: string, range: Range): Promise<Repl
       /* 503 means the endpoint is there but unconfigured — a missing key, not a
          missing server. Keep trying: the key can appear on the next restart. */
       if (res.status !== 503) endpointAvailable = false;
-      return { answer: ask(question, range), source: 'local' };
+      return { answer: askSafely(question, range), source: 'local' };
     }
 
     const data = (await res.json()) as Answer;
     endpointAvailable = true;
     /* An empty response body is a failure that returned 200. Treat it as one. */
-    if (!data.text?.trim()) return { answer: ask(question, range), source: 'local' };
+    if (!data.text?.trim()) return { answer: askSafely(question, range), source: 'local' };
     return { answer: data, source: 'model' };
   } catch {
     endpointAvailable = false;
-    return { answer: ask(question, range), source: 'local' };
+    return { answer: askSafely(question, range), source: 'local' };
   }
 }

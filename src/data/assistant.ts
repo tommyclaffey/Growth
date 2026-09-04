@@ -117,15 +117,37 @@ export function ask(question: string, range: Range): Answer {
 
   /* "which channel has the best/worst X" — a ranking question. */
   if (metric && /\bwhich\b|\bbest\b|\bworst\b|\btop\b|\bhighest\b|\blowest\b/i.test(q)) {
-    const wantWorst = /\bworst\b|\blowest\b/i.test(q) !== lowerIsBetter(metric);
+    /* Two different questions wearing similar words.
+
+       "highest" and "lowest" ask about MAGNITUDE. "best" and "worst" ask about
+       QUALITY, which for a cost metric is the opposite of magnitude. The old
+       line XORed the two together, so for CAC it inverted the direction words:
+       "which channel has the highest CAC" answered TikTok at $33.38 -- the
+       cheapest -- and "lowest CAC" answered Podcasts at $128.80. Both stated as
+       fact, with evidence rows attached. Kept apart now, because they are not
+       the same question. */
+    const wantsSmallest = /\bhighest\b|\blowest\b/i.test(q)
+      ? /\blowest\b/i.test(q)
+      : /\bworst\b/i.test(q) ? !lowerIsBetter(metric) : lowerIsBetter(metric);
+
     const ranked = [...activeChannels()].sort((a, b) => {
       const d = valueOf(a, metric, range) - valueOf(b, metric, range);
-      return wantWorst ? d : -d;
+      return wantsSmallest ? d : -d;
     });
     const [first, second] = ranked;
+    if (!first) return { answered: false, text: '' };
+
+    /* "leads on" was hardcoded, so asking for the WORST ROAS produced
+       "Podcasts leads on ROAS at 2.1x, ahead of YouTube at 3.1x" -- a sentence
+       asserting the reverse of the two numbers inside it. Say which end of the
+       range this is and let the reader judge it. */
+    const superlative = wantsSmallest ? 'lowest' : 'highest';
+    const tail = second
+      ? `, followed by ${CHANNEL_LABEL[second]} at ${formatMetric(metric, valueOf(second, metric, range))}`
+      : '';
     return {
       answered: true,
-      text: `${CHANNEL_LABEL[first]} leads on ${metric} over the ${period} at ${formatMetric(metric, valueOf(first, metric, range))}, ahead of ${CHANNEL_LABEL[second]} at ${formatMetric(metric, valueOf(second, metric, range))}.`,
+      text: `${CHANNEL_LABEL[first]} has the ${superlative} ${metric} over the ${period} at ${formatMetric(metric, valueOf(first, metric, range))}${tail}.`,
       evidence: ranked.slice(0, 3).map((k) => ({
         label: `${CHANNEL_LABEL[k]} ${metric}`,
         value: formatMetric(metric, valueOf(k, metric, range)),

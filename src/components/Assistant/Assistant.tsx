@@ -58,12 +58,22 @@ export function Assistant({ open, onClose, range }: AssistantProps) {
     if (!q || pending) return;
     setDraft('');
     setPending(q);
-    const { answer, source: src } = await askAssistant(q, range);
-    /* The probe can be optimistic — a key can be present but the call can still
-       fail and fall back. Let what actually happened correct the claim. */
-    if (src === 'local' && hasModel) setHasModel(false);
-    setPending(null);
-    setTurns((prev) => [...prev, { id: prev.length, question: q, answer, source: src }]);
+    /* `finally`, because the guard above is `if (!q || pending) return` -- so if
+       setPending(null) is ever skipped, the panel does not just lose one
+       answer, it refuses every question for the rest of the session. A stuck
+       spinner is indistinguishable from a hung app.
+
+       askSafely() removes the known throw; this makes the state machine
+       recover from ones nobody has thought of yet. */
+    try {
+      const { answer, source: src } = await askAssistant(q, range);
+      /* The probe can be optimistic — a key can be present but the call can still
+         fail and fall back. Let what actually happened correct the claim. */
+      if (src === 'local' && hasModel) setHasModel(false);
+      setTurns((prev) => [...prev, { id: prev.length, question: q, answer, source: src }]);
+    } finally {
+      setPending(null);
+    }
   }
 
   return (

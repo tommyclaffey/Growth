@@ -136,7 +136,17 @@ export default function App() {
         };
       }),
     };
-  }, [scope, metric, range]);
+    /* `enabled` is not read in this body, but it MUST be a dependency.
+
+       totals() and activeChannels() read the channel set from module state,
+       which useChannels() mutates -- so the value this memo returns depends on
+       something React cannot see. Without it, toggling a channel off in
+       Settings left Overview showing the cached six-channel object: total spend
+       computed on 6 while the delta badge beside it recomputed on 5, a table
+       row for a channel Settings said was removed, and an Export that wrote 5
+       channels next to a table showing 6. Nothing recovered it but a reload or
+       a range change. */
+  }, [scope, metric, range, enabled]);
 
   const onChannelScreen = channel !== null;
   const title = onChannelScreen ? CHANNEL_LABEL[channel] : navTitle(nav);
