@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useMenu } from '../../data/useMenu';
 import './StatusMenu.css';
 import { StatusPill, type Stage } from '../StatusPill/StatusPill';
 
@@ -22,19 +23,9 @@ export function StatusMenu({ value, onChange, disabled = false }: StatusMenuProp
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setOpen(false); }
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  /* Outside-click, Escape with focus restore, and arrow-key navigation.
+     All three menus declared role="listbox" and implemented none of it. */
+  useMenu(open, setOpen, wrap);
 
   return (
     <div className="gr-statusmenu" ref={wrap}>

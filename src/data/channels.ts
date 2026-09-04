@@ -19,10 +19,11 @@ function read(): ChannelName[] {
     const raw = localStorage.getItem(KEY);
     if (!raw) return [...CHANNEL_KEYS];
     const parsed = JSON.parse(raw) as string[];
-    const valid = CHANNEL_KEYS.filter((k) => parsed.includes(k));
-    /* An empty set would leave a dashboard with nothing on it and no obvious
-       way back, so it is treated as unset rather than honoured. */
-    return valid.length ? valid : [...CHANNEL_KEYS];
+    /* An explicitly saved empty array is honoured. Absent (`!raw` above) means
+       never chosen and defaults to everything; `[]` means chosen, and
+       overriding a deliberate choice on reload is how a setting stops being
+       believed. The screens have an empty state for exactly this. */
+    return CHANNEL_KEYS.filter((k) => parsed.includes(k));
   } catch {
     return [...CHANNEL_KEYS];
   }
@@ -33,7 +34,17 @@ function read(): ChannelName[] {
 setActiveChannels(read());
 
 export function setChannels(keys: ChannelName[]) {
-  const next = keys.length ? keys : [...CHANNEL_KEYS];
+  /* Turning the last channel off used to turn all six back ON.
+
+     The guard was meant to stop an empty dashboard, and the cure was stranger
+     than the disease: you switch one thing off and six things switch on, which
+     is not what a toggle appears to promise. It also made the empty state
+     unreachable, so a designed state had no path to it.
+
+     Empty is now allowed. It is a real thing a user can do, the screens have
+     an empty state built for exactly this, and a product that silently
+     overrides a deliberate choice is worse than one that shows nothing. */
+  const next = keys;
   try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* quota */ }
   setActiveChannels(next);
   window.dispatchEvent(new Event(CHANGED));

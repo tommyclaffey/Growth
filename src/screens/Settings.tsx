@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { setWorkspaceName } from '../data/profile';
 import './screens.css';
 import { setDemoState, useDemoState, type DemoState } from '../data/demoState';
 import { Toggle } from '../components/Toggle/Toggle';
@@ -204,8 +205,12 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
             <h3 className="gr-card__title gr-type-card-heading">Workspace</h3>
           </header>
           <div className="gr-settings__fields">
-            <FormField label="Workspace name" value={workspace} onChange={setWorkspace}
-                       hint="Shown in the sidebar and on exports" />
+            {/* The hint used to be false in both halves: the sidebar hardcoded
+                GROWTH and the CSV never read this. Both are wired now, so the
+                field does what it says. */}
+            <FormField label="Workspace name" value={workspace}
+                       onChange={(v) => { setWorkspace(v); setWorkspaceName(v); }}
+                       hint="Shown in the sidebar and in exported file names" />
             <FormField label="Digest recipients" type="email" value={digestTo} onChange={setDigestTo}
                        placeholder="name@company.com"
                        error={digestTo.length > 0 && !digestTo.includes('@')

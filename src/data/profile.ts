@@ -187,3 +187,36 @@ export function renderCrop(img: HTMLImageElement, crop: Crop): string {
   ctx.drawImage(img, (AVATAR_PX - w) / 2 + crop.x * k, (AVATAR_PX - h) / 2 + crop.y * k, w, h);
   return canvas.toDataURL('image/jpeg', 0.86);
 }
+
+
+/* ---------- workspace name ----------
+
+   Settings promised this was "shown in the sidebar and on exports" and it was
+   shown in neither -- the sidebar hardcoded GROWTH and the CSV never read it.
+   A field that claims an effect it does not have is worse than a disabled one,
+   because the user only finds out by checking. Made true rather than removed:
+   the claim was a reasonable thing to want. */
+const WORKSPACE_KEY = 'growth.workspace';
+const WORKSPACE_CHANGED = 'growth:workspace-changed';
+export const DEFAULT_WORKSPACE = 'Growth';
+
+export function workspaceName(): string {
+  try { return localStorage.getItem(WORKSPACE_KEY) || DEFAULT_WORKSPACE; }
+  catch { return DEFAULT_WORKSPACE; }
+}
+
+export function setWorkspaceName(name: string) {
+  const next = name.trim() || DEFAULT_WORKSPACE;
+  try { localStorage.setItem(WORKSPACE_KEY, next); } catch { /* quota */ }
+  window.dispatchEvent(new Event(WORKSPACE_CHANGED));
+}
+
+export function useWorkspaceName(): string {
+  const [n, setN] = useState(workspaceName);
+  useEffect(() => {
+    const sync = () => setN(workspaceName());
+    window.addEventListener(WORKSPACE_CHANGED, sync);
+    return () => window.removeEventListener(WORKSPACE_CHANGED, sync);
+  }, []);
+  return n;
+}

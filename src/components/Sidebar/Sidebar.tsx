@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import './Sidebar.css';
 import { Avatar } from '../Avatar/Avatar';
 import { ME, ME_ROLE } from '../../data/chat';
-import { useAvatarFor } from '../../data/profile';
+import { useAvatarFor, useWorkspaceName } from '../../data/profile';
 
 export type NavKey = 'overview' | 'channels' | 'campaigns' | 'reports' | 'notifications' | 'settings';
 
@@ -41,7 +41,7 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
                   strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </span>
-        <span className="gr-sidebar__wordmark gr-type-brand">GROWTH</span>
+        <span className="gr-sidebar__wordmark gr-type-brand">{useWorkspaceName().toUpperCase()}</span>
       </div>
 
       <ul className="gr-sidebar__list">

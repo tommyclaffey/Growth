@@ -2,6 +2,7 @@ import {
   CHANNEL_LABEL, activeChannels, rows, totals,
   type Range, type Scope,
 } from './metrics';
+import { workspaceName } from './profile';
 import type { ChannelName } from '../styles/tokens';
 
 /**
@@ -70,6 +71,7 @@ export function buildCsv(scope: Scope, range: Range): string {
 
 export function downloadCsv(scope: Scope, range: Range): void {
   const csv = buildCsv(scope, range);
+  const workspace = workspaceName().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const name = scope === 'all' ? 'all-channels' : scope.toLowerCase();
   const stamp = new Date().toISOString().slice(0, 10);
 
@@ -77,7 +79,9 @@ export function downloadCsv(scope: Scope, range: Range): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `growth-${name}-${range}d-${stamp}.csv`;
+  /* The workspace name, not a hardcoded "growth-". This literal is what
+     made the Settings hint false for exports. */
+  a.download = `${workspace}-${name}-${range}d-${stamp}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useMenu } from '../../data/useMenu';
 import './ChannelSwitcher.css';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
 import { CHANNEL_LABEL, activeChannels } from '../../data/metrics';
@@ -31,21 +32,9 @@ export function ChannelSwitcher({ value, onChange }: ChannelSwitcherProps) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDocDown(e: MouseEvent) {
-      if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
-    }
-    document.addEventListener('mousedown', onDocDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDocDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  /* Outside-click, Escape with focus restore, and arrow-key navigation.
+     All three menus declared role="listbox" and implemented none of it. */
+  useMenu(open, setOpen, wrap);
 
   function pick(next: ChannelName | null) {
     onChange(next);
