@@ -331,8 +331,25 @@ export function delta(scope: Scope, metric: Metric, range: Range = 30): number {
  */
 export function sparkline(scope: Scope, metric: Metric, range: Range = 30, points = 7): number[] {
   const s = series(scope, metric, range).map((d) => d.value);
-  const step = Math.max(1, Math.floor(s.length / points));
-  return Array.from({ length: points }, (_, i) => s[Math.min(i * step, s.length - 1)]);
+  if (s.length <= points) return s;
+
+  /* Spread the samples across the WHOLE series, last point included.
+
+     It was `i * step` with step = floor(length / points), which walks from 0
+     and stops early: at 30 days it read indices 0,4..24 and never saw the last
+     5; at 90 days step is 12, so it stopped at index 72 and the most recent
+     17 days were invisible.
+
+     That is not a rounding detail. delta() compares the full series, so on a
+     90-day view where a channel collapses in its final fortnight the badge went
+     red while the sparkline beside it -- blind to those days -- still trended
+     up. Two marks describing one series, disagreeing, in both the KPI card and
+     the table's trend column.
+
+     Dividing by (points - 1) makes the last sample land exactly on the last
+     index, so the mark ends where the number does. */
+  const stride = (s.length - 1) / (points - 1);
+  return Array.from({ length: points }, (_, i) => s[Math.round(i * stride)]);
 }
 
 /** The raw funnel rows behind a view, with their labels. Used by the export. */

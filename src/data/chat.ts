@@ -1,6 +1,7 @@
 import mayaPhoto from '../assets/maya.jpg';
 import type { ChannelName } from '../styles/tokens';
 import type { Metric, Range } from './metrics';
+import { CHANNEL_KEYS, METRICS, RANGES } from './metrics';
 
 export interface Member {
   id: string;
@@ -149,16 +150,36 @@ export interface DeepLink {
  * the view away. The card rendered inside Growth because decodeView parses
  * message TEXT, which hid the fact that the clickable link itself did nothing.
  */
+/* Validate against the real lists rather than casting and hoping.
+
+   `range` was checked and the other two were blind casts, so ?c=xx WHITE-
+   SCREENED the app: setChannel('xx') -> totals('xx') -> SERIES['xx'] is
+   undefined -> undefined.slice() throws DURING RENDER, React unmounts the
+   tree, and the isActive guard is an effect so it cannot run in time. ?m=Bogus
+   was quieter and worse -- series() has no default branch, so every point came
+   back undefined and the chart rendered "$NaN" with nothing thrown.
+
+   A URL is untrusted input, and this one arrives from Slack, where anyone in
+   the channel can type it. */
+function asChannel(v: string | null): ViewRef['channel'] | null {
+  if (v === 'all') return 'all';
+  return (CHANNEL_KEYS as readonly string[]).includes(v ?? '') ? (v as ViewRef['channel']) : null;
+}
+function asMetric(v: string | null): Metric | null {
+  return (METRICS as readonly string[]).includes(v ?? '') ? (v as Metric) : null;
+}
+function asRange(v: string | null): Range | null {
+  const n = Number(v);
+  return (RANGES as readonly number[]).includes(n) ? (n as Range) : null;
+}
+
 export function readDeepLink(search: string): DeepLink | null {
   const q = new URLSearchParams(search);
-  const c = q.get('c'), m = q.get('m'), r = q.get('r');
-  if (!c || !m || !r) return null;
-  const range = Number(r);
-  if (range !== 7 && range !== 30 && range !== 90) return null;
-  return {
-    view: { channel: c as ViewRef['channel'], metric: m as Metric, range },
-    conversationId: q.get('t') ?? undefined,
-  };
+  const channel = asChannel(q.get('c'));
+  const metric = asMetric(q.get('m'));
+  const range = asRange(q.get('r'));
+  if (!channel || !metric || !range) return null;
+  return { view: { channel, metric, range }, conversationId: q.get('t') ?? undefined };
 }
 
 /* The trailing (?:&[^\s]*)? is load-bearing.
@@ -178,8 +199,12 @@ export function decodeView(text: string): { view: ViewRef; text: string } | null
   const [full, channel, metric, range] = m;
   /* Strip the URL from the body — the card renders it, and leaving the raw
      link in as well shows the same thing twice. */
+  const ch = asChannel(channel), mt = asMetric(metric), rg = asRange(range);
+  /* Same validation as readDeepLink. This input is a Slack message, so it is
+     even less trustworthy than the URL: an unrecognised card is not a card. */
+  if (!ch || !mt || !rg) return null;
   return {
-    view: { channel: channel as ViewRef['channel'], metric: metric as Metric, range: Number(range) as Range },
+    view: { channel: ch, metric: mt, range: rg },
     text: text.replace(full, '').replace(/\s{2,}/g, ' ').trim(),
   };
 }
