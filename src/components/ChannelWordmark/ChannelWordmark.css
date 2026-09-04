@@ -1,6 +1,12 @@
-/* Tight. The mark labels the name, so it belongs to it -- at 10 and 12px it
-   read as two separate things sitting near each other. */
-.gr-wordmark { display: inline-flex; align-items: center; gap: var(--space-8); }
+/* 4px. The mark is part of the name, not a neighbour of it.
+
+   This has come down 12 -> 10 -> 8 -> 4. Worth recording why the earlier
+   values kept reading as too wide: the mark is 26px and the caps beside it are
+   ~15px, so the icon's own bounding box already carries roughly 5px of visual
+   air above and below the letterforms. The OPTICAL gap is always wider than
+   the declared one, and matching the declared gap to the spacing scale by
+   eye ignores that. */
+.gr-wordmark { display: inline-flex; align-items: center; gap: var(--space-4); }
 
 /* Matched on CAP HEIGHT, not box height.
    Each brand's export carries its own padding — Meta's lockup is 113x23 and
