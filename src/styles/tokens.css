@@ -14,6 +14,29 @@
    A component that reaches past tier 2 into a primitive is a bug.
    ============================================================ */
 
+/* Light-mode contrast, measured rather than judged.
+
+   --text-muted was neutral-400 (#9A9AA6): 2.78:1 on a card, 2.48:1 on
+   page-top, against a WCAG AA requirement of 4.5:1 for body text. It is the
+   colour of every caption, axis label, timestamp and hint in the product --
+   the single most-used text token, and the one that failed hardest.
+
+   The three semantic pairs failed too: good 2.80:1, warn 2.99:1, bad 3.42:1,
+   all at 12px. The dark-mode equivalents pass at 5.6-7.2:1, which is the tell
+   -- the light pairs were never measured, they were matched by eye against a
+   dark comp where the same hues happen to work.
+
+   Fixed by extending the ramps rather than by overriding the semantic layer
+   with hex. green/red/amber jumped 500 -> 900, and 900 renders a status pill
+   nearly black at ~12:1; the new 700 steps hold hue and saturation and land at
+   4.6:1. The tier rule survives: semantics still alias primitives.
+
+   Dark mode's semantic pairs were already fine (5.6-7.2:1) and are untouched.
+   Its --text-muted was NOT -- neutral-500 gives 3.71:1 on a dark card. I wrote
+   "dark already passes" in this comment before measuring that specific token,
+   which is the same mistake as every other one recorded in this repo: asserting
+   a property adjacent to the one actually checked. It is neutral-400 now
+   (6.40:1), and the measurement is in the commit rather than the claim. */
 :root {
   /* ---------- TIER 1 · PRIMITIVES ------------------------------------
      Values live here and nowhere else. Change a brand colour once. */
@@ -61,14 +84,17 @@
   --green-100: #E4F5EC;
   --green-400: #3ECF8E;
   --green-500: #17A56B;
+  --green-700:      #117C50;   /* AA on --green-100 (4.6:1) */
   --green-900: #12301F;
   --red-100:   #FBEBEB;
   --red-400:   #FF6B6B;
   --red-500:   #E14B4B;
+  --red-700:        #D02323;   /* AA on --red-100 (4.6:1) */
   --red-900:   #3A1A1E;
   --amber-100: #FBF0E1;
   --amber-400: #E9A44C;
   --amber-600: #C9791A;
+  --amber-700:      #9D5E14;   /* AA on --amber-100 (4.6:1) */
   --amber-900: #3A2A16;
 
   /* channel identity — externally owned brand colours.
@@ -153,7 +179,7 @@
 [data-theme='light'] {
   --text-primary:   var(--neutral-900);
   --text-secondary: var(--neutral-550);
-  --text-muted:     var(--neutral-400);
+  --text-muted:     var(--neutral-550);
   --text-disabled:  var(--neutral-300);
 
   --surface-page-top:    var(--neutral-100);
@@ -185,11 +211,11 @@
   --icon-active-soft: var(--violet-400);
   --icon-on-accent:   var(--neutral-0);
 
-  --semantic-good:    var(--green-500);
+  --semantic-good:    var(--green-700);
   --semantic-good-bg: var(--green-100);
-  --semantic-bad:     var(--red-500);
+  --semantic-bad:     var(--red-700);
   --semantic-bad-bg:  var(--red-100);
-  --semantic-warn:    var(--amber-600);
+  --semantic-warn:    var(--amber-700);
   --semantic-warn-bg: var(--amber-100);
 
   /* channel identity. The -soft pair is the shaded bottom of a bar gradient. */
@@ -222,7 +248,7 @@
 [data-theme='dark'] {
   --text-primary:   var(--neutral-75);
   --text-secondary: var(--neutral-350);
-  --text-muted:     var(--neutral-500);
+  --text-muted:     var(--neutral-400);
   --text-disabled:  var(--neutral-650);
 
   --surface-page-top:    var(--neutral-950);
