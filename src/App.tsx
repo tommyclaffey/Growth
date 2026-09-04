@@ -10,6 +10,7 @@ import { ThemeToggle } from './components/ThemeToggle/ThemeToggle';
 import { ChannelSwitcher } from './components/ChannelSwitcher/ChannelSwitcher';
 import { ChannelWordmark } from './components/ChannelWordmark/ChannelWordmark';
 import { useChannels } from './data/channels';
+import { useDemoState } from './data/demoState';
 import { RangePicker } from './components/RangePicker/RangePicker';
 import { ChatPanel } from './components/ChatPanel/ChatPanel';
 import { Assistant } from './components/Assistant/Assistant';
@@ -53,6 +54,9 @@ export default function App() {
   const [pendingView, setPendingView] = useState<ViewRef | null>(null);
   const [assistOpen, setAssistOpen] = useState(false);
   const enabled = useChannels();
+  /* Drives the loading/error/empty states, which are otherwise unreachable —
+     the data layer is synchronous, so nothing here can be slow or fail. */
+  const demo = useDemoState();
 
   /* A shared link, applied once on load.
 
@@ -251,28 +255,29 @@ export default function App() {
           {showDashboard && (
             <>
               <div className="gr-kpi-row">
-                <KpiCard onDiscuss={() => shareMetric('Spend')} label="Total spend"
+                <KpiCard loading={demo === 'loading'} error={demo === 'error'} onDiscuss={() => shareMetric('Spend')} label="Total spend"
                          value={formatMetric('Spend', view.totals.spend)}
                          deltaPercent={delta(scope, 'Spend', range)}
                          sparkline={sparkline(scope, 'Spend', range)}
                          metric="Spend" channel={scope} />
-                <KpiCard onDiscuss={() => shareMetric('Leads')} label="Total leads"
+                <KpiCard loading={demo === 'loading'} error={demo === 'error'} onDiscuss={() => shareMetric('Leads')} label="Total leads"
                          value={formatMetric('Leads', view.totals.leads)}
                          deltaPercent={delta(scope, 'Leads', range)}
                          sparkline={sparkline(scope, 'Leads', range)}
                          metric="Leads" channel={scope} />
-                <KpiCard onDiscuss={() => shareMetric('CAC')} higherIsBetter={false}
+                <KpiCard loading={demo === 'loading'} error={demo === 'error'} onDiscuss={() => shareMetric('CAC')} higherIsBetter={false}
                          label={onChannelScreen ? 'CAC' : 'Blended CAC'}
                          value={formatMetric('CAC', view.totals.cac)}
                          deltaPercent={delta(scope, 'CAC', range)}
                          sparkline={sparkline(scope, 'CAC', range)}
                          metric="CAC" channel={scope} />
-                <KpiCard onDiscuss={() => shareMetric('ROAS')} label={onChannelScreen ? 'ROAS' : 'Blended ROAS'}
+                <KpiCard loading={demo === 'loading'} error={demo === 'error'} onDiscuss={() => shareMetric('ROAS')} label={onChannelScreen ? 'ROAS' : 'Blended ROAS'}
                          value={formatMetric('ROAS', view.totals.roas)}
                          deltaPercent={delta(scope, 'ROAS', range)}
                          sparkline={sparkline(scope, 'ROAS', range)}
                          metric="ROAS" channel={scope} />
-                <KpiCard label="Pace to target" value="64%" progress={0.64} />
+                <KpiCard label="Pace to target" value="64%" progress={0.64}
+                         loading={demo === 'loading'} error={demo === 'error'} />
               </div>
 
               <InfoStrip
@@ -297,6 +302,7 @@ export default function App() {
                 metric={metric}
                 onMetricChange={setMetric}
                 data={view.data}
+                state={demo}
               />
 
               {onChannelScreen && <CampaignTable channel={channel} wideColumns={!chatOpen} />}

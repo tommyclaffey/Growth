@@ -111,3 +111,23 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
    activated, and these rows cannot. */
 .gr-report-row { height: 44px; }
 .gr-report-actions { text-align: right; }
+
+/* Simulate-state control. A radiogroup, not a set of toggles: the states are
+   mutually exclusive, and four independent switches would let someone select
+   "loading AND error" — a combination the components cannot render. */
+.gr-demo-states { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+.gr-demo-states__btn {
+  height: 32px; padding: 0 var(--space-12);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card); color: var(--text-secondary);
+  font: 500 13px/20px var(--font-sans); cursor: pointer;
+}
+.gr-demo-states__btn:hover { border-color: var(--accent-base); }
+.gr-demo-states__btn.is-on {
+  background: var(--accent-base); border-color: var(--accent-base);
+  color: var(--brand-on-accent);
+}
+.gr-demo-states__btn:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px;
+}

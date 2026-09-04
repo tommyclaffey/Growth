@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './screens.css';
+import { setDemoState, useDemoState, type DemoState } from '../data/demoState';
 import { Toggle } from '../components/Toggle/Toggle';
 import { Badge } from '../components/Badge/Badge';
 import { FormField } from '../components/FormField/FormField';
@@ -25,6 +26,7 @@ export interface SettingsProps {
 }
 
 export function Settings({ theme, onThemeChange }: SettingsProps) {
+  const demo = useDemoState();
   const backend = useBackend();
   const enabled = useChannels();
   const [connected, setConnected] = useState<Set<ChannelName>>(
@@ -229,6 +231,43 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
               label="Dark mode"
               labelHidden
             />
+          </div>
+        </section>
+
+        {/* Labelled as a demonstration, because that is what it is.
+
+            The loading, error and empty states are built and were unreachable:
+            the data layer is synchronous seeded computation, so there is no
+            request to be slow and nothing to fail. Faking latency with a
+            setTimeout would have been worse -- it slows the product
+            permanently to show something occasionally, and it misrepresents
+            where the states come from. */}
+        <section className="gr-card">
+          <h2 className="gr-type-section">Component states</h2>
+          <p className="gr-type-caption gr-settings__hint">
+            The dashboard&rsquo;s data is generated locally, so it never loads or fails on its own.
+            Switch states here to see how the KPI cards and chart behave. Resets on reload.
+          </p>
+
+          <div className="gr-setting-row">
+            <span className="gr-setting-row__text">
+              <strong className="gr-type-body-medium">Simulate state</strong>
+              <span className="gr-type-caption">Applies to the Overview and channel screens</span>
+            </span>
+            <div className="gr-demo-states" role="radiogroup" aria-label="Simulate component state">
+              {(['ready', 'loading', 'error', 'empty'] as DemoState[]).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  role="radio"
+                  aria-checked={demo === v}
+                  className={`gr-demo-states__btn ${demo === v ? 'is-on' : ''}`}
+                  onClick={() => setDemoState(v)}
+                >
+                  {v[0].toUpperCase() + v.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
         </section>
       </div>
