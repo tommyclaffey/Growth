@@ -89,13 +89,13 @@ body {
    switcher, range, theme, Ask, Chat, Export -- moved vertically when you
    switched between them.
 
-   30px is the tallest of the four, so every channel now occupies the same
+   36px is the tallest of the four, so every channel now occupies the same
    slot and the lockup is centred inside it. The controls hold still, which is
    what makes switching channels read as the same page rather than a reload. */
 .gr-toolbar__title h1 {
   margin: 0;
   color: var(--text-primary);
-  height: 30px;
+  height: 36px;
   display: flex;
   align-items: center;
 }
