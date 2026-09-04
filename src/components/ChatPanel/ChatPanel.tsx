@@ -137,6 +137,13 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
 
   useEffect(() => { openIdRef.current = openId; }, [openId]);
 
+  /* A delivery failure belongs to the conversation it happened in.
+     pendingFail was never cleared on navigation, and the `source !== 'slack'`
+     early return skips every clear path, so the banner followed you into
+     unrelated threads and reported a failure that had nothing to do with
+     them. */
+  useEffect(() => { setPendingFail(null); }, [openId]);
+
   /* Open the linked thread once, and only if it still exists -- a link can
      outlive the conversation it points at, and landing on a blank thread is
      worse than landing on the list. */
@@ -285,6 +292,9 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
       time: nowLabel(),
       minutesAgo: 0,
       view: pending ?? undefined,
+      /* Pending until Slack echoes it back. This is what stops the 3s sync
+         from treating a message Slack never received as one it deleted. */
+      pending: true,
     });
     setDraft('');
     setTick((n) => n + 1);
@@ -324,7 +334,11 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
     /* A message that exists only in this browser but looks identical to one
        that reached the channel is worse than an error -- the user believes
        their team saw it. */
-    if (!sent) { setPendingFail(text); return; }
+    /* This passed the message BODY as the failure notice. Harmless while the
+       banner rendered a hardcoded string and ignored its argument; the moment
+       the real value is rendered it would print what the user just typed as
+       though it were an error. */
+    if (!sent) { setPendingFail('Not delivered to the Slack channel. Saved here.'); return; }
     setPendingFail(null);
     await refresh();
   }
@@ -486,10 +500,13 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
         {/* Named where it happened. A failed post used to be appended to the
             message body as "(not delivered)", which edits what the person
             wrote in order to report a delivery fact. */}
+        {/* The four cases below compute genuinely different sentences -- nobody
+            linked an account, some of the group did not, a send failed
+            outright. All four were being discarded and replaced with one
+            hardcoded string, so a message delivered to two people out of three
+            reported "Not delivered". Say the thing that was worked out. */}
         {pendingFail && (
-          <p className="gr-chat__failed gr-type-caption" role="alert">
-            Not delivered to Slack. It is saved here.
-          </p>
+          <p className="gr-chat__failed gr-type-caption" role="alert">{pendingFail}</p>
         )}
       </div></>}
     </aside>

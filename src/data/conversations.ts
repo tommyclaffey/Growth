@@ -299,8 +299,25 @@ export function replaceMessages(id: string, messages: Message[]) {
 
        Clamped only so a shorter list -- an edit, a deletion, a narrower
        history window -- cannot leave readCount pointing past the end. */
-    c.messages = messages;
-    c.readCount = Math.min(c.readCount, messages.length);
+    /* MERGE, not overwrite.
+
+       Slack is the authority for what Slack holds -- it is not the authority
+       for messages it never received. Overwriting wholesale deleted exactly
+       those: send a DM that fails, watch the banner say "saved here", and three
+       seconds later the sync replaced the array with Slack's copy and the
+       message was gone, including from localStorage on the next save.
+
+       So anything still `pending` survives, unless the incoming list contains
+       it -- which is how a message that DID arrive stops being pending instead
+       of rendering twice. Matched on author and body rather than id, because
+       Slack assigns its own id and the local one never appears in its history. */
+    const echoed = (m: Message) => messages.some(
+      (s) => s.authorId === m.authorId && s.body.trim() === m.body.trim(),
+    );
+    const unsent = c.messages.filter((m) => m.pending && !echoed(m));
+
+    c.messages = [...messages, ...unsent];
+    c.readCount = Math.min(c.readCount, c.messages.length);
   });
 }
 

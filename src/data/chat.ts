@@ -51,6 +51,15 @@ export interface Message {
   fromSlack?: boolean;
   /** Ordering key only — never rendered. */
   minutesAgo: number;
+  /**
+   * Written here, not yet confirmed by Slack.
+   *
+   * Exists so a sync can tell a message Slack has never seen apart from one it
+   * has. Without the distinction, the only safe merge is no merge, and the
+   * only cheap one is a full overwrite -- which is how a message that failed to
+   * send got deleted three seconds after the UI promised it was saved.
+   */
+  pending?: boolean;
   view?: ViewRef;
 }
 
