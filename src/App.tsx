@@ -26,8 +26,25 @@ import type { ChannelName } from './styles/tokens';
 import type { ViewRef } from './data/chat';
 import { readDeepLink } from './data/chat';
 
+const THEME_KEY = 'growth.theme';
+
 export default function App() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  /* Remembered, and defaulted from the OS.
+
+     Channels and conversations both persist to localStorage; theme did not, so
+     a reload dropped a user back into light mode while everything else they had
+     changed survived. Inconsistent durability between neighbouring settings is
+     worse than none, because it is unpredictable rather than merely absent.
+
+     Read in the initialiser, not an effect, so the first paint is already
+     correct -- an effect would flash light and then switch. */
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch { /* private mode, or storage disabled */ }
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
   const [nav, setNav] = useState<NavKey>('overview');
   const [channel, setChannel] = useState<ChannelName | null>(null);
   const [metric, setMetric] = useState<Metric>('Spend');
@@ -94,10 +111,16 @@ export default function App() {
   }, []);
 
 
+  /* The attribute is what CSS reads, so it has to be set for the INITIAL value
+     too -- not only on toggle. Restoring dark from storage without this left
+     the state saying dark and every token still light. */
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* quota */ }
+  }, [theme]);
+
   function toggleTheme() {
-    const next = theme === 'light' ? 'dark' : 'light';
-    setTheme(next);
-    document.documentElement.dataset.theme = next;
+    setTheme(theme === 'light' ? 'dark' : 'light');
   }
 
   const scope: Scope = channel ?? 'all';

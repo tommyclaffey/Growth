@@ -104,3 +104,10 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
   color: var(--text-muted);
   cursor: default;
 }
+
+/* Reports rows are not clickable — each has an explicit Export button instead.
+   They deliberately do NOT use .gr-table__row, which carries a pointer cursor,
+   a hover background and a focus ring: that styling is a claim the row can be
+   activated, and these rows cannot. */
+.gr-report-row { height: 44px; }
+.gr-report-actions { text-align: right; }
