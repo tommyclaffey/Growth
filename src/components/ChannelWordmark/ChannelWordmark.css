@@ -29,12 +29,15 @@
 .gr-wordmark__img.is-tiktok  { height: 36px; }
 .gr-wordmark__img.is-youtube { height: 28px; }
 
-/* ⚠️ The Figma file has no reversed lockup — each brand exists once, in its
-   light form, and the wordmarks are near-black. On the dark surface they
-   vanish. Knocking the whole lockup to white is the standard reversed
-   treatment brands ship for exactly this, and it is honest about what it is:
-   a mono logo, not a recolour. */
-[data-theme="dark"] .gr-wordmark__img { filter: brightness(0) invert(1); }
+/* One lockup per theme, swapped rather than filtered.
+
+   The previous rule was `filter: brightness(0) invert(1)`, which forces every
+   pixel to black and then to white -- a silhouette. Meta survived because its
+   logo IS a silhouette; YouTube did not, because its play triangle is knocked
+   out of the red mark, so the two merged into a featureless white blob. */
+.gr-wordmark__img.is-dark-only { display: none; }
+[data-theme="dark"] .gr-wordmark__img.is-light-only { display: none; }
+[data-theme="dark"] .gr-wordmark__img.is-dark-only  { display: block; }
 
 /* A product mark shown beside the channel name, not instead of it. Sized to
    the name's cap height rather than its own export box. */

@@ -1,7 +1,10 @@
 import googleAds from '../../assets/brand/google-ads.svg';
 import metaLogo from '../../assets/brand/meta.svg';
+import metaLogoDark from '../../assets/brand/meta-dark.svg';
 import tiktokLogo from '../../assets/brand/tiktok.svg';
+import tiktokLogoDark from '../../assets/brand/tiktok-dark.svg';
 import youtubeLogo from '../../assets/brand/youtube.svg';
+import youtubeLogoDark from '../../assets/brand/youtube-dark.svg';
 import './ChannelWordmark.css';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
 import type { ChannelName } from '../../styles/tokens';
@@ -28,6 +31,30 @@ const LOCKUPS: Partial<Record<string, string>> = {
   youtube: youtubeLogo,
 };
 
+/**
+ * Reversed lockups: brand colour kept, wordmark knocked to white.
+ *
+ * Dark mode used `filter: brightness(0) invert(1)` on the light asset, which
+ * flattens EVERY pixel to black and then lifts the whole thing to white --
+ * a silhouette. That is fine for Meta, whose logo IS its silhouette, and it
+ * destroys YouTube: the play triangle is white knocked out of the red
+ * rounded rect, so silhouetting merges them into one white blob with no
+ * triangle. TikTok lost its cyan and magenta the same way.
+ *
+ * The filter matched on VALUE -- every pixel, regardless of what it was --
+ * without understanding ROLE. Only the near-black wordmark text should flip;
+ * brand colours are owned by the brand and must survive.
+ *
+ * Both variants render and CSS shows one, rather than threading the theme
+ * through as a prop. It also keeps each SVG in its own document, so Meta's
+ * gradient ids cannot collide between the two.
+ */
+const LOCKUPS_DARK: Partial<Record<string, string>> = {
+  meta: metaLogoDark,
+  tiktok: tiktokLogoDark,
+  youtube: youtubeLogoDark,
+};
+
 /** Product marks that are not the channel's name — shown alongside it. */
 const MARKS: Partial<Record<string, string>> = {
   paidSearch: googleAds,
@@ -45,7 +72,8 @@ export function ChannelWordmark(
   if (lockup) {
     return (
       <span className={cls}>
-        <img src={lockup} alt="" className={`gr-wordmark__img is-${channel}`} />
+        <img src={lockup} alt="" className={`gr-wordmark__img is-${channel} is-light-only`} />
+        <img src={LOCKUPS_DARK[channel] ?? lockup} alt="" className={`gr-wordmark__img is-${channel} is-dark-only`} />
         <span className="gr-sr-only">{name}</span>
       </span>
     );
