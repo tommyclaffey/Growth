@@ -77,8 +77,28 @@ body {
 .gr-crumb-slot { height: 18px; display: flex; align-items: center; }
 
 .gr-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-12); }
-.gr-toolbar__title { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.gr-toolbar__title h1 { margin: 0; color: var(--text-primary); }
+.gr-toolbar__title { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+
+/* The title slot is a FIXED height, because its contents are not.
+
+   On a channel screen the h1 holds a brand lockup, and each one is a different
+   height by design -- they are matched on CAP height, not box height, so their
+   boxes are 18px (Meta), 23px (YouTube) and 30px (TikTok) while a text title
+   is a 28px line box. The h1 took whatever its content measured, so the title
+   block was a different height on every channel and the whole toolbar --
+   switcher, range, theme, Ask, Chat, Export -- moved vertically when you
+   switched between them.
+
+   30px is the tallest of the four, so every channel now occupies the same
+   slot and the lockup is centred inside it. The controls hold still, which is
+   what makes switching channels read as the same page rather than a reload. */
+.gr-toolbar__title h1 {
+  margin: 0;
+  color: var(--text-primary);
+  height: 30px;
+  display: flex;
+  align-items: center;
+}
 .gr-toolbar__title p  { margin: 0; color: var(--text-muted); }
 .gr-toolbar__spacer { flex: 1; }
 /* A group holds together on one line; the toolbar wraps between groups. */

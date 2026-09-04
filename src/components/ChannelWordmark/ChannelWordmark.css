@@ -1,4 +1,10 @@
-.gr-wordmark { display: inline-flex; align-items: center; gap: var(--space-10); }
+/* 12px, not 10.
+
+   The mark sits beside a 21px semibold title, and 10px read as cramped against
+   that weight -- an icon crowding a word rather than labelling it. The sm
+   variant keeps 8px because its name is 13px, and a gap should scale with the
+   thing it separates. */
+.gr-wordmark { display: inline-flex; align-items: center; gap: var(--space-12); }
 
 /* Matched on CAP HEIGHT, not box height.
    Each brand's export carries its own padding — Meta's lockup is 113x23 and
@@ -7,10 +13,20 @@
    at 24px Meta's wordmark stood a third taller than the page title beside it.
    These are the values at which each wordmark's capitals match the 21px page
    title's, measured rather than guessed. */
-.gr-wordmark__img { height: 23px; width: auto; display: block; }
-.gr-wordmark__img.is-meta    { height: 18px; }
-.gr-wordmark__img.is-tiktok  { height: 30px; }
-.gr-wordmark__img.is-youtube { height: 23px; }
+/* Scaled to ~85% of the title's cap height, not 100%.
+
+   Matching a lockup's caps to the heading's caps is the correct STARTING
+   point, and it still read as oversized -- because a lockup is a mark plus a
+   wordmark, so it carries more visual mass than plain text at the same cap
+   height. Brand guidelines generally set a lockup slightly below adjacent
+   headings for exactly this reason.
+
+   The ratios between the three are unchanged, which is the property that was
+   actually measured; only the anchor moved. */
+.gr-wordmark__img { height: 20px; width: auto; display: block; }
+.gr-wordmark__img.is-meta    { height: 15px; }
+.gr-wordmark__img.is-tiktok  { height: 26px; }
+.gr-wordmark__img.is-youtube { height: 20px; }
 
 /* ⚠️ The Figma file has no reversed lockup — each brand exists once, in its
    light form, and the wordmarks are near-black. On the dark surface they
@@ -21,7 +37,7 @@
 
 /* A product mark shown beside the channel name, not instead of it. Sized to
    the name's cap height rather than its own export box. */
-.gr-wordmark__mark { height: 22px; width: auto; display: block; flex: none; }
+.gr-wordmark__mark { height: 19px; width: auto; display: block; flex: none; }
 .gr-wordmark__name { min-width: 0; }
 
 /* ---- Small: the same rule as md, against a smaller anchor ---------------
