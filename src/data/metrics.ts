@@ -25,7 +25,7 @@ export const DAYS = 30;
 
 export type Range = 7 | 30 | 90;
 export const RANGES: Range[] = [7, 30, 90];
-const POINTS_FOR: Record<Range, number> = { 7: 7, 30: 30, 90: 90 };
+export const POINTS_FOR: Record<Range, number> = { 7: 7, 30: 30, 90: 90 };
 export const RANGE_LABEL: Record<Range, string> = {
   7: 'Last 7 days', 30: 'Last 30 days', 90: 'Last 90 days',
 };
@@ -220,7 +220,10 @@ function blend(): DayRow[] {
   return blendCache;
 }
 
-function rowsFor(scope: Scope, range: Range = 30): DayRow[] {
+/* Exported so campaign series can be derived FROM the channel rows rather
+   than generated alongside them. Deriving is what guarantees a channel's
+   campaigns sum to that channel; generating separately only hopes they do. */
+export function rowsFor(scope: Scope, range: Range = 30): DayRow[] {
   const all = scope === 'all' ? blend() : SERIES[scope];
   return all.slice(-POINTS_FOR[range]);
 }
