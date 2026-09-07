@@ -13,7 +13,9 @@ class Mem {
   addEventListener() {}, dispatchEvent() {},
 };
 
-const { DEFAULT_PREFS, isRead, markAllRead, prefs, setPref } = await import('../prefs');
+const {
+  DEFAULT_PREFS, dismissAlert, dismissAll, isRead, markAllRead, prefs, restoreAlerts, setPref,
+} = await import('../prefs');
 
 /* The module caches on import, so each test writes through the real setter
    rather than poking localStorage and hoping the cache noticed. */
@@ -60,5 +62,34 @@ describe('prefs', () => {
     expect(p.cacAlerts).toBe(DEFAULT_PREFS.cacAlerts);
     expect(p.digestTo).toBe(DEFAULT_PREFS.digestTo);
     expect(p.readAlerts).toEqual(['a']);
+  });
+});
+
+describe('dismissing an addressed alert', () => {
+  beforeEach(() => { setPref('dismissedAlerts', []); setPref('readAlerts', []); });
+
+  it('persists, so the strip does not come back on reload', () => {
+    dismissAlert('meta');
+    expect(prefs().dismissedAlerts).toContain('meta');
+    expect(JSON.parse(localStorage.getItem('growth.prefs')!).dismissedAlerts).toEqual(['meta']);
+  });
+
+  it('does not double-add an alert already dismissed', () => {
+    dismissAlert('meta');
+    dismissAlert('meta');
+    expect(prefs().dismissedAlerts).toEqual(['meta']);
+  });
+
+  it('keeps dismissed separate from read — opening Notifications must not clear the strip', () => {
+    markAllRead(['n1']);
+    expect(prefs().readAlerts).toContain('n1');
+    expect(prefs().dismissedAlerts).toEqual([]);
+  });
+
+  it('restores everything, so clearing the strip is not a one-way door', () => {
+    dismissAll(['meta', 'tiktok']);
+    expect(prefs().dismissedAlerts).toHaveLength(2);
+    restoreAlerts();
+    expect(prefs().dismissedAlerts).toEqual([]);
   });
 });

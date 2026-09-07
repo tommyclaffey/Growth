@@ -21,6 +21,15 @@ export interface Prefs {
   digestTo: string;
   /** Alert ids marked read. Ids, not a count, so it survives the list changing. */
   readAlerts: string[];
+  /**
+   * Overview alerts that have been ADDRESSED and dismissed.
+   *
+   * Separate from readAlerts on purpose: reading a notification means you have
+   * seen it, dismissing the strip means you have dealt with it. Collapsing the
+   * two would have opening the Notifications screen silently clear the thing
+   * still telling you your CAC is up 42%.
+   */
+  dismissedAlerts: string[];
 }
 
 const KEY = 'growth.prefs';
@@ -32,6 +41,7 @@ export const DEFAULT_PREFS: Prefs = {
   digest: true,
   digestTo: 'growth@example.com',
   readAlerts: [],
+  dismissedAlerts: [],
 };
 
 /* Validated field by field rather than trusting the shape.
@@ -52,6 +62,9 @@ function read(): Prefs {
       digestTo: typeof raw.digestTo === 'string' ? raw.digestTo : DEFAULT_PREFS.digestTo,
       readAlerts: Array.isArray(raw.readAlerts)
         ? raw.readAlerts.filter((x: unknown): x is string => typeof x === 'string')
+        : [],
+      dismissedAlerts: Array.isArray(raw.dismissedAlerts)
+        ? raw.dismissedAlerts.filter((x: unknown): x is string => typeof x === 'string')
         : [],
     };
   } catch {
@@ -83,6 +96,25 @@ export function markAllRead(ids: string[]) {
 
 export function isRead(id: string): boolean {
   return cache.readAlerts.includes(id);
+}
+
+export function dismissAlert(id: string) {
+  if (cache.dismissedAlerts.includes(id)) return;
+  setPref('dismissedAlerts', [...cache.dismissedAlerts, id]);
+}
+
+export function dismissAll(ids: string[]) {
+  setPref('dismissedAlerts', [...new Set([...cache.dismissedAlerts, ...ids])]);
+}
+
+/* The way back.
+
+   Dismissals persist, so without this the strip is gone for good the first
+   time someone clears it -- a one-way door, and the feature then looks broken
+   rather than done. Lives in Settings beside the alert switches, which is
+   where alert behaviour is already configured. */
+export function restoreAlerts() {
+  setPref('dismissedAlerts', []);
 }
 
 function subscribe(fn: () => void) {

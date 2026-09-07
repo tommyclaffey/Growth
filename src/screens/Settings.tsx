@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { setPref, usePrefs } from '../data/prefs';
+import { restoreAlerts, setPref, usePrefs } from '../data/prefs';
+import { Button } from '../components/Button/Button';
 import { monthlyBudget, setMonthlyBudget, setWorkspaceName } from '../data/profile';
 import './screens.css';
 import { setDemoState, useDemoState, type DemoState } from '../data/demoState';
@@ -38,7 +39,7 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
   /* Persisted, and two of them actually drive the Overview alert strip.
      These were four useState calls sitting beside three neighbours that saved
      properly -- so the screen accepted an answer and forgot it on navigation. */
-  const { digest, cacAlerts, pacing, digestTo } = usePrefs();
+  const { digest, cacAlerts, pacing, digestTo, dismissedAlerts } = usePrefs();
   const [workspace, setWorkspace] = useState('Growth — Acquisition');
 
 
@@ -208,6 +209,25 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
             </span>
             <Toggle checked={pacing} onChange={(v) => setPref('pacing', v)} label="Pacing warnings" labelHidden />
           </div>
+
+          {/* The way back from a one-way door.
+
+              Dismissing an alert on Overview persists, so without this the
+              strip is gone for good the first time someone clears it. Shown
+              only when there is something to restore -- a permanent row
+              offering to undo nothing is the kind of dead control the rest of
+              this pass was spent removing. */}
+          {dismissedAlerts.length > 0 && (
+            <div className="gr-setting-row">
+              <span className="gr-setting-row__text">
+                <strong className="gr-type-body-medium">Dismissed alerts</strong>
+                <span className="gr-type-caption">
+                  {dismissedAlerts.length} alert{dismissedAlerts.length === 1 ? '' : 's'} hidden from Overview
+                </span>
+              </span>
+              <Button variant="ghost" onClick={restoreAlerts}>Restore</Button>
+            </div>
+          )}
         </section>
 
         <section className="gr-card">

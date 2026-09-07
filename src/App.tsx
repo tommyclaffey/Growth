@@ -27,7 +27,7 @@ import {
 } from './data/metrics';
 import { campaignById } from './data/campaignSeries';
 import type { DerivedMetric } from './data/channelMetrics';
-import { usePrefs } from './data/prefs';
+import { dismissAlert, dismissAll, markAllRead, usePrefs } from './data/prefs';
 import { readUrlState, writeUrlState } from './data/urlState';
 import type { ChannelName } from './styles/tokens';
 import type { ViewRef } from './data/chat';
@@ -40,12 +40,17 @@ import { readDeepLink } from './data/chat';
    only have been filtered by tone, which is a coincidence rather than a rule --
    the next 'warn' alert added for something other than pacing would silently
    have started obeying the pacing switch. */
+/* `notifId` links each pill to the Notifications row describing the SAME event
+   -- n1 is "Meta CAC rose 42% week over week". They are two renderings of one
+   thing, and dealing with it on Overview should not leave it sitting unread on
+   another screen. Only that direction: reading a notification means you have
+   SEEN it, which is not the same as having addressed it. */
 const ALERTS: { id: string; label: string; tone: 'warn' | 'bad' | 'good';
-                kind: 'cac' | 'pacing' | 'win';
+                kind: 'cac' | 'pacing' | 'win'; notifId: string;
                 channel: ChannelName; metric: Metric }[] = [
-  { id: 'meta',       label: 'Meta CAC ↑ 42% WoW',       tone: 'bad',  kind: 'cac',    channel: 'meta',       metric: 'CAC' },
-  { id: 'tiktok',     label: 'TikTok pacing 18% behind', tone: 'warn', kind: 'pacing', channel: 'tiktok',     metric: 'Spend' },
-  { id: 'affiliates', label: 'Affiliate leads spike',    tone: 'good', kind: 'win',    channel: 'affiliates', metric: 'Leads' },
+  { id: 'meta',       label: 'Meta CAC ↑ 42% WoW',       tone: 'bad',  kind: 'cac',    notifId: 'n1', channel: 'meta',       metric: 'CAC' },
+  { id: 'tiktok',     label: 'TikTok pacing 18% behind', tone: 'warn', kind: 'pacing', notifId: 'n2', channel: 'tiktok',     metric: 'Spend' },
+  { id: 'affiliates', label: 'Affiliate leads spike',    tone: 'good', kind: 'win',    notifId: 'n3', channel: 'affiliates', metric: 'Leads' },
 ];
 
 const THEME_KEY = 'growth.theme';
@@ -94,7 +99,7 @@ export default function App() {
   const [cameFrom, setCameFrom] = useState<ChannelName | null>(null);
 
   const budget = useMonthlyBudget();
-  const { cacAlerts, pacing } = usePrefs();
+  const { cacAlerts, pacing, dismissedAlerts } = usePrefs();
 
   /* A shared link, applied once on load.
 
@@ -313,7 +318,17 @@ export default function App() {
      Settings and finding the CAC alert still on Overview would have made the
      switch a decoration -- which is what it was. */
   const shownAlerts = ALERTS.filter((a) =>
-    (a.kind === 'cac' ? cacAlerts : a.kind === 'pacing' ? pacing : true));
+    (a.kind === 'cac' ? cacAlerts : a.kind === 'pacing' ? pacing : true)
+    && !dismissedAlerts.includes(a.id));
+
+  /* Addressing an alert also marks the notification describing the same event
+     as read, so the two screens cannot disagree about whether it is still
+     outstanding. */
+  function addressAlert(id: string) {
+    const a = ALERTS.find((x) => x.id === id);
+    if (a) markAllRead([a.notifId]);
+    dismissAlert(id);
+  }
 
   const onChannelScreen = channel !== null;
   const title = onChannelScreen ? CHANNEL_LABEL[channel] : navTitle(nav);
@@ -434,13 +449,23 @@ export default function App() {
                   fold, doing nothing. Reuses applyView, the same function the
                   Slack deep link uses, so there is one definition of "go to
                   this view". */}
+              {/* Rendered only when something actually needs attention. A bar
+                  headed "Needs attention 0" is itself a thing demanding
+                  attention. */}
+              {shownAlerts.length > 0 && (
               <InfoStrip
                 alerts={shownAlerts}
+                onDismiss={addressAlert}
+                onDismissAll={() => {
+                  markAllRead(shownAlerts.map((a) => a.notifId));
+                  dismissAll(shownAlerts.map((a) => a.id));
+                }}
                 onAlertClick={(id) => {
                   const a = ALERTS.find((x) => x.id === id);
                   if (a) applyView({ channel: a.channel, metric: a.metric, range });
                 }}
               />
+              )}
 
               {!onChannelScreen && (
                 <ChannelTable

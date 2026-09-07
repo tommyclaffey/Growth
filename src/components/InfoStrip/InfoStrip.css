@@ -80,3 +80,62 @@
 @container main (max-width: 880px) {
   .gr-strip__pills { justify-content: flex-start; }
 }
+
+/* The pill wrapper now carries the surface, because the pill itself can no
+   longer be the outer element -- it has a sibling dismiss button, and a button
+   cannot contain a button. */
+.gr-strip__pill-wrap {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding-right: var(--space-4);
+  border-radius: var(--radius-pill);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.gr-strip__pill-wrap:hover { border-color: var(--border-strong); color: var(--text-primary); }
+
+/* Border and surface moved to the wrapper; the pill keeps only its own box. */
+.gr-strip__pill-wrap .gr-strip__pill {
+  border: none;
+  background: none;
+  height: 100%;
+  color: inherit;
+}
+
+.gr-strip__dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--icon-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  flex: none;
+}
+.gr-strip__dismiss:hover { color: var(--text-primary); background: var(--surface-page-top); }
+.gr-strip__dismiss:focus-visible,
+.gr-strip__clear:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.gr-strip__clear {
+  border: none;
+  background: none;
+  padding: 0 var(--space-4);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex: none;
+}
+.gr-strip__clear:hover { color: var(--text-primary); text-decoration: underline; }
+
+@media (prefers-reduced-motion: reduce) { .gr-strip__pill-wrap { transition: none; } }
