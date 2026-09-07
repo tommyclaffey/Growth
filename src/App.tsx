@@ -87,6 +87,11 @@ export default function App() {
      Held here rather than inside CampaignTable because App owns navigation and
      the table is unmounted whenever nav changes. */
   const [campaignId, setCampaignId] = useState<string | null>(initialUrl.campaign ?? null);
+  /* The channel a campaign was opened FROM, so Back returns there instead of
+     dumping you in the unfiltered campaign list you never visited. Not stored
+     in the URL -- it describes how you arrived, not where you are, and after a
+     reload the honest answer is that we do not know. */
+  const [cameFrom, setCameFrom] = useState<ChannelName | null>(null);
 
   const budget = useMonthlyBudget();
   const { cacAlerts, pacing } = usePrefs();
@@ -108,6 +113,24 @@ export default function App() {
   /* Go to a view. ONE definition, used by the deep link and by clicking a card
      in the chat -- they are the same action arriving from two directions, and
      two copies would drift the moment either grew a case. */
+  /* One definition of "open this campaign", used by the channel screen, the
+     campaign list and a shared chat card alike.
+
+     The channel screen's table was rendered WITHOUT a handler, so campaign
+     names there were plain text while the identical table one nav item away
+     had them as links. Same component, same rows, two behaviours -- decided by
+     which call site remembered to pass the prop. */
+  const openCampaign = useCallback((id: string, from: ChannelName | null = null) => {
+    setCameFrom(from);
+    setCampaignId(id);
+    setNav('campaigns');
+  }, []);
+
+  const closeCampaign = useCallback(() => {
+    setCampaignId(null);
+    if (cameFrom) { setChannel(cameFrom); setNav('channels'); setCameFrom(null); }
+  }, [cameFrom]);
+
   const applyView = useCallback((v: ViewRef) => {
     setRange(v.range);
 
@@ -121,6 +144,7 @@ export default function App() {
        channel would land you on a screen that does not contain the number you
        followed the link to read. */
     if (v.campaign) {
+      setCameFrom(null);
       setCampaignId(v.campaign);
       setNav('campaigns');
       return;
@@ -436,7 +460,13 @@ export default function App() {
                 onRetry={() => setDemoState('ready')}
               />
 
-              {onChannelScreen && <CampaignTable channel={channel} wideColumns={!chatOpen} />}
+              {onChannelScreen && (
+                <CampaignTable
+                  channel={channel}
+                  wideColumns={!chatOpen}
+                  onOpenCampaign={(id) => openCampaign(id, channel)}
+                />
+              )}
             </>
           )}
 
@@ -451,12 +481,13 @@ export default function App() {
                 id={campaignId}
                 metric={metric}
                 range={range}
-                onBack={() => setCampaignId(null)}
+                onBack={closeCampaign}
+                backLabel={cameFrom ? CHANNEL_LABEL[cameFrom] : 'Campaigns'}
                 onDiscuss={(m) => shareCampaign(campaignId, m)}
                 wideColumns={!chatOpen}
               />
             )
-            : <CampaignTable wideColumns={!chatOpen} onOpenCampaign={setCampaignId} />)}
+            : <CampaignTable wideColumns={!chatOpen} onOpenCampaign={(id) => openCampaign(id)} />)}
 
           {nav === 'reports' && <Reports />}
           {nav === 'notifications' && <Notifications />}

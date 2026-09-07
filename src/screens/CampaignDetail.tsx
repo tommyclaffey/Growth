@@ -17,6 +17,10 @@ export interface CampaignDetailProps {
   metric: Metric;
   range: Range;
   onBack: () => void;
+  /** Where Back actually goes. The crumb must not name a screen it does not
+      return to -- arriving from Meta and being offered "Campaigns" sends you
+      somewhere you were never looking at. */
+  backLabel?: string;
   /** Stages this campaign's metric as a card in the chat composer. */
   onDiscuss?: (metric: DerivedMetric) => void;
   wideColumns?: boolean;
@@ -35,7 +39,7 @@ export interface CampaignDetailProps {
  * not three calculations that agree today.
  */
 export function CampaignDetail({
-  id, metric, range, onBack, onDiscuss, wideColumns = true,
+  id, metric, range, onBack, onDiscuss, backLabel = 'Campaigns', wideColumns = true,
 }: CampaignDetailProps) {
   const campaign = campaignById(id);
   /* Subscribed here so the pill re-renders when the table, or a second tab,
@@ -68,7 +72,7 @@ export function CampaignDetail({
     return (
       <div className="gr-card gr-campaign__missing">
         <p className="gr-type-body">That campaign no longer exists.</p>
-        <Button variant="ghost" onClick={onBack}>Back to campaigns</Button>
+        <Button variant="ghost" onClick={onBack}>Back to {backLabel.toLowerCase()}</Button>
       </div>
     );
   }
@@ -86,7 +90,7 @@ export function CampaignDetail({
     <>
       <header className="gr-campaign__head">
         <button type="button" className="gr-crumb gr-type-caption" onClick={onBack}>
-          <span aria-hidden="true">‹</span> Campaigns
+          <span aria-hidden="true">‹</span> {backLabel}
         </button>
         {/* The channel's own lockup, the same one its channel screen uses, so
             the page reads as belonging to Meta or TikTok rather than as a
