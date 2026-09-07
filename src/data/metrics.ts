@@ -330,14 +330,25 @@ export function deltaTone(percent: number, better = true): Tone {
   return (percent > 0) === better ? 'good' : 'bad';
 }
 
-export function delta(scope: Scope, metric: Metric, range: Range = 30): number {
-  const s = series(scope, metric, range).map((d) => d.value);
-  const half = Math.floor(s.length / 2);
+/**
+ * Period-over-period change for a bare list of daily values.
+ *
+ * Extracted so campaign pages compute this the SAME way channel screens do.
+ * "The selected window, split in half" is a convention, not a fact -- two
+ * implementations of it would eventually disagree and there would be no way to
+ * tell from the screen which one you were looking at.
+ */
+export function deltaOf(values: number[]): number {
+  const half = Math.floor(values.length / 2);
   const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
-  const prev = avg(s.slice(0, half));
-  const curr = avg(s.slice(half));
+  const prev = avg(values.slice(0, half));
+  const curr = avg(values.slice(half));
   if (prev === 0) return 0;
   return Math.round(((curr - prev) / prev) * 100);
+}
+
+export function delta(scope: Scope, metric: Metric, range: Range = 30): number {
+  return deltaOf(series(scope, metric, range).map((d) => d.value));
 }
 
 /**
@@ -348,8 +359,7 @@ export function delta(scope: Scope, metric: Metric, range: Range = 30): number {
  * not choose its own scaling — and a value of 0 rendered a quarter-height bar
  * as if it were real.
  */
-export function sparkline(scope: Scope, metric: Metric, range: Range = 30, points = 7): number[] {
-  const s = series(scope, metric, range).map((d) => d.value);
+export function sampleOf(s: number[], points = 7): number[] {
   if (s.length <= points) return s;
 
   /* Spread the samples across the WHOLE series, last point included.
@@ -369,6 +379,10 @@ export function sparkline(scope: Scope, metric: Metric, range: Range = 30, point
      index, so the mark ends where the number does. */
   const stride = (s.length - 1) / (points - 1);
   return Array.from({ length: points }, (_, i) => s[Math.round(i * stride)]);
+}
+
+export function sparkline(scope: Scope, metric: Metric, range: Range = 30, points = 7): number[] {
+  return sampleOf(series(scope, metric, range).map((d) => d.value), points);
 }
 
 /** The raw funnel rows behind a view, with their labels. Used by the export. */

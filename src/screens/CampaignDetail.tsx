@@ -7,7 +7,9 @@ import { StatusMenu } from '../components/StatusMenu/StatusMenu';
 import { setStage, useCampaignStatus } from '../data/campaignStatus';
 import { ChannelWordmark } from '../components/ChannelWordmark/ChannelWordmark';
 import { Button } from '../components/Button/Button';
-import { campaignById, campaignSeries, campaignTotals } from '../data/campaignSeries';
+import {
+  campaignById, campaignDelta, campaignSeries, campaignSparkline, campaignTotals,
+} from '../data/campaignSeries';
 import { CHANNEL_LABEL, formatMetric, type Metric, type Range } from '../data/metrics';
 import { betterHigher, formatDerived, headlineFor, kpisFor, valueOf, type DerivedMetric } from '../data/channelMetrics';
 import { benchmarkFor, benchmarkLabel } from '../data/benchmark';
@@ -124,6 +126,15 @@ export function CampaignDetail({
               value={formatDerived(m, v)}
               higherIsBetter={betterHigher(m)}
               channel={campaign.channel}
+              /* The same two marks every KPI card in the product carries.
+                 These were missing here, so a campaign on a channel with no
+                 peer campaign -- YouTube, Podcasts, Affiliates all run one --
+                 rendered a label, a number, and nothing else, while a Meta
+                 campaign two clicks away was fully populated. Derived per day
+                 from the funnel, so CTR and CPM get a real trend rather than
+                 being the only cards on the page without one. */
+              deltaPercent={campaignDelta(campaign.id, m, range)}
+              sparkline={campaignSparkline(campaign.id, m, range)}
               benchmark={b ? {
                 percent: b.deltaPercent,
                 note: benchmarkLabel(m, b, CHANNEL_LABEL[campaign.channel]),

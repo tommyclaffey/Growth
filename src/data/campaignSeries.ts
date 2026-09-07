@@ -1,3 +1,5 @@
+import { deltaOf, sampleOf } from './metrics';
+import { valueOf, type DerivedMetric } from './channelMetrics';
 import { CAMPAIGNS, type Campaign } from './campaigns';
 import { DAY_LABELS, POINTS_FOR, formatMetric, isRatio, rowsFor, type DayRow, type Metric, type Range } from './metrics';
 
@@ -116,3 +118,36 @@ export function campaignById(id: string): Campaign | undefined {
 }
 
 export { formatMetric, isRatio };
+
+/**
+ * Daily values of ANY derived metric for one campaign.
+ *
+ * `campaignSeries` speaks the six funnel metrics because the Chart does. A
+ * campaign KPI card can show CTR, CPM, CPC or CVR, and those have no series of
+ * their own -- they are computed per day from the funnel, which is the only way
+ * they stay consistent with the totals sitting above them.
+ */
+export function campaignValues(id: string, metric: DerivedMetric, range: Range = 30): number[] {
+  return campaignRows(id, range).map((r) => valueOf(metric, r));
+}
+
+/**
+ * Period-over-period change for a campaign, on any metric.
+ *
+ * Uses `deltaOf` -- the same halving the channel screens use -- rather than a
+ * second implementation of "the window, split in half". Two versions of that
+ * convention would eventually disagree, and nothing on screen would say which
+ * one you were reading.
+ */
+export function campaignDelta(id: string, metric: DerivedMetric, range: Range = 30): number {
+  return deltaOf(campaignValues(id, metric, range));
+}
+
+/** Sparkline samples, through the shared sampler so the mark ends where the
+    number does -- the bug that once had a badge trending red beside a mark
+    trending up. */
+export function campaignSparkline(
+  id: string, metric: DerivedMetric, range: Range = 30, points = 7,
+): number[] {
+  return sampleOf(campaignValues(id, metric, range), points);
+}

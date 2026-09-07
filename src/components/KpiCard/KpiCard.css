@@ -116,4 +116,14 @@
    Both are flex items and flex items shrink below their content by default, so
    without this the nowrap pill would be squeezed and overflow rather than the
    note truncating — the same default that produced the InfoStrip overlap. */
-.gr-kpi__foot .gr-delta { flex: none; }
+.gr-kpi__foot .gr-delta,
+.gr-kpi__bench .gr-delta { flex: none; }
+
+/* The benchmark row. Same geometry as the footer so the two read as one
+   stack rather than a footer with something bolted under it. */
+.gr-kpi__bench {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: 24px;
+}

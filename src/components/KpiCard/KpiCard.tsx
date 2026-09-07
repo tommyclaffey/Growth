@@ -121,21 +121,28 @@ export function KpiCard({
           <DeltaBadge percent={deltaPercent} higherIsBetter={higherIsBetter} />
         )}
 
-        {/* Same pill, same row, same rule for which way is good -- the card
-            does not re-decide direction for the benchmark, it reuses the one
-            it was already given. */}
-        {benchmark && !error && (
-          <DeltaBadge percent={benchmark.percent} higherIsBetter={higherIsBetter} variant="benchmark" />
-        )}
-
         {progress !== undefined ? (
           <ProgressBar value={progress} label={label} />
         ) : sparkline && sparkline.length > 0 ? (
           <Sparkline values={sparkline} metric={metric} channel={channel} />
-        ) : benchmark && !error ? (
-          <span className="gr-kpi__bench-note gr-type-caption">{benchmark.note}</span>
         ) : null}
       </span>
+
+      {/* A SECOND row, not a second thing crammed into the first.
+
+          The footer above is identical on every KPI card in the product --
+          delta pill, then trend. The benchmark is extra information campaign
+          pages have and Overview does not, so it gets its own line rather than
+          displacing the trend mark on one screen and not the others.
+
+          Same pill, and the card does not re-decide direction for it -- it
+          reuses the higherIsBetter it was already given. */}
+      {benchmark && !error && (
+        <span className="gr-kpi__bench">
+          <DeltaBadge percent={benchmark.percent} higherIsBetter={higherIsBetter} variant="benchmark" />
+          <span className="gr-kpi__bench-note gr-type-caption">{benchmark.note}</span>
+        </span>
+      )}
 
     </div>
   );
