@@ -6,30 +6,8 @@ import { StatusPill } from '../components/StatusPill/StatusPill';
 import { ChannelWordmark } from '../components/ChannelWordmark/ChannelWordmark';
 import { Button } from '../components/Button/Button';
 import { campaignById, campaignSeries, campaignTotals } from '../data/campaignSeries';
-import { CHANNEL_LABEL, formatMetric, higherIsBetter, type Metric, type Range } from '../data/metrics';
-
-/**
- * Which metrics a campaign is judged on, by what it was built to do.
- *
- * Every campaign showed Spend / Leads / CAC / ROAS regardless of objective.
- * ROAS on an Awareness campaign is a number the campaign was never trying to
- * move — printing it invites a reader to judge the work against a goal nobody
- * set. That is the same defect as a label the code does not honour, one layer
- * up: a metric the STRATEGY does not honour.
- *
- * Spend leads every set, because it is the one question every objective shares.
- */
-const BY_OBJECTIVE: Record<string, Metric[]> = {
-  Awareness:   ['Spend', 'Clicks', 'Leads', 'CAC'],
-  Traffic:     ['Spend', 'Clicks', 'Leads', 'CAC'],
-  Conversions: ['Spend', 'Leads', 'CAC', 'ROAS'],
-  Sales:       ['Spend', 'Sales', 'ROAS', 'CAC'],
-};
-
-/* The metric the chart opens on — the one the campaign is actually for. */
-const HEADLINE: Record<string, Metric> = {
-  Awareness: 'Clicks', Traffic: 'Clicks', Conversions: 'Leads', Sales: 'Sales',
-};
+import { CHANNEL_LABEL, formatMetric, type Metric, type Range } from '../data/metrics';
+import { betterHigher, formatDerived, headlineFor, kpisFor, valueOf, type DerivedMetric } from '../data/channelMetrics';
 
 export interface CampaignDetailProps {
   id: string;
@@ -65,9 +43,16 @@ export function CampaignDetail({
      you navigate back, which is a worse surprise than the toggle not being
      shared. The hook sits above the early return because hooks cannot run
      conditionally. */
-  const [chartMetric, setChartMetric] = useState<Metric>(
-    () => (campaign ? HEADLINE[campaign.objective] ?? metric : metric),
-  );
+  const [chartMetric, setChartMetric] = useState<Metric>(() => {
+    if (!campaign) return metric;
+    /* The chart opens on the campaign's headline metric when the Chart can
+       plot it. Chart speaks the six funnel metrics; CTR, CPM, CPC and CVR are
+       derived and have no series, so those fall back to Spend rather than
+       rendering an empty plot. */
+    const h = headlineFor(campaign.channel, campaign.objective);
+    return (['Spend', 'Clicks', 'Leads', 'Sales', 'CAC', 'ROAS'] as string[]).includes(h)
+      ? (h as Metric) : 'Spend';
+  });
 
   /* A campaign id can arrive from a stale link or a deleted record. Landing on
      a blank screen with no way out is worse than saying so. */
@@ -84,13 +69,10 @@ export function CampaignDetail({
   const data = campaignSeries(id, chartMetric, range);
   const adSetSpend = campaign.adSets.reduce((a, s) => a + s.spend, 0);
 
-  /* Unknown objectives fall back to the conversions set rather than rendering
-     nothing — a new objective string should degrade, not blank the page. */
-  const shown = BY_OBJECTIVE[campaign.objective] ?? BY_OBJECTIVE.Conversions;
-  const valueOf = (m: Metric) => (
-    m === 'Spend' ? t.spend : m === 'Clicks' ? t.clicks : m === 'Leads' ? t.leads
-      : m === 'Sales' ? t.sales : m === 'CAC' ? t.cac : t.roas
-  );
+  /* What this channel can honestly report, narrowed to what this objective is
+     trying to move. A podcast campaign never shows CTR, because a podcast ad
+     has no click. */
+  const shown: DerivedMetric[] = kpisFor(campaign.channel, campaign.objective);
 
   return (
     <>
@@ -116,9 +98,8 @@ export function CampaignDetail({
           <KpiCard
             key={m}
             label={m}
-            value={formatMetric(m, valueOf(m))}
-            metric={m}
-            higherIsBetter={higherIsBetter(m)}
+            value={formatDerived(m, valueOf(m, t))}
+            higherIsBetter={betterHigher(m)}
             channel={campaign.channel}
           />
         ))}

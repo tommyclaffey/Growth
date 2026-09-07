@@ -66,6 +66,7 @@ export function campaignRows(id: string, range: Range = 30): DayRow[] {
     const tilt = (raw[d] / rawSum) * raw.length;
     return {
       spend: row.spend * spendShare,
+      impressions: row.impressions * spendShare,
       clicks: row.clicks * spendShare,
       leads: row.leads * leadShare * tilt,
       sales: row.sales * leadShare * tilt,
@@ -97,10 +98,11 @@ export function campaignTotals(id: string, range: Range = 30) {
   const rows = campaignRows(id, range);
   const sum = rows.reduce(
     (a, r) => ({
-      spend: a.spend + r.spend, clicks: a.clicks + r.clicks, leads: a.leads + r.leads,
+      spend: a.spend + r.spend, impressions: a.impressions + r.impressions,
+      clicks: a.clicks + r.clicks, leads: a.leads + r.leads,
       sales: a.sales + r.sales, revenue: a.revenue + r.revenue,
     }),
-    { spend: 0, clicks: 0, leads: 0, sales: 0, revenue: 0 },
+    { spend: 0, impressions: 0, clicks: 0, leads: 0, sales: 0, revenue: 0 },
   );
   return {
     ...sum,
