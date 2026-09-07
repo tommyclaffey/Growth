@@ -50,14 +50,14 @@ const CHANNELS: Record<ChannelName, {
   roas: number;
   cac: number;
   trend: number;      // second half vs first half, as a fraction
-  ctr: number;        // click -> impression, used to derive impressions
+  cpm: number;        // $ per 1,000 impressions — what the media actually costs
 }> = {
-  meta:       { label: 'Meta',        spend: 61240, cvr: 0.034, closeRate: 0.12, roas: 4.6, cac:  35.94, trend:  0.06, ctr: 0.0091 },
-  tiktok:     { label: 'TikTok',      spend: 28110, cvr: 0.021, closeRate: 0.09, roas: 3.9, cac:  33.38, trend: -0.03, ctr: 0.0072 },
-  youtube:    { label: 'YouTube',     spend: 22470, cvr: 0.018, closeRate: 0.10, roas: 3.1, cac:  40.05, trend:  0.02, ctr: 0.0038 },
-  affiliates: { label: 'Affiliates',  spend: 18320, cvr: 0.052, closeRate: 0.18, roas: 5.2, cac:  36.79, trend:  0.11, ctr: 0.0210 },
-  paidSearch: { label: 'Paid Search', spend: 18400, cvr: 0.041, closeRate: 0.15, roas: 3.4, cac:  85.98, trend:  0.04, ctr: 0.0410 },
-  podcasts:   { label: 'Podcasts',    spend: 12240, cvr: 0.012, closeRate: 0.07, roas: 2.1, cac: 128.80, trend: -0.01, ctr: 0.0006 },
+  meta:       { label: 'Meta',        spend: 61240, cvr: 0.034, closeRate: 0.12, roas: 4.6, cac:  35.94, trend:  0.06, cpm: 12 },
+  tiktok:     { label: 'TikTok',      spend: 28110, cvr: 0.021, closeRate: 0.09, roas: 3.9, cac:  33.38, trend: -0.03, cpm: 6 },
+  youtube:    { label: 'YouTube',     spend: 22470, cvr: 0.018, closeRate: 0.10, roas: 3.1, cac:  40.05, trend:  0.02, cpm: 4 },
+  affiliates: { label: 'Affiliates',  spend: 18320, cvr: 0.052, closeRate: 0.18, roas: 5.2, cac:  36.79, trend:  0.11, cpm: 95 },
+  paidSearch: { label: 'Paid Search', spend: 18400, cvr: 0.041, closeRate: 0.15, roas: 3.4, cac:  85.98, trend:  0.04, cpm: 120 },
+  podcasts:   { label: 'Podcasts',    spend: 12240, cvr: 0.012, closeRate: 0.07, roas: 2.1, cac: 128.80, trend: -0.01, cpm: 30 },
 };
 
 export const CHANNEL_KEYS = Object.keys(CHANNELS) as ChannelName[];
@@ -160,12 +160,16 @@ const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
       const clicks = leads / c.cvr;
       return {
         spend,
-        /* Derived from clicks and the channel's own CTR rather than invented,
-           so impressions, clicks and CTR cannot disagree with each other.
-           Podcasts get a token CTR because the funnel needs a denominator --
-           the UI never shows a click or a CTR for podcasts, because a podcast
-           ad has neither. */
-        impressions: clicks / c.ctr,
+        /* Impressions come from SPEND and the channel's CPM, not from clicks.
+           Deriving them from clicks put a podcast at 3.2M impressions for
+           $2,894 and a $0.91 CPM -- roughly thirty times off, because a podcast
+           has no clicks to derive from.
+
+           This is also the direction the money runs: you buy a thousand
+           impressions at a price. CTR then falls out as clicks over
+           impressions, and lands in a realistic band for every channel instead
+           of being asserted. */
+        impressions: (spend / c.cpm) * 1000,
         clicks,
         leads,
         sales: leads * c.closeRate,

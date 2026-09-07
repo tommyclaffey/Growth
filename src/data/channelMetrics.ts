@@ -95,15 +95,27 @@ export function betterHigher(m: DerivedMetric): boolean {
   return !(m === 'CAC' || m === 'CPC' || m === 'CPM');
 }
 
+function compact(v: number): string {
+  const n = Math.round(v);
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n >= 100_000)   return `${Math.round(n / 1000)}K`;
+  return n.toLocaleString();
+}
+
 export function formatDerived(m: DerivedMetric, v: number): string {
   const money = (n: number, dp = 0) =>
     `$${n.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
   switch (m) {
     case 'Spend':       return money(v);
+    /* Compacted above six figures. "5,103,333" in a KPI card is nine glyphs
+       of precision nobody reads and enough width to shrink the type against
+       its neighbours -- the card next to it says "23". Impressions are a scale
+       number: the reader wants 5.1M, and the exact figure belongs in an export.
+       Below 100k the full number still fits and still means something. */
     case 'Impressions':
     case 'Clicks':
     case 'Leads':
-    case 'Sales':       return Math.round(v).toLocaleString();
+    case 'Sales':       return compact(v);
     case 'CTR':
     case 'CVR':         return `${v.toFixed(2)}%`;
     case 'CPC':         return money(v, 2);
