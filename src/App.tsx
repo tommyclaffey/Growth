@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Sidebar, type NavKey } from './components/Sidebar/Sidebar';
 import { Button } from './components/Button/Button';
 import { KpiCard } from './components/KpiCard/KpiCard';
@@ -28,6 +28,7 @@ import {
 import { campaignById } from './data/campaignSeries';
 import type { DerivedMetric } from './data/channelMetrics';
 import { usePrefs } from './data/prefs';
+import { readUrlState, writeUrlState } from './data/urlState';
 import type { ChannelName } from './styles/tokens';
 import type { ViewRef } from './data/chat';
 import { readDeepLink } from './data/chat';
@@ -66,11 +67,15 @@ export default function App() {
     } catch { /* private mode, or storage disabled */ }
     return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
-  const [nav, setNav] = useState<NavKey>('overview');
-  const [channel, setChannel] = useState<ChannelName | null>(null);
-  const [metric, setMetric] = useState<Metric>('Spend');
+  /* Seeded from the URL in the initialiser, not an effect -- an effect would
+     paint Overview first and then jump, which reads as a bug even when it
+     lands in the right place. */
+  const initialUrl = useState(() => readUrlState(window.location.search))[0];
+  const [nav, setNav] = useState<NavKey>(initialUrl.nav ?? 'overview');
+  const [channel, setChannel] = useState<ChannelName | null>(initialUrl.channel ?? null);
+  const [metric, setMetric] = useState<Metric>(initialUrl.metric ?? 'Spend');
   const [chatOpen, setChatOpen] = useState(false);
-  const [range, setRange] = useState<Range>(30);
+  const [range, setRange] = useState<Range>(initialUrl.range ?? 30);
   const [pendingView, setPendingView] = useState<ViewRef | null>(null);
   const [assistOpen, setAssistOpen] = useState(false);
   const enabled = useChannels();
@@ -81,7 +86,7 @@ export default function App() {
   /* Which campaign's page is open, if any. Null means the Campaigns list.
      Held here rather than inside CampaignTable because App owns navigation and
      the table is unmounted whenever nav changes. */
-  const [campaignId, setCampaignId] = useState<string | null>(null);
+  const [campaignId, setCampaignId] = useState<string | null>(initialUrl.campaign ?? null);
 
   const budget = useMonthlyBudget();
   const { cacAlerts, pacing } = usePrefs();
@@ -126,6 +131,45 @@ export default function App() {
     else { setChannel(v.channel as ChannelName); setNav('channels'); }
   }, []);
 
+  /* Write the URL back whenever the screen changes.
+
+     Navigation pushes; filters replace. Drilling into a campaign or switching
+     screen is somewhere you can meaningfully go BACK from -- nudging the metric
+     toggle is not, and pushing an entry per filter change turns the back button
+     into a slow undo of things nobody wanted undone.
+
+     The ref holds the PREVIOUS nav identity rather than comparing against
+     current state, because by the time this effect runs the state has already
+     changed and there is nothing left to compare to. */
+  const lastPlace = useRef<string | null>(null);
+  useEffect(() => {
+    const place = `${nav}|${channel ?? 'all'}|${campaignId ?? ''}`;
+    const isNavigation = lastPlace.current !== null && lastPlace.current !== place;
+    lastPlace.current = place;
+    writeUrlState({ nav, channel, metric, range, campaign: campaignId },
+                  isNavigation ? 'push' : 'replace');
+  }, [nav, channel, metric, range, campaignId]);
+
+  /* The back button. Without this, history entries existed and pressing back
+     changed the URL while the screen stayed exactly where it was -- which is
+     worse than having no history at all, because the address bar then lies
+     about what is on screen. */
+  useEffect(() => {
+    function onPop() {
+      const u = readUrlState(window.location.search);
+      setNav(u.nav ?? 'overview');
+      setChannel(u.channel ?? null);
+      setMetric(u.metric ?? 'Spend');
+      setRange(u.range ?? 30);
+      setCampaignId(u.campaign ?? null);
+      /* Keeps the writer from pushing a fresh entry for a move the user made
+         by going back -- that would make forward unreachable. */
+      lastPlace.current = `${u.nav ?? 'overview'}|${u.channel ?? 'all'}|${u.campaign ?? ''}`;
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
   useEffect(() => {
     if (!deepLink) return;
     applyView(deepLink.view);
@@ -134,9 +178,11 @@ export default function App() {
        click from the thing you followed the link to read. */
     if (deepLink.conversationId) setChatOpen(true);
 
-    /* Clear the query so a refresh does not re-apply it and yank you back to
-       the linked view after you have navigated away. */
-    window.history.replaceState({}, '', window.location.pathname);
+    /* The query is NOT wiped here any more. It used to be, so that a refresh
+       would not yank you back to a linked view -- but the URL now tracks where
+       you actually are, so a refresh landing you back where you were is the
+       feature rather than the bug. `t` drops off on the first write because
+       urlStateQuery never emits it. */
   }, [deepLink, applyView]);
 
   /* Switching off the channel you are looking at has to move you somewhere

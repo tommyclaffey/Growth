@@ -18,6 +18,7 @@ import { SlackMark } from '../SlackMark/SlackMark';
 import { listPeople, type Person } from '../../data/slackDirectory';
 import { activeMention, applyMention, mentionsMe, toSlackMentions } from '../../data/mentions';
 import { Button } from '../Button/Button';
+import { getDraft, setDraft as saveDraft } from '../../data/drafts';
 import {
   ME, groupMessages, nowLabel,
   type Member, type Message, type ViewRef,
@@ -67,7 +68,7 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
   const [pendingFail, setPendingFail] = useState<string | null>(null);
   const [source, setSource] = useState<ChatSource>('seed');
   const [origin, setOrigin] = useState<{ team?: string; channel?: string }>({});
-  const [draft, setDraft] = useState('');
+  const [draft, setDraftState] = useState('');
   const avatarFor = useAvatarFor();
   /* Two levels, list then thread. `null` IS the list — an explicit
      view: 'list' | 'thread' would be a second source of truth for the same
@@ -77,6 +78,14 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
   /* Read inside a stable callback, so syncDirect does not need openId in its
      dependency list and get rebuilt on every conversation change. */
   const openIdRef = useRef<string | null>(null);
+  /* One setter, so a keystroke can never update the box without updating the
+     store. Two call sites setting state and forgetting to persist is exactly
+     how a draft goes missing down one path and not another. */
+  const setDraft = useCallback((text: string) => {
+    setDraftState(text);
+    if (openIdRef.current) saveDraft(openIdRef.current, text);
+  }, []);
+
   const [tick, setTick] = useState(0);        /* conversations live outside React */
   /* The SLACK directory — used only to translate a name into the id Slack
      stores, and only for the one conversation Slack mirrors. It is not the
@@ -111,6 +120,12 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
      outside React -- re-derives this. */
   void tick;
   const open = openId ? getConversation(openId) : undefined;
+
+  /* Restores the draft for whichever conversation is open -- on mount, which
+     is the recovery after a close, and on every switch between threads. */
+  useEffect(() => {
+    setDraftState(openId ? getDraft(openId) : '');
+  }, [openId]);
   const messages: Message[] = open?.messages ?? [];
   const mirrored = Boolean(open?.mirrorsSlack) && source === 'slack';
 

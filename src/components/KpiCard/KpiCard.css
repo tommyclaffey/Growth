@@ -45,6 +45,9 @@
 
 
 /* Loading must read as ABSENT, not as zero. */
+ /* No cursor rule on .gr-kpi itself -- the card does not navigate, so it must
+    not present a pointer. This line used to override a pointer that had
+    already been removed. */
 .gr-kpi--loading { cursor: default; }
 .gr-kpi__skeleton { border-radius: var(--radius-sm); background: var(--surface-skeleton); }
 .gr-kpi__skeleton--label { width: 60px;  height: 16px; }
