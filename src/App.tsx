@@ -363,7 +363,6 @@ export default function App() {
                 id={campaignId}
                 metric={metric}
                 range={range}
-                onMetricChange={setMetric}
                 onBack={() => setCampaignId(null)}
                 wideColumns={!chatOpen}
               />
