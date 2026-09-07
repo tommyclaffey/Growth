@@ -3,6 +3,8 @@ import './screens.css';
 import { KpiCard } from '../components/KpiCard/KpiCard';
 import { Chart } from '../components/Chart/Chart';
 import { StatusPill } from '../components/StatusPill/StatusPill';
+import { StatusMenu } from '../components/StatusMenu/StatusMenu';
+import { setStage, useCampaignStatus } from '../data/campaignStatus';
 import { ChannelWordmark } from '../components/ChannelWordmark/ChannelWordmark';
 import { Button } from '../components/Button/Button';
 import { campaignById, campaignSeries, campaignTotals } from '../data/campaignSeries';
@@ -33,6 +35,9 @@ export function CampaignDetail({
   id, metric, range, onBack, wideColumns = true,
 }: CampaignDetailProps) {
   const campaign = campaignById(id);
+  /* Subscribed here so the pill re-renders when the table, or a second tab,
+     changes it. */
+  const stageOf = useCampaignStatus();
 
   /* The chart opens on the metric this campaign was built to move -- Clicks for
      Awareness, Sales for a Sales campaign -- rather than on whatever the last
@@ -86,7 +91,11 @@ export function CampaignDetail({
         <ChannelWordmark channel={campaign.channel} name={CHANNEL_LABEL[campaign.channel]} size="sm" />
         <div className="gr-campaign__title">
           <h2 className="gr-type-section">{campaign.name}</h2>
-          <StatusPill stage={campaign.stage} />
+          {/* Editable here, not just displayed. This is the page you land on to
+              decide whether a campaign should keep running, so the decision
+              belongs on it -- sending someone back to the table to act on what
+              they just read is a dead end with extra steps. */}
+          <StatusMenu value={stageOf(campaign.id)} onChange={(next) => setStage(campaign.id, next)} />
         </div>
         <p className="gr-type-caption gr-campaign__meta">
           {campaign.objective} · {campaign.adSets.length} ad set{campaign.adSets.length === 1 ? '' : 's'}

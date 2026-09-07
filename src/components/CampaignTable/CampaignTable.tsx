@@ -2,9 +2,10 @@ import { Fragment, useState } from 'react';
 import './CampaignTable.css';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
 import { StatusMenu } from '../StatusMenu/StatusMenu';
-import { StatusPill, type Stage } from '../StatusPill/StatusPill';
+import { StatusPill } from '../StatusPill/StatusPill';
 import { Chip } from '../Chip/Chip';
 import { CAMPAIGNS, type Campaign } from '../../data/campaigns';
+import { setStage, useCampaignStatus } from '../../data/campaignStatus';
 import { CHANNEL_LABEL } from '../../data/metrics';
 import type { ChannelName } from '../../styles/tokens';
 
@@ -23,10 +24,10 @@ export interface CampaignTableProps {
 
 export function CampaignTable({ channel = null, wideColumns = true, onOpenCampaign }: CampaignTableProps) {
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const stageOf = useCampaignStatus();
   const [filter, setFilter] = useState<ChannelName | null>(channel);
   /* Stage overrides live here rather than mutating CAMPAIGNS, so the seed
      data stays the seed data and a reload is a clean slate. */
-  const [stages, setStages] = useState<Record<string, Stage>>({});
 
   const rows = filter ? CAMPAIGNS.filter((c) => c.channel === filter) : CAMPAIGNS;
 
@@ -112,10 +113,10 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
                   </td>
                   {wideColumns && <td className="gr-type-body">{c.objective}</td>}
                   <td>
-                    <StatusMenu
-                      value={stages[c.id] ?? c.stage}
-                      onChange={(next) => setStages((p) => ({ ...p, [c.id]: next }))}
-                    />
+                    {/* Same store as the campaign page. Held in component
+                        state this reset on every navigation, and the two
+                        screens would have disagreed. */}
+                    <StatusMenu value={stageOf(c.id)} onChange={(next) => setStage(c.id, next)} />
                   </td>
                   <td className="gr-type-body">{money(c.spend)}</td>
                   <td className="gr-type-body">{c.leads.toLocaleString()}</td>
