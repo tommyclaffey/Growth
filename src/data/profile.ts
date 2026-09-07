@@ -220,3 +220,57 @@ export function useWorkspaceName(): string {
   }, []);
   return n;
 }
+
+
+/* ---------- monthly budget ----------
+
+   "Pace to target" was a hardcoded 64% -- the same on every channel, every
+   range, and still 64% with a filled bar after every channel was switched off
+   and the card beside it read $0. It is the only KPI that answers a forward
+   question ("am I on track") rather than a backward one, so it is worth making
+   real rather than deleting.
+
+   $250,000 is the default because it is what makes the original 64% true:
+   $160,780 of 30-day spend against $250k is 64.3%. The number on the screen
+   does not move; it just becomes derived instead of typed. */
+const BUDGET_KEY = 'growth.budget';
+const BUDGET_CHANGED = 'growth:budget-changed';
+export const DEFAULT_BUDGET = 250_000;
+
+export function monthlyBudget(): number {
+  try {
+    const n = Number(localStorage.getItem(BUDGET_KEY));
+    return Number.isFinite(n) && n > 0 ? n : DEFAULT_BUDGET;
+  } catch { return DEFAULT_BUDGET; }
+}
+
+export function setMonthlyBudget(v: number) {
+  const next = Number.isFinite(v) && v > 0 ? Math.round(v) : DEFAULT_BUDGET;
+  try { localStorage.setItem(BUDGET_KEY, String(next)); } catch { /* quota */ }
+  window.dispatchEvent(new Event(BUDGET_CHANGED));
+}
+
+export function useMonthlyBudget(): number {
+  const [b, setB] = useState(monthlyBudget);
+  useEffect(() => {
+    const sync = () => setB(monthlyBudget());
+    window.addEventListener(BUDGET_CHANGED, sync);
+    return () => window.removeEventListener(BUDGET_CHANGED, sync);
+  }, []);
+  return b;
+}
+
+/**
+ * Budget for the selected window, prorated from the monthly figure.
+ *
+ * Comparing 7 days of spend to a whole month's budget would read as wildly
+ * under-pace and mean nothing. Prorating keeps the question honest: "of the
+ * money planned for this many days, how much is spent."
+ *
+ * Deliberately NOT month-to-date: the seeded data has a frozen PERIOD_END, so
+ * anything claiming to know today's date would be a lie. This compares against
+ * the range actually selected, which is true.
+ */
+export function budgetForRange(days: number): number {
+  return (monthlyBudget() / 30) * days;
+}

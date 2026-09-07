@@ -18,6 +18,7 @@ import { downloadCsv } from './data/exportCsv';
 import { Reports } from './screens/Reports';
 import { Notifications } from './screens/Notifications';
 import { Settings } from './screens/Settings';
+import { useMonthlyBudget } from './data/profile';
 import {
   CHANNEL_LABEL, activeChannels, delta, formatMetric, isActive, series, sparkline, totals,
   RANGE_LABEL,
@@ -67,6 +68,8 @@ export default function App() {
   /* Drives the loading/error/empty states, which are otherwise unreachable —
      the data layer is synchronous, so nothing here can be slow or fail. */
   const demo = useDemoState();
+
+  const budget = useMonthlyBudget();
 
   /* A shared link, applied once on load.
 
@@ -185,6 +188,15 @@ export default function App() {
        a range change. */
   }, [scope, metric, range, enabled]);
 
+  /* Spend against the budget planned for this many days. Declared after `view`
+     because it reads from it -- placing it above the memo is a temporal dead
+     zone error, not a style preference.
+
+     Clamped only for the BAR. The percentage still reads over 100 when
+     overspent, because hiding an overspend is the one thing a pacing number
+     must never do. */
+  const pace = budget > 0 ? view.totals.spend / ((budget / 30) * range) : 0;
+
   const onChannelScreen = channel !== null;
   const title = onChannelScreen ? CHANNEL_LABEL[channel] : navTitle(nav);
   const SUBTITLES: Record<string, string> = {
@@ -286,7 +298,11 @@ export default function App() {
                          deltaPercent={delta(scope, 'ROAS', range)}
                          sparkline={sparkline(scope, 'ROAS', range)}
                          metric="ROAS" channel={scope} />
-                <KpiCard label="Pace to target" value="64%" progress={0.64}
+                {/* Derived, not typed. Was a hardcoded "64%" that stayed 64%
+                    with every channel switched off and $0 beside it. */}
+                <KpiCard label="Pace to target"
+                         value={`${Math.round(pace * 100)}%`}
+                         progress={Math.min(pace, 1)}
                          loading={demo === 'loading'} error={demo === 'error'} />
               </div>
 

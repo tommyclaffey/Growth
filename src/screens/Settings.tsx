@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { setWorkspaceName } from '../data/profile';
+import { monthlyBudget, setMonthlyBudget, setWorkspaceName } from '../data/profile';
 import './screens.css';
 import { setDemoState, useDemoState, type DemoState } from '../data/demoState';
 import { Toggle } from '../components/Toggle/Toggle';
@@ -28,6 +28,7 @@ export interface SettingsProps {
 
 export function Settings({ theme, onThemeChange }: SettingsProps) {
   const demo = useDemoState();
+  const [budgetText, setBudgetText] = useState(String(monthlyBudget()));
   const backend = useBackend();
   const enabled = useChannels();
   const [connected, setConnected] = useState<Set<ChannelName>>(
@@ -211,6 +212,17 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
             <FormField label="Workspace name" value={workspace}
                        onChange={(v) => { setWorkspace(v); setWorkspaceName(v); }}
                        hint="Shown in the sidebar and in exported file names" />
+            {/* The number behind "Pace to target". Persisted, because a budget
+                that resets on reload is not a budget. */}
+            <FormField label="Monthly budget" value={budgetText}
+                       onChange={(v) => {
+                         setBudgetText(v);
+                         const n = Number(v.replace(/[^0-9.]/g, ''));
+                         if (Number.isFinite(n) && n > 0) setMonthlyBudget(n);
+                       }}
+                       hint="Drives Pace to target, prorated to the selected range"
+                       error={budgetText.trim() !== '' && !(Number(budgetText.replace(/[^0-9.]/g, '')) > 0)
+                         ? 'Enter a number greater than zero' : undefined} />
             <FormField label="Digest recipients" type="email" value={digestTo} onChange={setDigestTo}
                        placeholder="name@company.com"
                        error={digestTo.length > 0 && !digestTo.includes('@')
