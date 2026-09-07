@@ -4,8 +4,7 @@ import './Chart.css';
 import { channelGradient, type ChannelName } from '../../styles/tokens';
 import {
   METRICS, domainFor, formatMetric, isRatio, yTicks as computeTicks,
-  type Metric,
-} from '../../data/metrics';
+  type Metric, CHANNEL_LABEL } from '../../data/metrics';
 import { resolveMark, type Mark } from './mark';
 import { MetricToggle } from '../MetricToggle/MetricToggle';
 
@@ -22,6 +21,8 @@ export interface ChartProps {
   /** Override the mark. Default 'auto' applies the rule below. */
   mark?: Mark;
   state?: 'ready' | 'loading' | 'error' | 'empty';
+  /** Fired by Retry in the error state. Without it the button is decoration. */
+  onRetry?: () => void;
 }
 
 
@@ -32,7 +33,7 @@ export function Chart({
   onMetricChange,
   data,
   mark = 'auto',
-  state = 'ready',
+  state = 'ready', onRetry,
 }: ChartProps) {
   const [hover, setHover] = useState<number | null>(null);
 
@@ -255,8 +256,14 @@ export function Chart({
           {state === 'loading' && <span className="gr-type-body">Loading {metric.toLowerCase()}…</span>}
           {state === 'error' && (
             <span className="gr-type-body">
-              Could not reach the {channel} API.{' '}
-              <button type="button" className="gr-chart__retry">Retry</button>
+              {/* CHANNEL_LABEL, not the raw scope key. This printed
+                  "Could not reach the paidSearch API" at users, and
+                  "the all API" on Overview. */}
+              Could not reach the {channel === 'all' ? 'channel' : CHANNEL_LABEL[channel]} API.{' '}
+              {/* A Retry with no handler is worse than no Retry: it is the only
+                  control in the error state, so a user clicks it and concludes
+                  the app is broken twice. */}
+              <button type="button" className="gr-chart__retry" onClick={onRetry}>Retry</button>
             </span>
           )}
           {state === 'empty' && (

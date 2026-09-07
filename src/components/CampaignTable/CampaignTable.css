@@ -34,7 +34,9 @@
   color: var(--text-muted);
   border-bottom: var(--border-width-sm) solid var(--border-subtle);
 }
-.gr-campaigns__child td:nth-child(2) { display: flex; align-items: center; gap: var(--space-8); }
+/* On the span, not the cell. See the note in CampaignTable.tsx -- a <td> with
+   display:flex is no longer a table cell, and the column grid breaks. */
+.gr-campaigns__adset { display: flex; align-items: center; gap: var(--space-8); }
 
 .gr-campaigns__rule {
   width: 12px; height: 1px; flex: none;

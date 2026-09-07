@@ -112,8 +112,16 @@ export function CampaignTable({ channel = null, wideColumns = true }: CampaignTa
                     <tr key={a.id} id={i === 0 ? `adsets-${c.id}` : undefined} className="gr-campaigns__child">
                       <td />
                       <td className="gr-type-body">
-                        <span className="gr-campaigns__rule" aria-hidden="true" />
-                        {a.name}
+                        {/* The flex lives on this span, NOT on the <td>.
+                            `display: flex` on a table cell takes it out of the
+                            table layout algorithm -- the browser stops treating
+                            it as a cell, wraps it in an anonymous one, and the
+                            column alignment breaks. That was rendering as a
+                            stray pale bar under the ad-set name. */}
+                        <span className="gr-campaigns__adset">
+                          <span className="gr-campaigns__rule" aria-hidden="true" />
+                          {a.name}
+                        </span>
                       </td>
                       {wideColumns && <td />}
                       <td><StatusPill stage={a.stage} /></td>

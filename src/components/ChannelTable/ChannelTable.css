@@ -100,3 +100,11 @@
    own column header sat hard right, and the label read as belonging to
    nothing. `margin-left: auto` is what actually moves a sized block. */
 .gr-table td:last-child .gr-spark { margin-left: auto; }
+
+/* The empty row. Centred and muted so it reads as a message rather than as a
+   data row that lost its numbers. */
+.gr-table__empty {
+  text-align: center;
+  padding: var(--space-28) var(--space-12);
+  color: var(--text-muted);
+}

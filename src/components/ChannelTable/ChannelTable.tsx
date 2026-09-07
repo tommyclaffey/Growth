@@ -96,6 +96,18 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
           </tr>
         </thead>
         <tbody>
+          {/* A table with headers and no rows is not an empty state, it is a
+              bug that looks like one. This was the third of three components
+              the empty state never reached: the chart said "no spend recorded"
+              directly above six populated rows, or below a table showing
+              nothing at all with no explanation. */}
+          {sorted.length === 0 && (
+            <tr>
+              <td colSpan={wideColumns ? 7 : 5} className="gr-table__empty gr-type-body">
+                No channels are switched on. Turn one back on in Settings to see spend here.
+              </td>
+            </tr>
+          )}
           {sorted.map((r) => {
             return (
               /* Focusable AND activatable.

@@ -10,7 +10,7 @@ import { ThemeToggle } from './components/ThemeToggle/ThemeToggle';
 import { ChannelSwitcher } from './components/ChannelSwitcher/ChannelSwitcher';
 import { ChannelWordmark } from './components/ChannelWordmark/ChannelWordmark';
 import { useChannels } from './data/channels';
-import { useDemoState } from './data/demoState';
+import { setDemoState, useDemoState } from './data/demoState';
 import { RangePicker } from './components/RangePicker/RangePicker';
 import { ChatPanel } from './components/ChatPanel/ChatPanel';
 import { Assistant } from './components/Assistant/Assistant';
@@ -26,6 +26,16 @@ import {
 import type { ChannelName } from './styles/tokens';
 import type { ViewRef } from './data/chat';
 import { readDeepLink } from './data/chat';
+
+/* The alerts, with the view each one points at.
+   Kept beside the labels so a pill can never name one channel and navigate to
+   another -- the label and the destination are one object. */
+const ALERTS: { id: string; label: string; tone: 'warn' | 'bad' | 'good';
+                channel: ChannelName; metric: Metric }[] = [
+  { id: 'meta',       label: 'Meta CAC ↑ 42% WoW',       tone: 'bad',  channel: 'meta',       metric: 'CAC' },
+  { id: 'tiktok',     label: 'TikTok pacing 18% behind', tone: 'warn', channel: 'tiktok',     metric: 'Spend' },
+  { id: 'affiliates', label: 'Affiliate leads spike',    tone: 'good', channel: 'affiliates', metric: 'Leads' },
+];
 
 const THEME_KEY = 'growth.theme';
 
@@ -280,12 +290,18 @@ export default function App() {
                          loading={demo === 'loading'} error={demo === 'error'} />
               </div>
 
+              {/* Each pill names a channel and a metric, so clicking it goes
+                  there. They were focusable, pointer-cursored buttons with no
+                  handler at all -- the first thing a visitor tries, above the
+                  fold, doing nothing. Reuses applyView, the same function the
+                  Slack deep link uses, so there is one definition of "go to
+                  this view". */}
               <InfoStrip
-                alerts={[
-                  { id: 'meta',   label: 'Meta CAC ↑ 42% WoW',       tone: 'bad' },
-                  { id: 'tiktok', label: 'TikTok pacing 18% behind', tone: 'warn' },
-                  { id: 'aff',    label: 'Affiliate leads spike',    tone: 'good' },
-                ]}
+                alerts={ALERTS}
+                onAlertClick={(id) => {
+                  const a = ALERTS.find((x) => x.id === id);
+                  if (a) applyView({ channel: a.channel, metric: a.metric, range });
+                }}
               />
 
               {!onChannelScreen && (
@@ -303,6 +319,7 @@ export default function App() {
                 onMetricChange={setMetric}
                 data={view.data}
                 state={demo}
+                onRetry={() => setDemoState('ready')}
               />
 
               {onChannelScreen && <CampaignTable channel={channel} wideColumns={!chatOpen} />}
