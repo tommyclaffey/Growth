@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { setPref, usePrefs } from '../data/prefs';
 import { monthlyBudget, setMonthlyBudget, setWorkspaceName } from '../data/profile';
 import './screens.css';
 import { setDemoState, useDemoState, type DemoState } from '../data/demoState';
@@ -34,11 +35,12 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
   const [connected, setConnected] = useState<Set<ChannelName>>(
     new Set(CHANNEL_KEYS.filter((k) => k !== 'podcasts')),
   );
-  const [digest, setDigest] = useState(true);
-  const [cacAlerts, setCacAlerts] = useState(true);
-  const [pacing, setPacing] = useState(false);
+  /* Persisted, and two of them actually drive the Overview alert strip.
+     These were four useState calls sitting beside three neighbours that saved
+     properly -- so the screen accepted an answer and forgot it on navigation. */
+  const { digest, cacAlerts, pacing, digestTo } = usePrefs();
   const [workspace, setWorkspace] = useState('Growth — Acquisition');
-  const [digestTo, setDigestTo] = useState('growth@example.com');
+
 
   function toggleChannel2(key: ChannelName, next: boolean) {
     setConnected((prev) => {
@@ -179,9 +181,16 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
           <div className="gr-setting-row">
             <span className="gr-setting-row__text">
               <strong className="gr-type-body-medium">Daily digest</strong>
-              <span className="gr-type-caption">One summary each morning at 07:00</span>
+              {/* Was "One summary each morning at 07:00", which is a promise
+                  nothing in this build can keep -- sending mail needs a server
+                  and a scheduler, and neither exists yet. The preference is
+                  saved; the delivery is stated as pending rather than implied
+                  to be running. */}
+              <span className="gr-type-caption">
+                One summary each morning at 07:00 — delivery starts once email is connected
+              </span>
             </span>
-            <Toggle checked={digest} onChange={setDigest} label="Daily digest" labelHidden />
+            <Toggle checked={digest} onChange={(v) => setPref('digest', v)} label="Daily digest" labelHidden />
           </div>
 
           <div className="gr-setting-row">
@@ -189,7 +198,7 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
               <strong className="gr-type-body-medium">CAC threshold</strong>
               <span className="gr-type-caption">Alert when blended CAC rises more than 20% week over week</span>
             </span>
-            <Toggle checked={cacAlerts} onChange={setCacAlerts} label="CAC threshold alerts" labelHidden />
+            <Toggle checked={cacAlerts} onChange={(v) => setPref('cacAlerts', v)} label="CAC threshold alerts" labelHidden />
           </div>
 
           <div className="gr-setting-row">
@@ -197,7 +206,7 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
               <strong className="gr-type-body-medium">Pacing warnings</strong>
               <span className="gr-type-caption">Alert when a channel falls behind its monthly target</span>
             </span>
-            <Toggle checked={pacing} onChange={setPacing} label="Pacing warnings" labelHidden />
+            <Toggle checked={pacing} onChange={(v) => setPref('pacing', v)} label="Pacing warnings" labelHidden />
           </div>
         </section>
 
@@ -223,7 +232,7 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
                        hint="Drives Pace to target, prorated to the selected range"
                        error={budgetText.trim() !== '' && !(Number(budgetText.replace(/[^0-9.]/g, '')) > 0)
                          ? 'Enter a number greater than zero' : undefined} />
-            <FormField label="Digest recipients" type="email" value={digestTo} onChange={setDigestTo}
+            <FormField label="Digest recipients" type="email" value={digestTo} onChange={(v) => setPref('digestTo', v)}
                        placeholder="name@company.com"
                        error={digestTo.length > 0 && !digestTo.includes('@')
                          ? 'Enter a valid email address' : undefined} />

@@ -27,6 +27,7 @@ import {
 } from './data/metrics';
 import { campaignById } from './data/campaignSeries';
 import type { DerivedMetric } from './data/channelMetrics';
+import { usePrefs } from './data/prefs';
 import type { ChannelName } from './styles/tokens';
 import type { ViewRef } from './data/chat';
 import { readDeepLink } from './data/chat';
@@ -34,11 +35,16 @@ import { readDeepLink } from './data/chat';
 /* The alerts, with the view each one points at.
    Kept beside the labels so a pill can never name one channel and navigate to
    another -- the label and the destination are one object. */
+/* `kind` is what the Settings switches address. Without it the toggles could
+   only have been filtered by tone, which is a coincidence rather than a rule --
+   the next 'warn' alert added for something other than pacing would silently
+   have started obeying the pacing switch. */
 const ALERTS: { id: string; label: string; tone: 'warn' | 'bad' | 'good';
+                kind: 'cac' | 'pacing' | 'win';
                 channel: ChannelName; metric: Metric }[] = [
-  { id: 'meta',       label: 'Meta CAC ↑ 42% WoW',       tone: 'bad',  channel: 'meta',       metric: 'CAC' },
-  { id: 'tiktok',     label: 'TikTok pacing 18% behind', tone: 'warn', channel: 'tiktok',     metric: 'Spend' },
-  { id: 'affiliates', label: 'Affiliate leads spike',    tone: 'good', channel: 'affiliates', metric: 'Leads' },
+  { id: 'meta',       label: 'Meta CAC ↑ 42% WoW',       tone: 'bad',  kind: 'cac',    channel: 'meta',       metric: 'CAC' },
+  { id: 'tiktok',     label: 'TikTok pacing 18% behind', tone: 'warn', kind: 'pacing', channel: 'tiktok',     metric: 'Spend' },
+  { id: 'affiliates', label: 'Affiliate leads spike',    tone: 'good', kind: 'win',    channel: 'affiliates', metric: 'Leads' },
 ];
 
 const THEME_KEY = 'growth.theme';
@@ -78,6 +84,7 @@ export default function App() {
   const [campaignId, setCampaignId] = useState<string | null>(null);
 
   const budget = useMonthlyBudget();
+  const { cacAlerts, pacing } = usePrefs();
 
   /* A shared link, applied once on load.
 
@@ -232,6 +239,12 @@ export default function App() {
      must never do. */
   const pace = budget > 0 ? view.totals.spend / ((budget / 30) * range) : 0;
 
+  /* The two Settings switches, honoured. Turning "CAC threshold alerts" off in
+     Settings and finding the CAC alert still on Overview would have made the
+     switch a decoration -- which is what it was. */
+  const shownAlerts = ALERTS.filter((a) =>
+    (a.kind === 'cac' ? cacAlerts : a.kind === 'pacing' ? pacing : true));
+
   const onChannelScreen = channel !== null;
   const title = onChannelScreen ? CHANNEL_LABEL[channel] : navTitle(nav);
   const SUBTITLES: Record<string, string> = {
@@ -352,7 +365,7 @@ export default function App() {
                   Slack deep link uses, so there is one definition of "go to
                   this view". */}
               <InfoStrip
-                alerts={ALERTS}
+                alerts={shownAlerts}
                 onAlertClick={(id) => {
                   const a = ALERTS.find((x) => x.id === id);
                   if (a) applyView({ channel: a.channel, metric: a.metric, range });

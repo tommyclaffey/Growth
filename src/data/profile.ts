@@ -24,6 +24,17 @@ const SOURCE_MAX_PX = 900;
    directly. Without it the sidebar keeps the old photo until a reload. */
 const CHANGED = 'growth:avatar-changed';
 
+/**
+ * Written in place of the image when the photo is removed.
+ *
+ * "Never uploaded" and "deliberately removed" are different states and used to
+ * be stored as the same one -- absent. Because the fallback is a bundled
+ * photo, Remove cleared localStorage, the fallback took over, and the picture
+ * stayed exactly where it was. The button reported success and the only thing
+ * that changed was invisible.
+ */
+const REMOVED = '';
+
 export function getStoredAvatar(): string | null {
   try { return localStorage.getItem(KEY); } catch { return null; }
 }
@@ -35,7 +46,9 @@ export function setStoredAvatar(dataUrl: string | null, source?: string, crop?: 
       if (source) localStorage.setItem(SRC_KEY, source);
       if (crop) localStorage.setItem(CROP_KEY, JSON.stringify(crop));
     } else {
-      localStorage.removeItem(KEY);
+      /* The sentinel, not removeItem -- an absent key means "never set", which
+         is the state that falls back to the bundled photo. */
+      localStorage.setItem(KEY, REMOVED);
       localStorage.removeItem(SRC_KEY);
       localStorage.removeItem(CROP_KEY);
     }
@@ -85,6 +98,9 @@ export function useMyAvatar(): string | undefined {
       window.removeEventListener('storage', sync);
     };
   }, []);
+  /* Removed -> no photo at all, which is what Avatar renders initials for.
+     Never set -> the bundled photo. */
+  if (stored === REMOVED) return undefined;
   return stored ?? ME.avatar;
 }
 

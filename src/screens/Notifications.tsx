@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { markAllRead, usePrefs } from '../data/prefs';
 import './screens.css';
 import { Button } from '../components/Button/Button';
 import { Chip } from '../components/Chip/Chip';
@@ -27,7 +28,11 @@ const ALERTS: Alert[] = [
 
 export function Notifications() {
   const [filter, setFilter] = useState<Tone | null>(null);
-  const [read, setRead] = useState<Set<string>>(new Set());
+  /* Persisted. "Mark all read" used to set local state that App.tsx unmounted
+     on the next navigation, so the badge you had just cleared was back before
+     you returned to it. */
+  const { readAlerts } = usePrefs();
+  const read = new Set(readAlerts);
 
   const shown = filter ? ALERTS.filter((a) => a.tone === filter) : ALERTS;
   const days = [...new Set(shown.map((a) => a.day))];
@@ -50,7 +55,13 @@ export function Notifications() {
             onRemove={() => setFilter(null)}
           />
         ))}
-        <Button variant="ghost" onClick={() => setRead(new Set(ALERTS.map((a) => a.id)))}>
+        <Button
+          variant="ghost"
+          /* Disabled when there is nothing to mark -- a button that reports
+             success on a no-op is the same lie as one with no handler. */
+          disabled={unreadCount === 0}
+          onClick={() => markAllRead(ALERTS.filter((a) => a.unread).map((a) => a.id))}
+        >
           Mark all read
         </Button>
       </header>
