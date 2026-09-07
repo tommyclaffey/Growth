@@ -52,3 +52,16 @@
    own column header sat hard right, and the label read as belonging to
    nothing. `margin-left: auto` is what actually moves a sized block. */
 .gr-table td:last-child .gr-spark { margin-left: auto; }
+
+/* The campaign name as a link into its page. Styled as text, not a button —
+   it sits inside a table cell and a button chrome here would read as an action
+   on the row rather than a way into it. */
+.gr-campaigns__open {
+  border: none; background: none; padding: 0; margin: 0;
+  font: inherit; color: inherit; cursor: pointer; text-align: left;
+}
+.gr-campaigns__open:hover { text-decoration: underline; }
+.gr-campaigns__open:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px; border-radius: var(--radius-sm);
+}

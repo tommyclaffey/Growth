@@ -131,3 +131,20 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-demo-states__btn:focus-visible {
   outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px;
 }
+
+/* ---- Campaign detail ---- */
+.gr-campaign__head { display: flex; flex-direction: column; gap: var(--space-6); }
+.gr-campaign__title { display: flex; align-items: center; gap: var(--space-10); }
+.gr-campaign__title h2 { margin: 0; color: var(--text-primary); }
+.gr-campaign__meta { color: var(--text-muted); margin: 0; }
+.gr-campaign__adset-row { height: 44px; }
+.gr-campaign__note {
+  color: var(--text-muted);
+  padding: var(--space-12) var(--space-12) 0;
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+  margin: var(--space-12) 0 0;
+}
+.gr-campaign__missing {
+  display: flex; flex-direction: column; align-items: flex-start;
+  gap: var(--space-16); padding: var(--space-28);
+}

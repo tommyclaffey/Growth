@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CAMPAIGNS } from '../campaigns';
 import { campaignRows, campaignTotals } from '../campaignSeries';
-import { CHANNEL_KEYS, METRICS, RANGES, rowsFor, setActiveChannels, totals } from '../metrics';
+import { CHANNEL_KEYS, RANGES, rowsFor, setActiveChannels, totals } from '../metrics';
 
 const ALL = [...CHANNEL_KEYS];
 const reset = () => setActiveChannels(ALL);

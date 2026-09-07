@@ -1,0 +1,128 @@
+import './screens.css';
+import { KpiCard } from '../components/KpiCard/KpiCard';
+import { Chart } from '../components/Chart/Chart';
+import { StatusPill } from '../components/StatusPill/StatusPill';
+import { ChannelMark } from '../components/ChannelMark/ChannelMark';
+import { Button } from '../components/Button/Button';
+import { campaignById, campaignSeries, campaignTotals } from '../data/campaignSeries';
+import { CHANNEL_LABEL, formatMetric, higherIsBetter, type Metric, type Range } from '../data/metrics';
+
+export interface CampaignDetailProps {
+  id: string;
+  metric: Metric;
+  range: Range;
+  onMetricChange: (m: Metric) => void;
+  onBack: () => void;
+  wideColumns?: boolean;
+}
+
+/**
+ * One campaign, in full.
+ *
+ * The table gives a campaign one row and an expandable list of ad sets; that
+ * answers "how is it doing" and nothing else. It cannot answer "how did it get
+ * here", because a row has no time axis.
+ *
+ * Everything here derives from `campaignSeries`, which derives from the
+ * channel's daily rows — so the numbers on this page and the numbers on the
+ * Campaigns table and the numbers on the channel screen are the same numbers,
+ * not three calculations that agree today.
+ */
+export function CampaignDetail({
+  id, metric, range, onMetricChange, onBack, wideColumns = true,
+}: CampaignDetailProps) {
+  const campaign = campaignById(id);
+
+  /* A campaign id can arrive from a stale link or a deleted record. Landing on
+     a blank screen with no way out is worse than saying so. */
+  if (!campaign) {
+    return (
+      <div className="gr-card gr-campaign__missing">
+        <p className="gr-type-body">That campaign no longer exists.</p>
+        <Button variant="ghost" onClick={onBack}>Back to campaigns</Button>
+      </div>
+    );
+  }
+
+  const t = campaignTotals(id, range);
+  const data = campaignSeries(id, metric, range);
+  const adSetSpend = campaign.adSets.reduce((a, s) => a + s.spend, 0);
+
+  return (
+    <>
+      <header className="gr-campaign__head">
+        <button type="button" className="gr-crumb gr-type-caption" onClick={onBack}>
+          <span aria-hidden="true">‹</span> Campaigns
+        </button>
+        <div className="gr-campaign__title">
+          <ChannelMark channel={campaign.channel} size={20} />
+          <h2 className="gr-type-section">{campaign.name}</h2>
+          <StatusPill stage={campaign.stage} />
+        </div>
+        <p className="gr-type-caption gr-campaign__meta">
+          {CHANNEL_LABEL[campaign.channel]} · {campaign.objective} · {campaign.adSets.length} ad sets
+        </p>
+      </header>
+
+      <div className="gr-kpi-row">
+        <KpiCard label="Spend" value={formatMetric('Spend', t.spend)} metric="Spend" channel={campaign.channel} />
+        <KpiCard label="Leads" value={formatMetric('Leads', t.leads)} metric="Leads" channel={campaign.channel} />
+        <KpiCard label="CAC" value={formatMetric('CAC', t.cac)} metric="CAC"
+                 higherIsBetter={higherIsBetter('CAC')} channel={campaign.channel} />
+        <KpiCard label="ROAS" value={formatMetric('ROAS', t.roas)} metric="ROAS" channel={campaign.channel} />
+      </div>
+
+      <Chart
+        channel={campaign.channel}
+        metric={metric}
+        onMetricChange={onMetricChange}
+        data={data}
+        title={`${metric} over time`}
+      />
+
+      <section className="gr-card">
+        <header className="gr-card__header">
+          <h3 className="gr-card__title gr-type-card-heading">Ad sets</h3>
+          <span className="gr-type-caption">{campaign.adSets.length}</span>
+        </header>
+        <table className="gr-table">
+          <thead>
+            <tr className="gr-type-overline">
+              <th scope="col">Ad set</th>
+              <th scope="col">Status</th>
+              <th scope="col">Spend</th>
+              {wideColumns && <th scope="col">Share</th>}
+              <th scope="col">Leads</th>
+              <th scope="col">CAC</th>
+            </tr>
+          </thead>
+          <tbody>
+            {campaign.adSets.map((a) => (
+              <tr key={a.id} className="gr-campaign__adset-row">
+                <td className="gr-type-body-medium">{a.name}</td>
+                <td><StatusPill stage={a.stage} /></td>
+                <td className="gr-type-body">{formatMetric('Spend', a.spend)}</td>
+                {/* Share of the campaign, so a reader can see which ad set is
+                    actually carrying it without doing the division. */}
+                {wideColumns && (
+                  <td className="gr-type-body">
+                    {adSetSpend > 0 ? `${Math.round((a.spend / adSetSpend) * 100)}%` : '—'}
+                  </td>
+                )}
+                <td className="gr-type-body">{a.leads.toLocaleString()}</td>
+                <td className="gr-type-body">
+                  {a.leads > 0 ? formatMetric('CAC', a.spend / a.leads) : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {/* Ad sets are static totals — they do not have daily series. Saying so
+            is better than letting a reader assume the range picker moved them. */}
+        <p className="gr-type-caption gr-campaign__note">
+          Ad set figures are period totals and do not follow the date range.
+        </p>
+      </section>
+    </>
+  );
+}

@@ -17,9 +17,11 @@ export interface CampaignTableProps {
   /** Optional channel filter, set when drilling in from Channels. */
   channel?: ChannelName | null;
   wideColumns?: boolean;
+  /** Opens the campaign's detail page. The caret still expands in place. */
+  onOpenCampaign?: (id: string) => void;
 }
 
-export function CampaignTable({ channel = null, wideColumns = true }: CampaignTableProps) {
+export function CampaignTable({ channel = null, wideColumns = true, onOpenCampaign }: CampaignTableProps) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<ChannelName | null>(channel);
   /* Stage overrides live here rather than mutating CAMPAIGNS, so the seed
@@ -86,9 +88,23 @@ export function CampaignTable({ channel = null, wideColumns = true }: CampaignTa
                     </button>
                   </td>
                   <td>
+                    {/* The NAME opens the page; the caret expands in place.
+                        Two different questions -- "show me more here" and "take
+                        me to this" -- so they get two different controls rather
+                        than one that has to guess. A button, not a row click,
+                        because the row also contains a status menu and a caret,
+                        and a click target that swallows its own children is how
+                        you end up navigating when someone meant to pause. */}
                     <span className="gr-table__channel gr-type-body-medium">
                       <ChannelMark channel={c.channel} size={16} />
-                      {c.name}
+                      {onOpenCampaign
+                        ? (
+                          <button type="button" className="gr-campaigns__open"
+                                  onClick={() => onOpenCampaign(c.id)}>
+                            {c.name}
+                          </button>
+                        )
+                        : c.name}
                     </span>
                     <span className="gr-campaigns__meta gr-type-caption">
                       {CHANNEL_LABEL[c.channel]} · {c.adSets.length} ad set{c.adSets.length === 1 ? '' : 's'}

@@ -18,6 +18,7 @@ import { downloadCsv } from './data/exportCsv';
 import { Reports } from './screens/Reports';
 import { Notifications } from './screens/Notifications';
 import { Settings } from './screens/Settings';
+import { CampaignDetail } from './screens/CampaignDetail';
 import { useMonthlyBudget } from './data/profile';
 import {
   CHANNEL_LABEL, activeChannels, delta, formatMetric, isActive, series, sparkline, totals,
@@ -68,6 +69,11 @@ export default function App() {
   /* Drives the loading/error/empty states, which are otherwise unreachable —
      the data layer is synchronous, so nothing here can be slow or fail. */
   const demo = useDemoState();
+
+  /* Which campaign's page is open, if any. Null means the Campaigns list.
+     Held here rather than inside CampaignTable because App owns navigation and
+     the table is unmounted whenever nav changes. */
+  const [campaignId, setCampaignId] = useState<string | null>(null);
 
   const budget = useMonthlyBudget();
 
@@ -212,7 +218,11 @@ export default function App() {
 
   return (
     <div className="gr-app">
-      <Sidebar active={nav} onNavigate={(k) => { setNav(k); setChannel(null); }} />
+      {/* Clearing campaignId here is what makes the Campaigns nav item work
+          while a campaign page is open. Without it, clicking Campaigns from a
+          detail page sets nav to the value it already has and nothing moves --
+          a nav item that appears dead. */}
+      <Sidebar active={nav} onNavigate={(k) => { setNav(k); setChannel(null); setCampaignId(null); }} />
 
       <div className={`gr-main ${chatOpen ? 'is-chat-open' : ''}`}>
         <header className="gr-header">
@@ -347,7 +357,18 @@ export default function App() {
                           onRowClick={(k) => setChannel(k)} />
           )}
 
-          {nav === 'campaigns' && <CampaignTable wideColumns={!chatOpen} />}
+          {nav === 'campaigns' && (campaignId
+            ? (
+              <CampaignDetail
+                id={campaignId}
+                metric={metric}
+                range={range}
+                onMetricChange={setMetric}
+                onBack={() => setCampaignId(null)}
+                wideColumns={!chatOpen}
+              />
+            )
+            : <CampaignTable wideColumns={!chatOpen} onOpenCampaign={setCampaignId} />)}
 
           {nav === 'reports' && <Reports />}
           {nav === 'notifications' && <Notifications />}
