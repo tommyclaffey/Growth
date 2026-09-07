@@ -127,3 +127,25 @@ export function formatDerived(m: DerivedMetric, v: number): string {
 }
 
 export type { DayRow };
+
+/**
+ * Whether this metric is a rate rather than a sum.
+ *
+ * A ratio cannot be added across days -- a period's CTR is total clicks over
+ * total impressions, not the mean of each day's CTR. The card says so, because
+ * the alternative is a reader adding two shared cards together and getting a
+ * number that is wrong in a way nothing on screen admits.
+ *
+ * `isRatio` in metrics.ts answers the same question for the six funnel metrics.
+ * This one covers the derived vocabulary that campaigns report.
+ */
+export function isDerivedRatio(m: DerivedMetric): boolean {
+  return m === 'CTR' || m === 'CPC' || m === 'CPM'
+    || m === 'CAC' || m === 'ROAS' || m === 'CVR';
+}
+
+/** Runtime list, for validating untrusted input like a URL or a Slack message. */
+export const DERIVED_METRICS: DerivedMetric[] = [
+  'Spend', 'Impressions', 'Clicks', 'Leads', 'Sales',
+  'CTR', 'CPC', 'CPM', 'CAC', 'ROAS', 'CVR',
+];

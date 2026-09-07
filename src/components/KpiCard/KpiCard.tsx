@@ -26,6 +26,20 @@ export interface KpiCardProps {
   loading?: boolean;
   /** Renders the error state: an em dash, and the badge and sparkline in semantic/bad. */
   error?: boolean;
+  /**
+   * How this number compares to the channel it belongs to, e.g.
+   * "vs $29.80 Meta avg campaign".
+   *
+   * Renders in the SAME footer slot, as the SAME pill, as the period delta --
+   * so a campaign card and an Overview card are the same card. What differs is
+   * the sentence inside it: `variant="benchmark"` drops the arrow and says
+   * "above" / "below", because a distance from an average is not a change over
+   * time and the two must not be readable as each other.
+   *
+   * `note` sits where the sparkline sits, naming what the comparison is
+   * against. A percentage with no stated basis is a number nobody can check.
+   */
+  benchmark?: { percent: number; note: string };
   /** Fires from the Discuss button, not the whole card. */
   onDiscuss?: () => void;
   onClick?: () => void;
@@ -54,6 +68,7 @@ export function KpiCard({
   channel,
   loading = false,
   error = false,
+  benchmark,
   onDiscuss,
   onClick,
 }: KpiCardProps) {
@@ -96,12 +111,22 @@ export function KpiCard({
           <DeltaBadge percent={deltaPercent} higherIsBetter={higherIsBetter} />
         )}
 
+        {/* Same pill, same row, same rule for which way is good -- the card
+            does not re-decide direction for the benchmark, it reuses the one
+            it was already given. */}
+        {benchmark && !error && (
+          <DeltaBadge percent={benchmark.percent} higherIsBetter={higherIsBetter} variant="benchmark" />
+        )}
+
         {progress !== undefined ? (
           <ProgressBar value={progress} label={label} />
         ) : sparkline && sparkline.length > 0 ? (
           <Sparkline values={sparkline} metric={metric} channel={channel} />
+        ) : benchmark && !error ? (
+          <span className="gr-kpi__bench-note gr-type-caption">{benchmark.note}</span>
         ) : null}
       </span>
+
     </div>
   );
 }

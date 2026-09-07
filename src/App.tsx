@@ -22,9 +22,11 @@ import { CampaignDetail } from './screens/CampaignDetail';
 import { useMonthlyBudget } from './data/profile';
 import {
   CHANNEL_LABEL, activeChannels, delta, formatMetric, isActive, series, sparkline, totals,
-  RANGE_LABEL,
+  RANGE_LABEL, METRICS,
   type Metric, type Range, type Scope,
 } from './data/metrics';
+import { campaignById } from './data/campaignSeries';
+import type { DerivedMetric } from './data/channelMetrics';
 import type { ChannelName } from './styles/tokens';
 import type { ViewRef } from './data/chat';
 import { readDeepLink } from './data/chat';
@@ -95,8 +97,24 @@ export default function App() {
      in the chat -- they are the same action arriving from two directions, and
      two copies would drift the moment either grew a case. */
   const applyView = useCallback((v: ViewRef) => {
-    setMetric(v.metric);
     setRange(v.range);
+
+    /* A ViewRef's metric is a DerivedMetric, which is wider than what the
+       app-wide toggle accepts -- a campaign can share CTR or CPM. Narrow
+       before setting, and leave the current metric alone when it does not
+       fit rather than coercing it into a different measurement. */
+    if ((METRICS as string[]).includes(v.metric)) setMetric(v.metric as Metric);
+
+    /* A shared campaign card opens the campaign, not its channel. Opening the
+       channel would land you on a screen that does not contain the number you
+       followed the link to read. */
+    if (v.campaign) {
+      setCampaignId(v.campaign);
+      setNav('campaigns');
+      return;
+    }
+
+    setCampaignId(null);
     if (v.channel === 'all') { setChannel(null); setNav('overview'); }
     else { setChannel(v.channel as ChannelName); setNav('channels'); }
   }, []);
@@ -153,6 +171,17 @@ export default function App() {
      handler, which is the same dead control as a switch that flips nothing. */
   function shareMetric(m: Metric) {
     setPendingView({ channel: scope, metric: m, range });
+    setChatOpen(true);
+  }
+
+  /* The campaign equivalent. The channel still travels with it -- the card's
+     mark, colour and benchmark all come from the channel, and a campaign that
+     arrived in a thread without one would be a name and a number with no way
+     to tell what it was even bought on. */
+  function shareCampaign(id: string, m: DerivedMetric) {
+    const c = campaignById(id);
+    if (!c) return;
+    setPendingView({ channel: c.channel, metric: m, range, campaign: id });
     setChatOpen(true);
   }
 
@@ -364,6 +393,7 @@ export default function App() {
                 metric={metric}
                 range={range}
                 onBack={() => setCampaignId(null)}
+                onDiscuss={(m) => shareCampaign(campaignId, m)}
                 wideColumns={!chatOpen}
               />
             )

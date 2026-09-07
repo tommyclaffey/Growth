@@ -1,7 +1,9 @@
 import mayaPhoto from '../assets/maya.jpg';
 import type { ChannelName } from '../styles/tokens';
-import type { Metric, Range } from './metrics';
-import { CHANNEL_KEYS, METRICS, RANGES } from './metrics';
+import { DERIVED_METRICS, type DerivedMetric } from './channelMetrics';
+import { CAMPAIGNS } from './campaigns';
+import type { Range } from './metrics';
+import { CHANNEL_KEYS, RANGES } from './metrics';
 
 export interface Member {
   id: string;
@@ -38,8 +40,22 @@ export const MEMBERS: Record<string, Member> = {
 /** A view someone shared, unfurled inline like a link preview. */
 export interface ViewRef {
   channel: ChannelName | 'all';
-  metric: Metric;
+  /**
+   * Widened from `Metric` to `DerivedMetric` so a campaign card can be shared.
+   * A campaign reports CTR, CPM and CPC; the six funnel metrics cannot express
+   * those, and sharing "CTR" as "Clicks" would put a number in the thread that
+   * is not the number the sender clicked.
+   *
+   * ⚠️ Consequence: a ViewRef's metric is NOT always something the app-wide
+   * metric toggle can accept. Anything applying one has to narrow first.
+   */
+  metric: DerivedMetric;
   range: Range;
+  /**
+   * Present when the shared card came from a campaign page. The channel stays
+   * populated either way -- it is what the card's mark and colour come from.
+   */
+  campaign?: string;
 }
 
 export interface Message {
@@ -132,6 +148,9 @@ export function encodeView(view: ViewRef, origin: string, conversationId?: strin
 
      Appended after r so the decode regex, which anchors on c/m/r in order, is
      unaffected by its presence or absence. */
+  /* Before `t`, so the decode regex -- which anchors on c/m/r and then
+     consumes the rest -- is unaffected either way. */
+  if (view.campaign) q.set('p', view.campaign);
   if (conversationId) q.set('t', conversationId);
   return `${origin}/Growth/?${q}`;
 }
@@ -165,8 +184,17 @@ function asChannel(v: string | null): ViewRef['channel'] | null {
   if (v === 'all') return 'all';
   return (CHANNEL_KEYS as readonly string[]).includes(v ?? '') ? (v as ViewRef['channel']) : null;
 }
-function asMetric(v: string | null): Metric | null {
-  return (METRICS as readonly string[]).includes(v ?? '') ? (v as Metric) : null;
+function asMetric(v: string | null): DerivedMetric | null {
+  /* Validated against the DERIVED list, not the six funnel metrics -- a shared
+     campaign card can legitimately be a CTR or a CPM, and checking against the
+     narrower list would have silently dropped those links on arrival. */
+  return (DERIVED_METRICS as readonly string[]).includes(v ?? '') ? (v as DerivedMetric) : null;
+}
+function asCampaign(v: string | null): string | undefined {
+  /* An id that no longer exists is not a campaign. Returning it anyway would
+     navigate to the "that campaign no longer exists" screen from a link that
+     could have shown the channel instead. */
+  return v && CAMPAIGNS.some((c) => c.id === v) ? v : undefined;
 }
 function asRange(v: string | null): Range | null {
   const n = Number(v);
@@ -179,7 +207,11 @@ export function readDeepLink(search: string): DeepLink | null {
   const metric = asMetric(q.get('m'));
   const range = asRange(q.get('r'));
   if (!channel || !metric || !range) return null;
-  return { view: { channel, metric, range }, conversationId: q.get('t') ?? undefined };
+  const campaign = asCampaign(q.get('p'));
+  return {
+    view: { channel, metric, range, ...(campaign ? { campaign } : {}) },
+    conversationId: q.get('t') ?? undefined,
+  };
 }
 
 /* The trailing (?:&[^\s]*)? is load-bearing.
@@ -196,15 +228,24 @@ const VIEW_RE = /https?:\/\/[^\s]*\/Growth\/\?(?:[^\s]*&)?c=([a-zA-Z]+)&m=([A-Za
 export function decodeView(text: string): { view: ViewRef; text: string } | null {
   const m = text.match(VIEW_RE);
   if (!m) return null;
-  const [full, channel, metric, range] = m;
+  const full = m[0];
+
+  /* Parses the matched URL through readDeepLink rather than re-validating the
+     regex's own capture groups.
+
+     Those two paths used to be separate implementations of the same decision,
+     and the old comment here literally read "same validation as readDeepLink"
+     -- one rule written twice is one rule that drifts. It would have drifted
+     immediately: the campaign parameter is not a capture group, so a campaign
+     card shared into Slack would have come back as its channel, showing a
+     number that belongs to six campaigns under a heading naming one. */
+  const link = readDeepLink(full.slice(full.indexOf('?') + 1));
+  if (!link) return null;
+
   /* Strip the URL from the body — the card renders it, and leaving the raw
      link in as well shows the same thing twice. */
-  const ch = asChannel(channel), mt = asMetric(metric), rg = asRange(range);
-  /* Same validation as readDeepLink. This input is a Slack message, so it is
-     even less trustworthy than the URL: an unrecognised card is not a card. */
-  if (!ch || !mt || !rg) return null;
   return {
-    view: { channel: ch, metric: mt, range: rg },
+    view: link.view,
     text: text.replace(full, '').replace(/\s{2,}/g, ' ').trim(),
   };
 }

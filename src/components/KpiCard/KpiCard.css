@@ -96,3 +96,21 @@
    so a failed sync reads as absent rather than as zero. */
 
 @media (prefers-reduced-motion: reduce) { .gr-kpi__discuss { transition: none; } }
+
+/* Benchmark note — sits in the sparkline's slot, naming what the pill beside
+   it is measured against. Truncates rather than wrapping: the card is a fixed
+   height shared with every other KPI card, and a two-line note here would make
+   one card in a row taller than its siblings. */
+.gr-kpi__bench-note {
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* The pill keeps its size; the note is what gives way.
+   Both are flex items and flex items shrink below their content by default, so
+   without this the nowrap pill would be squeezed and overflow rather than the
+   note truncating — the same default that produced the InfoStrip overlap. */
+.gr-kpi__foot .gr-delta { flex: none; }

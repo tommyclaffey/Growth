@@ -20,9 +20,25 @@ export interface DeltaBadgeProps {
    * 0% as a green rise.
    */
   bare?: boolean;
+  /**
+   * What the percentage is measured AGAINST. Same pill, same tones, same
+   * geometry — different sentence.
+   *
+   * 'period'    — change since the previous period. Wears the arrow.
+   * 'benchmark' — distance from a comparison value, e.g. the channel average.
+   *               Wears the word "above" or "below" and NO arrow.
+   *
+   * The two must not look identical, because they are not the same claim: a
+   * campaign can be up 8% on last fortnight while sitting 20% below the
+   * channel average, and both of those render in this pill. An arrow on each
+   * would put two unrelated measurements in the same costume.
+   */
+  variant?: 'period' | 'benchmark';
 }
 
-export function DeltaBadge({ percent, higherIsBetter = true, bare = false }: DeltaBadgeProps) {
+export function DeltaBadge({
+  percent, higherIsBetter = true, bare = false, variant = 'period',
+}: DeltaBadgeProps) {
   /* Zero is not a direction.
      `percent >= 0` folded 0 in with "up", so an unchanged metric got an arrow
      and a verdict: blended CAC rendered "up 0%" in red while blended ROAS
@@ -31,20 +47,30 @@ export function DeltaBadge({ percent, higherIsBetter = true, bare = false }: Del
   const tone = deltaTone(percent, higherIsBetter);
   if (tone === 'flat') {
     return (
-      <span className={`gr-delta gr-type-caption-med is-flat ${bare ? "is-bare" : ""}`}>
+      <span className={`gr-delta gr-type-caption-med is-flat ${bare ? 'is-bare' : ''}`}>
         <span aria-hidden="true">–</span>
-        0%
-        <span className="gr-sr-only">no change</span>
+        {variant === 'benchmark' ? 'level' : '0%'}
+        <span className="gr-sr-only">
+          {variant === 'benchmark' ? 'at the average' : 'no change'}
+        </span>
       </span>
     );
   }
 
   const up = percent > 0;
+  const magnitude = `${Math.abs(Math.round(percent))}%`;
   return (
     <span className={`gr-delta gr-type-caption-med ${tone === 'good' ? 'is-good' : 'is-bad'} ${bare ? 'is-bare' : ''}`}>
-      <span aria-hidden="true">{up ? '↑' : '↓'}</span>
-      {Math.abs(percent)}%
-      <span className="gr-sr-only">{up ? 'increase' : 'decrease'}</span>
+      {variant === 'period' && <span aria-hidden="true">{up ? '↑' : '↓'}</span>}
+      {magnitude}
+      {variant === 'benchmark'
+        ? <span aria-hidden="true">{up ? 'above' : 'below'}</span>
+        : null}
+      <span className="gr-sr-only">
+        {variant === 'benchmark'
+          ? (up ? 'above the average' : 'below the average')
+          : (up ? 'increase' : 'decrease')}
+      </span>
     </span>
   );
 }

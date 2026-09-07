@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useOverlay } from '../../data/useOverlay';
 import './ChatPanel.css';
+import { campaignById, campaignTotals } from '../../data/campaignSeries';
+import { benchmarkFor, benchmarkLabel } from '../../data/benchmark';
+import { betterHigher, formatDerived, isDerivedRatio, valueOf } from '../../data/channelMetrics';
 import {
   loadDirectThread, loadThread, postDirectToSlack, postToSlack, subscribeToSlack,
   type ChatSource,
@@ -20,7 +23,8 @@ import {
   type Member, type Message, type ViewRef,
 } from '../../data/chat';
 import {
-  CHANNEL_LABEL, RANGE_LABEL, delta, formatMetric, isRatio, totals, type Scope,
+  CHANNEL_LABEL, METRICS, RANGE_LABEL, delta, totals,
+  type Metric, type Scope,
 } from '../../data/metrics';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
@@ -545,22 +549,39 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
 function ViewCard({ view, compact = false, onOpen }:
   { view: ViewRef; compact?: boolean; onOpen?: (view: ViewRef) => void }) {
   const scope = view.channel as Scope;
-  const t = totals(scope, view.range);
 
-  const value =
-    view.metric === 'Spend' ? formatMetric('Spend', t.spend)
-    : view.metric === 'Leads' ? formatMetric('Leads', t.leads)
-    : view.metric === 'CAC' ? formatMetric('CAC', t.cac)
-    : view.metric === 'ROAS' ? formatMetric('ROAS', t.roas)
-    : view.metric === 'Sales' ? formatMetric('Sales', t.sales)
-    : formatMetric('Clicks', t.clicks);
+  /* A campaign card and a channel card are the same card reading different
+     books. Both end up with a totals object of the same shape, so everything
+     below this line is shared -- which is the only reason a campaign could be
+     added without a second component to keep in sync. */
+  const campaign = view.campaign ? campaignById(view.campaign) : undefined;
+  const t = campaign ? campaignTotals(campaign.id, view.range) : totals(scope, view.range);
 
-  const change = delta(scope, view.metric, view.range);
+  const value = formatDerived(view.metric, valueOf(view.metric, t));
 
-  // Rising CAC is bad; rising everything else here is good.
-  const higherIsBetter = view.metric !== 'CAC';
+  /* betterHigher owns direction for the whole app. This used to be an inline
+     `view.metric !== 'CAC'`, which was correct until campaigns brought CPC and
+     CPM -- two more metrics where a rise is bad news and this card would have
+     painted green. */
+  const higherIsBetter = betterHigher(view.metric);
 
-  const label = view.channel === 'all' ? 'All channels' : CHANNEL_LABEL[view.channel as ChannelName];
+  /* `delta` only speaks the six funnel metrics and only for a channel scope.
+     A campaign, or a rate like CTR, has no period comparison to show -- so the
+     badge is omitted rather than filled with a number from a different
+     subject. */
+  const change = !campaign && (METRICS as string[]).includes(view.metric)
+    ? delta(scope, view.metric as Metric, view.range)
+    : undefined;
+
+  const channelLabel = view.channel === 'all'
+    ? 'All channels' : CHANNEL_LABEL[view.channel as ChannelName];
+  const label = campaign ? campaign.name : channelLabel;
+
+  /* Where the badge would be on a channel card. A campaign's useful comparison
+     is not "against last fortnight", it is "against the rest of this channel". */
+  const bench = campaign
+    ? benchmarkFor(campaign.channel, view.metric, view.range, valueOf(view.metric, t))
+    : null;
 
   /* A real <button> when it navigates, a plain div when it does not.
 
@@ -592,9 +613,21 @@ function ViewCard({ view, compact = false, onOpen }:
       <p className="gr-viewcard__metric gr-type-body">{view.metric}</p>
       <p className="gr-viewcard__row">
         <span className="gr-viewcard__value gr-type-kpi-value">{value}</span>
-        <DeltaBadge percent={change} higherIsBetter={higherIsBetter} />
+        {change !== undefined && (
+          <DeltaBadge percent={change} higherIsBetter={higherIsBetter} />
+        )}
+        {/* The same pill the campaign's KPI card showed. A number quoted into
+            a thread should look like the number it was quoted from. */}
+        {bench && (
+          <DeltaBadge percent={bench.deltaPercent} higherIsBetter={higherIsBetter} variant="benchmark" />
+        )}
       </p>
-      {isRatio(view.metric) && (
+      {bench && (
+        <p className="gr-viewcard__note gr-type-micro">
+          {benchmarkLabel(view.metric, bench, channelLabel)}
+        </p>
+      )}
+      {isDerivedRatio(view.metric) && (
         <p className="gr-viewcard__note gr-type-micro">
           Ratio — computed from the period, not summed
         </p>

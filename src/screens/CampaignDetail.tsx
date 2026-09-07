@@ -10,12 +10,15 @@ import { Button } from '../components/Button/Button';
 import { campaignById, campaignSeries, campaignTotals } from '../data/campaignSeries';
 import { CHANNEL_LABEL, formatMetric, type Metric, type Range } from '../data/metrics';
 import { betterHigher, formatDerived, headlineFor, kpisFor, valueOf, type DerivedMetric } from '../data/channelMetrics';
+import { benchmarkFor, benchmarkLabel } from '../data/benchmark';
 
 export interface CampaignDetailProps {
   id: string;
   metric: Metric;
   range: Range;
   onBack: () => void;
+  /** Stages this campaign's metric as a card in the chat composer. */
+  onDiscuss?: (metric: DerivedMetric) => void;
   wideColumns?: boolean;
 }
 
@@ -32,7 +35,7 @@ export interface CampaignDetailProps {
  * not three calculations that agree today.
  */
 export function CampaignDetail({
-  id, metric, range, onBack, wideColumns = true,
+  id, metric, range, onBack, onDiscuss, wideColumns = true,
 }: CampaignDetailProps) {
   const campaign = campaignById(id);
   /* Subscribed here so the pill re-renders when the table, or a second tab,
@@ -103,15 +106,31 @@ export function CampaignDetail({
       </header>
 
       <div className="gr-kpi-row">
-        {shown.map((m) => (
-          <KpiCard
-            key={m}
-            label={m}
-            value={formatDerived(m, valueOf(m, t))}
-            higherIsBetter={betterHigher(m)}
-            channel={campaign.channel}
-          />
-        ))}
+        {shown.map((m) => {
+          const v = valueOf(m, t);
+          /* What this channel does on the same metric. A CAC of $34.31 is not
+             information on its own -- it becomes information beside the $29.80
+             the rest of Meta averages. Null when the channel runs a single
+             campaign, because the average would be this campaign. */
+          const b = benchmarkFor(campaign.channel, m, range, v);
+          return (
+            <KpiCard
+              key={m}
+              label={m}
+              value={formatDerived(m, v)}
+              higherIsBetter={betterHigher(m)}
+              channel={campaign.channel}
+              benchmark={b ? {
+                percent: b.deltaPercent,
+                note: benchmarkLabel(m, b, CHANNEL_LABEL[campaign.channel]),
+              } : undefined}
+              /* Same affordance as every other KPI card in the product. A
+                 number you cannot ask anyone about is a number you act on
+                 alone. */
+              onDiscuss={onDiscuss ? () => onDiscuss(m) : undefined}
+            />
+          );
+        })}
       </div>
 
       <Chart
