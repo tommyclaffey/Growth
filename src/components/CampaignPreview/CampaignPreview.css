@@ -42,7 +42,16 @@
   background: var(--surface-page-top);
   border-bottom: var(--border-width-sm) solid var(--border-default);
 }
-.gr-cpreview__art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* `>` is load-bearing.
+
+   As a descendant selector this matched EVERY img inside the band -- including
+   the one nested in the ChannelMark that the empty state renders. Same
+   specificity as .gr-chmark img and later in source order, so it won, and the
+   channel logo was cropped to a square by an object-fit meant for photographs.
+   That is what "the logo is cut off" was: not the SVG, not the mark component,
+   a rule two components away matching on structure without checking what it
+   had hit. */
+.gr-cpreview__art > img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .gr-cpreview__noart {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: var(--space-8);

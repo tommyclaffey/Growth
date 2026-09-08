@@ -8,7 +8,7 @@
   justify-content: center;
   flex: none;
 }
-.gr-chmark img {
+.gr-chmark > img {
   /* object-fit: contain CANNOT crop — it is the guarantee, not a preference.
 
      The previous attempt scaled the mark past 100% of its box and relied on
