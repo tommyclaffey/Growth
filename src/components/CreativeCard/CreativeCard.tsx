@@ -67,12 +67,17 @@ export function CreativeCard({ creative: c, channel, rank, onOpen }: CreativeCar
         'aria-label': `Open ad: ${c.headline}`,
       } : {})}
     >
-      <div
-        className="gr-creative__stage"
-        /* The ratio drives the frame rather than a fixed height per kind, so
-           adding a format needs no new CSS rule to go with it. */
-        style={visual && c.ratio ? { aspectRatio: c.ratio.replace(':', ' / ') } : undefined}
-      >
+      {/* A FIXED band, with the asset contained inside it.
+
+          The stage used to take each asset's own aspect ratio, which meant a
+          9:16 story card stood roughly twice the height of the 1:1 beside it
+          and the row read as broken rather than as varied.
+
+          `contain` keeps the shape legible -- a vertical asset is still
+          visibly vertical, pillarboxed -- while every card in the row is the
+          same height. The ratio badge states it exactly, so nothing is lost by
+          not making the reader infer it from the frame. */}
+      <div className="gr-creative__stage">
         {visual && c.src ? (
           <img className="gr-creative__img" src={c.src}
                style={{ objectPosition: c.focus }} alt="" loading="lazy" />

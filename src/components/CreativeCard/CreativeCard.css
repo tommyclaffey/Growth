@@ -13,22 +13,23 @@
 .gr-creative.is-paused { background: var(--surface-page-top); }
 .gr-creative.is-paused .gr-creative__stage { opacity: 0.72; }
 
+/* One height for every format, so a row of cards is a row of cards. */
 .gr-creative__stage {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 208px;
   background: var(--surface-page-top);
   border-bottom: var(--border-width-sm) solid var(--border-default);
   overflow: hidden;
 }
-/* Formats with no aspect ratio of their own — audio and text — get a band
-   rather than inheriting a shape they do not have. */
-.gr-creative--audio .gr-creative__stage,
-.gr-creative--text .gr-creative__stage,
-.gr-creative--link .gr-creative__stage { height: 104px; }
 
-.gr-creative__img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* contain, not cover: a 9:16 asset stays visibly vertical inside the band
+   rather than being cropped to fill it. The shape is information -- it is what
+   the whole crop discussion on the ad page is about -- so it is preserved
+   even though the frame no longer carries it. */
+.gr-creative__img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
 .gr-creative__empty {
   display: flex; flex-direction: column; align-items: center; gap: var(--space-4);
   color: var(--text-muted);
@@ -105,11 +106,16 @@
    and their figures. Each card is now its own height. The stat rows no longer
    line up across cards, which is the trade: real aspect ratios are the point of
    this section, and they cannot coexist with a shared baseline. */
+/* stretch, restored on purpose. It was `start` because unequal media heights
+   made stretched cards leave a field of white above their figures. The media
+   band is one height now, so the only variance left is a line or two of copy --
+   and stretching means every card's stat row sits on the same baseline, which
+   is the point of putting them in a row. */
 .gr-creative-grid {
   display: grid;
   gap: var(--space-12);
   grid-template-columns: 1fr;
-  align-items: start;
+  align-items: stretch;
 }
 @container (min-width: 560px) { .gr-creative-grid { grid-template-columns: repeat(2, 1fr); } }
 @container (min-width: 900px) { .gr-creative-grid { grid-template-columns: repeat(3, 1fr); } }

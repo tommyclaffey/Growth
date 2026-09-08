@@ -543,6 +543,7 @@ export default function App() {
                 onBack={closeCampaign}
                 backLabel={cameFrom ? CHANNEL_LABEL[cameFrom] : 'Campaigns'}
                 onDiscuss={(m) => shareCampaign(campaignId, m)}
+                onOpenAd={setAdId}
                 wideColumns={!chatOpen}
               />
             )
