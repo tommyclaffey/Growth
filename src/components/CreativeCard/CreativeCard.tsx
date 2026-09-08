@@ -8,6 +8,8 @@ import type { ChannelName } from '../../styles/tokens';
 export interface CreativeCardProps {
   creative: Creative;
   channel: ChannelName;
+  /** Marks the best performer on the current sort. */
+  rank?: number;
 }
 
 function duration(s: number): string {
@@ -15,62 +17,56 @@ function duration(s: number): string {
 }
 
 /**
- * One ad, rendered as the thing it actually is.
+ * One ad: the asset, then what it did.
  *
- * A search ad is text, so it renders as text -- headline, display URL,
- * description, the shape a search result has. A podcast spot is audio, so it
- * renders as a duration and the read. Only the visual formats get a frame, and
- * that frame is labelled as a placeholder carrying the real ratio rather than
- * pretending to be a photograph nobody shot.
+ * Was a horizontal row -- thumbnail left, everything else right. That layout
+ * makes the artwork a bullet point beside the text, and the artwork is the
+ * thing being judged. Vertical puts the ad at the size you can actually assess
+ * it and files the numbers underneath, which is the order the question is
+ * asked in: is this ad any good, and did it work.
+ *
+ * The frame carries the REAL aspect ratio, so a 9:16 story is tall and a 16:9
+ * pre-roll is wide, on the same row. Normalising them to one shape would hide
+ * the crop problem this section exists to show.
  */
-export function CreativeCard({ creative: c, channel }: CreativeCardProps) {
+export function CreativeCard({ creative: c, channel, rank }: CreativeCardProps) {
   const visual = c.kind === 'image' || c.kind === 'video';
+  const cac = c.leads > 0 ? formatMetric('CAC', c.spend / c.leads) : '—';
 
   return (
-    <article className={`gr-creative gr-creative--${c.kind}`}>
-      <div className="gr-creative__preview" data-ratio={c.ratio ?? ''}>
-        {visual ? (
-          /* One master asset, cropped to each placement's frame -- which is
-             what the ad account does when it serves the same upload as 1:1 in
-             feed and 9:16 in stories. object-fit: cover does the cropping;
-             `focus` decides which band survives it. */
-          <span className={`gr-creative__frame is-${c.ratio?.replace(':', '-')} ${c.src ? 'has-art' : ''}`}>
-            {c.src ? (
-              <img
-                className="gr-creative__img"
-                src={c.src}
-                style={{ objectPosition: c.focus }}
-                /* Empty alt, not a description. The headline and copy sit
-                   beside it in real text -- narrating the artwork as well would
-                   read the same ad twice to a screen-reader user. */
-                alt=""
-                loading="lazy"
-                width={96}
-                height={96}
-              />
-            ) : (
-              <>
-                <ChannelMark channel={channel} size={18} />
-                <span className="gr-sr-only">Preview not available in this build</span>
-              </>
-            )}
-            <span className="gr-creative__ratio gr-type-micro">{c.ratio}</span>
-            {c.kind === 'video' && (
-              <span className="gr-creative__play" aria-hidden="true">▶</span>
-            )}
-          </span>
+    <article className={`gr-creative gr-creative--${c.kind} ${c.stage === 'Paused' ? 'is-paused' : ''}`}>
+      <div
+        className="gr-creative__stage"
+        /* The ratio drives the frame rather than a fixed height per kind, so
+           adding a format needs no new CSS rule to go with it. */
+        style={visual && c.ratio ? { aspectRatio: c.ratio.replace(':', ' / ') } : undefined}
+      >
+        {visual && c.src ? (
+          <img className="gr-creative__img" src={c.src}
+               style={{ objectPosition: c.focus }} alt="" loading="lazy" />
+        ) : visual ? (
+          <span className="gr-creative__empty"><ChannelMark channel={channel} size={22} /></span>
         ) : c.kind === 'audio' ? (
           <span className="gr-creative__wave" aria-hidden="true">
-            {/* Fixed heights, not random -- a waveform that reshuffles on every
-                render reads as broken rather than alive. */}
-            {[6, 13, 9, 17, 11, 20, 8, 15, 10, 18, 7, 12].map((h, i) => (
+            {[6, 13, 9, 17, 11, 20, 8, 15, 10, 18, 7, 12, 16, 9, 14].map((h, i) => (
               <i key={i} style={{ height: `${h}px` }} />
             ))}
           </span>
         ) : (
-          <span className="gr-creative__glyph gr-type-micro">
-            {c.kind === 'text' ? 'Aa' : '↗'}
+          /* A search ad IS text, so it renders as a search result rather than
+             as an icon standing in for one. */
+          <span className="gr-creative__serp">
+            <span className="gr-creative__serp-url gr-type-micro">{c.destination}</span>
+            <span className="gr-creative__serp-head gr-type-body-medium">{c.headline}</span>
           </span>
+        )}
+
+        {rank !== undefined && (
+          <span className="gr-creative__rank gr-type-micro" aria-hidden="true">#{rank}</span>
+        )}
+        {c.ratio && <span className="gr-creative__ratio gr-type-micro">{c.ratio}</span>}
+        {c.seconds && (
+          <span className="gr-creative__time gr-type-micro">{duration(c.seconds)}</span>
         )}
       </div>
 
@@ -79,26 +75,22 @@ export function CreativeCard({ creative: c, channel }: CreativeCardProps) {
           <h4 className="gr-creative__headline gr-type-body-medium">{c.headline}</h4>
           <StatusPill stage={c.stage} />
         </header>
-
-        {c.destination && (
-          <p className="gr-creative__url gr-type-caption">{c.destination}</p>
-        )}
         <p className="gr-creative__copy gr-type-caption">{c.body}</p>
-
         <p className="gr-creative__meta gr-type-micro">
-          {c.adSetName}
-          {c.seconds ? ` · ${duration(c.seconds)}` : ''}
-          {c.cta ? ` · ${c.cta}` : ''}
-        </p>
-
-        {/* Spend and leads, so the section is not a mood board. Which asset is
-            carrying the ad set is the only question anyone opens this to ask. */}
-        <p className="gr-creative__stats gr-type-caption">
-          <strong className="gr-type-body-medium">{formatMetric('Spend', c.spend)}</strong>
-          {' · '}{c.leads.toLocaleString()} leads
-          {' · '}{c.leads > 0 ? formatMetric('CAC', c.spend / c.leads) : '—'} CAC
+          {c.adSetName}{c.cta ? ` · ${c.cta}` : ''}
         </p>
       </div>
+
+      {/* Below the ad, not beside it. Three figures on one baseline read as a
+          comparison across cards; the same three in a sentence do not. */}
+      <dl className="gr-creative__stats">
+        <div><dt className="gr-type-micro">Spend</dt>
+          <dd className="gr-type-body-medium">{formatMetric('Spend', c.spend)}</dd></div>
+        <div><dt className="gr-type-micro">Leads</dt>
+          <dd className="gr-type-body-medium">{c.leads.toLocaleString()}</dd></div>
+        <div><dt className="gr-type-micro">CAC</dt>
+          <dd className="gr-type-body-medium">{cac}</dd></div>
+      </dl>
     </article>
   );
 }

@@ -5,15 +5,24 @@ export interface ChipProps {
   removable?: boolean;
   onRemove?: () => void;
   onClick?: () => void;
+  /**
+   * Selected, for chips used as a choice rather than a removable tag.
+   *
+   * Renders aria-pressed, so a screen reader announces which option is active.
+   * Without it a chip group is a row of buttons that all sound identical and
+   * the selection is communicated by colour alone.
+   */
+  pressed?: boolean;
 }
 
 /** Chip — 24 tall, on the 4px grid. Default / hover / focus. */
-export function Chip({ label, removable, onRemove, onClick }: ChipProps) {
+export function Chip({ label, removable, onRemove, onClick, pressed }: ChipProps) {
   const interactive = Boolean(onClick);
   return (
-    <span className={`gr-chip gr-type-caption-med ${interactive ? 'is-interactive' : ''}`}>
+    <span className={`gr-chip gr-type-caption-med ${interactive ? 'is-interactive' : ''} ${pressed ? 'is-pressed' : ''}`}>
       {interactive ? (
-        <button type="button" className="gr-chip__label" onClick={onClick}>{label}</button>
+        <button type="button" className="gr-chip__label" onClick={onClick}
+                aria-pressed={pressed}>{label}</button>
       ) : (
         <span className="gr-chip__label">{label}</span>
       )}

@@ -1,110 +1,125 @@
 .gr-creative {
   display: flex;
-  gap: var(--space-16);
-  padding: var(--space-16);
+  flex-direction: column;
   border: var(--border-width-sm) solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--surface-card);
+  overflow: hidden;
   min-width: 0;
 }
 
-/* A fixed rail, so headlines start on the same x whatever shape the asset is.
-   Ragged left edges down a list is the thing that makes a creative table read
-   as unsorted. */
-.gr-creative__preview {
-  flex: none;
-  width: 96px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* A paused ad is not running. It stays legible rather than being greyed into
+   unreadability -- you still have to be able to read why you paused it. */
+.gr-creative.is-paused { background: var(--surface-page-top); }
+.gr-creative.is-paused .gr-creative__stage { opacity: 0.72; }
 
-.gr-creative__frame {
+.gr-creative__stage {
   position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-4);
-  border-radius: var(--radius-md);
   background: var(--surface-page-top);
-  border: var(--border-width-sm) dashed var(--border-default);
-  color: var(--text-muted);
-}
-/* The ratio is the point of the frame, so it is drawn to scale rather than
-   stated in a label beside a square. */
-.gr-creative__frame.is-1-1  { width: 76px; height: 76px; }
-.gr-creative__frame.is-4-5  { width: 68px; height: 85px; }
-.gr-creative__frame.is-9-16 { width: 54px; height: 96px; }
-.gr-creative__frame.is-16-9 { width: 96px; height: 54px; }
-
-/* With real art the frame is a window, not a placeholder — solid edge, no
-   dashes, and it clips. */
-.gr-creative__frame.has-art {
-  border-style: solid;
+  border-bottom: var(--border-width-sm) solid var(--border-default);
   overflow: hidden;
-  padding: 0;
 }
-.gr-creative__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;   /* the crop — object-position picks which band survives */
-  display: block;
-}
+/* Formats with no aspect ratio of their own — audio and text — get a band
+   rather than inheriting a shape they do not have. */
+.gr-creative--audio .gr-creative__stage,
+.gr-creative--text .gr-creative__stage,
+.gr-creative--link .gr-creative__stage { height: 104px; }
 
-/* Legible over artwork as well as over the empty frame, which is why it wears
-   its own scrim rather than relying on the surface behind it. */
-.gr-creative__ratio {
+.gr-creative__img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gr-creative__empty { color: var(--icon-muted); }
+
+.gr-creative__wave { display: flex; align-items: center; gap: 4px; height: 40px; }
+.gr-creative__wave i { width: 3px; border-radius: var(--radius-pill); background: var(--border-strong); }
+
+/* The search ad, drawn the way a search ad looks. */
+.gr-creative__serp {
+  display: flex; flex-direction: column; gap: var(--space-4);
+  padding: 0 var(--space-16); width: 100%;
+}
+.gr-creative__serp-url { color: var(--text-muted); }
+.gr-creative__serp-head { color: var(--accent-text); }
+
+/* Overlays. Each wears its own scrim so it stays legible over artwork we do
+   not control — the alternative is a label that works on one upload. */
+.gr-creative__ratio,
+.gr-creative__time,
+.gr-creative__rank {
   position: absolute;
-  left: 4px;
-  bottom: 4px;
-  padding: 1px 4px;
+  padding: 1px 5px;
   border-radius: var(--radius-sm);
   background: var(--surface-scrim);
   color: var(--brand-on-accent);
 }
-.gr-creative__frame:not(.has-art) .gr-creative__ratio {
-  position: static;
-  background: none;
-  color: var(--text-muted);
-}
-.gr-creative__play {
-  position: absolute; bottom: 4px; right: 6px; font-size: 9px;
-  color: var(--text-muted);
-}
+.gr-creative__ratio { left: 6px; bottom: 6px; }
+.gr-creative__time  { right: 6px; bottom: 6px; }
+.gr-creative__rank  { left: 6px; top: 6px; background: var(--accent-base); }
 
-.gr-creative__wave { display: flex; align-items: center; gap: 3px; height: 32px; }
-.gr-creative__wave i {
-  width: 3px;
-  border-radius: var(--radius-pill);
-  background: var(--border-strong);
+.gr-creative__body {
+  display: flex; flex-direction: column; gap: var(--space-4);
+  padding: var(--space-12) var(--space-16);
+  flex: 1;
+  min-width: 0;
 }
-
-.gr-creative__glyph {
-  display: flex; align-items: center; justify-content: center;
-  width: 48px; height: 48px;
-  border-radius: var(--radius-md);
-  background: var(--surface-page-top);
-  border: var(--border-width-sm) dashed var(--border-default);
-  color: var(--text-muted);
-}
-
-.gr-creative__body { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; flex: 1; }
-.gr-creative__head { display: flex; align-items: center; gap: var(--space-8); justify-content: space-between; }
+.gr-creative__head { display: flex; align-items: flex-start; gap: var(--space-8); justify-content: space-between; }
 .gr-creative__headline { margin: 0; color: var(--text-primary); }
-.gr-creative__url { color: var(--semantic-good); }
 .gr-creative__copy { color: var(--text-secondary); }
 .gr-creative__meta { color: var(--text-muted); }
-.gr-creative__stats { color: var(--text-secondary); margin-top: var(--space-4); }
 
-/* Two up while there is room, one up beside an open chat panel. Container
-   queries rather than viewport ones -- the panel changes this column's width
-   without the window changing at all. */
-.gr-creative-grid {
+/* Three figures on one baseline, so the eye compares straight across cards. */
+.gr-creative__stats {
   display: grid;
-  gap: var(--space-12);
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-12) var(--space-16);
+  border-top: var(--border-width-sm) solid var(--border-default);
 }
-@container (min-width: 720px) {
-  .gr-creative-grid { grid-template-columns: 1fr 1fr; }
+.gr-creative__stats dt { color: var(--text-muted); margin-bottom: 2px; }
+.gr-creative__stats dd { margin: 0; color: var(--text-primary); }
+
+/* Three up with room, two when the chat panel narrows this column, one when
+   it is genuinely tight. Container queries, because the panel changes this
+   column's width without the window changing at all. */
+.gr-creative-grid { display: grid; gap: var(--space-12); grid-template-columns: 1fr; }
+@container (min-width: 560px) { .gr-creative-grid { grid-template-columns: repeat(2, 1fr); } }
+@container (min-width: 900px) { .gr-creative-grid { grid-template-columns: repeat(3, 1fr); } }
+
+/* ---- the section around the grid ---- */
+
+.gr-creative-controls {
+  display: flex; align-items: center; gap: var(--space-8);
+  flex-wrap: wrap; margin-bottom: var(--space-12);
+}
+.gr-creative-controls__spacer { flex: 1; }
+
+.gr-creative-expand {
+  display: flex; align-items: center; justify-content: center; gap: var(--space-8);
+  width: 100%;
+  margin-top: var(--space-12);
+  padding: var(--space-12);
+  border: var(--border-width-sm) dashed var(--border-default);
+  border-radius: var(--radius-lg);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.gr-creative-expand:hover { border-color: var(--border-strong); color: var(--text-primary); background: var(--surface-page-top); }
+.gr-creative-expand:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+.gr-creative-expand__caret { transition: transform 120ms ease; }
+.gr-creative-expand[aria-expanded="true"] .gr-creative-expand__caret { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .gr-creative-expand__caret { transition: none; } }
+
+.gr-creative-empty {
+  padding: var(--space-24) var(--space-16);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.gr-creative-controls__label { color: var(--text-muted); }
+.gr-creative-controls__group {
+  display: flex; align-items: center; gap: var(--space-8);
+  border: none; margin: 0; padding: 0; min-width: 0;
 }

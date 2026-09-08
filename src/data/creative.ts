@@ -196,3 +196,29 @@ export const CREATIVE_NOUN: Record<ChannelName, string> = {
   meta: 'Ads', tiktok: 'Ads', youtube: 'Video ads',
   paidSearch: 'Text ads', affiliates: 'Placements', podcasts: 'Spots',
 };
+
+export type CreativeSort = 'Leads' | 'Spend' | 'CAC';
+export const CREATIVE_SORTS: CreativeSort[] = ['Leads', 'Spend', 'CAC'];
+
+/* Lower is better for CAC, and only for CAC among these three. Same rule the
+   KPI cards use -- getting it wrong here ranks the most expensive ad first and
+   labels it "top", which is the CAC inversion again in a new costume. */
+function score(c: Creative, sort: CreativeSort): number {
+  if (sort === 'Spend') return c.spend;
+  if (sort === 'Leads') return c.leads;
+  /* An ad with no leads has no cost per lead. Infinity sorts it last on CAC
+     rather than dividing by zero into NaN, which sorts unpredictably. */
+  return c.leads > 0 ? c.spend / c.leads : Number.POSITIVE_INFINITY;
+}
+
+/** Ranked best-first for the chosen measure. Pure, so it is testable. */
+export function rankCreatives(list: Creative[], sort: CreativeSort): Creative[] {
+  const dir = sort === 'CAC' ? 1 : -1;
+  return [...list].sort((a, b) => {
+    const d = (score(a, sort) - score(b, sort)) * dir;
+    /* A TOTAL order. Without the tie-breaks the same data can render in a
+       different sequence between renders, which reads as the list shuffling
+       on its own. */
+    return d !== 0 ? d : (b.spend - a.spend) || a.id.localeCompare(b.id);
+  });
+}

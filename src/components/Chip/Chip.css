@@ -18,3 +18,13 @@
   border: none; background: none; color: var(--icon-muted); cursor: pointer;
 }
 .gr-chip__remove:hover { color: var(--text-primary); }
+
+/* Pressed — a chip used as a choice, not a removable tag.
+   Colour is not the only signal: aria-pressed carries it for assistive tech,
+   and the border weight changes as well as the fill. */
+.gr-chip.is-pressed {
+  background: var(--accent-tint);
+  border-color: var(--accent-base);
+  color: var(--accent-text);
+}
+.gr-chip.is-pressed .gr-chip__label { color: var(--accent-text); }

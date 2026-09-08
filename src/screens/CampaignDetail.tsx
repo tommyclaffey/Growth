@@ -14,7 +14,7 @@ import { CHANNEL_LABEL, formatMetric, type Metric, type Range } from '../data/me
 import { betterHigher, formatDerived, headlineFor, kpisFor, valueOf, type DerivedMetric } from '../data/channelMetrics';
 import { benchmarkFor, benchmarkLabel, benchmarkTitle } from '../data/benchmark';
 import { CREATIVE_NOUN, creativesFor } from '../data/creative';
-import { CreativeCard } from '../components/CreativeCard/CreativeCard';
+import { CreativeSection } from '../components/CreativeCard/CreativeSection';
 
 export interface CampaignDetailProps {
   id: string;
@@ -174,17 +174,13 @@ export function CampaignDetail({
           <span className="gr-type-caption">{creatives.length}</span>
         </header>
 
-        <div className="gr-creative-grid">
-          {creatives.map((cr) => (
-            <CreativeCard key={cr.id} creative={cr} channel={campaign.channel} />
-          ))}
-        </div>
+        <CreativeSection channel={campaign.channel} creatives={creatives} />
 
-        {/* Said once, here, rather than implied by six placeholder frames.
-            The ratios and durations are real; the pictures are not shot. */}
+        {/* Said once, here, rather than implied by every frame. */}
         <p className="gr-type-caption gr-campaign__note">
           One master asset, cropped to each placement. Video stills render once the
-          ad account is connected.
+          ad account is connected. Figures are period totals and do not follow the
+          date range.
         </p>
       </section>
 
