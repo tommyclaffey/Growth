@@ -13,6 +13,8 @@ import {
 import { CHANNEL_LABEL, formatMetric, type Metric, type Range } from '../data/metrics';
 import { betterHigher, formatDerived, headlineFor, kpisFor, valueOf, type DerivedMetric } from '../data/channelMetrics';
 import { benchmarkFor, benchmarkLabel } from '../data/benchmark';
+import { CREATIVE_NOUN, creativesFor } from '../data/creative';
+import { CreativeCard } from '../components/CreativeCard/CreativeCard';
 
 export interface CampaignDetailProps {
   id: string;
@@ -88,6 +90,10 @@ export function CampaignDetail({
      has no click. */
   const shown: DerivedMetric[] = kpisFor(campaign.channel, campaign.objective);
 
+  /* The assets actually running. Format follows the channel -- a paid-search
+     campaign has text ads and no images at all, the same way it has no CPM. */
+  const creatives = creativesFor(campaign.id);
+
   return (
     <>
       <header className="gr-campaign__head">
@@ -155,6 +161,31 @@ export function CampaignDetail({
         data={data}
         title={`${chartMetric} over time`}
       />
+
+      {/* Creative sits ABOVE ad sets on purpose. "Which ad is working" is the
+          question this page gets opened for; the ad-set table is the breakdown
+          you go to afterwards. */}
+      <section className="gr-card gr-creative-section">
+        <header className="gr-card__header">
+          <h3 className="gr-card__title gr-type-card-heading">
+            {CREATIVE_NOUN[campaign.channel]}
+          </h3>
+          <span className="gr-type-caption">{creatives.length}</span>
+        </header>
+
+        <div className="gr-creative-grid">
+          {creatives.map((cr) => (
+            <CreativeCard key={cr.id} creative={cr} channel={campaign.channel} />
+          ))}
+        </div>
+
+        {/* Said once, here, rather than implied by six placeholder frames.
+            The ratios and durations are real; the pictures are not shot. */}
+        <p className="gr-type-caption gr-campaign__note">
+          Ratios, durations and copy are live. Image and video previews render once
+          the ad account is connected.
+        </p>
+      </section>
 
       <section className="gr-card">
         <header className="gr-card__header">

@@ -148,3 +148,8 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
   display: flex; flex-direction: column; align-items: flex-start;
   gap: var(--space-16); padding: var(--space-28);
 }
+
+/* The creative grid sizes to THIS column, not the window — opening the chat
+   panel narrows it without the viewport changing at all, which is exactly the
+   case a media query cannot see. */
+.gr-creative-section { container-type: inline-size; }

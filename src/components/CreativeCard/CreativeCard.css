@@ -1,0 +1,78 @@
+.gr-creative {
+  display: flex;
+  gap: var(--space-16);
+  padding: var(--space-16);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  min-width: 0;
+}
+
+/* A fixed rail, so headlines start on the same x whatever shape the asset is.
+   Ragged left edges down a list is the thing that makes a creative table read
+   as unsorted. */
+.gr-creative__preview {
+  flex: none;
+  width: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gr-creative__frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-page-top);
+  border: var(--border-width-sm) dashed var(--border-default);
+  color: var(--text-muted);
+}
+/* The ratio is the point of the frame, so it is drawn to scale rather than
+   stated in a label beside a square. */
+.gr-creative__frame.is-1-1  { width: 76px; height: 76px; }
+.gr-creative__frame.is-4-5  { width: 68px; height: 85px; }
+.gr-creative__frame.is-9-16 { width: 54px; height: 96px; }
+.gr-creative__frame.is-16-9 { width: 96px; height: 54px; }
+
+.gr-creative__ratio { color: var(--text-muted); }
+.gr-creative__play { position: absolute; bottom: 4px; right: 6px; font-size: 9px; }
+
+.gr-creative__wave { display: flex; align-items: center; gap: 3px; height: 32px; }
+.gr-creative__wave i {
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+
+.gr-creative__glyph {
+  display: flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--surface-page-top);
+  border: var(--border-width-sm) dashed var(--border-default);
+  color: var(--text-muted);
+}
+
+.gr-creative__body { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; flex: 1; }
+.gr-creative__head { display: flex; align-items: center; gap: var(--space-8); justify-content: space-between; }
+.gr-creative__headline { margin: 0; color: var(--text-primary); }
+.gr-creative__url { color: var(--semantic-good); }
+.gr-creative__copy { color: var(--text-secondary); }
+.gr-creative__meta { color: var(--text-muted); }
+.gr-creative__stats { color: var(--text-secondary); margin-top: var(--space-4); }
+
+/* Two up while there is room, one up beside an open chat panel. Container
+   queries rather than viewport ones -- the panel changes this column's width
+   without the window changing at all. */
+.gr-creative-grid {
+  display: grid;
+  gap: var(--space-12);
+  grid-template-columns: 1fr;
+}
+@container (min-width: 720px) {
+  .gr-creative-grid { grid-template-columns: 1fr 1fr; }
+}
