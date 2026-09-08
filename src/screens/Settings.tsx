@@ -241,12 +241,14 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
             <h3 className="gr-card__title gr-type-card-heading">Workspace</h3>
           </header>
           <div className="gr-settings__fields">
-            {/* The hint used to be false in both halves: the sidebar hardcoded
-                GROWTH and the CSV never read this. Both are wired now, so the
-                field does what it says. */}
+            {/* The hint was false in both halves once: the sidebar hardcoded
+                GROWTH and the CSV never read this. Fixing the sidebar half by
+                REPLACING the wordmark was the wrong fix -- it made the product
+                lockup read "FOXGLOVE SUPPLY". The workspace now sits under the
+                wordmark, and the hint says so. */}
             <FormField label="Workspace name" value={workspace}
                        onChange={(v) => { setWorkspace(v); setWorkspaceName(v); }}
-                       hint="Shown in the sidebar and in exported file names" />
+                       hint="Shown under the Growth logo in the sidebar, and in exported file names" />
             {/* The number behind "Pace to target". Persisted, because a budget
                 that resets on reload is not a budget. */}
             <FormField label="Monthly budget" value={budgetText}

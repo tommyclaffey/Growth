@@ -1,0 +1,71 @@
+.gr-cpreview-grid {
+  display: grid;
+  gap: var(--space-12);
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+@container (min-width: 560px) { .gr-cpreview-grid { grid-template-columns: repeat(2, 1fr); } }
+@container (min-width: 900px) { .gr-cpreview-grid { grid-template-columns: repeat(3, 1fr); } }
+
+/* A real <button>, so it has to state its own box — buttons reset text-align
+   and font and inherit neither from the page. */
+.gr-cpreview {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  font: inherit;
+  padding: 0;
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  overflow: hidden;
+  cursor: pointer;
+  min-width: 0;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.gr-cpreview:hover { border-color: var(--border-strong); box-shadow: var(--elevation-card); }
+.gr-cpreview:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) { .gr-cpreview { transition: none; } }
+
+/* A fixed band, NOT the creative's own ratio.
+
+   The campaign page shows true aspect ratios because judging the crop is the
+   point there. Here the subject is the CAMPAIGN and the art is a thumbnail, so
+   a uniform band keeps the cards comparable — which is the whole reason to put
+   them in a row. */
+.gr-cpreview__art {
+  display: block;
+  height: 128px;
+  background: var(--surface-page-top);
+  border-bottom: var(--border-width-sm) solid var(--border-default);
+}
+.gr-cpreview__art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gr-cpreview__noart {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; color: var(--icon-muted);
+}
+
+.gr-cpreview__body { display: flex; flex-direction: column; padding: var(--space-14) var(--space-16); }
+.gr-cpreview__head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--space-8); margin-bottom: var(--space-4);
+}
+.gr-cpreview__name { color: var(--text-primary); min-width: 0; }
+.gr-cpreview__meta { color: var(--text-muted); }
+
+.gr-cpreview__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+  padding-top: var(--space-12);
+  border-top: var(--border-width-sm) solid var(--border-default);
+}
+.gr-cpreview__stats > span { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.gr-cpreview__stats .gr-type-overline { color: var(--text-muted); }
+.gr-cpreview__stats .gr-type-body-medium { color: var(--text-primary); }
+
+.gr-cpreview__none { color: var(--text-muted); padding: var(--space-16) 0; }

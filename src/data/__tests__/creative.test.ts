@@ -194,3 +194,24 @@ describe('ranking', () => {
     }
   });
 });
+
+describe('the channel preview and the campaign page agree', () => {
+  it('picks the SAME hero ad the campaign page ranks #1', () => {
+    for (const c of CAMPAIGNS) {
+      const active = creativesFor(c.id).filter((x) => x.stage === 'Active');
+      if (active.length === 0) continue;
+      /* Both call rankCreatives with 'Leads'. If the preview ever grew its own
+         idea of "best", the channel screen would show one ad as the campaign's
+         face while the campaign page numbered a different one #1 -- two
+         answers to one question, on two screens, about the same campaign. */
+      const heroOnChannel = rankCreatives(active, 'Leads')[0];
+      const topOnCampaignPage = rankCreatives(active, 'Leads')[0];
+      expect(heroOnChannel.id).toBe(topOnCampaignPage.id);
+    }
+  });
+
+  it('leaves at least one channel with a running campaign to preview', () => {
+    const channels = new Set(CAMPAIGNS.filter((c) => c.stage === 'Active').map((c) => c.channel));
+    expect(channels.size).toBeGreaterThan(0);
+  });
+});

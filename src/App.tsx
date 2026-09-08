@@ -6,6 +6,7 @@ import { Chart } from './components/Chart/Chart';
 import { InfoStrip } from './components/InfoStrip/InfoStrip';
 import { ChannelTable, type ChannelRow } from './components/ChannelTable/ChannelTable';
 import { CampaignTable } from './components/CampaignTable/CampaignTable';
+import { CampaignPreview } from './components/CampaignPreview/CampaignPreview';
 import { ThemeToggle } from './components/ThemeToggle/ThemeToggle';
 import { ChannelSwitcher } from './components/ChannelSwitcher/ChannelSwitcher';
 import { ChannelWordmark } from './components/ChannelWordmark/ChannelWordmark';
@@ -486,11 +487,27 @@ export default function App() {
               />
 
               {onChannelScreen && (
-                <CampaignTable
-                  channel={channel}
-                  wideColumns={!chatOpen}
-                  onOpenCampaign={(id) => openCampaign(id, channel)}
-                />
+                <>
+                  {/* What is actually running, before the table of everything.
+                      A row is a name and six figures; a card has the creative
+                      on it, which is what the money is buying. */}
+                  <section className="gr-card gr-creative-section">
+                    <header className="gr-card__header">
+                      <h3 className="gr-card__title gr-type-card-heading">Running now</h3>
+                    </header>
+                    <CampaignPreview
+                      channel={channel}
+                      range={range}
+                      onOpen={(id) => openCampaign(id, channel)}
+                    />
+                  </section>
+
+                  <CampaignTable
+                    channel={channel}
+                    wideColumns={!chatOpen}
+                    onOpenCampaign={(id) => openCampaign(id, channel)}
+                  />
+                </>
               )}
             </>
           )}

@@ -102,3 +102,17 @@
 /* Collapsed sidebar shows the avatar only — the text would be clipped, and a
    clipped name reads as a rendering fault rather than a deliberate state. */
 .gr-sidebar.is-collapsed .gr-navitem__account { display: none; }
+
+/* Product over workspace. The wordmark is the app and does not change; the
+   line under it is which account you are inside. */
+.gr-sidebar__brand-text { display: flex; flex-direction: column; min-width: 0; }
+.gr-sidebar__workspace {
+  color: var(--text-muted);
+  letter-spacing: 0;
+  /* Truncates rather than wrapping — a long company name must not push the
+     nav list down or reflow the whole rail. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}

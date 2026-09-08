@@ -32,6 +32,9 @@ const NAV: { key: NavKey; label: string; icon: ReactElement }[] = [
  */
 export function Sidebar({ active, onNavigate }: SidebarProps) {
   const avatarFor = useAvatarFor();
+  /* Read once at the top rather than inline in the JSX -- a hook call buried in
+     an attribute is a hook whose ordering nobody can check at a glance. */
+  const workspace = useWorkspaceName();
   return (
     <nav className="gr-sidebar" aria-label="Main">
       <div className="gr-sidebar__logo">
@@ -41,7 +44,21 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
                   strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </span>
-        <span className="gr-sidebar__wordmark gr-type-brand">{useWorkspaceName().toUpperCase()}</span>
+        {/* The PRODUCT, then the workspace. Two facts, stacked, not one
+            substituted for the other.
+
+            The wordmark used to render the workspace name, so this lockup read
+            "FOXGLOVE SUPPLY" beside Growth's own trend-arrow mark -- the
+            product wearing a customer's name. It came from Settings promising
+            the workspace was "shown in the sidebar", which was made true in the
+            only slot available rather than by adding one.
+
+            Every product with workspaces does it this way: the app is the app,
+            and the account you are inside it is a line under it. */}
+        <span className="gr-sidebar__brand-text">
+          <span className="gr-sidebar__wordmark gr-type-brand">GROWTH</span>
+          <span className="gr-sidebar__workspace gr-type-caption">{workspace}</span>
+        </span>
       </div>
 
       <ul className="gr-sidebar__list">
