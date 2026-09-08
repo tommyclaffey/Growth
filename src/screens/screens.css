@@ -153,3 +153,34 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
    panel narrows it without the viewport changing at all, which is exactly the
    case a media query cannot see. */
 .gr-creative-section { container-type: inline-size; }
+
+/* A notification that is about a campaign opens it.
+
+   The row becomes a real <button>, so it inherits none of the browser default
+   button chrome and has to state its own box — text-align included, or the
+   whole feed centres itself the moment a row becomes activatable. */
+.gr-feed__item.is-clickable {
+  width: 100%;
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding-inline: var(--space-8);
+  margin-inline: calc(var(--space-8) * -1);
+  border-radius: var(--radius-sm);
+}
+.gr-feed__item.is-clickable:hover { background: var(--surface-page-top); }
+.gr-feed__item.is-clickable:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* The affordance, revealed rather than always shouting. A permanent arrow on
+   every clickable row competes with the message it is attached to. */
+.gr-feed__go { color: var(--accent-text); opacity: 0; transition: opacity 120ms ease; }
+.gr-feed__item.is-clickable:hover .gr-feed__go,
+.gr-feed__item.is-clickable:focus-visible .gr-feed__go { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .gr-feed__go { transition: none; } }

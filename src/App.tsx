@@ -515,7 +515,7 @@ export default function App() {
             : <CampaignTable wideColumns={!chatOpen} onOpenCampaign={(id) => openCampaign(id)} />)}
 
           {nav === 'reports' && <Reports />}
-          {nav === 'notifications' && <Notifications />}
+          {nav === 'notifications' && <Notifications onOpenCampaign={(id) => openCampaign(id)} />}
           {nav === 'settings' && (
             <Settings
               theme={theme}
