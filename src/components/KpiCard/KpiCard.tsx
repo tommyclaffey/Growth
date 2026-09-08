@@ -129,9 +129,16 @@ export function KpiCard({
       )}
 
       <span className="gr-kpi__foot">
-        {deltaPercent !== undefined && (
+        {/* The single pill slot. Period delta wins when a card has one --
+            that is what Overview means by a percentage. A campaign card has no
+            delta and its benchmark takes the slot instead. The card never
+            re-decides which direction is good; it reuses the rule it was
+            given. */}
+        {deltaPercent !== undefined ? (
           <DeltaBadge percent={deltaPercent} higherIsBetter={higherIsBetter} />
-        )}
+        ) : benchmark && !error ? (
+          <DeltaBadge percent={benchmark.percent} higherIsBetter={higherIsBetter} variant="benchmark" />
+        ) : null}
 
         {progress !== undefined ? (
           <ProgressBar value={progress} label={label} />
