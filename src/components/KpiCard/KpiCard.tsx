@@ -30,14 +30,20 @@ export interface KpiCardProps {
    * How this number compares to the channel it belongs to, e.g.
    * "vs $29.80 Meta avg campaign".
    *
-   * Renders in the SAME footer slot, as the SAME pill, as the period delta --
-   * so a campaign card and an Overview card are the same card. What differs is
-   * the sentence inside it: `variant="benchmark"` drops the arrow and says
-   * "above" / "below", because a distance from an average is not a change over
-   * time and the two must not be readable as each other.
+   * ⚠️ ONE percentage per card. The benchmark pill and the period-delta pill
+   * are alternatives, not neighbours -- whichever the caller supplies takes the
+   * single pill slot in the footer.
    *
-   * `note` sits where the sparkline sits, naming what the comparison is
-   * against. A percentage with no stated basis is a number nobody can check.
+   * Showing both put two percentages measuring different things one line apart,
+   * and the reader had to work out which was which before either meant
+   * anything. The sparkline already carries direction, so the pill's job is the
+   * comparison the screen is actually about: change over time on Overview,
+   * distance from the account average on a campaign page.
+   *
+   * `note` stays, on its own line, naming what the percentage is measured
+   * against. It is words rather than a third figure -- a percentage with no
+   * stated basis is a number nobody can check, which is a different problem
+   * from having too many of them.
    */
   benchmark?: {
     percent: number;
@@ -134,18 +140,10 @@ export function KpiCard({
         ) : null}
       </span>
 
-      {/* A SECOND row, not a second thing crammed into the first.
-
-          The footer above is identical on every KPI card in the product --
-          delta pill, then trend. The benchmark is extra information campaign
-          pages have and Overview does not, so it gets its own line rather than
-          displacing the trend mark on one screen and not the others.
-
-          Same pill, and the card does not re-decide direction for it -- it
-          reuses the higherIsBetter it was already given. */}
+      {/* The basis, in words. No second pill and no second figure -- just what
+          the percentage above is measured against. */}
       {benchmark && !error && (
         <span className="gr-kpi__bench">
-          <DeltaBadge percent={benchmark.percent} higherIsBetter={higherIsBetter} variant="benchmark" />
           <span className="gr-kpi__bench-note gr-type-caption" title={benchmark.title}>
             {benchmark.note}
           </span>

@@ -132,14 +132,15 @@ export function CampaignDetail({
               value={formatDerived(m, v)}
               higherIsBetter={betterHigher(m)}
               channel={campaign.channel}
-              /* The same two marks every KPI card in the product carries.
-                 These were missing here, so a campaign on a channel with no
-                 peer campaign -- YouTube, Podcasts, Affiliates all run one --
-                 rendered a label, a number, and nothing else, while a Meta
-                 campaign two clicks away was fully populated. Derived per day
-                 from the funnel, so CTR and CPM get a real trend rather than
-                 being the only cards on the page without one. */
-              deltaPercent={campaignDelta(campaign.id, m, range)}
+              /* Period delta ONLY when there is no benchmark to show instead.
+
+                 On a campaign page the useful comparison is against the rest of
+                 the account, not against last fortnight -- so the benchmark
+                 takes the pill. Channels running a single campaign (YouTube,
+                 Podcasts, Affiliates) have no benchmark, and those cards fall
+                 back to the delta rather than rendering a label, a number and
+                 nothing else, which is how they looked before either existed. */
+              deltaPercent={b ? undefined : campaignDelta(campaign.id, m, range)}
               sparkline={campaignSparkline(campaign.id, m, range)}
               benchmark={b ? {
                 percent: b.deltaPercent,

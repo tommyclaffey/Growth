@@ -628,14 +628,15 @@ function ViewCard({ view, compact = false, onOpen }:
       <p className="gr-viewcard__metric gr-type-body">{view.metric}</p>
       <p className="gr-viewcard__row">
         <span className="gr-viewcard__value gr-type-kpi-value">{value}</span>
-        {change !== undefined && (
+        {/* One pill, the same rule the KPI cards follow: period delta for a
+            channel card, benchmark for a campaign card. A number quoted into a
+            thread should look like the number it was quoted from, including
+            how many percentages it came with. */}
+        {change !== undefined ? (
           <DeltaBadge percent={change} higherIsBetter={higherIsBetter} />
-        )}
-        {/* The same pill the campaign's KPI card showed. A number quoted into
-            a thread should look like the number it was quoted from. */}
-        {bench && (
+        ) : bench ? (
           <DeltaBadge percent={bench.deltaPercent} higherIsBetter={higherIsBetter} variant="benchmark" />
-        )}
+        ) : null}
       </p>
       {bench && (
         <p className="gr-viewcard__note gr-type-micro"

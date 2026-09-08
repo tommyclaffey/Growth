@@ -119,11 +119,11 @@
 .gr-kpi__foot .gr-delta,
 .gr-kpi__bench .gr-delta { flex: none; }
 
-/* The benchmark row. Same geometry as the footer so the two read as one
-   stack rather than a footer with something bolted under it. */
+/* The basis line. No longer holds a pill, so it no longer needs the footer's
+   24px control height -- it is one line of text and is sized like one. */
 .gr-kpi__bench {
   display: flex;
   align-items: center;
-  gap: var(--space-8);
-  min-height: 24px;
+  margin-top: var(--space-4);
+  min-width: 0;
 }
