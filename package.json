@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "brand:check": "node scripts/render-brand.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",
@@ -17,6 +18,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
