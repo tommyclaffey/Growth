@@ -60,16 +60,28 @@
 .gr-creative__time  { right: 6px; bottom: 6px; }
 .gr-creative__rank  { left: 6px; top: 6px; background: var(--accent-base); }
 
+/* Spacing follows the hierarchy rather than one uniform gap.
+
+   A single gap between headline, copy and meta groups nothing -- everything
+   floats equidistant and the reader has to work out which line belongs to
+   which. Tight under the headline, looser before the metadata. */
 .gr-creative__body {
-  display: flex; flex-direction: column; gap: var(--space-4);
-  padding: var(--space-12) var(--space-16);
+  display: flex; flex-direction: column;
+  padding: var(--space-14) var(--space-16);
   flex: 1;
   min-width: 0;
 }
-.gr-creative__head { display: flex; align-items: flex-start; gap: var(--space-8); justify-content: space-between; }
+.gr-creative__head {
+  display: flex; align-items: flex-start; gap: var(--space-8);
+  justify-content: space-between;
+  margin-bottom: var(--space-8);
+}
 .gr-creative__headline { margin: 0; color: var(--text-primary); }
-.gr-creative__copy { color: var(--text-secondary); }
-.gr-creative__meta { color: var(--text-muted); }
+
+/* Three colour steps to match the three type steps. Hierarchy carried twice,
+   so it survives being read at a glance and at a squint. */
+.gr-creative__copy { margin: 0; color: var(--text-secondary); }
+.gr-creative__meta { margin: var(--space-10) 0 0; color: var(--text-muted); }
 
 /* Three figures on one baseline, so the eye compares straight across cards. */
 .gr-creative__stats {
@@ -80,13 +92,25 @@
   padding: var(--space-12) var(--space-16);
   border-top: var(--border-width-sm) solid var(--border-default);
 }
-.gr-creative__stats dt { color: var(--text-muted); margin-bottom: 2px; }
+.gr-creative__stats dt { color: var(--text-muted); margin-bottom: var(--space-4); }
 .gr-creative__stats dd { margin: 0; color: var(--text-primary); }
 
 /* Three up with room, two when the chat panel narrows this column, one when
    it is genuinely tight. Container queries, because the panel changes this
-   column's width without the window changing at all. */
-.gr-creative-grid { display: grid; gap: var(--space-12); grid-template-columns: 1fr; }
+   column's width without the window changing at all.
+
+   align-items: start is load-bearing. Grid items stretch by default, so a 9:16
+   story and a 16:9 pre-roll in the same row forced every card to the tallest
+   one -- leaving the short ones with a field of empty white between their copy
+   and their figures. Each card is now its own height. The stat rows no longer
+   line up across cards, which is the trade: real aspect ratios are the point of
+   this section, and they cannot coexist with a shared baseline. */
+.gr-creative-grid {
+  display: grid;
+  gap: var(--space-12);
+  grid-template-columns: 1fr;
+  align-items: start;
+}
 @container (min-width: 560px) { .gr-creative-grid { grid-template-columns: repeat(2, 1fr); } }
 @container (min-width: 900px) { .gr-creative-grid { grid-template-columns: repeat(3, 1fr); } }
 

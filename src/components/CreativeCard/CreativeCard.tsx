@@ -28,6 +28,25 @@ function duration(s: number): string {
  * The frame carries the REAL aspect ratio, so a 9:16 story is tall and a 16:9
  * pre-roll is wide, on the same row. Normalising them to one shape would hide
  * the crop problem this section exists to show.
+ *
+ * TYPE HIERARCHY -- four steps, and every one is an existing style:
+ *
+ *   h4  headline  gr-type-strip        600 13/18   the ad's hook
+ *       body      gr-type-body         400 13/18   a sentence, so it reads as one
+ *       meta      gr-type-caption      400 12/16   supporting detail
+ *       stat dt   gr-type-overline     500 11/15   a column label, like the tables
+ *       stat dd   gr-type-body-medium  500 13/18   the figure
+ *
+ * The headline and the copy share a SIZE and differ by weight, 600 against 400.
+ * They previously differed by one pixel -- 13 against 12 -- which is not a
+ * hierarchy, it is a rounding error, and the copy was wearing a caption style
+ * that exists for labels rather than for sentences.
+ *
+ * ⚠️ `gr-type-strip` is the system's small-heading step, named after the
+ * InfoStrip because that was its first consumer. type.css is generated from
+ * Figma and must not be hand-edited, so the name stays -- but the FIGMA style
+ * is what needs renaming: Heading/Strip describes where it was used, not what
+ * it is. Logged rather than worked around with a fourth 13px weight.
  */
 export function CreativeCard({ creative: c, channel, rank }: CreativeCardProps) {
   const visual = c.kind === 'image' || c.kind === 'video';
@@ -64,7 +83,7 @@ export function CreativeCard({ creative: c, channel, rank }: CreativeCardProps) 
              as an icon standing in for one. */
           <span className="gr-creative__serp">
             <span className="gr-creative__serp-url gr-type-micro">{c.destination}</span>
-            <span className="gr-creative__serp-head gr-type-body-medium">{c.headline}</span>
+            <span className="gr-creative__serp-head gr-type-strip">{c.headline}</span>
           </span>
         )}
 
@@ -79,11 +98,11 @@ export function CreativeCard({ creative: c, channel, rank }: CreativeCardProps) 
 
       <div className="gr-creative__body">
         <header className="gr-creative__head">
-          <h4 className="gr-creative__headline gr-type-body-medium">{c.headline}</h4>
+          <h4 className="gr-creative__headline gr-type-strip">{c.headline}</h4>
           <StatusPill stage={c.stage} />
         </header>
-        <p className="gr-creative__copy gr-type-caption">{c.body}</p>
-        <p className="gr-creative__meta gr-type-micro">
+        <p className="gr-creative__copy gr-type-body">{c.body}</p>
+        <p className="gr-creative__meta gr-type-caption">
           {c.adSetName}{c.cta ? ` · ${c.cta}` : ''}
         </p>
       </div>
@@ -91,11 +110,14 @@ export function CreativeCard({ creative: c, channel, rank }: CreativeCardProps) 
       {/* Below the ad, not beside it. Three figures on one baseline read as a
           comparison across cards; the same three in a sentence do not. */}
       <dl className="gr-creative__stats">
-        <div><dt className="gr-type-micro">Spend</dt>
+        {/* Overline, the same style the table column headers wear. These are
+            column labels for figures, and labelling them differently from the
+            tables two sections down would be two answers to one question. */}
+        <div><dt className="gr-type-overline">Spend</dt>
           <dd className="gr-type-body-medium">{formatMetric('Spend', c.spend)}</dd></div>
-        <div><dt className="gr-type-micro">Leads</dt>
+        <div><dt className="gr-type-overline">Leads</dt>
           <dd className="gr-type-body-medium">{c.leads.toLocaleString()}</dd></div>
-        <div><dt className="gr-type-micro">CAC</dt>
+        <div><dt className="gr-type-overline">CAC</dt>
           <dd className="gr-type-body-medium">{cac}</dd></div>
       </dl>
     </article>
