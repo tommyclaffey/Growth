@@ -29,7 +29,10 @@
 .gr-creative--link .gr-creative__stage { height: 104px; }
 
 .gr-creative__img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.gr-creative__empty { color: var(--icon-muted); }
+.gr-creative__empty {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-4);
+  color: var(--text-muted);
+}
 
 .gr-creative__wave { display: flex; align-items: center; gap: 4px; height: 40px; }
 .gr-creative__wave i { width: 3px; border-radius: var(--radius-pill); background: var(--border-strong); }

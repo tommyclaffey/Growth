@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CAMPAIGNS } from '../campaigns';
 import { ADVERTISER, creativesFor, rankCreatives } from '../creative';
+import { missingRatios } from '../creativeAssets';
 
 describe('creative', () => {
   it('gives paid search TEXT ads and no images — the same rule that denies it a CPM', () => {
@@ -62,16 +63,32 @@ describe('creative', () => {
 });
 
 describe('the master asset', () => {
-  it('is attached to every still, and to nothing else', () => {
+  it('only ever attaches artwork to a VISUAL format', () => {
     for (const c of CAMPAIGNS) {
       for (const cr of creativesFor(c.id)) {
-        if (cr.kind === 'image') {
-          expect(cr.src, `${cr.id} still`).toBeTruthy();
-          expect(cr.focus, `${cr.id} crop anchor`).toBeTruthy();
-        } else {
-          /* Video, audio, text and link have no still. Inventing a thumbnail
-             for a film nobody shot is the thing this file will not do. */
+        const visual = cr.kind === 'image' || cr.kind === 'video';
+        if (!visual) {
+          /* Text, audio and link have no picture. Giving them one would be
+             inventing an asset nobody uploaded. */
           expect(cr.src, `${cr.id} must not claim artwork`).toBeUndefined();
+        }
+        if (visual) expect(cr.focus, `${cr.id} crop anchor`).toBeTruthy();
+      }
+    }
+  });
+
+  it('resolves artwork ONLY for shapes the library actually has', () => {
+    const stocked = new Set(['1:1', '4:5', '9:16', '16:9'].filter((r) => !missingRatios().includes(r)));
+    for (const c of CAMPAIGNS) {
+      for (const cr of creativesFor(c.id)) {
+        if (!cr.ratio) continue;
+        if (stocked.has(cr.ratio)) {
+          expect(cr.src, `${cr.id} ${cr.ratio} is stocked`).toBeTruthy();
+        } else {
+          /* An empty shape must render as MISSING rather than borrowing an
+             asset of a different ratio, which would imply an upload that
+             never happened. */
+          expect(cr.src, `${cr.id} ${cr.ratio} is empty`).toBeUndefined();
         }
       }
     }

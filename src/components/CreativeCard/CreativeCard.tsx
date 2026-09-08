@@ -45,7 +45,14 @@ export function CreativeCard({ creative: c, channel, rank }: CreativeCardProps) 
           <img className="gr-creative__img" src={c.src}
                style={{ objectPosition: c.focus }} alt="" loading="lazy" />
         ) : visual ? (
-          <span className="gr-creative__empty"><ChannelMark channel={channel} size={22} /></span>
+          /* No file for this shape yet. Says so, rather than borrowing an
+             asset of a different shape and implying one was uploaded. */
+          <span className="gr-creative__empty">
+            <ChannelMark channel={channel} size={22} />
+            <span className="gr-type-micro">
+              {c.kind === 'video' ? 'No poster frame' : 'No asset'}
+            </span>
+          </span>
         ) : c.kind === 'audio' ? (
           <span className="gr-creative__wave" aria-hidden="true">
             {[6, 13, 9, 17, 11, 20, 8, 15, 10, 18, 7, 12, 16, 9, 14].map((h, i) => (

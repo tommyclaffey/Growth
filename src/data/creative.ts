@@ -1,7 +1,7 @@
 import type { ChannelName } from '../styles/tokens';
 import type { Stage } from '../components/StatusPill/StatusPill';
 import { CAMPAIGNS, type AdSet, type Campaign } from './campaigns';
-import adAsset from '../assets/creative/ad.jpg';
+import { assetFor } from './creativeAssets';
 
 /**
  * The assets running inside a campaign.
@@ -155,9 +155,16 @@ function forAdSet(c: Campaign, a: AdSet): Creative[] {
          tool's URL to the customer's shoppers. */
       destination: f.kind === 'text' ? `${ADVERTISER.domain}/bundles`
         : f.kind === 'link' ? `partner.link/${ADVERTISER.domain}/${i + 1}` : undefined,
-      /* Stills only. A video's frame carries a duration instead -- inventing a
-         thumbnail for a film nobody shot is the thing this file will not do. */
-      src: f.kind === 'image' ? adAsset : undefined,
+      /* Looked up by SHAPE from the asset library, cycling by index so three
+         ad sets running the same format do not show the same picture three
+         times. Undefined when that shape has no file yet, and the card renders
+         a labelled placeholder rather than substituting something -- a missing
+         asset should look missing.
+
+         Video resolves against the library too: a video slot wants a POSTER
+         FRAME, which is a still, and is exactly what Ads Manager shows in a
+         list view. */
+      src: f.ratio ? assetFor(f.ratio, i + seed(a.id)) : undefined,
       focus: f.ratio ? FOCUS[f.ratio] : undefined,
       /* An ad in a paused ad set is not running, whatever its own status says.
          Reporting it as Active would be a status describing what was stored
