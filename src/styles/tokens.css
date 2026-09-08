@@ -128,6 +128,9 @@
   --black-a-24:    rgba(0, 0, 0, 0.24);
   --black-a-32:    rgba(0, 0, 0, 0.32);
   --black-a-40:    rgba(0, 0, 0, 0.40);
+  /* Deep enough that white 10px type clears AA over ARBITRARY artwork. 40%
+     was not: over the pale asset actually running it lands near 3:1. */
+  --black-a-64:    rgba(0, 0, 0, 0.64);
   --violet-a-18:   rgba(99, 91, 255, 0.18);
   --violet-a-25:   rgba(99, 91, 255, 0.25);
   --violet-a-32:   rgba(99, 91, 255, 0.32);
@@ -202,6 +205,15 @@
   --accent-gradient-bottom: var(--violet-650);
   --brand-on-accent:        var(--neutral-0);
 
+  /* Scrim — a label sitting on top of uploaded artwork.
+
+     Identical in both modes ON PURPOSE, and that is the one exception in this
+     file worth explaining: every other surface flips because the UI behind it
+     flips. Artwork does not. A customer's ad is the same pixels in dark mode,
+     so a scrim that lightened would stop doing its job on exactly the images
+     it was added for. */
+  --surface-scrim:          var(--black-a-64);
+
   --focus-ring:        var(--violet-500);
   --focus-ring-offset: var(--neutral-0);
 
@@ -270,6 +282,15 @@
   --accent-gradient-top:    var(--violet-300);
   --accent-gradient-bottom: var(--violet-600);
   --brand-on-accent:        var(--neutral-0);
+
+  /* Scrim — a label sitting on top of uploaded artwork.
+
+     Identical in both modes ON PURPOSE, and that is the one exception in this
+     file worth explaining: every other surface flips because the UI behind it
+     flips. Artwork does not. A customer's ad is the same pixels in dark mode,
+     so a scrim that lightened would stop doing its job on exactly the images
+     it was added for. */
+  --surface-scrim:          var(--black-a-64);
 
   --focus-ring:        var(--violet-300);
   --focus-ring-offset: var(--neutral-900);

@@ -60,3 +60,29 @@ describe('creative', () => {
     expect(creativesFor('nope')).toEqual([]);
   });
 });
+
+describe('the master asset', () => {
+  it('is attached to every still, and to nothing else', () => {
+    for (const c of CAMPAIGNS) {
+      for (const cr of creativesFor(c.id)) {
+        if (cr.kind === 'image') {
+          expect(cr.src, `${cr.id} still`).toBeTruthy();
+          expect(cr.focus, `${cr.id} crop anchor`).toBeTruthy();
+        } else {
+          /* Video, audio, text and link have no still. Inventing a thumbnail
+             for a film nobody shot is the thing this file will not do. */
+          expect(cr.src, `${cr.id} must not claim artwork`).toBeUndefined();
+        }
+      }
+    }
+  });
+
+  it('anchors each ratio deliberately, rather than defaulting everything to centre', () => {
+    const meta = CAMPAIGNS.find((c) => c.channel === 'meta')!;
+    const stills = creativesFor(meta.id).filter((c) => c.kind === 'image');
+    /* A tall poster cropped to a square and to 4:5 should not keep the same
+       band — if these ever match, the crop decision has been lost. */
+    const byRatio = new Map(stills.map((c) => [c.ratio, c.focus]));
+    expect(byRatio.get('1:1')).not.toBe(byRatio.get('4:5'));
+  });
+});

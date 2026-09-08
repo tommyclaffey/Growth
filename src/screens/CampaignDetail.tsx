@@ -182,8 +182,8 @@ export function CampaignDetail({
         {/* Said once, here, rather than implied by six placeholder frames.
             The ratios and durations are real; the pictures are not shot. */}
         <p className="gr-type-caption gr-campaign__note">
-          Ratios, durations and copy are live. Image and video previews render once
-          the ad account is connected.
+          One master asset, cropped to each placement. Video stills render once the
+          ad account is connected.
         </p>
       </section>
 

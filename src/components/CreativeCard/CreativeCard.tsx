@@ -30,16 +30,34 @@ export function CreativeCard({ creative: c, channel }: CreativeCardProps) {
     <article className={`gr-creative gr-creative--${c.kind}`}>
       <div className="gr-creative__preview" data-ratio={c.ratio ?? ''}>
         {visual ? (
-          /* A placeholder frame, and it says so. The ratio is real, the
-             duration is real, the picture is not -- and labelling it is the
-             difference between a prototype and a lie. */
-          <span className={`gr-creative__frame is-${c.ratio?.replace(':', '-')}`}>
-            <ChannelMark channel={channel} size={18} />
+          /* One master asset, cropped to each placement's frame -- which is
+             what the ad account does when it serves the same upload as 1:1 in
+             feed and 9:16 in stories. object-fit: cover does the cropping;
+             `focus` decides which band survives it. */
+          <span className={`gr-creative__frame is-${c.ratio?.replace(':', '-')} ${c.src ? 'has-art' : ''}`}>
+            {c.src ? (
+              <img
+                className="gr-creative__img"
+                src={c.src}
+                style={{ objectPosition: c.focus }}
+                /* Empty alt, not a description. The headline and copy sit
+                   beside it in real text -- narrating the artwork as well would
+                   read the same ad twice to a screen-reader user. */
+                alt=""
+                loading="lazy"
+                width={96}
+                height={96}
+              />
+            ) : (
+              <>
+                <ChannelMark channel={channel} size={18} />
+                <span className="gr-sr-only">Preview not available in this build</span>
+              </>
+            )}
             <span className="gr-creative__ratio gr-type-micro">{c.ratio}</span>
             {c.kind === 'video' && (
               <span className="gr-creative__play" aria-hidden="true">▶</span>
             )}
-            <span className="gr-sr-only">Preview not available in this build</span>
           </span>
         ) : c.kind === 'audio' ? (
           <span className="gr-creative__wave" aria-hidden="true">

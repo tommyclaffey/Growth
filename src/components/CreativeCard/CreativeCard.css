@@ -38,8 +38,40 @@
 .gr-creative__frame.is-9-16 { width: 54px; height: 96px; }
 .gr-creative__frame.is-16-9 { width: 96px; height: 54px; }
 
-.gr-creative__ratio { color: var(--text-muted); }
-.gr-creative__play { position: absolute; bottom: 4px; right: 6px; font-size: 9px; }
+/* With real art the frame is a window, not a placeholder — solid edge, no
+   dashes, and it clips. */
+.gr-creative__frame.has-art {
+  border-style: solid;
+  overflow: hidden;
+  padding: 0;
+}
+.gr-creative__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;   /* the crop — object-position picks which band survives */
+  display: block;
+}
+
+/* Legible over artwork as well as over the empty frame, which is why it wears
+   its own scrim rather than relying on the surface behind it. */
+.gr-creative__ratio {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-scrim);
+  color: var(--brand-on-accent);
+}
+.gr-creative__frame:not(.has-art) .gr-creative__ratio {
+  position: static;
+  background: none;
+  color: var(--text-muted);
+}
+.gr-creative__play {
+  position: absolute; bottom: 4px; right: 6px; font-size: 9px;
+  color: var(--text-muted);
+}
 
 .gr-creative__wave { display: flex; align-items: center; gap: 3px; height: 32px; }
 .gr-creative__wave i {
