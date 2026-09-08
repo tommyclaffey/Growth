@@ -23,25 +23,25 @@ describe('ChannelMark', () => {
   });
 });
 
-describe('optical sizing', () => {
-  it('keeps the BOX at the requested size so table columns stay aligned', () => {
+describe('the mark can never be cropped', () => {
+  it('keeps the box at the requested size so table columns stay aligned', () => {
     const { container } = render(<ChannelMark channel="meta" size={20} />);
     const box = container.querySelector('.gr-chmark') as HTMLElement;
     expect(box.style.width).toBe('20px');
     expect(box.style.height).toBe('20px');
   });
 
-  it('scales the flattest mark up the most, and the tallest least', () => {
-    const scaleOf = (c: 'meta' | 'tiktok' | 'youtube') => {
+  it('never sets an inline scale on the box', () => {
+    /* An optical-scale factor lived here and cropped the flatter marks: it
+       pushed the image past 100% of its container and depended on overflow
+       staying visible, which is false inside cards, table cells and media
+       bands. A logo that is cut off is worse than one that is small. */
+    for (const c of ['meta', 'tiktok', 'youtube', 'paidSearch'] as const) {
       const { container } = render(<ChannelMark channel={c} size={20} />);
-      const v = (container.querySelector('.gr-chmark') as HTMLElement)
-        .style.getPropertyValue('--gr-mark-scale');
+      const box = container.querySelector('.gr-chmark') as HTMLElement;
+      expect(box.style.getPropertyValue('--gr-mark-scale'), c).toBe('');
+      expect(box.style.transform, c).toBe('');
       cleanup();
-      return Number(v);
-    };
-    /* Meta is 38.5x24.5 and fills a third of a square box; TikTok is 32.5x36.5
-       and fills nearly all of it. Equal `size` is not equal ink. */
-    expect(scaleOf('meta')).toBeGreaterThan(scaleOf('youtube'));
-    expect(scaleOf('youtube')).toBeGreaterThan(scaleOf('tiktok'));
+    }
   });
 });

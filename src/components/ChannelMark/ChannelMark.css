@@ -9,12 +9,20 @@
   flex: none;
 }
 .gr-chmark img {
-  /* Scaled past 100% for the flatter marks. The box does not grow with it --
-     overflow is visible on purpose, because the extra is empty space inside
-     the mark's own bounding box, not artwork spilling out. */
-  max-width: calc(100% * var(--gr-mark-scale, 1));
-  max-height: calc(100% * var(--gr-mark-scale, 1));
-  width: auto;
-  height: auto;
+  /* object-fit: contain CANNOT crop — it is the guarantee, not a preference.
+
+     The previous attempt scaled the mark past 100% of its box and relied on
+     overflow staying visible. It does not: these marks sit inside cards, table
+     cells and media bands that clip, so the flatter marks were sliced at the
+     edges. Optical weight is not worth a cropped logo, and the honest fix for
+     "this mark reads small" is a tighter export, not CSS pushing it out of its
+     own box.
+
+     flex: none because a flex item shrinks below its content by default, which
+     is what made max-width percentages unreliable here in the first place. */
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  flex: none;
   display: block;
 }
