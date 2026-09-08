@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import googleAdsMark from '../../assets/brand/google-ads.svg';
 import metaMark from '../../assets/brand/meta-mark.svg';
 import tiktokMark from '../../assets/brand/tiktok-mark.svg';
@@ -26,6 +26,27 @@ import { CSS_CHANNEL } from '../../styles/tokens';
  * a drawn glyph land on the same hue either way. The drawn two use
  * `currentColor` so a recolour still reaches them.
  */
+
+/**
+ * Optical sizing.
+ *
+ * The four marks are contained inside a square, so each one is limited by its
+ * LONGEST side -- and their aspect ratios are not close. Meta is 38.5x24.5, so
+ * at size 20 it renders 20x12.7 and occupies barely a third of the box. TikTok
+ * is 32.5x36.5 and fills nearly all of it. Set to the same `size`, Meta reads
+ * as roughly half the mark TikTok does.
+ *
+ * Bounding-box sizing is the wrong measure for a logo; what the eye compares is
+ * how much ink is on the page. These factors bring the four to the same
+ * apparent weight. Tuned by ratio, not guessed: the flatter the mark, the more
+ * it is scaled up.
+ */
+const OPTICAL: Record<string, number> = {
+  meta: 1.35,       // widest and flattest — needs the most
+  youtube: 1.15,
+  paidSearch: 1.0,
+  tiktok: 0.95,     // tallest, already fills the box
+};
 
 /** Cropped out of the Figma lockups — the mark, without the wordmark. */
 const REAL: Partial<Record<string, string>> = {
@@ -110,7 +131,10 @@ export function ChannelMark({ channel, size = 16, title }: ChannelMarkProps) {
          disagree on the other and the column edge goes ragged. */
       <span
         className="gr-chmark"
-        style={{ width: size, height: size }}
+        /* The BOX stays `size` so columns still align; the mark inside it is
+           scaled optically. Growing the box instead would ragged the edge of
+           every table that sets these in a row. */
+        style={{ width: size, height: size, '--gr-mark-scale': OPTICAL[channel] ?? 1 } as CSSProperties}
         role={title ? 'img' : undefined}
         aria-label={title}
         aria-hidden={title ? undefined : true}

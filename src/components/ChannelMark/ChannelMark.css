@@ -9,8 +9,11 @@
   flex: none;
 }
 .gr-chmark img {
-  max-width: 100%;
-  max-height: 100%;
+  /* Scaled past 100% for the flatter marks. The box does not grow with it --
+     overflow is visible on purpose, because the extra is empty space inside
+     the mark's own bounding box, not artwork spilling out. */
+  max-width: calc(100% * var(--gr-mark-scale, 1));
+  max-height: calc(100% * var(--gr-mark-scale, 1));
   width: auto;
   height: auto;
   display: block;

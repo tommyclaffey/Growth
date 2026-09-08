@@ -68,8 +68,12 @@ export function CampaignPreview({ channel, range, onOpen }: CampaignPreviewProps
                 <img src={hero.src} alt="" loading="lazy"
                      style={{ objectPosition: hero.focus }} />
               ) : (
+                /* A lone logo in a large empty band reads as a broken image.
+                   It has to say it is a state, not a failure -- the same
+                   labelled-empty treatment the ad cards use. */
                 <span className="gr-cpreview__noart">
-                  <ChannelMark channel={channel} size={20} />
+                  <ChannelMark channel={channel} size={22} />
+                  <span className="gr-type-caption">No creative yet</span>
                 </span>
               )}
             </span>
