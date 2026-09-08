@@ -13,7 +13,7 @@ import {
 import { CHANNEL_LABEL, formatMetric, type Metric, type Range } from '../data/metrics';
 import { betterHigher, formatDerived, headlineFor, kpisFor, valueOf, type DerivedMetric } from '../data/channelMetrics';
 import { benchmarkFor, benchmarkLabel, benchmarkTitle } from '../data/benchmark';
-import { CREATIVE_NOUN, creativesFor } from '../data/creative';
+import { creativesFor } from '../data/creative';
 import { CreativeSection } from '../components/CreativeCard/CreativeSection';
 
 export interface CampaignDetailProps {
@@ -167,13 +167,8 @@ export function CampaignDetail({
           question this page gets opened for; the ad-set table is the breakdown
           you go to afterwards. */}
       <section className="gr-card gr-creative-section">
-        <header className="gr-card__header">
-          <h3 className="gr-card__title gr-type-card-heading">
-            {CREATIVE_NOUN[campaign.channel]}
-          </h3>
-          <span className="gr-type-caption">{creatives.length}</span>
-        </header>
-
+        {/* Header renders inside CreativeSection, which is what owns the
+            filters -- so the count and the filtered list can never disagree. */}
         <CreativeSection channel={campaign.channel} creatives={creatives} />
 
         {/* Said once, here, rather than implied by every frame. */}

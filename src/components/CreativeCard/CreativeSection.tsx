@@ -58,19 +58,49 @@ export function CreativeSection({ channel, creatives }: CreativeSectionProps) {
 
   return (
     <>
+      {/* The header lives HERE, not on the section wrapper, so its count is the
+          same number the rest of this component is talking about.
+
+          It used to render the raw total while "See all N" rendered the
+          filtered count -- so filtering to Video showed "Ads 9" above a button
+          offering to see 3. One subject, two counts, on screen together. */}
+      <header className="gr-card__header">
+        <h3 className="gr-card__title gr-type-card-heading">{CREATIVE_NOUN[channel]}</h3>
+        <span
+          className="gr-type-caption"
+          title={filtered.length === creatives.length
+            ? undefined
+            : `${filtered.length} of ${creatives.length} shown by the current filters`}
+        >
+          {filtered.length === creatives.length
+            ? creatives.length
+            : `${filtered.length} of ${creatives.length}`}
+        </span>
+      </header>
+
       <div className="gr-creative-controls">
         {/* Only offered when there is more than one format to choose between --
             a filter with a single option is a control that cannot change
             anything. */}
-        {formats.length > 1 && formats.map((f) => (
-          <Chip
-            key={f}
-            label={f[0].toUpperCase() + f.slice(1)}
-            onClick={() => setFormat(format === f ? null : f)}
-            removable={format === f}
-            onRemove={() => setFormat(null)}
-          />
-        ))}
+        {formats.length > 1 && (
+          <>
+            {/* An explicit way back to unfiltered.
+
+                Clearing used to require pressing the active chip again, or
+                finding its small x. Both are discoverable only by trying, and
+                neither states that "no filter" is a choice you are currently
+                making. All is the default made visible. */}
+            <Chip label="All" onClick={() => setFormat(null)} pressed={format === null} />
+            {formats.map((f) => (
+              <Chip
+                key={f}
+                label={f[0].toUpperCase() + f.slice(1)}
+                onClick={() => setFormat(format === f ? null : f)}
+                pressed={format === f}
+              />
+            ))}
+          </>
+        )}
 
         <span className="gr-creative-controls__spacer" />
 
