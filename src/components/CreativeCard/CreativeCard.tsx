@@ -67,16 +67,17 @@ export function CreativeCard({ creative: c, channel, rank, onOpen }: CreativeCar
         'aria-label': `Open ad: ${c.headline}`,
       } : {})}
     >
-      {/* A FIXED band, with the asset contained inside it.
+      {/* One 4:5 frame for every format, filled.
 
-          The stage used to take each asset's own aspect ratio, which meant a
-          9:16 story card stood roughly twice the height of the 1:1 beside it
-          and the row read as broken rather than as varied.
+          The stage used to take each asset's own ratio, so a 9:16 story card
+          stood roughly twice the height of the 1:1 beside it and the row read
+          as broken rather than as varied.
 
-          `contain` keeps the shape legible -- a vertical asset is still
-          visibly vertical, pillarboxed -- while every card in the row is the
-          same height. The ratio badge states it exactly, so nothing is lost by
-          not making the reader infer it from the frame. */}
+          A shared RATIO rather than a shared pixel height: cards in this grid
+          share a column width, so the heights match automatically and keep
+          matching at every breakpoint. The badge states the asset's real ratio,
+          and the ad page shows it at full shape -- which is where a crop gets
+          judged, not in a thumbnail. */}
       <div className="gr-creative__stage">
         {visual && c.src ? (
           <img className="gr-creative__img" src={c.src}

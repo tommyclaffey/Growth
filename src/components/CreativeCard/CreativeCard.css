@@ -13,23 +13,31 @@
 .gr-creative.is-paused { background: var(--surface-page-top); }
 .gr-creative.is-paused .gr-creative__stage { opacity: 0.72; }
 
-/* One height for every format, so a row of cards is a row of cards. */
+/* One 4:5 frame for every format.
+
+   A RATIO, not a pixel height. Cards in this grid share a column width, so a
+   shared ratio makes them the same height automatically -- and it keeps doing
+   so at every breakpoint, which a magic 208px did not. 4:5 because it is the
+   shape most of this creative is actually built in, so the common case sits in
+   its frame unaltered.
+
+   The asset FILLS it. The earlier attempt contained the asset instead, which
+   kept every true ratio but left grey bars around anything that was not 4:5 --
+   consistent heights and an unfinished-looking row. The badge states the real
+   ratio, and the ad page shows it at full shape, which is where a crop is
+   actually judged. */
 .gr-creative__stage {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 208px;
+  aspect-ratio: 4 / 5;
   background: var(--surface-page-top);
   border-bottom: var(--border-width-sm) solid var(--border-default);
   overflow: hidden;
 }
 
-/* contain, not cover: a 9:16 asset stays visibly vertical inside the band
-   rather than being cropped to fill it. The shape is information -- it is what
-   the whole crop discussion on the ad page is about -- so it is preserved
-   even though the frame no longer carries it. */
-.gr-creative__img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.gr-creative__img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .gr-creative__empty {
   display: flex; flex-direction: column; align-items: center; gap: var(--space-4);
   color: var(--text-muted);
