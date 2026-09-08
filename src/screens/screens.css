@@ -184,3 +184,31 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-feed__item.is-clickable:hover .gr-feed__go,
 .gr-feed__item.is-clickable:focus-visible .gr-feed__go { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .gr-feed__go { transition: none; } }
+
+/* ---- Ad detail ---- */
+
+/* The ad beside its copy. Falls to one column when the chat panel narrows the
+   content column — a container query, because the viewport has not changed. */
+.gr-ad__split { display: grid; gap: var(--space-16); grid-template-columns: 1fr; }
+@container (min-width: 780px) { .gr-ad__split { grid-template-columns: 1fr 1fr; } }
+
+.gr-ad__preview { display: flex; flex-direction: column; gap: var(--space-16); }
+.gr-ad__stage {
+  display: flex; align-items: center; justify-content: center;
+  /* Capped so a 9:16 story does not run the page to two screens tall. The
+     ratio is still true within the cap; it is bounded, not distorted. */
+  max-height: 380px;
+  border-radius: var(--radius-md);
+  background: var(--surface-page-top);
+  overflow: hidden;
+}
+.gr-ad__stage img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gr-ad__empty {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-8);
+  color: var(--text-muted); padding: var(--space-24);
+}
+
+.gr-ad__spec, .gr-ad__fields { display: grid; gap: var(--space-12); margin: 0; }
+.gr-ad__spec { grid-template-columns: repeat(2, 1fr); }
+.gr-ad__spec dt, .gr-ad__fields dt { color: var(--text-muted); margin-bottom: var(--space-4); }
+.gr-ad__spec dd, .gr-ad__fields dd { margin: 0; color: var(--text-primary); }

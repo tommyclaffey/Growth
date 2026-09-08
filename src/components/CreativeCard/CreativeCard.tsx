@@ -10,6 +10,8 @@ export interface CreativeCardProps {
   channel: ChannelName;
   /** Marks the best performer on the current sort. */
   rank?: number;
+  /** Opens this ad's own page. */
+  onOpen?: (id: string) => void;
 }
 
 function duration(s: number): string {
@@ -48,12 +50,23 @@ function duration(s: number): string {
  * is what needs renaming: Heading/Strip describes where it was used, not what
  * it is. Logged rather than worked around with a fourth 13px weight.
  */
-export function CreativeCard({ creative: c, channel, rank }: CreativeCardProps) {
+export function CreativeCard({ creative: c, channel, rank, onOpen }: CreativeCardProps) {
   const visual = c.kind === 'image' || c.kind === 'video';
   const cac = c.leads > 0 ? formatMetric('CAC', c.spend / c.leads) : '—';
+  const Tag = onOpen ? 'button' : 'article';
 
   return (
-    <article className={`gr-creative gr-creative--${c.kind} ${c.stage === 'Paused' ? 'is-paused' : ''}`}>
+    /* An <article> until it navigates, then a real <button>. Not a clickable
+       article with a handler bolted on -- that announces nothing to a screen
+       reader and cannot be reached by keyboard. */
+    <Tag
+      className={`gr-creative gr-creative--${c.kind} ${c.stage === 'Paused' ? 'is-paused' : ''} ${onOpen ? 'is-clickable' : ''}`}
+      {...(onOpen ? {
+        type: 'button' as const,
+        onClick: () => onOpen(c.id),
+        'aria-label': `Open ad: ${c.headline}`,
+      } : {})}
+    >
       <div
         className="gr-creative__stage"
         /* The ratio drives the frame rather than a fixed height per kind, so
@@ -120,6 +133,6 @@ export function CreativeCard({ creative: c, channel, rank }: CreativeCardProps) 
         <div><dt className="gr-type-overline">CAC</dt>
           <dd className="gr-type-body-medium">{cac}</dd></div>
       </dl>
-    </article>
+    </Tag>
   );
 }

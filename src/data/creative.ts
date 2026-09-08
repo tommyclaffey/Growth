@@ -1,6 +1,8 @@
 import type { ChannelName } from '../styles/tokens';
 import type { Stage } from '../components/StatusPill/StatusPill';
 import { CAMPAIGNS, type AdSet, type Campaign } from './campaigns';
+import { campaignRows, campaignSeries } from './campaignSeries';
+import type { DayRow, Metric, Range } from './metrics';
 import { assetFor } from './creativeAssets';
 
 /**
@@ -231,4 +233,68 @@ export function rankCreatives(list: Creative[], sort: CreativeSort): Creative[] 
        on its own. */
     return d !== 0 ? d : (b.spend - a.spend) || a.id.localeCompare(b.id);
   });
+}
+
+/* ---------------------------------------------------------------- one ad -- */
+
+export function creativeById(id: string): { creative: Creative; campaignId: string } | undefined {
+  for (const c of CAMPAIGNS) {
+    const found = creativesFor(c.id).find((x) => x.id === id);
+    if (found) return { creative: found, campaignId: c.id };
+  }
+  return undefined;
+}
+
+/**
+ * An ad's share of its campaign — a constant that sums to one across the
+ * campaign's ads.
+ *
+ * Constant by design, the same trick campaignSeries uses against its channel:
+ * it makes every ad's daily numbers reconcile with the campaign's by
+ * construction rather than by a rounding pass afterwards.
+ */
+export function creativeShare(id: string): number {
+  const owner = creativeById(id);
+  if (!owner) return 0;
+  const all = creativesFor(owner.campaignId);
+  const total = all.reduce((a, c) => a + c.spend, 0);
+  return total > 0 ? owner.creative.spend / total : 0;
+}
+
+/** Daily rows for one ad, scaled out of its campaign's. Follows the range. */
+export function creativeRows(id: string, range: Range = 30): DayRow[] {
+  const owner = creativeById(id);
+  if (!owner) return [];
+  const share = creativeShare(id);
+  return campaignRows(owner.campaignId, range).map((r) => ({
+    ...r,
+    spend: r.spend * share,
+    impressions: r.impressions * share,
+    clicks: r.clicks * share,
+    leads: r.leads * share,
+    sales: r.sales * share,
+    revenue: r.revenue * share,
+  }));
+}
+
+export function creativeTotals(id: string, range: Range = 30) {
+  const sum = creativeRows(id, range).reduce(
+    (a, r) => ({
+      spend: a.spend + r.spend, impressions: a.impressions + r.impressions,
+      clicks: a.clicks + r.clicks, leads: a.leads + r.leads,
+      sales: a.sales + r.sales, revenue: a.revenue + r.revenue,
+    }),
+    { spend: 0, impressions: 0, clicks: 0, leads: 0, sales: 0, revenue: 0 },
+  );
+  return {
+    ...sum,
+    cac: sum.leads > 0 ? sum.spend / sum.leads : 0,
+    roas: sum.spend > 0 ? sum.revenue / sum.spend : 0,
+  };
+}
+
+/** Series for the ad chart, in the shape Chart expects. */
+export function creativeSeries(id: string, metric: Metric, range: Range = 30) {
+  return campaignSeries(creativeById(id)?.campaignId ?? '', metric, range)
+    .map((p) => ({ ...p, value: p.value * creativeShare(id) }));
 }

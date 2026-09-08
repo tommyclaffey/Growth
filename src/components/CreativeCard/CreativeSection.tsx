@@ -13,6 +13,7 @@ const TOP_N = 3;
 export interface CreativeSectionProps {
   channel: ChannelName;
   creatives: Creative[];
+  onOpenAd?: (id: string) => void;
 }
 
 /**
@@ -28,7 +29,7 @@ export interface CreativeSectionProps {
  * earning; the honest default is to leave it out and say so, rather than
  * silently blending stopped ads into "top performers".
  */
-export function CreativeSection({ channel, creatives }: CreativeSectionProps) {
+export function CreativeSection({ channel, creatives, onOpenAd }: CreativeSectionProps) {
   const [sort, setSort] = useState<CreativeSort>('Leads');
   const [format, setFormat] = useState<CreativeKind | null>(null);
   /* Hiding paused ads is the right default ONLY when there are running ads to
@@ -154,6 +155,7 @@ export function CreativeSection({ channel, creatives }: CreativeSectionProps) {
               /* Ranked only while the list is trimmed. Numbering all twelve
                  turns a shortlist into a leaderboard nobody asked for. */
               rank={!expanded && i < TOP_N ? i + 1 : undefined}
+              onOpen={onOpenAd}
             />
           ))}
         </div>

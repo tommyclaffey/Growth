@@ -27,6 +27,8 @@ export interface CampaignDetailProps {
   backLabel?: string;
   /** Stages this campaign's metric as a card in the chat composer. */
   onDiscuss?: (metric: DerivedMetric) => void;
+  /** Opens one ad's own page. */
+  onOpenAd?: (id: string) => void;
   wideColumns?: boolean;
 }
 
@@ -43,7 +45,7 @@ export interface CampaignDetailProps {
  * not three calculations that agree today.
  */
 export function CampaignDetail({
-  id, metric, range, onBack, onDiscuss, backLabel = 'Campaigns', wideColumns = true,
+  id, metric, range, onBack, onDiscuss, onOpenAd, backLabel = 'Campaigns', wideColumns = true,
 }: CampaignDetailProps) {
   const campaign = campaignById(id);
   /* Subscribed here so the pill re-renders when the table, or a second tab,
@@ -170,7 +172,7 @@ export function CampaignDetail({
       <section className="gr-card gr-creative-section">
         {/* Header renders inside CreativeSection, which is what owns the
             filters -- so the count and the filtered list can never disagree. */}
-        <CreativeSection channel={campaign.channel} creatives={creatives} />
+        <CreativeSection channel={campaign.channel} creatives={creatives} onOpenAd={onOpenAd} />
 
         {/* Said once, here, rather than implied by every frame. */}
         <p className="gr-type-caption gr-campaign__note">

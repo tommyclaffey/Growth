@@ -2,6 +2,7 @@ import type { NavKey } from '../components/Sidebar/Sidebar';
 import { CHANNEL_KEYS, METRICS, RANGES, type Metric, type Range } from './metrics';
 import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS } from './campaigns';
+import { creativeById } from './creative';
 
 /**
  * The screen you are looking at, expressed in the address bar.
@@ -21,6 +22,8 @@ export interface UrlState {
   metric: Metric;
   range: Range;
   campaign: string | null;
+  /** The ad being inspected, when one is. */
+  ad: string | null;
 }
 
 const NAV_KEYS: NavKey[] = ['overview', 'channels', 'campaigns', 'reports', 'notifications', 'settings'];
@@ -49,6 +52,12 @@ export function readUrlState(search: string): Partial<UrlState> {
   const p = q.get('p');
   if (p && CAMPAIGNS.some((x) => x.id === p)) out.campaign = p;
 
+  /* Validated against the real ad list, so a stale link cannot navigate to a
+     page that renders "that ad no longer exists" when the campaign it names is
+     perfectly fine. */
+  const a = q.get('a');
+  if (a && creativeById(a)) out.ad = a;
+
   return out;
 }
 
@@ -59,6 +68,7 @@ export function urlStateQuery(s: UrlState): string {
   q.set('m', s.metric);
   q.set('r', String(s.range));
   if (s.campaign) q.set('p', s.campaign);
+  if (s.ad) q.set('a', s.ad);
   /* `t` -- the conversation a Slack link pointed at -- is deliberately never
      written. It is a one-shot instruction to open a thread, not a property of
      the screen; persisting it would reopen that conversation on every reload

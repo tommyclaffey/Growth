@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { CAMPAIGNS } from '../campaigns';
-import { ADVERTISER, creativesFor, rankCreatives } from '../creative';
+import {
+  ADVERTISER, creativeById, creativeRows, creativeShare, creativeTotals,
+  creativesFor, rankCreatives,
+} from '../creative';
+import { campaignTotals } from '../campaignSeries';
 import { missingRatios } from '../creativeAssets';
 
 describe('creative', () => {
@@ -213,5 +217,39 @@ describe('the channel preview and the campaign page agree', () => {
   it('leaves at least one channel with a running campaign to preview', () => {
     const channels = new Set(CAMPAIGNS.filter((c) => c.stage === 'Active').map((c) => c.channel));
     expect(channels.size).toBeGreaterThan(0);
+  });
+});
+
+describe('one ad', () => {
+  const anyAd = () => creativesFor('c1')[0];
+
+  it('reconciles with its campaign — every ad summed IS the campaign', () => {
+    for (const c of CAMPAIGNS) {
+      const ads = creativesFor(c.id);
+      const summed = ads.reduce((a, x) => a + creativeTotals(x.id, 30).spend, 0);
+      const campaign = campaignTotals(c.id, 30).spend;
+      /* Constant shares that sum to one, so this holds by construction rather
+         than by a rounding pass. */
+      expect(Math.abs(summed - campaign), c.name).toBeLessThan(0.01);
+      expect(ads.reduce((a, x) => a + creativeShare(x.id), 0)).toBeCloseTo(1, 6);
+    }
+  });
+
+  it('follows the date range, unlike the static card figures', () => {
+    const id = anyAd().id;
+    expect(creativeTotals(id, 7).spend).toBeLessThan(creativeTotals(id, 90).spend);
+    expect(creativeRows(id, 7)).toHaveLength(7);
+    expect(creativeRows(id, 90)).toHaveLength(90);
+  });
+
+  it('finds an ad by id and names the campaign that owns it', () => {
+    const id = anyAd().id;
+    expect(creativeById(id)?.campaignId).toBe('c1');
+    expect(creativeById('nope')).toBeUndefined();
+  });
+
+  it('gives a zero share to an ad that does not exist rather than dividing by zero', () => {
+    expect(creativeShare('nope')).toBe(0);
+    expect(creativeRows('nope', 30)).toEqual([]);
   });
 });

@@ -150,3 +150,20 @@
   display: flex; align-items: center; gap: var(--space-8);
   border: none; margin: 0; padding: 0; min-width: 0;
 }
+
+/* Clickable card. A <button> resets font and text-align and inherits neither,
+   so both are restated — the same trap the notification rows hit. */
+.gr-creative.is-clickable {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  width: 100%;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.gr-creative.is-clickable:hover { border-color: var(--border-strong); box-shadow: var(--elevation-card); }
+.gr-creative.is-clickable:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) { .gr-creative.is-clickable { transition: none; } }

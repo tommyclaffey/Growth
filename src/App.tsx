@@ -20,6 +20,8 @@ import { Reports } from './screens/Reports';
 import { Notifications } from './screens/Notifications';
 import { Settings } from './screens/Settings';
 import { CampaignDetail } from './screens/CampaignDetail';
+import { AdDetail } from './screens/AdDetail';
+import { CAMPAIGNS } from './data/campaigns';
 import { useMonthlyBudget } from './data/profile';
 import {
   CHANNEL_LABEL, activeChannels, delta, formatMetric, isActive, series, sparkline, totals,
@@ -98,6 +100,9 @@ export default function App() {
      in the URL -- it describes how you arrived, not where you are, and after a
      reload the honest answer is that we do not know. */
   const [cameFrom, setCameFrom] = useState<ChannelName | null>(null);
+  /* The ad being inspected. Nested under a campaign, so opening one does not
+     clear campaignId -- Back has to land on the campaign, not the list. */
+  const [adId, setAdId] = useState<string | null>(initialUrl.ad ?? null);
 
   const budget = useMonthlyBudget();
   const { cacAlerts, pacing, dismissedAlerts } = usePrefs();
@@ -128,6 +133,7 @@ export default function App() {
      which call site remembered to pass the prop. */
   const openCampaign = useCallback((id: string, from: ChannelName | null = null) => {
     setCameFrom(from);
+    setAdId(null);
     setCampaignId(id);
     setNav('campaigns');
   }, []);
@@ -151,6 +157,7 @@ export default function App() {
        followed the link to read. */
     if (v.campaign) {
       setCameFrom(null);
+      setAdId(null);
       setCampaignId(v.campaign);
       setNav('campaigns');
       return;
@@ -173,12 +180,12 @@ export default function App() {
      changed and there is nothing left to compare to. */
   const lastPlace = useRef<string | null>(null);
   useEffect(() => {
-    const place = `${nav}|${channel ?? 'all'}|${campaignId ?? ''}`;
+    const place = `${nav}|${channel ?? 'all'}|${campaignId ?? ''}|${adId ?? ''}`;
     const isNavigation = lastPlace.current !== null && lastPlace.current !== place;
     lastPlace.current = place;
-    writeUrlState({ nav, channel, metric, range, campaign: campaignId },
+    writeUrlState({ nav, channel, metric, range, campaign: campaignId, ad: adId },
                   isNavigation ? 'push' : 'replace');
-  }, [nav, channel, metric, range, campaignId]);
+  }, [nav, channel, metric, range, campaignId, adId]);
 
   /* The back button. Without this, history entries existed and pressing back
      changed the URL while the screen stayed exactly where it was -- which is
@@ -192,9 +199,10 @@ export default function App() {
       setMetric(u.metric ?? 'Spend');
       setRange(u.range ?? 30);
       setCampaignId(u.campaign ?? null);
+      setAdId(u.ad ?? null);
       /* Keeps the writer from pushing a fresh entry for a move the user made
          by going back -- that would make forward unreachable. */
-      lastPlace.current = `${u.nav ?? 'overview'}|${u.channel ?? 'all'}|${u.campaign ?? ''}`;
+      lastPlace.current = `${u.nav ?? 'overview'}|${u.channel ?? 'all'}|${u.campaign ?? ''}|${u.ad ?? ''}`;
     }
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
@@ -517,7 +525,16 @@ export default function App() {
                           onRowClick={(k) => setChannel(k)} />
           )}
 
-          {nav === 'campaigns' && (campaignId
+          {nav === 'campaigns' && (adId
+            ? (
+              <AdDetail
+                id={adId}
+                range={range}
+                onBack={() => setAdId(null)}
+                backLabel={CAMPAIGNS.find((c) => c.id === campaignId)?.name ?? 'Campaign'}
+              />
+            )
+            : campaignId
             ? (
               <CampaignDetail
                 id={campaignId}
