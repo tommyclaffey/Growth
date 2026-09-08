@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useOverlay } from '../../data/useOverlay';
 import './ChatPanel.css';
 import { campaignById, campaignTotals } from '../../data/campaignSeries';
-import { benchmarkFor, benchmarkLabel } from '../../data/benchmark';
+import { benchmarkFor, benchmarkLabel, benchmarkTitle } from '../../data/benchmark';
 import { betterHigher, formatDerived, isDerivedRatio, valueOf } from '../../data/channelMetrics';
 import {
   loadDirectThread, loadThread, postDirectToSlack, postToSlack, subscribeToSlack,
@@ -638,7 +638,8 @@ function ViewCard({ view, compact = false, onOpen }:
         )}
       </p>
       {bench && (
-        <p className="gr-viewcard__note gr-type-micro">
+        <p className="gr-viewcard__note gr-type-micro"
+           title={benchmarkTitle(view.metric, bench, channelLabel)}>
           {benchmarkLabel(view.metric, bench, channelLabel)}
         </p>
       )}

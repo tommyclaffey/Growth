@@ -12,7 +12,7 @@ import {
 } from '../data/campaignSeries';
 import { CHANNEL_LABEL, formatMetric, type Metric, type Range } from '../data/metrics';
 import { betterHigher, formatDerived, headlineFor, kpisFor, valueOf, type DerivedMetric } from '../data/channelMetrics';
-import { benchmarkFor, benchmarkLabel } from '../data/benchmark';
+import { benchmarkFor, benchmarkLabel, benchmarkTitle } from '../data/benchmark';
 import { CREATIVE_NOUN, creativesFor } from '../data/creative';
 import { CreativeCard } from '../components/CreativeCard/CreativeCard';
 
@@ -144,6 +144,7 @@ export function CampaignDetail({
               benchmark={b ? {
                 percent: b.deltaPercent,
                 note: benchmarkLabel(m, b, CHANNEL_LABEL[campaign.channel]),
+                title: benchmarkTitle(m, b, CHANNEL_LABEL[campaign.channel]),
               } : undefined}
               /* Same affordance as every other KPI card in the product. A
                  number you cannot ask anyone about is a number you act on

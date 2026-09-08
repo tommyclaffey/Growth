@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { benchmarkFor } from '../benchmark';
+import { benchmarkFor, benchmarkLabel, benchmarkTitle } from '../benchmark';
 import { CAMPAIGNS } from '../campaigns';
 import { totals } from '../metrics';
 import { valueOf } from '../channelMetrics';
@@ -89,5 +89,40 @@ describe('a campaign card survives the round trip through Slack', () => {
     const url = encodeView({ channel: 'all', metric: 'Spend', range: 7 }, 'https://x.test');
     expect(readDeepLink(url.slice(url.indexOf('?') + 1))!.view)
       .toEqual({ channel: 'all', metric: 'Spend', range: 7 });
+  });
+});
+
+describe('the label scopes the comparison to this workspace', () => {
+  it('says "Your", so it cannot be read as an industry benchmark', () => {
+    const b = benchmarkFor('meta', 'CAC', 30, 40)!;
+    expect(benchmarkLabel('CAC', b, 'Meta')).toMatch(/^Your Meta /);
+  });
+
+  it('never implies a population this product cannot see', () => {
+    const b = benchmarkFor('meta', 'Leads', 30, 100)!;
+    const title = benchmarkTitle('Leads', b, 'Meta');
+    /* The disclaimer is the ONE place "industry" may appear -- it is there to
+       deny the claim, not make it. Scanned with it removed, or the test fails
+       on its own safety net. */
+    const claims = `${benchmarkLabel('Leads', b, 'Meta')} ${title.replace('Not an industry benchmark.', '')}`;
+    /* Growth sees one account. Any of these would promise cross-advertiser data
+       it has no access to, and someone would set a budget against it. */
+    for (const word of ['industry', 'peers', 'all advertisers', 'median', 'compared to other']) {
+      expect(claims.toLowerCase(), word).not.toContain(word);
+    }
+    expect(title).toContain('Not an industry benchmark');
+  });
+
+  it('states the population in the long form, so "average" is not left vague', () => {
+    const b = benchmarkFor('meta', 'Leads', 30, 100)!;
+    expect(benchmarkTitle('Leads', b, 'Meta')).toContain(`your ${b.n} Meta campaigns`);
+  });
+
+  it('calls a rate blended and weighted, not an average of campaigns', () => {
+    const b = benchmarkFor('meta', 'CAC', 30, 40)!;
+    const t = benchmarkTitle('CAC', b, 'Meta');
+    expect(t).toContain('blended');
+    expect(t).toContain('weighted by spend');
+    expect(t).not.toContain('the average');
   });
 });

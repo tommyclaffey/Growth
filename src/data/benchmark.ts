@@ -87,18 +87,41 @@ export function benchmarkFor(
 }
 
 /**
- * The note beside the pill, e.g. "Meta avg $29.80" or "Meta $38.90".
+ * The note beside the pill, e.g. "Your Meta avg $29.80".
  *
- * Kept short on purpose -- it shares a 233px card with the pill, and the two
- * together have to say what the percentage is measured against without
- * wrapping to a second line and making one card taller than its row.
+ * ⚠️ "Meta avg" was WRONG, and wrong in an expensive direction. It reads as
+ * Meta's INDUSTRY average -- the benchmark every advertiser actually wants --
+ * and that is a claim this product cannot make. Growth sees one account's
+ * connected ad accounts. It has no idea what other advertisers pay for a lead,
+ * and a label implying otherwise invites someone to make a budget decision
+ * against a number that does not exist.
+ *
+ * "Your" is the whole fix: it scopes the comparison to this workspace's own
+ * Meta campaigns, which is exactly what was computed.
+ *
+ * Kept short because it shares a 233px card with the pill. The full sentence,
+ * including how many campaigns the average is drawn from, rides on the title
+ * attribute rather than being cut for width.
  *
  * "avg" appears only for counts, where the benchmark genuinely IS an average
- * of campaigns. A rate is the channel's own number, and calling that an
+ * of campaigns. A rate is the account's own blended number, and calling that an
  * average would describe a calculation nobody performed.
  */
 export function benchmarkLabel(m: DerivedMetric, b: Benchmark, channelLabel: string): string {
   return b.basis === 'campaign-average'
-    ? `${channelLabel} avg ${formatDerived(m, b.value)}`
-    : `${channelLabel} ${formatDerived(m, b.value)}`;
+    ? `Your ${channelLabel} avg ${formatDerived(m, b.value)}`
+    : `Your ${channelLabel} ${formatDerived(m, b.value)}`;
+}
+
+/**
+ * The unabbreviated version, for the title attribute and assistive tech.
+ *
+ * States the scope, the population and the calculation, so nobody has to infer
+ * any of the three from four words on a small card.
+ */
+export function benchmarkTitle(m: DerivedMetric, b: Benchmark, channelLabel: string): string {
+  const value = formatDerived(m, b.value);
+  return b.basis === 'campaign-average'
+    ? `${value} is the average ${m} across your ${b.n} ${channelLabel} campaigns in this workspace. Not an industry benchmark.`
+    : `${value} is your blended ${m} across all ${b.n} ${channelLabel} campaigns in this workspace, weighted by spend. Not an industry benchmark.`;
 }

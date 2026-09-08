@@ -39,7 +39,13 @@ export interface KpiCardProps {
    * `note` sits where the sparkline sits, naming what the comparison is
    * against. A percentage with no stated basis is a number nobody can check.
    */
-  benchmark?: { percent: number; note: string };
+  benchmark?: {
+    percent: number;
+    note: string;
+    /** The unabbreviated sentence, for hover and assistive tech. The short
+        note is cut for a 233px card; the meaning must not be. */
+    title?: string;
+  };
   /** Fires from the Discuss button, not the whole card. */
   onDiscuss?: () => void;
 }
@@ -140,7 +146,9 @@ export function KpiCard({
       {benchmark && !error && (
         <span className="gr-kpi__bench">
           <DeltaBadge percent={benchmark.percent} higherIsBetter={higherIsBetter} variant="benchmark" />
-          <span className="gr-kpi__bench-note gr-type-caption">{benchmark.note}</span>
+          <span className="gr-kpi__bench-note gr-type-caption" title={benchmark.title}>
+            {benchmark.note}
+          </span>
         </span>
       )}
 
