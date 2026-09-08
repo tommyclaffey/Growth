@@ -32,20 +32,20 @@ export interface Campaign {
  */
 export const CAMPAIGNS: Campaign[] = [
   {
-    id: 'c1', name: 'Advantage+ Shopping — Evergreen', channel: 'meta', stage: 'Active',
+    id: 'c1', name: 'Advantage+ — Evergreen Signups', channel: 'meta', stage: 'Active',
     objective: 'Conversions', spend: 34120, leads: 998, roas: 5.1,
     adSets: [
       { id: 'c1a', name: 'Broad — US 25-54',        spend: 19840, leads: 604, stage: 'Active' },
-      { id: 'c1b', name: 'Lookalike 1% — Purchase', spend: 9860,  leads: 289, stage: 'Active' },
+      { id: 'c1b', name: 'Lookalike 1% — Funded', spend: 9860,  leads: 289, stage: 'Active' },
       { id: 'c1c', name: 'Retargeting — 30d',       spend: 4420,  leads: 105, stage: 'Paused' },
     ],
   },
   {
-    id: 'c2', name: 'Back to School — Prospecting', channel: 'meta', stage: 'Paused',
+    id: 'c2', name: 'Tax Season — Prospecting', channel: 'meta', stage: 'Paused',
     objective: 'Traffic', spend: 27120, leads: 706, roas: 3.9,
     adSets: [
-      { id: 'c2a', name: 'Interest — Parents',   spend: 15400, leads: 402, stage: 'Paused' },
-      { id: 'c2b', name: 'Interest — Educators', spend: 11720, leads: 304, stage: 'Paused' },
+      { id: 'c2a', name: 'Interest — First-time filers',   spend: 15400, leads: 402, stage: 'Paused' },
+      { id: 'c2b', name: 'Interest — Freelancers', spend: 11720, leads: 304, stage: 'Paused' },
     ],
   },
   {
@@ -57,12 +57,12 @@ export const CAMPAIGNS: Campaign[] = [
     ],
   },
   {
-    id: 'c4', name: 'TikTok Shop — Bundle Drop', channel: 'tiktok', stage: 'Draft',
+    id: 'c4', name: '30-Day Money Challenge', channel: 'tiktok', stage: 'Draft',
     objective: 'Sales', spend: 9670, leads: 290, roas: 3.4,
-    adSets: [{ id: 'c4a', name: 'Bundle — Starter', spend: 9670, leads: 290, stage: 'Draft' }],
+    adSets: [{ id: 'c4a', name: 'Challenge — 30 day', spend: 9670, leads: 290, stage: 'Draft' }],
   },
   {
-    id: 'c5', name: 'YouTube Demo Series', channel: 'youtube', stage: 'Active',
+    id: 'c5', name: 'App Walkthrough Series', channel: 'youtube', stage: 'Active',
     objective: 'Awareness', spend: 22470, leads: 561, roas: 3.1,
     adSets: [
       { id: 'c5a', name: 'In-stream — Skippable',   spend: 14200, leads: 358, stage: 'Active' },
@@ -74,7 +74,7 @@ export const CAMPAIGNS: Campaign[] = [
     objective: 'Sales', spend: 18320, leads: 498, roas: 5.2,
     adSets: [
       { id: 'c6a', name: 'Review sites',   spend: 11040, leads: 318, stage: 'Active' },
-      { id: 'c6b', name: 'Coupon & deals', spend: 7280,  leads: 180, stage: 'Active' },
+      { id: 'c6b', name: 'Comparison sites', spend: 7280,  leads: 180, stage: 'Active' },
     ],
   },
   {

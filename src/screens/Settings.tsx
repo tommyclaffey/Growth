@@ -244,8 +244,8 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
             {/* The hint was false in both halves once: the sidebar hardcoded
                 GROWTH and the CSV never read this. Fixing the sidebar half by
                 REPLACING the wordmark was the wrong fix -- it made the product
-                lockup read "FOXGLOVE SUPPLY". The workspace now sits under the
-                wordmark, and the hint says so. */}
+                lockup render the CUSTOMER's name. The workspace now sits under
+                the wordmark, and the hint says so. */}
             <FormField label="Workspace name" value={workspace}
                        onChange={(v) => { setWorkspace(v); setWorkspaceName(v); }}
                        hint="Shown under the Growth logo in the sidebar, and in exported file names" />

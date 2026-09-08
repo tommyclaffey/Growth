@@ -30,7 +30,7 @@ export interface Alert {
    exactly the kind of reference that rots silently -- it keeps compiling after
    the campaign it names is renamed, re-channelled or removed. */
 export const ALERTS: Alert[] = [
-  { id: 'n1', day: 'Today',     tone: 'bad',  message: 'Meta CAC rose 42% week over week, driven by Advantage+ Shopping.', channel: 'Meta',        time: '09:14', unread: true,  campaignId: 'c1' },
+  { id: 'n1', day: 'Today',     tone: 'bad',  message: 'Meta CAC rose 42% week over week, driven by Advantage+ Evergreen Signups.', channel: 'Meta',        time: '09:14', unread: true,  campaignId: 'c1' },
   /* No campaignId: pacing is a CHANNEL fact, spread across every TikTok
      campaign. Picking one to open would invent an attribution the alert does
      not make. */

@@ -48,8 +48,10 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
             substituted for the other.
 
             The wordmark used to render the workspace name, so this lockup read
-            "FOXGLOVE SUPPLY" beside Growth's own trend-arrow mark -- the
-            product wearing a customer's name. It came from Settings promising
+            the CUSTOMER's company beside Growth's own trend-arrow mark -- the
+            product wearing someone else's name. It only became visible when the
+            demo workspace stopped being called "Growth"; the bug was there the
+            whole time, waiting for a value that was not the product's own. It came from Settings promising
             the workspace was "shown in the sidebar", which was made true in the
             only slot available rather than by adding one.
 

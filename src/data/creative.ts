@@ -91,27 +91,30 @@ const FORMATS: Record<ChannelName, { kind: CreativeKind; ratio?: Creative['ratio
  * was stored rather than what was true -- content that describes the wrong
  * subject entirely.
  *
- * The seed data already said who the advertiser is and nobody read it:
- * "Back to School", "Interest — Parents", "Interest — Educators",
- * "Bundle — Starter", "Coupon & deals", "TikTok Shop — Bundle Drop". That is a
- * direct-to-consumer brand selling to families and classrooms.
+ * The advertiser is a consumer money app, and the channel mix is the argument
+ * for it: fintech is the heaviest podcast and affiliate advertiser there is,
+ * brand-defence search is a line item every fintech actually runs, and the
+ * funnel this product reports -- leads, CAC, ROAS -- is exactly how a signup
+ * business measures itself. "Tax Season — Prospecting", "Interest — First-time
+ * filers", "Comparison sites" and "Business & finance shows" all read as
+ * themselves rather than as dressing.
  *
  * One constant, so renaming the fictional advertiser is a one-line change.
  */
-export const ADVERTISER = { name: 'Foxglove Supply', domain: 'foxglove.co' };
+export const ADVERTISER = { name: 'Northbank', domain: 'northbank.app' };
 
 /* Copy fragments, picked deterministically rather than randomly -- the same
    campaign must render the same ads on every visit, and Math.random in a data
    layer means a screenshot cannot be reproduced. */
 const HOOKS: Record<string, string[]> = {
-  Conversions: ['The starter kit, 20% off', 'Everything for one desk, in one box', 'Free shipping over $40'],
-  Traffic:     ['See the autumn range', 'Classroom packs are back', 'Built to survive a backpack'],
-  Awareness:   ['Made for hands that press hard', 'Paper worth ruining', 'Supplies that outlast the term'],
-  Sales:       ['Restock before term starts', 'Bundle and save $18', 'Last week for back-to-school pricing'],
-  Retention:   ['Your refill is due', 'Reorder the kit you loved', 'Same box, restocked'],
+  Conversions: ['Set up in under three minutes', 'Start free, no card', 'Join 400,000 people'],
+  Traffic:     ['See your spending in two minutes', 'Link an account, see the truth', 'For people who hate budgeting'],
+  Awareness:   ['Know where the money went', 'Every account, one place', 'The last money app you will try'],
+  Sales:       ['Premium is $4 a month', 'Lock in the annual price', 'Two months free on annual'],
+  Retention:   ['Your December summary is ready', 'You have not checked in since October', 'Pick your budget back up'],
 };
 
-const CTAS = ['Shop now', 'Shop the range', 'Get the bundle', 'Order today'];
+const CTAS = ['Get started', 'Download free', 'Link an account', 'See my spending'];
 
 function hooksFor(objective: string): string[] {
   return HOOKS[objective] ?? HOOKS.Conversions;
@@ -153,7 +156,7 @@ function forAdSet(c: Campaign, a: AdSet): Creative[] {
       /* The ADVERTISER's domain, not this product's. A search ad in a
          customer's account that displays growth.app is showing the reporting
          tool's URL to the customer's shoppers. */
-      destination: f.kind === 'text' ? `${ADVERTISER.domain}/bundles`
+      destination: f.kind === 'text' ? `${ADVERTISER.domain}/signup`
         : f.kind === 'link' ? `partner.link/${ADVERTISER.domain}/${i + 1}` : undefined,
       /* Looked up by SHAPE from the asset library, cycling by index so three
          ad sets running the same format do not show the same picture three
@@ -179,16 +182,16 @@ function forAdSet(c: Campaign, a: AdSet): Creative[] {
 function bodyFor(c: Campaign, kind: CreativeKind, i: number): string {
   if (kind === 'text') {
     return i === 0
-      ? 'Sketchbooks, pens and classroom packs. Free shipping over $40.'
-      : 'Starter bundles from $29. Restock pricing ends Sunday.';
+      ? 'Track spending, bills and savings in one app. Free to start, no card.'
+      : 'Link every account and see where it actually goes. Setup takes minutes.';
   }
   if (kind === 'audio') {
     return i === 0
-      ? `Host read — 60s mid-roll. Opens on the desk-clutter story, then the ${ADVERTISER.name} code.`
+      ? `Host read — 60s mid-roll. Opens on the where-did-it-go story, then the ${ADVERTISER.name} code.`
       : 'Host read — 30s pre-roll. Offer code only, no narrative setup.';
   }
   if (kind === 'link') return `Placement on ${c.name.split(' — ')[0]} partner pages, above the fold.`;
-  return 'Cold audience cut. Product in hand within the first two seconds.';
+  return 'Cold audience cut. App on screen within the first two seconds.';
 }
 
 /** Every ad running in a campaign, grouped under the ad set that owns it. */

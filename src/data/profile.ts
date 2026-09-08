@@ -218,7 +218,7 @@ const WORKSPACE_CHANGED = 'growth:workspace-changed';
    It defaulted to "Growth", which reads as the reporting tool naming itself --
    the same conflation that had the ad creative advertising Growth inside
    Growth's own campaign view. A customer's workspace is their company. */
-export const DEFAULT_WORKSPACE = 'Foxglove Supply';
+export const DEFAULT_WORKSPACE = 'Northbank';
 
 export function workspaceName(): string {
   try { return localStorage.getItem(WORKSPACE_KEY) || DEFAULT_WORKSPACE; }
