@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CAMPAIGNS } from '../campaigns';
-import { creativesFor } from '../creative';
+import { ADVERTISER, creativesFor } from '../creative';
 
 describe('creative', () => {
   it('gives paid search TEXT ads and no images — the same rule that denies it a CPM', () => {
@@ -84,5 +84,32 @@ describe('the master asset', () => {
        band — if these ever match, the crop decision has been lost. */
     const byRatio = new Map(stills.map((c) => [c.ratio, c.focus]));
     expect(byRatio.get('1:1')).not.toBe(byRatio.get('4:5'));
+  });
+});
+
+describe('the advertiser is not the platform', () => {
+  it('never points a destination at this product', () => {
+    for (const c of CAMPAIGNS) {
+      for (const cr of creativesFor(c.id)) {
+        if (!cr.destination) continue;
+        /* Growth is the reporting tool. A search ad inside a customer's
+           account displaying growth.app would be showing the analytics
+           vendor's URL to that customer's shoppers. */
+        expect(cr.destination.toLowerCase()).not.toContain('growth');
+        expect(cr.destination).toContain(ADVERTISER.domain);
+      }
+    }
+  });
+
+  it('never writes copy that advertises this product', () => {
+    const banned = ['dashboard', 'reporting', 'ROAS', 'CAC', 'blended', 'trial', 'seats'];
+    for (const c of CAMPAIGNS) {
+      for (const cr of creativesFor(c.id)) {
+        const text = `${cr.headline} ${cr.body}`.toLowerCase();
+        for (const word of banned) {
+          expect(text, `${cr.id}: "${text}"`).not.toContain(word.toLowerCase());
+        }
+      }
+    }
   });
 });

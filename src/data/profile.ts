@@ -214,7 +214,11 @@ export function renderCrop(img: HTMLImageElement, crop: Crop): string {
    the claim was a reasonable thing to want. */
 const WORKSPACE_KEY = 'growth.workspace';
 const WORKSPACE_CHANGED = 'growth:workspace-changed';
-export const DEFAULT_WORKSPACE = 'Growth';
+/* The workspace belongs to the ADVERTISER, not to this product.
+   It defaulted to "Growth", which reads as the reporting tool naming itself --
+   the same conflation that had the ad creative advertising Growth inside
+   Growth's own campaign view. A customer's workspace is their company. */
+export const DEFAULT_WORKSPACE = 'Foxglove Supply';
 
 export function workspaceName(): string {
   try { return localStorage.getItem(WORKSPACE_KEY) || DEFAULT_WORKSPACE; }

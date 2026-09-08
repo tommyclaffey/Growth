@@ -77,17 +77,41 @@ const FORMATS: Record<ChannelName, { kind: CreativeKind; ratio?: Creative['ratio
   podcasts:   [{ kind: 'audio', seconds: 60 }, { kind: 'audio', seconds: 30 }],
 };
 
+/**
+ * ⚠️ THE ADVERTISER IS NOT GROWTH.
+ *
+ * Growth is the analytics platform. The campaigns inside it belong to the
+ * CUSTOMER whose ad accounts are connected -- so the creative in this section
+ * is that customer's, and it should look nothing like this product.
+ *
+ * The first version of this file got it backwards and wrote SaaS copy: "One
+ * dashboard for Meta, TikTok, YouTube and search", pointed at growth.app. That
+ * is Growth advertising itself, inside its own reporting tool, which is not a
+ * thing that happens. It is the same defect class as a status reporting what
+ * was stored rather than what was true -- content that describes the wrong
+ * subject entirely.
+ *
+ * The seed data already said who the advertiser is and nobody read it:
+ * "Back to School", "Interest — Parents", "Interest — Educators",
+ * "Bundle — Starter", "Coupon & deals", "TikTok Shop — Bundle Drop". That is a
+ * direct-to-consumer brand selling to families and classrooms.
+ *
+ * One constant, so renaming the fictional advertiser is a one-line change.
+ */
+export const ADVERTISER = { name: 'Foxglove Supply', domain: 'foxglove.co' };
+
 /* Copy fragments, picked deterministically rather than randomly -- the same
    campaign must render the same ads on every visit, and Math.random in a data
    layer means a screenshot cannot be reproduced. */
 const HOOKS: Record<string, string[]> = {
-  Conversions: ['Built for the way you actually work', 'Stop paying for seats you never use', 'Switch in an afternoon'],
-  Traffic:     ['See what your team has been missing', 'The dashboard your CFO asks for', 'Ten minutes to your first report'],
-  Awareness:   ['Every channel. One number.', 'Marketing spend, finally legible', 'Where did the budget actually go?'],
-  Retention:   ['You are three clicks from renewing', 'Your best month is still open', 'Keep the reporting you built'],
+  Conversions: ['The starter kit, 20% off', 'Everything for one desk, in one box', 'Free shipping over $40'],
+  Traffic:     ['See the autumn range', 'Classroom packs are back', 'Built to survive a backpack'],
+  Awareness:   ['Made for hands that press hard', 'Paper worth ruining', 'Supplies that outlast the term'],
+  Sales:       ['Restock before term starts', 'Bundle and save $18', 'Last week for back-to-school pricing'],
+  Retention:   ['Your refill is due', 'Reorder the kit you loved', 'Same box, restocked'],
 };
 
-const CTAS = ['Get started', 'Learn more', 'Book a demo', 'Start free trial'];
+const CTAS = ['Shop now', 'Shop the range', 'Get the bundle', 'Order today'];
 
 function hooksFor(objective: string): string[] {
   return HOOKS[objective] ?? HOOKS.Conversions;
@@ -126,8 +150,11 @@ function forAdSet(c: Campaign, a: AdSet): Creative[] {
       headline,
       body: bodyFor(c, f.kind, i),
       cta: f.kind === 'text' || f.kind === 'link' ? undefined : CTAS[(base + i) % CTAS.length],
-      destination: f.kind === 'text' ? 'growth.app/reporting'
-        : f.kind === 'link' ? `partner.link/${c.channel}/${i + 1}` : undefined,
+      /* The ADVERTISER's domain, not this product's. A search ad in a
+         customer's account that displays growth.app is showing the reporting
+         tool's URL to the customer's shoppers. */
+      destination: f.kind === 'text' ? `${ADVERTISER.domain}/bundles`
+        : f.kind === 'link' ? `partner.link/${ADVERTISER.domain}/${i + 1}` : undefined,
       /* Stills only. A video's frame carries a duration instead -- inventing a
          thumbnail for a film nobody shot is the thing this file will not do. */
       src: f.kind === 'image' ? adAsset : undefined,
@@ -145,16 +172,16 @@ function forAdSet(c: Campaign, a: AdSet): Creative[] {
 function bodyFor(c: Campaign, kind: CreativeKind, i: number): string {
   if (kind === 'text') {
     return i === 0
-      ? 'One dashboard for Meta, TikTok, YouTube and search. Free 14-day trial.'
-      : 'Blended CAC, per-channel ROAS and pacing in one view. No spreadsheet.';
+      ? 'Sketchbooks, pens and classroom packs. Free shipping over $40.'
+      : 'Starter bundles from $29. Restock pricing ends Sunday.';
   }
   if (kind === 'audio') {
     return i === 0
-      ? 'Host read — 60s mid-roll. Opens on the "which channel actually worked" question, then the offer code.'
+      ? `Host read — 60s mid-roll. Opens on the desk-clutter story, then the ${ADVERTISER.name} code.`
       : 'Host read — 30s pre-roll. Offer code only, no narrative setup.';
   }
   if (kind === 'link') return `Placement on ${c.name.split(' — ')[0]} partner pages, above the fold.`;
-  return 'Cold audience cut. Product UI on screen for the first two seconds.';
+  return 'Cold audience cut. Product in hand within the first two seconds.';
 }
 
 /** Every ad running in a campaign, grouped under the ad set that owns it. */

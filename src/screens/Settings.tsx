@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { restoreAlerts, setPref, usePrefs } from '../data/prefs';
 import { Button } from '../components/Button/Button';
-import { monthlyBudget, setMonthlyBudget, setWorkspaceName } from '../data/profile';
+import { monthlyBudget, setMonthlyBudget, setWorkspaceName, workspaceName } from '../data/profile';
 import './screens.css';
 import { setDemoState, useDemoState, type DemoState } from '../data/demoState';
 import { Toggle } from '../components/Toggle/Toggle';
@@ -40,7 +40,13 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
      These were four useState calls sitting beside three neighbours that saved
      properly -- so the screen accepted an answer and forgot it on navigation. */
   const { digest, cacAlerts, pacing, digestTo, dismissedAlerts } = usePrefs();
-  const [workspace, setWorkspace] = useState('Growth — Acquisition');
+  /* Seeded from the STORE, not a literal.
+
+     It was useState('Growth — Acquisition'), which wrote on change and never
+     read on load -- so the field displayed that string no matter what was
+     saved, while the sidebar three inches away rendered the real value. One
+     fact, two places, disagreeing on screen. */
+  const [workspace, setWorkspace] = useState(workspaceName);
 
 
   function toggleChannel2(key: ChannelName, next: boolean) {
