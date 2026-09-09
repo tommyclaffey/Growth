@@ -24,6 +24,42 @@ export interface Flag {
   label: string;
   /** Epoch ms. Ordering only -- newest first. */
   at: number;
+
+  /* ---- Task fields -------------------------------------------------------
+
+     ⚠️ A task is a FLAG WITH FIELDS, not a second object.
+
+     The alternative was a separate task store beside this one, and it would
+     have drifted within a week: flag something, make it a task, clear the flag,
+     and now there is an orphan task pointing at nothing. One record with
+     optional fields cannot get out of step with itself.
+
+     A flag says "this matters". Filling these in says "and someone owns it, by
+     a date". Same thing, more detail. */
+
+  /** Member id from MEMBERS. Undefined means flagged but unassigned. */
+  owner?: string;
+  /** ISO yyyy-mm-dd. Date only -- reminders need a backend, overdue does not. */
+  due?: string;
+}
+
+/** True once any task field is set. A flag with an owner or a date is a task. */
+export function isTask(f: Flag): boolean {
+  return Boolean(f.owner || f.due);
+}
+
+/**
+ * Overdue is computed, never stored.
+ *
+ * A stored `isOverdue` would be true from the moment it was written and would
+ * stay true after the date moved, which is the exact shape of defect this
+ * codebase keeps finding: a value reporting what was saved rather than what is
+ * true.
+ */
+export function isOverdue(f: Flag, today = new Date()): boolean {
+  if (!f.due) return false;
+  const t = today.toISOString().slice(0, 10);
+  return f.due < t;
 }
 
 const KEY = 'growth.attention';
@@ -43,9 +79,14 @@ function read(): Flag[] {
     return raw.filter((f: unknown): f is Flag => {
       if (!f || typeof f !== 'object') return false;
       const x = f as Partial<Flag>;
-      return typeof x.id === 'string' && typeof x.refId === 'string'
+      const base = typeof x.id === 'string' && typeof x.refId === 'string'
         && typeof x.label === 'string' && typeof x.at === 'number'
         && (x.kind === 'campaign' || x.kind === 'notification');
+      /* Optional fields are validated only if present. A bad owner should not
+         discard an otherwise good flag -- it should just not be assigned. */
+      const okOwner = x.owner === undefined || typeof x.owner === 'string';
+      const okDue = x.due === undefined || /^\d{4}-\d{2}-\d{2}$/.test(String(x.due));
+      return base && okOwner && okDue;
     });
   } catch {
     return [];
@@ -96,6 +137,35 @@ export function removeFlag(kind: Flag['kind'], refId: string) {
 }
 
 /** Flag or unflag in one call, for a control that toggles. */
+/**
+ * Set or clear the task fields on an existing flag.
+ *
+ * Assigning to something not yet flagged flags it first -- you cannot own a
+ * thing that is not on the list, and making someone press two buttons to
+ * express one intention is how features get called clunky.
+ */
+export function setTask(
+  kind: Flag['kind'], refId: string, label: string,
+  fields: { owner?: string | null; due?: string | null },
+) {
+  const id = flagId(kind, refId);
+  if (!cache.some((f) => f.id === id)) addFlag(kind, refId, label);
+  cache = cache.map((f) => {
+    if (f.id !== id) return f;
+    const next = { ...f };
+    /* null clears, undefined leaves alone. Without that distinction there is no
+       way to unassign an owner without also wiping the due date. */
+    if (fields.owner !== undefined) {
+      if (fields.owner === null) delete next.owner; else next.owner = fields.owner;
+    }
+    if (fields.due !== undefined) {
+      if (fields.due === null) delete next.due; else next.due = fields.due;
+    }
+    return next;
+  });
+  save();
+}
+
 export function toggleFlag(kind: Flag['kind'], refId: string, label: string) {
   if (isFlagged(kind, refId)) removeFlag(kind, refId);
   else addFlag(kind, refId, label);
@@ -120,6 +190,34 @@ export function restoreFlag(f: Flag) {
    does not permanently destroy someone's queue. */
 export function liveFlags(): Flag[] {
   return live;
+}
+
+/**
+ * A task is DONE when the campaign it is attached to has Ended.
+ *
+ * ⭐ Tommy's answer, and it beat both options originally written down. Not
+ * closed by a person, which ignores what actually happened to the campaign.
+ * Not closed by a metric recovering, which pretends a number can report that a
+ * decision was taken.
+ *
+ * A person decided to end the campaign. Ending it IS the decision, and the task
+ * follows it. The losing half of an A/B test gets switched off, and everything
+ * outstanding against it is finished by definition.
+ *
+ * ⚠️ PAUSED IS NOT DONE. A paused campaign can come back, so its tasks stay
+ * open. That distinction is the whole argument for reusing the existing Stage
+ * vocabulary instead of inventing a parallel task status that would drift from
+ * it -- Stage already knows the difference between "stopped for now" and
+ * "over".
+ */
+export function isDone(f: Flag, stageOf: (id: string) => string): boolean {
+  if (f.kind !== 'campaign') return false;
+  return stageOf(f.refId) === 'Ended';
+}
+
+/** Open tasks only: flagged, and not closed by their campaign ending. */
+export function openFlags(all: Flag[], stageOf: (id: string) => string): Flag[] {
+  return all.filter((f) => !isDone(f, stageOf));
 }
 
 function subscribe(fn: () => void) {

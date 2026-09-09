@@ -34,7 +34,7 @@ Assigned flags are **not** gated by the Settings alert switches. Those control
 what the data surfaces; silencing pacing warnings must never silence something a
 person put there by hand.
 
-## 💡 G-008 — A task builder, with owners
+## 🔨 G-008 — A task builder, with owners *(data layer done Sept 9)*
 
 > *"Maybe we should have a task builder in there. Maybe I'm part of this."* — Sept 9
 
@@ -58,7 +58,9 @@ dashboard has.
 
 ### 🔍 Decide first
 
-1. **Is a task a flag with fields, or its own object?** *(leaning: fields)*
+1. ✅ **Flag with fields.** A separate task store would have drifted within a
+   week: flag something, make it a task, clear the flag, orphan task. One record
+   with optional `owner` and `due` cannot get out of step with itself.
 2. ✅ **What does "done" mean?** — ANSWERED Sept 9.
 
    > *"Done means when the campaign has been completed. Campaigns can always be
@@ -80,10 +82,19 @@ dashboard has.
    ⚠️ Follow-on: `Paused` is NOT done. A paused campaign can come back, so its
    tasks stay open. Only `Ended` closes them. That distinction is the whole
    value of using the existing vocabulary instead of inventing a task status.
-3. **"Maybe I'm part of this"** — read as *assignment to a person from the
-   roster*. Confirm: is it self-assignment only, or assigning to teammates?
-4. **Due dates without a backend** — everything is localStorage today. Overdue
-   states are easy; reminders are not.
+3. ✅ **Assign to anyone on the roster.** MEMBERS already holds four people with
+   initials and hues; self-assign-only would make it a to-do list rather than a
+   team tool.
+4. ✅ **Date only, overdue computed, no reminders.** Reminders need a backend.
+   `isOverdue` is a function of the date and today, never a stored boolean --
+   a stored one is true from the moment it is written and stays true after the
+   date moves, which is this codebase's signature defect.
+
+### ▶️ Still to build — the UI
+
+Data layer, done rule and tests are in. What remains is the surface: an owner
+picker and date field on the campaign page, avatars and overdue styling on the
+Overview strip, and a place to see all open tasks.
 
 ⚠️ **The scope risk, said plainly.** A task system is a large surface, and the
 part that sells it in an interview is the *judgment* — one object growing fields

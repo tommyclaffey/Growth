@@ -13,7 +13,8 @@ class Mem {
 };
 
 const {
-  addFlag, flagId, flags, isFlagged, liveFlags, removeFlag, restoreFlag, toggleFlag,
+  addFlag, flagId, flags, isDone, isFlagged, isOverdue, isTask, liveFlags,
+  openFlags, removeFlag, restoreFlag, setTask, toggleFlag,
 } = await import('../attention');
 const { CAMPAIGNS } = await import('../campaigns');
 
@@ -88,5 +89,75 @@ describe('assigned attention', () => {
     const fresh = await import('../attention');
     expect(fresh.flags()).toHaveLength(1);
     expect(fresh.flags()[0].refId).toBe('c1');
+  });
+});
+
+describe('tasks are flags with fields', () => {
+  beforeEach(() => { flags().slice().forEach((f) => removeFlag(f.kind, f.refId)); });
+
+  it('a flag with no owner or date is not a task', () => {
+    addFlag('campaign', 'c1', 'x');
+    expect(isTask(flags()[0])).toBe(false);
+  });
+
+  it('assigning to something unflagged flags it first', () => {
+    /* You cannot own a thing that is not on the list, and making someone press
+       two buttons to express one intention is how features get called clunky. */
+    setTask('campaign', 'c1', 'Advantage+', { owner: 'jr' });
+    expect(flags()).toHaveLength(1);
+    expect(flags()[0].owner).toBe('jr');
+    expect(isTask(flags()[0])).toBe(true);
+  });
+
+  it('null clears one field without wiping the other', () => {
+    setTask('campaign', 'c1', 'x', { owner: 'jr', due: '2026-10-01' });
+    setTask('campaign', 'c1', 'x', { owner: null });
+    /* undefined means leave alone; null means clear. Without the distinction
+       there is no way to unassign an owner without losing the due date. */
+    expect(flags()[0].owner).toBeUndefined();
+    expect(flags()[0].due).toBe('2026-10-01');
+  });
+
+  it('computes overdue rather than storing it', () => {
+    setTask('campaign', 'c1', 'x', { due: '2026-01-01' });
+    const f = flags()[0];
+    expect(isOverdue(f, new Date('2026-09-09'))).toBe(true);
+    /* Same record, different day, different answer. A stored flag would have
+       been true forever from the moment it was written. */
+    expect(isOverdue(f, new Date('2025-01-01'))).toBe(false);
+  });
+
+  it('is not overdue on the due date itself', () => {
+    setTask('campaign', 'c1', 'x', { due: '2026-09-09' });
+    expect(isOverdue(flags()[0], new Date('2026-09-09'))).toBe(false);
+  });
+});
+
+describe('done follows the campaign, not the person', () => {
+  beforeEach(() => { flags().slice().forEach((f) => removeFlag(f.kind, f.refId)); });
+  const stage = (m: Record<string, string>) => (id: string) => m[id] ?? 'Active';
+
+  it('closes when the campaign has Ended', () => {
+    addFlag('campaign', 'c1', 'x');
+    expect(isDone(flags()[0], stage({ c1: 'Ended' }))).toBe(true);
+  });
+
+  it('does NOT close when the campaign is merely Paused', () => {
+    /* A paused campaign can come back, so its tasks stay open. This is the
+       whole reason for reusing Stage instead of a parallel task status. */
+    addFlag('campaign', 'c1', 'x');
+    expect(isDone(flags()[0], stage({ c1: 'Paused' }))).toBe(false);
+  });
+
+  it('never closes a notification flag, which has no campaign to end', () => {
+    addFlag('notification', 'n1', 'x');
+    expect(isDone(flags()[0], stage({ n1: 'Ended' }))).toBe(false);
+  });
+
+  it('openFlags drops the ended ones and keeps the rest', () => {
+    addFlag('campaign', 'c1', 'ended one');
+    addFlag('campaign', 'c2', 'live one');
+    const open = openFlags(flags(), stage({ c1: 'Ended' }));
+    expect(open.map((f) => f.refId)).toEqual(['c2']);
   });
 });
