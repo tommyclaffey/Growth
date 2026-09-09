@@ -5,6 +5,7 @@ import { Chart } from '../components/Chart/Chart';
 import { StatusPill } from '../components/StatusPill/StatusPill';
 import { Button } from '../components/Button/Button';
 import { ChannelMark } from '../components/ChannelMark/ChannelMark';
+import { ChannelWordmark } from '../components/ChannelWordmark/ChannelWordmark';
 import { CAMPAIGNS } from '../data/campaigns';
 import {
   creativeById, creativeRows, creativeSeries, creativeShare, creativeTotals,
@@ -69,7 +70,14 @@ export function AdDetail({ id, range, onBack, backLabel = 'Campaign' }: AdDetail
         <button type="button" className="gr-crumb gr-type-caption" onClick={onBack}>
           <span aria-hidden="true">‹</span> {backLabel}
         </button>
-        <ChannelMark channel={campaign.channel} title={CHANNEL_LABEL[campaign.channel]} size={20} />
+        {/* The same lockup the campaign page uses, not a bare mark.
+
+            These two pages are one click apart and were showing the channel
+            differently: the campaign header carries mark plus name, this one
+            carried the icon alone. Read as a missing logo rather than as a
+            smaller treatment, which is the correct reading -- half of a lockup
+            looks like the other half failed to load. */}
+        <ChannelWordmark channel={campaign.channel} name={CHANNEL_LABEL[campaign.channel]} size="sm" />
         <div className="gr-campaign__title">
           <h2 className="gr-type-section">{c.headline}</h2>
           <StatusPill stage={c.stage} />
