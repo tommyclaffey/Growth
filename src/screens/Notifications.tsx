@@ -3,8 +3,9 @@ import { markAllRead, markRead, markUnread, usePrefs } from '../data/prefs';
 import { toggleFlag, useFlags } from '../data/attention';
 import './screens.css';
 import { Button } from '../components/Button/Button';
-import { Chip } from '../components/Chip/Chip';
+
 import { Badge } from '../components/Badge/Badge';
+import { Chip } from '../components/Chip/Chip';
 
 type Tone = 'bad' | 'warn' | 'good';
 
@@ -142,22 +143,25 @@ export function Notifications({ onOpenCampaign }: NotificationsProps) {
                       cannot contain a button -- browsers resolve that by
                       dropping one, which is not a gamble worth taking on the
                       controls that undo things. */}
+                  {/* Chips, not bespoke buttons.
+
+                      These were hand-built and looked it: 3px of vertical
+                      padding on a 4px grid, their own radius, their own
+                      typography, matching nothing else on the page. Chip
+                      already IS this pattern -- 24px, pressed state, one set of
+                      tokens -- and the creative filters two screens away were
+                      already using it. Building a fifth kind of small toggle
+                      was the mistake. */}
                   <span className="gr-feed__actions">
-                    <button
-                      type="button"
-                      className={`gr-feed__act gr-type-caption ${flaggedIds.has(a.id) ? 'is-on' : ''}`}
+                    <Chip
+                      label={flaggedIds.has(a.id) ? '⚑ Flagged' : '⚑ Flag'}
+                      pressed={flaggedIds.has(a.id)}
                       onClick={() => toggleFlag('notification', a.id, a.message.replace(/\.$/, ''))}
-                      aria-pressed={flaggedIds.has(a.id)}
-                    >
-                      {flaggedIds.has(a.id) ? '⚑ Flagged' : '⚑ Flag'}
-                    </button>
-                    <button
-                      type="button"
-                      className="gr-feed__act gr-type-caption"
+                    />
+                    <Chip
+                      label={read.has(a.id) ? 'Mark unread' : 'Mark read'}
                       onClick={() => (read.has(a.id) ? markUnread(a.id) : markRead(a.id))}
-                    >
-                      {read.has(a.id) ? 'Mark unread' : 'Mark read'}
-                    </button>
+                    />
                   </span>
                   </div>
                 );

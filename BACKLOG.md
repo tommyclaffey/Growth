@@ -59,9 +59,27 @@ dashboard has.
 ### 🔍 Decide first
 
 1. **Is a task a flag with fields, or its own object?** *(leaning: fields)*
-2. **What does "done" mean?** A campaign is never finished. Is the task closed by
-   the person, or by the metric recovering? Metric-closed is more interesting and
-   much harder to be honest about.
+2. ✅ **What does "done" mean?** — ANSWERED Sept 9.
+
+   > *"Done means when the campaign has been completed. Campaigns can always be
+   > ongoing, but for example, an A/B test: if we did one campaign as a B and
+   > we're not going with it anymore, technically the campaign would be
+   > finished."*
+
+   ⭐ **This already exists in the data.** `Stage` is
+   `Active | Paused | Draft | Ended | Review`, and **Ended** is exactly the state
+   described: the losing variant, switched off, not coming back. Three campaigns
+   are already in it.
+
+   **So a task closes when its campaign reaches `Ended`** — and neither of the
+   two options originally written here was right. Not person-closed, which
+   ignores what actually happened. Not metric-closed, which pretends a number
+   can tell you a decision was made. **A person decided to end the campaign;
+   ending it is the decision, and the task follows.**
+
+   ⚠️ Follow-on: `Paused` is NOT done. A paused campaign can come back, so its
+   tasks stay open. Only `Ended` closes them. That distinction is the whole
+   value of using the existing vocabulary instead of inventing a task status.
 3. **"Maybe I'm part of this"** — read as *assignment to a person from the
    roster*. Confirm: is it self-assignment only, or assigning to teammates?
 4. **Due dates without a backend** — everything is localStorage today. Overdue
