@@ -34,6 +34,48 @@ Assigned flags are **not** gated by the Settings alert switches. Those control
 what the data surfaces; silencing pacing warnings must never silence something a
 person put there by hand.
 
+## 💡 G-008 — A task builder, with owners
+
+> *"Maybe we should have a task builder in there. Maybe I'm part of this."* — Sept 9
+
+**The natural next step after G-001, and it is the same object growing up.**
+
+| | Says |
+|---|---|
+| **Flag** *(built)* | this matters |
+| **Task** | this matters, **someone owns it**, and it is **due** |
+
+⭐ **The likely shape: a task IS a flag with an owner and a date.** Not a second
+system beside it. You flag a campaign, then optionally assign and schedule it,
+and the Overview strip becomes a real work queue rather than a noticeboard.
+Building tasks as a separate object would mean two lists that drift.
+
+**Growth already has most of the pieces:** a member roster with avatars, real
+Slack OAuth with two-way messaging, and deep links that reopen a view *and* the
+conversation it was discussed in. **Assigning a task could post it to Slack and
+link straight back to the campaign** — which is the demo nobody else's portfolio
+dashboard has.
+
+### 🔍 Decide first
+
+1. **Is a task a flag with fields, or its own object?** *(leaning: fields)*
+2. **What does "done" mean?** A campaign is never finished. Is the task closed by
+   the person, or by the metric recovering? Metric-closed is more interesting and
+   much harder to be honest about.
+3. **"Maybe I'm part of this"** — read as *assignment to a person from the
+   roster*. Confirm: is it self-assignment only, or assigning to teammates?
+4. **Due dates without a backend** — everything is localStorage today. Overdue
+   states are easy; reminders are not.
+
+⚠️ **The scope risk, said plainly.** A task system is a large surface, and the
+part that sells it in an interview is the *judgment* — one object growing fields
+rather than a second list — not the CRUD. Build the smallest version that shows
+the idea. **Growth is a portfolio piece, not a project-management product.**
+
+⚠️ **Not a conflict with Todoist.** The one-system-per-job rule governs Tommy's
+own tasks. These are tasks *inside a product he is designing*, for a fictional
+marketing team. Different thing entirely.
+
 ## 🔍 G-002 — Paused ads in the creative section
 
 Currently hidden by default with the count on the toggle. Options when this gets
