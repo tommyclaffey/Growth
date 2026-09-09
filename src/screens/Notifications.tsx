@@ -136,7 +136,7 @@ export function Notifications({ onOpenCampaign }: NotificationsProps) {
                 return (
                   <div key={a.id} className="gr-feed__row">
                   <Tag
-                    className={`gr-feed__item ${canOpen ? 'is-clickable' : ''}`}
+                    className={`gr-feed__item ${canOpen ? 'gr-unbutton is-clickable' : ''}`}
                     {...(canOpen ? {
                       type: 'button' as const,
                       onClick: () => {

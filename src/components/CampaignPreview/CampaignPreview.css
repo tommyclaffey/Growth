@@ -12,9 +12,7 @@
 .gr-cpreview {
   display: flex;
   flex-direction: column;
-  text-align: left;
-  font: inherit;
-  padding: 0;
+  /* Reset from .gr-unbutton. A border is re-added because this card wants one. */
   border: var(--border-width-sm) solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--surface-card);

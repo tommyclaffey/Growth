@@ -60,7 +60,7 @@ export function CreativeCard({ creative: c, channel, rank, onOpen }: CreativeCar
        article with a handler bolted on -- that announces nothing to a screen
        reader and cannot be reached by keyboard. */
     <Tag
-      className={`gr-creative gr-creative--${c.kind} ${c.stage === 'Paused' ? 'is-paused' : ''} ${onOpen ? 'is-clickable' : ''}`}
+      className={`gr-creative gr-creative--${c.kind} ${c.stage === 'Paused' ? 'is-paused' : ''} ${onOpen ? 'gr-unbutton is-clickable' : ''}`}
       {...(onOpen ? {
         type: 'button' as const,
         onClick: () => onOpen(c.id),

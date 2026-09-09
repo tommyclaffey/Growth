@@ -57,8 +57,7 @@
    it sits inside a table cell and a button chrome here would read as an action
    on the row rather than a way into it. */
 .gr-campaigns__open {
-  border: none; background: none; padding: 0; margin: 0;
-  font: inherit; color: inherit; cursor: pointer; text-align: left;
+  /* All of it is .gr-unbutton now. */
 }
 .gr-campaigns__open:hover { text-decoration: underline; }
 .gr-campaigns__open:focus-visible {

@@ -59,7 +59,7 @@ export function CampaignPreview({ channel, range, onOpen }: CampaignPreviewProps
           <button
             key={c.id}
             type="button"
-            className="gr-cpreview"
+            className="gr-cpreview gr-unbutton"
             onClick={() => onOpen(c.id)}
             aria-label={`Open ${c.name}`}
           >

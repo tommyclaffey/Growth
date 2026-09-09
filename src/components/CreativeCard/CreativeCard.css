@@ -167,11 +167,8 @@
 
 /* Clickable card. A <button> resets font and text-align and inherits neither,
    so both are restated — the same trap the notification rows hit. */
+/* The button reset lives in .gr-unbutton; this is only what a card adds. */
 .gr-creative.is-clickable {
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  padding: 0;
   width: 100%;
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }

@@ -189,3 +189,28 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
+/* ============================================================
+   .gr-unbutton — a <button> that stops looking like one
+   ============================================================
+
+   A <button> does not inherit the page's font, and it centres its text. So
+   every element in this app that became a button for keyboard and screen-reader
+   reasons -- notification rows, ad cards, campaign previews, table cells --
+   had to restate `font: inherit` and `text-align: left` by hand.
+
+   That happened NINE times across eight files, each slightly different: some
+   reset colour, some reset padding, some forgot text-align and centred their
+   contents until someone noticed. It is one decision, so it lives in one place.
+
+   Use it for anything that is semantically a button and visually is not. */
+.gr-unbutton {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}

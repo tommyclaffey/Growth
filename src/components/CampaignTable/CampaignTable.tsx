@@ -100,7 +100,7 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
                       <ChannelMark channel={c.channel} size={16} />
                       {onOpenCampaign
                         ? (
-                          <button type="button" className="gr-campaigns__open"
+                          <button type="button" className="gr-campaigns__open gr-unbutton"
                                   onClick={() => onOpenCampaign(c.id)}>
                             {c.name}
                           </button>
