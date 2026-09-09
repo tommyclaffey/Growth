@@ -49,7 +49,7 @@ export interface NotificationsProps {
 }
 
 export function Notifications({ onOpenCampaign }: NotificationsProps) {
-  const [filter, setFilter] = useState<Tone | null>(null);
+  const [filter, setFilter] = useState<Tone | 'flagged' | null>(null);
   /* Persisted. "Mark all read" used to set local state that App.tsx unmounted
      on the next navigation, so the badge you had just cleared was back before
      you returned to it. */
@@ -63,7 +63,9 @@ export function Notifications({ onOpenCampaign }: NotificationsProps) {
     .filter((f) => f.kind === 'notification')
     .map((f) => f.refId));
 
-  const shown = filter ? ALERTS.filter((a) => a.tone === filter) : ALERTS;
+  const shown = filter === null ? ALERTS
+    : filter === 'flagged' ? ALERTS.filter((a) => flaggedIds.has(a.id))
+    : ALERTS.filter((a) => a.tone === filter);
   const days = [...new Set(shown.map((a) => a.day))];
   const unreadCount = ALERTS.filter((a) => a.unread && !read.has(a.id)).length;
 
@@ -75,15 +77,39 @@ export function Notifications({ onOpenCampaign }: NotificationsProps) {
           tone={unreadCount > 0 ? 'accent' : 'neutral'}
         />
         <span className="gr-spacer" />
+        {/* FILTERS, and they now look like it.
+
+            These read as labels you apply rather than filters you set, and the
+            fault was the presentation: no All, no pressed state, and an x that
+            appeared only after clicking. The creative section already
+            established the pattern -- All plus a pressed chip -- and this was
+            the odd one out.
+
+            ⚠️ "Needs attention" was also renamed, because it had become a
+            collision I introduced: the Overview strip is called Needs
+            attention, flagging adds to it, and this chip used the same words to
+            mean something else entirely (tone: bad). Two controls, one name,
+            different jobs. */}
+        <Chip label="All" pressed={filter === null} onClick={() => setFilter(null)} />
         {(['bad', 'warn', 'good'] as Tone[]).map((t) => (
           <Chip
             key={t}
-            label={t === 'bad' ? 'Needs attention' : t === 'warn' ? 'Pacing' : 'Wins'}
-            onClick={() => setFilter(filter === t ? null : t)}
-            removable={filter === t}
-            onRemove={() => setFilter(null)}
+            label={t === 'bad' ? 'Issues' : t === 'warn' ? 'Pacing' : 'Wins'}
+            pressed={filter === t}
+            onClick={() => setFilter(t)}
           />
         ))}
+
+        {/* The flags finally have somewhere to be READ. You could set them and
+            then only ever see them on Overview; this is the list they belong
+            to. Shown only when there are any, so it is never an empty filter. */}
+        {flaggedIds.size > 0 && (
+          <Chip
+            label={`⚑ Flagged (${flaggedIds.size})`}
+            pressed={filter === 'flagged'}
+            onClick={() => setFilter(filter === 'flagged' ? null : 'flagged')}
+          />
+        )}
         <Button
           variant="ghost"
           /* Disabled when there is nothing to mark -- a button that reports
