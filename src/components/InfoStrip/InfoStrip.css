@@ -139,3 +139,31 @@
 .gr-strip__clear:hover { color: var(--text-primary); text-decoration: underline; }
 
 @media (prefers-reduced-motion: reduce) { .gr-strip__pill-wrap { transition: none; } }
+
+/* Assigned alerts wear the accent, not a tone colour.
+
+   Tone says how the DATA feels about something. A flag someone set by hand has
+   no tone -- it is not good or bad news, it is a person saying "look at this".
+   Giving it the accent keeps the two kinds legible at a glance without
+   implying a severity nobody assigned. */
+.gr-strip__pill-wrap.is-assigned {
+  border-color: var(--accent-base);
+  background: var(--accent-tint);
+}
+.gr-strip__pill-wrap.is-assigned .gr-strip__pip { background: var(--accent-base); }
+.gr-strip__flag { color: var(--accent-text); margin-right: 2px; }
+
+.gr-strip__undo {
+  border: none;
+  background: none;
+  padding: 0 var(--space-4);
+  color: var(--accent-text);
+  cursor: pointer;
+  flex: none;
+  text-decoration: underline;
+}
+.gr-strip__undo:hover { color: var(--accent-base); }
+.gr-strip__undo:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}

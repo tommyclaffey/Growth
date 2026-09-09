@@ -214,3 +214,78 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-ad__spec { grid-template-columns: repeat(2, 1fr); }
 .gr-ad__spec dt, .gr-ad__fields dt { color: var(--text-muted); margin-bottom: var(--space-4); }
 .gr-ad__spec dd, .gr-ad__fields dd { margin: 0; color: var(--text-primary); }
+
+/* The row and its controls. The row itself may be a <button>, so the controls
+   sit beside it rather than inside it. */
+.gr-feed__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.gr-feed__row:last-child { border-bottom: none; }
+.gr-feed__row .gr-feed__item { flex: 1; border-bottom: none; min-width: 0; }
+
+/* Revealed on hover or keyboard focus. Two extra controls on every row, always
+   visible, would compete with the message they act on. */
+.gr-feed__actions {
+  display: flex; gap: var(--space-4); flex: none;
+  opacity: 0; transition: opacity 120ms ease;
+}
+.gr-feed__row:hover .gr-feed__actions,
+.gr-feed__row:focus-within .gr-feed__actions { opacity: 1; }
+
+/* A flag that is ON stays visible, because it is state rather than an
+   affordance. Hiding it would mean the only way to see what you have flagged
+   is to hover every row in the list. */
+.gr-feed__actions:has(.is-on) { opacity: 1; }
+
+.gr-feed__act {
+  /* No font-size here. It carries gr-type-caption in the markup, like every
+     other piece of text in this codebase -- the first attempt used a token
+     borrowed from a different project entirely, which does not exist here and
+     was silently falling back to a raw 12px. The ratchet caught it. */
+  font: inherit;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  padding: 3px var(--space-8);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.gr-feed__act:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-feed__act.is-on {
+  border-color: var(--accent-base);
+  background: var(--accent-tint);
+  color: var(--accent-text);
+}
+.gr-feed__act:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) { .gr-feed__actions { transition: none; } }
+
+/* Flag for attention. Reads as a toggle rather than an action, because it is
+   one: pressing it again takes the campaign back off the list. */
+.gr-flag-btn {
+  display: inline-flex; align-items: center; gap: var(--space-4);
+  font: inherit;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  padding: 4px var(--space-12);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.gr-flag-btn:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-flag-btn.is-on {
+  border-color: var(--accent-base);
+  background: var(--accent-tint);
+  color: var(--accent-text);
+}
+.gr-flag-btn:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}

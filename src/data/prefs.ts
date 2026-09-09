@@ -98,6 +98,33 @@ export function isRead(id: string): boolean {
   return cache.readAlerts.includes(id);
 }
 
+/* ---- The reverse of every action above ---------------------------------
+
+   Each of these existed in one direction only. Dismiss with no undo, mark-read
+   with no way back to unread. These are TRIAGE controls, and triage is
+   guesswork -- a one-way door makes people hesitate to use the control at all,
+   which defeats having it. */
+
+export function markUnread(id: string) {
+  if (!cache.readAlerts.includes(id)) return;
+  setPref('readAlerts', cache.readAlerts.filter((x) => x !== id));
+}
+
+export function markRead(id: string) {
+  if (cache.readAlerts.includes(id)) return;
+  setPref('readAlerts', [...cache.readAlerts, id]);
+}
+
+/** Undo one dismissal, rather than the bulk Restore buried in Settings. */
+export function undismissAlert(id: string) {
+  if (!cache.dismissedAlerts.includes(id)) return;
+  setPref('dismissedAlerts', cache.dismissedAlerts.filter((x) => x !== id));
+}
+
+export function isDismissed(id: string): boolean {
+  return cache.dismissedAlerts.includes(id);
+}
+
 export function dismissAlert(id: string) {
   if (cache.dismissedAlerts.includes(id)) return;
   setPref('dismissedAlerts', [...cache.dismissedAlerts, id]);

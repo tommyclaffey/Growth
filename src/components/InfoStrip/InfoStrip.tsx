@@ -1,6 +1,19 @@
 import './InfoStrip.css';
 
-export interface Alert { id: string; label: string; tone?: 'warn' | 'bad' | 'good'; }
+export interface Alert {
+  id: string;
+  label: string;
+  tone?: 'warn' | 'bad' | 'good';
+  /**
+   * Where this came from. `derived` means the data raised it; `assigned` means
+   * a person did.
+   *
+   * ⚠️ Shown differently on purpose. "Your CAC rose 42%" and "you flagged this
+   * on Tuesday" are not the same claim, and a strip that renders them
+   * identically is asserting that they are. The assigned ones carry a mark and
+   * say who put them there. */
+  source?: 'derived' | 'assigned';
+}
 
 export interface InfoStripProps {
   title?: string;
@@ -10,6 +23,10 @@ export interface InfoStripProps {
   onDismiss?: (id: string) => void;
   /** Clears every alert currently shown. */
   onDismissAll?: () => void;
+  /** Restores the alert dismissed most recently. */
+  onUndo?: () => void;
+  /** What that undo would put back, for naming it in the control. */
+  undoLabel?: string | null;
 }
 
 /**
@@ -21,11 +38,13 @@ export interface InfoStripProps {
  */
 export function InfoStrip({
   title = 'Needs attention', alerts, onAlertClick, onDismiss, onDismissAll,
+  onUndo, undoLabel,
 }: InfoStripProps) {
-  /* Nothing needing attention is not a strip saying "0". The caller decides
-     whether to render this at all, but guarding here too means no arrangement
-     of props can produce an empty attention bar. */
-  if (alerts.length === 0) return null;
+  /* Nothing needing attention is not a strip saying "0" -- EXCEPT while an undo
+     is still on offer. Clearing the last alert and having the strip vanish
+     takes the undo with it, which is the moment it is most likely to be
+     wanted. */
+  if (alerts.length === 0 && !undoLabel) return null;
 
   return (
     <div className="gr-strip">
@@ -47,7 +66,8 @@ export function InfoStrip({
              surface; the two buttons inside it are transparent. */
           <span
             key={a.id}
-            className={`gr-strip__pill-wrap gr-type-caption-med tone-${a.tone ?? 'warn'}`}
+            className={`gr-strip__pill-wrap gr-type-caption-med tone-${a.tone ?? 'warn'} ${a.source === 'assigned' ? 'is-assigned' : ''}`}
+            title={a.source === 'assigned' ? 'Flagged by you' : 'Raised by the data'}
           >
             <button
               type="button"
@@ -55,6 +75,9 @@ export function InfoStrip({
               onClick={() => onAlertClick?.(a.id)}
             >
               <span className="gr-strip__pip" aria-hidden="true" />
+              {a.source === 'assigned' && (
+                <span className="gr-strip__flag" aria-label="Flagged by you">⚑</span>
+              )}
               {a.label}
             </button>
             {onDismiss && (
@@ -77,6 +100,19 @@ export function InfoStrip({
           <button type="button" className="gr-strip__clear gr-type-caption-med"
                   onClick={onDismissAll}>
             Clear all
+          </button>
+        )}
+
+        {/* ⭐ Undo, offered AT THE MOMENT OF THE MISTAKE.
+
+            A bulk Restore in Settings is not an undo. It is somewhere you go
+            once you have already realised, found the setting, and decided it
+            was worth the trip. This sits where the action happened and names
+            what it puts back, so it can be used without thinking. */}
+        {onUndo && undoLabel && (
+          <button type="button" className="gr-strip__undo gr-type-caption-med"
+                  onClick={onUndo}>
+            Undo &ldquo;{undoLabel}&rdquo;
           </button>
         )}
       </div>

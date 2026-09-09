@@ -14,7 +14,8 @@ class Mem {
 };
 
 const {
-  DEFAULT_PREFS, dismissAlert, dismissAll, isRead, markAllRead, prefs, restoreAlerts, setPref,
+  DEFAULT_PREFS, dismissAlert, dismissAll, isRead, markAllRead, markRead, markUnread,
+  prefs, restoreAlerts, setPref, undismissAlert,
 } = await import('../prefs');
 
 /* The module caches on import, so each test writes through the real setter
@@ -90,6 +91,32 @@ describe('dismissing an addressed alert', () => {
     dismissAll(['meta', 'tiktok']);
     expect(prefs().dismissedAlerts).toHaveLength(2);
     restoreAlerts();
+    expect(prefs().dismissedAlerts).toEqual([]);
+  });
+});
+
+describe('every action has a reverse', () => {
+  beforeEach(() => { setPref('readAlerts', []); setPref('dismissedAlerts', []); });
+
+  it('mark read, then mark unread', () => {
+    markRead('n1');
+    expect(isRead('n1')).toBe(true);
+    markUnread('n1');
+    expect(isRead('n1')).toBe(false);
+  });
+
+  it('dismiss one alert, then undo that one alert', () => {
+    dismissAll(['meta', 'tiktok']);
+    undismissAlert('meta');
+    /* Per-item, not the bulk restore. Undoing one mistake should not
+       resurrect everything else you deliberately cleared. */
+    expect(prefs().dismissedAlerts).toEqual(['tiktok']);
+  });
+
+  it('is a no-op when there is nothing to reverse', () => {
+    markUnread('never-read');
+    undismissAlert('never-dismissed');
+    expect(prefs().readAlerts).toEqual([]);
     expect(prefs().dismissedAlerts).toEqual([]);
   });
 });

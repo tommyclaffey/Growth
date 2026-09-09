@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { markAllRead, usePrefs } from '../data/prefs';
+import { markAllRead, markRead, markUnread, usePrefs } from '../data/prefs';
+import { toggleFlag, useFlags } from '../data/attention';
 import './screens.css';
 import { Button } from '../components/Button/Button';
 import { Chip } from '../components/Chip/Chip';
@@ -53,6 +54,13 @@ export function Notifications({ onOpenCampaign }: NotificationsProps) {
      you returned to it. */
   const { readAlerts } = usePrefs();
   const read = new Set(readAlerts);
+  /* Read from the SUBSCRIBED value, not from the module directly. isFlagged()
+     reads the store's cache, which is correct but does not tell React anything
+     -- a flag set elsewhere would not repaint this list. The hook is what makes
+     it reactive, so the hook's value is what gets read. */
+  const flaggedIds = new Set(useFlags()
+    .filter((f) => f.kind === 'notification')
+    .map((f) => f.refId));
 
   const shown = filter ? ALERTS.filter((a) => a.tone === filter) : ALERTS;
   const days = [...new Set(shown.map((a) => a.day))];
@@ -99,8 +107,8 @@ export function Notifications({ onOpenCampaign }: NotificationsProps) {
                 const canOpen = Boolean(a.campaignId && onOpenCampaign);
                 const Tag = canOpen ? 'button' : 'div';
                 return (
+                  <div key={a.id} className="gr-feed__row">
                   <Tag
-                    key={a.id}
                     className={`gr-feed__item ${canOpen ? 'is-clickable' : ''}`}
                     {...(canOpen ? {
                       type: 'button' as const,
@@ -127,6 +135,31 @@ export function Notifications({ onOpenCampaign }: NotificationsProps) {
                       <span className="gr-feed__unread" aria-label="Unread" />
                     )}
                   </Tag>
+
+                  {/* SIBLINGS of the row, not children.
+
+                      The row is a <button> when it can navigate, and a button
+                      cannot contain a button -- browsers resolve that by
+                      dropping one, which is not a gamble worth taking on the
+                      controls that undo things. */}
+                  <span className="gr-feed__actions">
+                    <button
+                      type="button"
+                      className={`gr-feed__act gr-type-caption ${flaggedIds.has(a.id) ? 'is-on' : ''}`}
+                      onClick={() => toggleFlag('notification', a.id, a.message.replace(/\.$/, ''))}
+                      aria-pressed={flaggedIds.has(a.id)}
+                    >
+                      {flaggedIds.has(a.id) ? '⚑ Flagged' : '⚑ Flag'}
+                    </button>
+                    <button
+                      type="button"
+                      className="gr-feed__act gr-type-caption"
+                      onClick={() => (read.has(a.id) ? markUnread(a.id) : markRead(a.id))}
+                    >
+                      {read.has(a.id) ? 'Mark unread' : 'Mark read'}
+                    </button>
+                  </span>
+                  </div>
                 );
               })}
             </div>

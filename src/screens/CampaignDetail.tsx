@@ -5,6 +5,7 @@ import { Chart } from '../components/Chart/Chart';
 import { StatusPill } from '../components/StatusPill/StatusPill';
 import { StatusMenu } from '../components/StatusMenu/StatusMenu';
 import { setStage, useCampaignStatus } from '../data/campaignStatus';
+import { toggleFlag, useFlags } from '../data/attention';
 import { ChannelWordmark } from '../components/ChannelWordmark/ChannelWordmark';
 import { Button } from '../components/Button/Button';
 import {
@@ -51,6 +52,8 @@ export function CampaignDetail({
   /* Subscribed here so the pill re-renders when the table, or a second tab,
      changes it. */
   const stageOf = useCampaignStatus();
+  /* Subscribed, so flagging from anywhere else repaints this button. */
+  const flagged = useFlags().some((f) => f.kind === 'campaign' && f.refId === id);
 
   /* The chart opens on the metric this campaign was built to move -- Clicks for
      Awareness, Sales for a Sales campaign -- rather than on whatever the last
@@ -113,6 +116,23 @@ export function CampaignDetail({
               belongs on it -- sending someone back to the table to act on what
               they just read is a dead end with extra steps. */}
           <StatusMenu value={stageOf(campaign.id)} onChange={(next) => setStage(campaign.id, next)} />
+
+          {/* Assigning attention, from the page where you would decide it.
+
+              The Overview strip could only ever show what the data noticed. A
+              campaign can be worth watching for reasons the numbers have not
+              caught yet -- a creative everyone is bored of, a promo ending
+              Friday -- and this is where a person is looking when they realise
+              it. */}
+          <button
+            type="button"
+            className={`gr-flag-btn gr-type-caption-med ${flagged ? 'is-on' : ''}`}
+            aria-pressed={flagged}
+            onClick={() => toggleFlag('campaign', campaign.id, campaign.name)}
+          >
+            <span aria-hidden="true">⚑</span>
+            {flagged ? 'On your attention list' : 'Flag for attention'}
+          </button>
         </div>
         <p className="gr-type-caption gr-campaign__meta">
           {campaign.objective} · {campaign.adSets.length} ad set{campaign.adSets.length === 1 ? '' : 's'}

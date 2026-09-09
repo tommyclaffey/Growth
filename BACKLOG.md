@@ -12,40 +12,27 @@ an ID.
 
 ---
 
-## 💡 G-001 — Every state change should be reversible
+## ✅ G-001 — Every state change is reversible *(done Sept 9)*
 
-> *"I want to be able to undo, or mark an idea as unread. If something needs
-> attention, we can mark it as 'needs attention', the same way we can clear it."*
-> — Sept 8
+**Derived AND assigned.** "Needs attention" now accepts both: attention the data
+raised, and attention a person assigned.
 
-**The gap.** Every alert action in the app is currently **one-way**:
-
-| Action | Reverse today |
+| Action | Reverse |
 |---|---|
-| Dismiss an alert on Overview | ❌ only a bulk **Restore all** buried in Settings |
-| Mark all read on Notifications | ❌ nothing — no way back to unread |
-| Clear a single notification | ❌ no per-item undo |
-| Re-flag something as needing attention | ❌ doesn't exist at all |
+| Dismiss an alert | ✅ **inline undo, named** — "Undo 'Meta CAC ↑ 42% WoW'" |
+| Mark read | ✅ Mark unread, per row |
+| Flag a campaign | ✅ same button toggles it off |
+| Flag a notification | ✅ same |
+| Clear an assigned flag | ✅ restored to the **top** of the queue, not its old position |
 
-**Why it matters.** These are triage controls. Triage is guesswork — you clear
-something, then realise it *did* matter. A one-way door makes people hesitate
-before using the control at all, which defeats the point of having it.
+⭐ **The decision that shaped it:** derived-only made the strip a readout — there
+was nothing to re-flag because nobody flagged anything. Accepting assigned state
+makes it a **queue** you can add to. The two kinds render differently on purpose:
+*"your CAC rose 42%"* and *"you flagged this Tuesday"* are not the same claim.
 
-**Shape of the work:**
-- **Per-alert undo**, offered *at the moment of dismissal* — an inline "Undone"
-  affordance on the strip, not a trip to Settings
-- **Mark unread** on a notification row — the exact inverse of the read action
-- **Re-flag as needs attention** — promote a notification back onto the Overview
-  strip, so the strip becomes a working queue rather than a fixed list
-- The store already separates `readAlerts` from `dismissedAlerts`, so the data
-  model supports all three without a migration
-
-⚠️ **The decision to make first:** is "needs attention" a *derived* state (the
-data says CAC rose 42%) or an *assigned* one (a person flagged it)? Today it is
-derived and hardcoded. Re-flagging only makes sense if the app accepts assigned
-state too — and that is a real product decision, not a UI detail.
-
----
+Assigned flags are **not** gated by the Settings alert switches. Those control
+what the data surfaces; silencing pacing warnings must never silence something a
+person put there by hand.
 
 ## 🔍 G-002 — Paused ads in the creative section
 
@@ -110,4 +97,5 @@ wait on other people: the **Meta app** and the **Google Ads developer token**.
 - Ad detail pages, creative section, drop-in asset library
 - P1 — every control on screen does what it says
 - P2 — URL reflects state; chat drafts survive
+- G-001 — reversible state, derived + assigned attention
 - Notification rows open the campaign they name

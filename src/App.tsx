@@ -30,7 +30,10 @@ import {
 } from './data/metrics';
 import { campaignById } from './data/campaignSeries';
 import type { DerivedMetric } from './data/channelMetrics';
-import { dismissAlert, dismissAll, markAllRead, usePrefs } from './data/prefs';
+import {
+  dismissAlert, dismissAll, markAllRead, undismissAlert, usePrefs,
+} from './data/prefs';
+import { removeFlag, restoreFlag, useFlags, type Flag } from './data/attention';
 import { readUrlState, writeUrlState } from './data/urlState';
 import type { ChannelName } from './styles/tokens';
 import type { ViewRef } from './data/chat';
@@ -106,6 +109,7 @@ export default function App() {
 
   const budget = useMonthlyBudget();
   const { cacAlerts, pacing, dismissedAlerts } = usePrefs();
+  const attentionFlags = useFlags();
 
   /* A shared link, applied once on load.
 
@@ -326,17 +330,59 @@ export default function App() {
   /* The two Settings switches, honoured. Turning "CAC threshold alerts" off in
      Settings and finding the CAC alert still on Overview would have made the
      switch a decoration -- which is what it was. */
-  const shownAlerts = ALERTS.filter((a) =>
+  /* DERIVED: raised by the data, gated by the Settings switches, minus
+     anything already dealt with. */
+  const derivedAlerts = ALERTS.filter((a) =>
     (a.kind === 'cac' ? cacAlerts : a.kind === 'pacing' ? pacing : true)
     && !dismissedAlerts.includes(a.id));
+
+  /* ASSIGNED: put there by a person. Not gated by the alert switches -- those
+     control which THINGS THE DATA NOTICES get surfaced, and silencing pacing
+     warnings should never silence something Tommy flagged by hand. */
+  const assignedAlerts = attentionFlags.map((f) => ({
+    id: `flag:${f.id}`,
+    label: f.label,
+    tone: 'warn' as const,
+    source: 'assigned' as const,
+  }));
+
+  const shownAlerts = [
+    ...assignedAlerts,
+    ...derivedAlerts.map((a) => ({ ...a, source: 'derived' as const })),
+  ];
+
+  /* What an undo would put back. Held in state rather than derived, because
+     after the action there is nothing left on screen to derive it from. */
+  const [lastCleared, setLastCleared] = useState<
+    { kind: 'derived'; id: string; label: string } |
+    { kind: 'assigned'; flag: Flag } | null>(null);
 
   /* Addressing an alert also marks the notification describing the same event
      as read, so the two screens cannot disagree about whether it is still
      outstanding. */
   function addressAlert(id: string) {
+    /* An assigned flag is removed outright; a derived one is dismissed. Same
+       gesture, two different underlying facts -- you cannot "dismiss" something
+       a person put there, you take it off the list. */
+    if (id.startsWith('flag:')) {
+      const flag = attentionFlags.find((f) => `flag:${f.id}` === id);
+      if (!flag) return;
+      setLastCleared({ kind: 'assigned', flag });
+      removeFlag(flag.kind, flag.refId);
+      return;
+    }
     const a = ALERTS.find((x) => x.id === id);
-    if (a) markAllRead([a.notifId]);
+    if (!a) return;
+    setLastCleared({ kind: 'derived', id: a.id, label: a.label });
+    markAllRead([a.notifId]);
     dismissAlert(id);
+  }
+
+  function undoLastClear() {
+    if (!lastCleared) return;
+    if (lastCleared.kind === 'assigned') restoreFlag(lastCleared.flag);
+    else undismissAlert(lastCleared.id);
+    setLastCleared(null);
   }
 
   const onChannelScreen = channel !== null;
@@ -461,13 +507,19 @@ export default function App() {
               {/* Rendered only when something actually needs attention. A bar
                   headed "Needs attention 0" is itself a thing demanding
                   attention. */}
-              {shownAlerts.length > 0 && (
+              {(shownAlerts.length > 0 || lastCleared) && (
               <InfoStrip
                 alerts={shownAlerts}
                 onDismiss={addressAlert}
+                onUndo={undoLastClear}
+                undoLabel={lastCleared
+                  ? (lastCleared.kind === 'assigned' ? lastCleared.flag.label : lastCleared.label)
+                  : null}
                 onDismissAll={() => {
-                  markAllRead(shownAlerts.map((a) => a.notifId));
-                  dismissAll(shownAlerts.map((a) => a.id));
+                  markAllRead(derivedAlerts.map((a) => a.notifId));
+                  dismissAll(derivedAlerts.map((a) => a.id));
+                  attentionFlags.forEach((f) => removeFlag(f.kind, f.refId));
+                  setLastCleared(null);   // one undo, not a stack
                 }}
                 onAlertClick={(id) => {
                   const a = ALERTS.find((x) => x.id === id);
