@@ -373,15 +373,6 @@ export default function App() {
     [channel, kpiScope],
   );
 
-  /* Does ANY card in this row carry a coverage caveat? If so they all reserve
-     the slot, so none can change height by gaining or losing one. Computed at the
-     row, because uniformity is a property of the row and a card cannot see its
-     siblings. */
-  const rowReservesBasis = useMemo(
-    () => kpiMetrics.some((m) => coverageNote(m, kpiScope) !== null),
-    [kpiMetrics, kpiScope],
-  );
-
   /* Spend against the budget planned for this many days. Declared after `view`
      because it reads from it -- placing it above the memo is a temporal dead
      zone error, not a style preference.
@@ -580,20 +571,14 @@ export default function App() {
                        blend, and on any single channel. */
                     basis={coverageNote(m, kpiScope) ?? undefined}
                     basisTitle={coverageTitle(m, kpiScope)}
-                    reserveBasis={rowReservesBasis}
                     channel={scope}
                   />
                 ))}
                 {/* Derived, not typed. Was a hardcoded "64%" that stayed 64%
                     with every channel switched off and $0 beside it. */}
-                {/* ⚠️ Rendered outside the map, so it does not inherit the row's
-                    reservation automatically -- and a single short card in a row
-                    of tall ones is the exact defect this is meant to fix, just
-                    moved to the end. It reserves with the rest. */}
                 <KpiCard label="Pace to target"
                          value={`${Math.round(pace * 100)}%`}
                          progress={Math.min(pace, 1)}
-                         reserveBasis={rowReservesBasis}
                          loading={demo === 'loading'} error={demo === 'error'} />
               </div>
 

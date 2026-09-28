@@ -131,16 +131,28 @@
      instead of being pushed away from it. */
   margin-top: 0;
   min-width: 0;
-  /* ⚠️ A FIXED height, and this is the whole fix. `.gr-kpi` uses min-height, so
-     a line that appears on some cards and not others changed their height and
-     the flex row stretched the short ones -- which is what left dead space at
-     the bottom of "Total spend". Filled or reserved, this slot is always the
-     same height, so gaining or losing a note cannot move anything. */
+  /* Still fixed, because a benchmark note on a campaign card is a line of its
+     own and its row has to stay even. Coverage no longer uses this slot. */
   height: 16px;
 }
 
-/* Reserved but empty. Occupies its height and says nothing. */
-.gr-kpi__bench.is-reserved { visibility: hidden; }
+/* Coverage, inline in the footer row.
+
+   🔄 Third and final placement. It was a fourth row, which made cards grow; then
+   a fourth row printed on every card ("6 of 6 channels"), which was filler; then
+   a reserved empty fourth row, which is still visible dead space -- the thing the
+   whole exercise was meant to remove.
+
+   The footer row already exists on every card. Putting it there costs no height
+   at all, so a card with a caveat and a card without match without anything being
+   held open. Pushed right so it sits away from the pill and the mark rather than
+   crowding them. */
+.gr-kpi__cover {
+  margin-left: auto;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex: none;
+}
 
 /* Ask sits immediately left of Discuss. 24px control + 6px gap = 30px offset,
    so the pair keeps the same 10px inset from the card's corner and neither one

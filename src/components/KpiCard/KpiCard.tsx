@@ -69,20 +69,6 @@ export interface KpiCardProps {
   basis?: string;
   /** The unabbreviated version of `basis`, for hover and assistive tech. */
   basisTitle?: string;
-  /**
-   * Hold the basis slot open even when this card has nothing to put in it.
-   *
-   * ⭐ Geometry is a layout problem and belongs in the layout. Coverage notes
-   * appear only on the cards that have a caveat, which is correct — printing "6
-   * of 6 channels" on the rest is four words that tell a reader nothing, added
-   * to keep one card from looking short.
-   *
-   * So the ROW decides. If any card in it carries a note, they all reserve the
-   * slot, and none of them can change height by gaining or losing one. Set per
-   * row rather than per card, because uniformity is a property of the row and a
-   * card cannot see its siblings.
-   */
-  reserveBasis?: boolean;
   /** Fires from the Discuss button, not the whole card. */
   onDiscuss?: () => void;
   /**
@@ -125,7 +111,6 @@ export function KpiCard({
   error = false,
   basis,
   basisTitle,
-  reserveBasis = false,
   onAsk,
   benchmark,
   onDiscuss,
@@ -214,6 +199,23 @@ export function KpiCard({
           <Sparkline values={sparkline} channel={channel} variant={sparklineMark}
                      height={sparklineMark === 'line' ? 20 : undefined} />
         ) : null}
+
+        {/* ⭐ Coverage rides the footer ROW, not a line of its own.
+            
+            A fourth row meant every card either grew or reserved blank space,
+            and reserved blank space is still blank space — which is what it was
+            supposed to fix. This row already exists on every card, so a card
+            with a caveat and a card without are naturally the same height and
+            nothing is held open.
+            
+            Short form here, full sentence on the title: at 233px the row has
+            room for "4 of 6" beside the pill and the mark, and not for
+            "4 of 6 channels". */}
+        {basis && !benchmark && !error && (
+          <span className="gr-kpi__cover gr-type-caption" title={basisTitle}>
+            {basis.replace(/ channels?$/, '')}
+          </span>
+        )}
       </span>
 
       {/* The basis, in words. No second pill and no second figure -- just what
@@ -224,16 +226,6 @@ export function KpiCard({
             {benchmark.note}
           </span>
         </span>
-      ) : basis && !error ? (
-        <span className="gr-kpi__bench">
-          <span className="gr-kpi__bench-note gr-type-caption" title={basisTitle}>
-            {basis}
-          </span>
-        </span>
-      ) : reserveBasis ? (
-        /* Held open, and hidden from assistive tech -- a screen reader announcing
-           an empty region is worse than the visual gap it exists to prevent. */
-        <span className="gr-kpi__bench is-reserved" aria-hidden="true" />
       ) : null}
 
     </div>

@@ -95,34 +95,45 @@ describe('a row of cards keeps one shape', () => {
     return root.querySelectorAll('.gr-kpi__bench').length;
   }
 
-  it('⭐ a reserved card holds the same slot as one with a note', () => {
-    /* The fix, stated as the property it has to have: within a row, a card with
-       a caveat and a card without occupy the SAME slot. `.gr-kpi` uses
-       min-height, so any difference here stretches the row and leaves dead space
-       at the bottom of the shorter card. */
-    const withNote = render(
-      <KpiCard label="Blended CTR" value="0.81%" deltaPercent={0} basis="4 of 6 channels" />,
+  it('⭐ coverage adds no row, so cards match without reserving anything', () => {
+    /* 🔄 Third placement, and the property is what matters rather than where it
+       landed.
+
+       It was a fourth row (cards grew), then a fourth row printed on every card
+       ("6 of 6 channels", filler), then a RESERVED empty fourth row — which is
+       still visible dead space, the exact thing the exercise was meant to remove.
+
+       It rides the footer row now. That row exists on every card already, so a
+       card with a caveat and a card without have the same number of rows and
+       nothing is held open. */
+    const withCover = render(
+      <KpiCard label="Total impressions" value="15.8M" deltaPercent={1}
+               sparkline={[1, 2, 3]} basis="4 of 6 channels" />,
     );
-    expect(basisCount(withNote.container)).toBe(1);
+    const coverRows = withCover.container.querySelectorAll('.gr-kpi > *').length;
+    expect(withCover.container.querySelector('.gr-kpi__cover')).toBeTruthy();
+    /* Shortened for the 233px row; the full sentence rides the title. */
+    expect(withCover.container.querySelector('.gr-kpi__cover')!.textContent).toBe('4 of 6');
     cleanup();
 
-    const reserved = render(
-      <KpiCard label="Total spend" value="$160,780" deltaPercent={1} reserveBasis />,
+    const without = render(
+      <KpiCard label="Total spend" value="$160,780" deltaPercent={1} sparkline={[1, 2, 3]} />,
     );
-    expect(basisCount(reserved.container)).toBe(1);
-    /* Held open and silent -- it prints nothing and is hidden from assistive
-       tech, because announcing an empty region is worse than the gap it exists
-       to prevent. */
-    const slot = reserved.container.querySelector('.gr-kpi__bench')!;
-    expect(slot.textContent).toBe('');
-    expect(slot.getAttribute('aria-hidden')).toBe('true');
+    const plainRows = without.container.querySelectorAll('.gr-kpi > *').length;
+    expect(without.container.querySelector('.gr-kpi__cover')).toBeNull();
+
+    /* THE assertion: same number of stacked children, so the flex row cannot
+       stretch one against the other. */
+    expect(coverRows).toBe(plainRows);
   });
 
-  it('no reservation means no slot at all', () => {
-    /* A channel screen never has a caveat, so its row reserves nothing and the
-       cards are uniform without any empty space. */
-    const { container } = render(<KpiCard label="CAC" value="$35.94" deltaPercent={-2} />);
-    expect(basisCount(container)).toBe(0);
+  it('no empty slot is left behind', () => {
+    /* A reserved-but-blank element is dead space with extra steps. */
+    const { container } = render(
+      <KpiCard label="Total spend" value="$160,780" deltaPercent={1} sparkline={[1, 2, 3]} />,
+    );
+    expect(container.querySelector('.gr-kpi__bench')).toBeNull();
+    expect(container.querySelector('.is-reserved')).toBeNull();
   });
 
   it('a basis never renders alongside a benchmark — one footer line, one owner', () => {
