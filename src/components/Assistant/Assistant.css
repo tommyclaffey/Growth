@@ -288,3 +288,15 @@
 .gr-assist__own-input:focus-visible {
   outline: var(--border-width-md) solid var(--accent-base); outline-offset: 1px;
 }
+
+/* The decision's identity, beside its button. */
+.gr-assist__decision-label {
+  display: flex; align-items: center; gap: var(--space-6); min-width: 0;
+}
+.gr-assist__decision-text {
+  color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+/* What it touches — the campaign, the channel, or the account. Quieter than the
+   action, because the action is the thing being agreed to. */
+.gr-assist__decision-ctx { color: var(--text-muted); white-space: nowrap; flex: none; }

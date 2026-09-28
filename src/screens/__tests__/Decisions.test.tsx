@@ -71,14 +71,32 @@ describe('Decisions renders the queue', () => {
 });
 
 describe('Accept and Dismiss actually do something', () => {
-  it('Accept puts it on the attention queue, and Undo takes it off', () => {
+  it('⭐ Accept MOVES it out of the proposals and into your queue', () => {
     setChannels([...CHANNEL_KEYS]);
     const { container } = render(<Decisions range={30} />);
+
+    const section = (name: RegExp) => [...container.querySelectorAll('.gr-dec__tier')]
+      .find((s) => name.test(s.querySelector('h3')?.textContent ?? ''));
+
     const card = container.querySelector('.gr-dec__card.is-tier-1') as HTMLElement;
+    const action = card.querySelector('.gr-dec__action')!.textContent!;
+    expect(section(/Your queue/)).toBeUndefined();
+
     fireEvent.click(within(card).getByRole('button', { name: /^accept$/i }));
-    expect(within(card).getByText(/On your attention queue/)).toBeTruthy();
-    fireEvent.click(within(card).getByRole('button', { name: /^undo$/i }));
-    expect(within(card).getByRole('button', { name: /^accept$/i })).toBeTruthy();
+
+    /* A proposal and a commitment are different states, so they get different
+       places -- not the same place with a badge. Leaving it in the list is what
+       made three taken decisions impossible to find. */
+    const queue = section(/Your queue/)!;
+    expect(queue).toBeDefined();
+    expect(queue.textContent).toContain(action);
+    /* And it is gone from the tier it came from. */
+    const doThese = section(/Do these/);
+    expect(doThese?.textContent ?? '').not.toContain(action);
+
+    fireEvent.click(within(queue as HTMLElement).getByRole('button', { name: /^undo$/i }));
+    expect(section(/Your queue/)).toBeUndefined();
+    expect(section(/Do these/)!.textContent).toContain(action);
   });
 
   it('Dismiss takes a reason and removes the card', () => {
@@ -205,9 +223,12 @@ describe('taking more than one, and writing your own', () => {
     for (const d of takeable) expect(isFlagged('decision', d.id), d.action).toBe(true);
 
     const { container } = render(<Decisions range={30} />);
-    const accepted = [...container.querySelectorAll('.gr-dec__card')]
-      .filter((c) => c.textContent?.includes('On your attention queue'));
-    expect(accepted.length).toBe(takeable.length);
+    /* All three land in one place, which is the whole point -- scattered among
+       the proposals they were impossible to find. */
+    const queue = [...container.querySelectorAll('.gr-dec__tier')]
+      .find((s) => /Your queue/.test(s.querySelector('h3')?.textContent ?? ''))!;
+    expect(queue.querySelectorAll('.gr-dec__card')).toHaveLength(takeable.length);
+    for (const d of takeable) expect(queue.textContent, d.action).toContain(d.action);
   });
 
   it('a written decision reaches the queue and the screen', () => {
@@ -218,7 +239,7 @@ describe('taking more than one, and writing your own', () => {
     addFlag('decision', ownDecisionId('Move $8k to affiliates'), 'Move $8k to affiliates');
     render(<Decisions range={30} />);
     expect(screen.getByText('Move $8k to affiliates')).toBeTruthy();
-    expect(screen.getByText(/Your decisions/)).toBeTruthy();
+    expect(screen.getByText(/Your queue/)).toBeTruthy();
   });
 
   it('and stays visibly separate from the engine’s findings', () => {

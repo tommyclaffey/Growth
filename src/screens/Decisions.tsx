@@ -52,7 +52,19 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
 
   const [showDismissed, setShowDismissed] = useState(false);
   const all = decisions(range, channels);
-  const live = all.filter((c) => !isDismissed(c.id));
+  /* ⭐ Taken decisions LEAVE the proposal list.
+
+     Accepting used to leave the card where it was with a small "on your queue"
+     label, so after taking three there was nowhere that showed the three — they
+     sat scattered among the things still being proposed, and the queue had no
+     answer to "what did I commit to". Tommy read that as the decisions not
+     carrying over at all, which is the right reading: a pile you cannot see is
+     not a pile.
+
+     A proposal and a commitment are different states, so they get different
+     places rather than the same place with a badge. */
+  const taken = all.filter((c) => isFlagged('decision', c.id) && !isDismissed(c.id));
+  const live = all.filter((c) => !isDismissed(c.id) && !isFlagged('decision', c.id));
   const hidden = all.filter((c) => isDismissed(c.id));
 
   const tiers: Tier[] = [1, 2, 3];
@@ -75,7 +87,42 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
         )}
       </header>
 
-      {live.length === 0 && (
+      {/* ⚠️ FIRST, above everything the engine is still proposing. What you have
+          decided outranks what you are being offered — burying it under three
+          tiers of suggestions is the queue arguing that its own output matters
+          more than the reader's. */}
+      {(taken.length > 0 || own.length > 0) && (
+        <section className="gr-dec__tier is-queue">
+          <header className="gr-dec__tier-head">
+            <h3 className="gr-type-card-heading">Your queue</h3>
+            <Badge label="Decided" tone="good" />
+            <span className="gr-type-caption">{taken.length + own.length}</span>
+          </header>
+          <p className="gr-type-caption gr-dec__tier-note">
+            What you have committed to. Everything below this is still a proposal.
+          </p>
+          <div className="gr-dec__list">
+            {taken.map((c) => <DecisionCard key={c.id} candidate={c} onDiscuss={onDiscuss} />)}
+            {own.map((f) => (
+              <article key={f.id} className="gr-card gr-dec__card is-own">
+                <header className="gr-dec__card-head">
+                  <h4 className="gr-type-strip gr-dec__action">{f.label}</h4>
+                  <span className="gr-type-caption gr-dec__stake">Yours</span>
+                </header>
+                {/* No evidence panel: nothing to check it against, and showing
+                    one would be the card borrowing authority it has not earned. */}
+                <footer className="gr-dec__actions">
+                  <Button variant="ghost" onClick={() => removeFlag('decision', f.refId)}>
+                    Remove
+                  </Button>
+                </footer>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {live.length === 0 && taken.length === 0 && own.length === 0 && (
         <div className="gr-card gr-dec__empty">
           <p className="gr-type-body">
             Nothing to decide on right now. That is a real answer, not an empty state —
@@ -125,35 +172,6 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
           </section>
         );
       })}
-
-      {own.length > 0 && (
-        <section className="gr-dec__tier is-own">
-          <header className="gr-dec__tier-head">
-            <h3 className="gr-type-card-heading">Your decisions</h3>
-            <Badge label="You wrote these" tone="accent" />
-            <span className="gr-type-caption">{own.length}</span>
-          </header>
-          {/* ⚠️ Kept visibly apart from the engine's findings, per G-001's rule
-              about the kinds of attention this queue holds. "Growth suggested
-              this and you agreed" and "you decided this yourself" are different
-              claims, and a queue that renders them identically has lost the only
-              thing separating a tool from a record. */}
-          <p className="gr-type-caption gr-dec__tier-note">
-            Not proposed by the engine — these are yours, so there is no evidence
-            panel and nothing to check them against.
-          </p>
-          <div className="gr-dec__list">
-            {own.map((f) => (
-              <div key={f.id} className="gr-card gr-dec__card is-own">
-                <p className="gr-type-body-medium">{f.label}</p>
-                <Button variant="ghost" onClick={() => removeFlag('decision', f.refId)}>
-                  Remove
-                </Button>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {showDismissed && hidden.length > 0 && (
         <section className="gr-dec__tier">

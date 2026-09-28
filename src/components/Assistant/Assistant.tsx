@@ -205,7 +205,14 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                             {taken ? '✓ On your queue' : 'Make the decision'}
                           </button>
                           <span className="gr-assist__decision-label gr-type-caption">
-                            {d.action}
+                            {/* The mark and the thing it touches, so a decision
+                                is identified the same way here as on the card it
+                                becomes. */}
+                            {d.channel && <ChannelMark channel={d.channel} size={14} />}
+                            <span className="gr-assist__decision-text">{d.action}</span>
+                            {d.context && (
+                              <span className="gr-assist__decision-ctx">{d.context}</span>
+                            )}
                           </span>
                         </span>
                       );

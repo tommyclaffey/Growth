@@ -467,3 +467,42 @@ describe('⭐ the button appears where the decision is argued, not before', () =
     expect(decisions(30).some((c) => c.id === take.id)).toBe(true);
   });
 });
+
+describe('a decision is identified the same way wherever you meet it', () => {
+  it('takeable rows carry the channel and what they touch', () => {
+    reset();
+    /* ⚠️ A decision named only by its action loses which account it touches.
+       "Decide on Non-brand — High Intent" and "Review pacing" look like the same
+       KIND of thing in a list, and one is a Paid Search campaign while the other
+       is the whole account. The card on the Decisions screen carries the mark;
+       the button row did not, so the same decision was identified two different
+       ways depending on where you met it. */
+    const takeable = ask('What should I do next?', 30).decisions!;
+    expect(takeable.length).toBeGreaterThan(0);
+    for (const d of takeable) {
+      expect(d.context, d.action).toBeTruthy();
+    }
+    /* At least one is channel-scoped and carries a mark; account-level ones
+       correctly do not. */
+    expect(takeable.some((d) => d.channel)).toBe(true);
+  });
+
+  it('an account-level decision says so rather than showing nothing', () => {
+    reset();
+    const pacing = ask('What should I do next?', 30).decisions!
+      .find((d) => /pacing/i.test(d.action));
+    if (!pacing) return;
+    expect(pacing.channel).toBeUndefined();
+    expect(pacing.context).toBe('This account');
+  });
+
+  it('context matches the candidate it came from', () => {
+    reset();
+    const all = new Map(decisions(30).map((c) => [c.id, c]));
+    for (const d of ask('What should I do next?', 30).decisions ?? []) {
+      const c = all.get(d.id)!;
+      expect(d.channel).toBe(c.channel);
+      expect(d.context).toBe(c.target.kind === 'account' ? 'This account' : c.target.label);
+    }
+  });
+});

@@ -78,6 +78,19 @@ export interface Takeable {
   id: string;
   action: string;
   tier: 1 | 2;
+  /**
+   * The channel it belongs to, so the row can carry the mark.
+   *
+   * ⚠️ A decision named only by its action loses which account it touches. "Decide
+   * on Non-brand — High Intent" and "Review pacing" look like the same KIND of
+   * thing in a list, and one is a Paid Search campaign while the other is the
+   * whole account. The card on the Decisions screen shows the mark; the button
+   * row in the panel did not, so the same decision was identified two different
+   * ways depending on where you met it.
+   */
+  channel?: ChannelName;
+  /** What it points at, in words — "Paid Search", or the campaign's name. */
+  context?: string;
 }
 
 /**
@@ -92,7 +105,13 @@ export function takeable(candidates: Candidate[]): Takeable[] {
   return candidates
     .filter((c): c is Candidate & { tier: 1 | 2 } => c.tier !== 3)
     .slice(0, 3)
-    .map((c) => ({ id: c.id, action: c.action, tier: c.tier }));
+    .map((c) => ({
+      id: c.id,
+      action: c.action,
+      tier: c.tier,
+      channel: c.channel,
+      context: c.target.kind === 'account' ? 'This account' : c.target.label,
+    }));
 }
 
 /** Decisions a question implies, for whichever engine answered it. */
