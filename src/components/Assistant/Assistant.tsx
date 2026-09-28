@@ -342,8 +342,19 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
 /**
  * Write a decision the engine did not propose.
  *
+ * ⭐ WHAT YOU WRITE STAYS ON SCREEN, exactly like what you accept.
+ *
+ * 🐛 It used to submit and vanish: the form closed, the decision went to the
+ * queue, and the panel showed nothing. An engine decision stays put with "✓ On
+ * your queue" beside it, so a written one disappearing read as the click having
+ * failed — the two kinds behaved differently at the only moment they should have
+ * behaved the same.
+ *
+ * ⚠️ Held in local state rather than read back from the store, because the store
+ * holds every decision ever made and this block is about THIS turn. Rendering all
+ * of them here would make a fresh answer inherit the whole history.
+ *
  * Deliberately small and last: it is the escape hatch, not the primary path.
- * Leading with it would suggest the findings above are a formality.
  */
 function OwnDecision({ startOpen = false, label = 'Make another decision' }: {
   startOpen?: boolean;
@@ -351,40 +362,68 @@ function OwnDecision({ startOpen = false, label = 'Make another decision' }: {
 }) {
   const [open, setOpen] = useState(startOpen);
   const [text, setText] = useState('');
+  /* What was written from THIS answer, so it can stay previewed. */
+  const [added, setAdded] = useState<{ id: string; label: string }[]>([]);
 
-  if (!open) {
-    return (
-      <button type="button" className="gr-assist__own-open gr-type-caption"
-              onClick={() => setOpen(true)}>
-        + {label}
-      </button>
-    );
+  function commit(raw: string) {
+    const v = raw.trim();
+    if (!v) return;
+    const id = ownDecisionId(v);
+    /* Same store, same queue — marked as the reader's own rather than an
+       accepted proposal, because "I decided this" and "I agreed with the engine"
+       are different claims and the queue already separates the kinds of
+       attention it holds. */
+    addFlag('decision', id, v);
+    setAdded((prev) => (prev.some((a) => a.id === id) ? prev : [...prev, { id, label: v }]));
+    setText('');
+    setOpen(false);
   }
 
   return (
-    <form
-      className="gr-assist__own"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const v = text.trim();
-        if (!v) return;
-        /* Same store, same queue -- marked as the reader's own rather than an
-           accepted proposal, because "I decided this" and "I agreed with the
-           engine" are different claims and the queue already separates the
-           kinds of attention it holds. */
-        addFlag('decision', ownDecisionId(v), v);
-        setText('');
-        setOpen(false);
-      }}
-    >
-      <input
-        className="gr-assist__own-input gr-type-caption"
-        placeholder="What are you actually going to do?"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        autoFocus
-      />
-      <button type="submit" className="gr-assist__take gr-type-caption">Add it</button>
-    </form>
+    <>
+      {/* Previewed the same way an accepted finding is: same button, same state,
+          same row. Undo removes it from the queue and from here. */}
+      {added.map((a) => {
+        const taken = isFlagged('decision', a.id);
+        return (
+          <span key={a.id} className="gr-assist__decision">
+            <button
+              type="button"
+              className={`gr-assist__take gr-type-caption ${taken ? 'is-taken' : ''}`}
+              onClick={() => (taken
+                ? removeFlag('decision', a.id)
+                : addFlag('decision', a.id, a.label))}
+            >
+              {taken ? '✓ On your queue' : 'Make the decision'}
+            </button>
+            <span className="gr-assist__decision-label gr-type-caption">
+              <span className="gr-assist__decision-text">{a.label}</span>
+              <span className="gr-assist__decision-ctx">Yours</span>
+            </span>
+          </span>
+        );
+      })}
+
+      {open ? (
+        <form
+          className="gr-assist__own"
+          onSubmit={(e) => { e.preventDefault(); commit(text); }}
+        >
+          <input
+            className="gr-assist__own-input gr-type-caption"
+            placeholder="What are you actually going to do?"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            autoFocus
+          />
+          <button type="submit" className="gr-assist__take gr-type-caption">Add it</button>
+        </form>
+      ) : (
+        <button type="button" className="gr-assist__own-open gr-type-caption"
+                onClick={() => setOpen(true)}>
+          + {label}
+        </button>
+      )}
+    </>
   );
 }
