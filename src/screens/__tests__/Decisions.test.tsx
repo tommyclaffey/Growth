@@ -80,23 +80,23 @@ describe('Accept and Dismiss actually do something', () => {
 
     const card = container.querySelector('.gr-dec__card.is-tier-1') as HTMLElement;
     const action = card.querySelector('.gr-dec__action')!.textContent!;
-    expect(section(/Your queue/)).toBeUndefined();
+    expect(section(/Decided/)).toBeUndefined();
 
     fireEvent.click(within(card).getByRole('button', { name: /^accept$/i }));
 
     /* A proposal and a commitment are different states, so they get different
        places -- not the same place with a badge. Leaving it in the list is what
        made three taken decisions impossible to find. */
-    const queue = section(/Your queue/)!;
+    const queue = section(/Decided/)!;
     expect(queue).toBeDefined();
     expect(queue.textContent).toContain(action);
     /* And it is gone from the tier it came from. */
-    const doThese = section(/Do these/);
+    const doThese = section(/ready to act/i);
     expect(doThese?.textContent ?? '').not.toContain(action);
 
     fireEvent.click(within(queue as HTMLElement).getByRole('button', { name: /^undo$/i }));
-    expect(section(/Your queue/)).toBeUndefined();
-    expect(section(/Do these/)!.textContent).toContain(action);
+    expect(section(/Decided/)).toBeUndefined();
+    expect(section(/ready to act/i)!.textContent).toContain(action);
   });
 
   it('Dismiss takes a reason and removes the card', () => {
@@ -226,7 +226,7 @@ describe('taking more than one, and writing your own', () => {
     /* All three land in one place, which is the whole point -- scattered among
        the proposals they were impossible to find. */
     const queue = [...container.querySelectorAll('.gr-dec__tier')]
-      .find((s) => /Your queue/.test(s.querySelector('h3')?.textContent ?? ''))!;
+      .find((s) => /Decided/.test(s.querySelector('h3')?.textContent ?? ''))!;
     expect(queue.querySelectorAll('.gr-dec__card')).toHaveLength(takeable.length);
     for (const d of takeable) expect(queue.textContent, d.action).toContain(d.action);
   });
@@ -239,7 +239,7 @@ describe('taking more than one, and writing your own', () => {
     addFlag('decision', ownDecisionId('Move $8k to affiliates'), 'Move $8k to affiliates');
     render(<Decisions range={30} />);
     expect(screen.getByText('Move $8k to affiliates')).toBeTruthy();
-    expect(screen.getByText(/Your queue/)).toBeTruthy();
+    expect(screen.getByText(/Decided/)).toBeTruthy();
   });
 
   it('and stays visibly separate from the engine’s findings', () => {
@@ -312,5 +312,76 @@ describe('decisions live in the queue, not in the attention strip', () => {
     flags().filter((f) => f.kind !== 'decision').forEach((f) => removeFlag(f.kind, f.refId));
     render(<Decisions range={30} />);
     expect(screen.getByText('Survives a clear')).toBeTruthy();
+  });
+});
+
+describe('the queue is ordered by when you decided', () => {
+  it('⭐ newest first, regardless of what the engine thinks', () => {
+    setChannels([...CHANNEL_KEYS]);
+    /* Taken cards came out in engine order (tier, then strength) while written
+       ones came out newest-first, so the thing you just added could land
+       anywhere. A queue you are working is read top-down, and the item you just
+       put there is the one you are still thinking about.
+
+       ⚠️ Ordered from the FLAG, not the candidate — only the flag knows when the
+       decision was made. Sorting by the engine means the queue of YOUR
+       commitments is sorted by the engine's opinion of importance. */
+    const takeable = ask('What should I do next?', 30).decisions!;
+    addFlag('decision', takeable[0].id, takeable[0].action);
+    addFlag('decision', takeable[1].id, takeable[1].action);
+    addFlag('decision', ownDecisionId('Last thing I decided'), 'Last thing I decided');
+
+    const { container } = render(<Decisions range={30} />);
+    const queue = [...container.querySelectorAll('.gr-dec__tier')]
+      .find((s) => /Decided/.test(s.querySelector('h3')?.textContent ?? ''))!;
+    const cards = [...queue.querySelectorAll('.gr-dec__card')];
+
+    /* The most recent addition is first. */
+    expect(cards[0].textContent).toContain('Last thing I decided');
+    /* And the one taken before it comes next, not the one taken first. */
+    expect(cards[1].textContent).toContain(takeable[1].action);
+  });
+
+  it('written and accepted decisions interleave by time, not by kind', () => {
+    setChannels([...CHANNEL_KEYS]);
+    /* They used to render in two blocks — all accepted, then all written — so a
+       decision written between two accepted ones jumped to the bottom. */
+    const takeable = ask('What should I do next?', 30).decisions!;
+    addFlag('decision', takeable[0].id, takeable[0].action);
+    addFlag('decision', ownDecisionId('Middle'), 'Middle');
+    addFlag('decision', takeable[1].id, takeable[1].action);
+
+    const { container } = render(<Decisions range={30} />);
+    const texts = [...container.querySelectorAll('.gr-dec__card')].map((c) => c.textContent ?? '');
+    const iMiddle = texts.findIndex((t) => t.includes('Middle'));
+    const iLast = texts.findIndex((t) => t.includes(takeable[1].action));
+    const iFirst = texts.findIndex((t) => t.includes(takeable[0].action));
+    expect(iLast).toBeLessThan(iMiddle);
+    expect(iMiddle).toBeLessThan(iFirst);
+  });
+});
+
+describe('a taken decision is not offered again', () => {
+  it('⭐ a new question returns a FRESH set', () => {
+    setChannels([...CHANNEL_KEYS]);
+    /* It used to reappear in every later answer wearing "✓ On your queue" —
+       truthful and useless. The reader asked a new question and got back a row
+       about something they already did, which also read as though the new
+       inquiry had acted on its own. */
+    const first = ask('What should I do next?', 30).decisions!;
+    expect(first.length).toBeGreaterThan(0);
+    addFlag('decision', first[0].id, first[0].action);
+
+    const second = ask('What should I do next?', 30).decisions!;
+    expect(second.map((d) => d.id)).not.toContain(first[0].id);
+  });
+
+  it('and it is still there in the queue, where it is managed', () => {
+    setChannels([...CHANNEL_KEYS]);
+    const first = ask('What should I do next?', 30).decisions![0];
+    addFlag('decision', first.id, first.action);
+    render(<Decisions range={30} />);
+    /* Not offered is not the same as not recorded. */
+    expect(screen.getByText(first.action)).toBeTruthy();
   });
 });

@@ -4,6 +4,7 @@ import {
 } from './metrics';
 import type { ChannelName } from '../styles/tokens';
 import { decisions, decisionsFor, limitsFor, type Candidate, type Target } from './decisions';
+import { isFlagged } from './attention';
 import { CAMPAIGNS } from './campaigns';
 import { creativeById, creativesFor } from './creative';
 
@@ -105,6 +106,16 @@ export interface Takeable {
 export function takeable(candidates: Candidate[]): Takeable[] {
   return candidates
     .filter((c): c is Candidate & { tier: 1 | 2 } => c.tier !== 3)
+    /* ⭐ A decision already taken is not offered again.
+     *
+     * It used to reappear in every later answer wearing "✓ On your queue", which
+     * is truthful and useless: the reader asked a new question and got back a
+     * row saying something they did that they already know about. Worse, it
+     * looked like the new inquiry had somehow acted on its own.
+     *
+     * An offer is for something you have not done. Once it is on the queue it
+     * belongs to the queue, and the queue is where it is managed. */
+    .filter((c) => !isFlagged('decision', c.id))
     .slice(0, 3)
     .map((c) => ({
       id: c.id,

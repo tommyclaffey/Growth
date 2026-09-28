@@ -97,6 +97,11 @@ RULES, IN ORDER OF IMPORTANCE:
    limitation stated only when the news is bad reads as an excuse; stated every
    time, it is a property of the instrument.
 
+LEVELS THIS DASHBOARD HAS: account, channel, campaign, ad set and ad — there are
+screens for every one of them. If a tool returns nothing for a campaign or an ad,
+that means no finding met a threshold, NOT that the product cannot see that level.
+Never tell the user a tier does not exist.
+
 METRICS THIS DASHBOARD HAS: spend, impressions, clicks, leads, sales, revenue,
 and the derived CTR, CPC, CPM, CVR, CAC and ROAS. Not every channel reports every
 one — a podcast ad has no click, affiliates report no impressions — so use
@@ -122,7 +127,13 @@ interface Metrics {
 /** The decision engine, loaded through Vite like the data layer. */
 interface Decisions {
   decisions: (range: number, channels?: string[]) => DecisionCandidate[];
+  decisionsFor: (
+    target: { kind: string; id: string }, range: number, channels?: string[],
+  ) => DecisionCandidate[];
 }
+
+/** What the reader was pointing at when they asked, if a control told us. */
+interface Subject { kind: string; id: string; label: string }
 interface DecisionCandidate {
   tier: 1 | 2 | 3;
   action: string;
@@ -163,7 +174,7 @@ interface Source { title: string; url: string }
 
 function buildTools(
   m: Metrics, d: Decisions, b: Blended, cm: ChannelMetrics,
-  range: number, evidence: Evidence[],
+  range: number, evidence: Evidence[], subject?: Subject,
 ) {
   const scopeEnum = ['all', ...m.activeChannels()];
   /* 🐛 STALE, AND IT MADE THE PRODUCT LIE ABOUT ITSELF.
@@ -262,7 +273,11 @@ function buildTools(
         + 'do, what to cut, what to prioritise, or what this data cannot answer. '
         + 'Each finding carries a tier: 1 is provable arithmetic, 2 is a projection with a '
         + 'stated assumption, 3 is a question this data CANNOT answer. '
-        + 'Never invent a recommendation — report what this returns.',
+        + 'Never invent a recommendation — report what this returns. '
+        + 'If it comes back EMPTY, say plainly there are no findings for what was '
+        + 'asked about. Do NOT substitute findings about something else — a '
+        + 'correct finding presented as the answer to a different question is '
+        + 'worse than saying there is nothing.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -276,7 +291,16 @@ function buildTools(
         additionalProperties: false,
       },
       run: ({ channel }: { channel?: string }) => {
-        const found = d.decisions(range, m.activeChannels());
+        /* ⚠️ A SUBJECT WINS OVER THE MODEL'S OWN FILTER.
+
+           When a control says what the reader was pointing at, that is what the
+           question is ABOUT. The model cannot recover it from the sentence, and
+           guessing produced the worst kind of answer: findings about a different
+           campaign, each correct in itself, presented as the answer to a question
+           about this one — with the other campaign's channel logos beside them. */
+        const found = subject
+          ? d.decisionsFor(subject, range, m.activeChannels())
+          : d.decisions(range, m.activeChannels());
         const mine = !channel || channel === 'all'
           ? found : found.filter((c) => c.channel === channel);
         for (const c of mine.slice(0, 3)) {
@@ -284,6 +308,26 @@ function buildTools(
             label: e.label, value: e.value, channel: c.channel,
           })));
         }
+        /* 🐛 An empty array taught the model the wrong lesson. Asked about a
+           campaign with no findings, it replied that "this dashboard reports at
+           channel level, not campaign level" — false: there are campaign, ad-set
+           and ad screens. It inferred the product's SHAPE from the absence of a
+           result, because the other tools here are channel-scoped and nothing
+           told it otherwise.
+
+           Empty is a fact about the findings, not about what exists. Say so. */
+        if (mine.length === 0) {
+          return JSON.stringify({
+            findings: [],
+            note: subject
+              ? `No findings for ${subject.label}. This is not a limit of the `
+                + `product — it reports at account, channel, campaign, ad set and `
+                + `ad level. It means nothing about ${subject.label} met a `
+                + `threshold worth raising.`
+              : 'No findings. Not a limit of the product — nothing met a threshold.',
+          });
+        }
+
         return JSON.stringify(mine.map((c) => ({
           tier: c.tier, action: c.action, because: c.because,
           expect: c.expectation?.outcome,
@@ -386,7 +430,9 @@ function buildTools(
   ];
 }
 
-async function readBody(req: IncomingMessage): Promise<{ question?: string; range?: number }> {
+async function readBody(
+  req: IncomingMessage,
+): Promise<{ question?: string; range?: number; subject?: Subject }> {
   const chunks: Buffer[] = [];
   for await (const c of req) chunks.push(c as Buffer);
   try {
@@ -434,7 +480,7 @@ export function assistantApi(): Plugin {
           });
         }
 
-        const { question, range = 30 } = await readBody(req);
+        const { question, range = 30, subject } = await readBody(req);
         if (!question?.trim()) return send(res, 400, { error: 'Question required.' });
 
         try {
@@ -458,7 +504,7 @@ export function assistantApi(): Plugin {
             output_config: { effort: 'low' },
             system: SYSTEM,
             tools: [
-              ...buildTools(m, d, b, cm, Number(range), evidence),
+              ...buildTools(m, d, b, cm, Number(range), evidence, subject as Subject | undefined),
               /* Server-side: runs on Anthropic's infrastructure, so there is no
                  run() to write and no search account to hold. Capped at 3 so a
                  benchmark question cannot turn into an open-ended crawl. */

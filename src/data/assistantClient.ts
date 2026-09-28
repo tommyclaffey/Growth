@@ -81,7 +81,13 @@ export async function askAssistant(
     const res = await fetch('/api/assistant', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, range }),
+      /* 🐛 `subject` was never sent. The model got a bare question, called
+         get_decisions with no filter, and reported the whole account — so asking
+         about a Meta campaign came back with Paid Search findings and Paid
+         Search logos beside them. The marks were right per row; the FINDINGS
+         were wrong for the question, which is a much worse failure wearing a
+         cosmetic one's clothes. */
+      body: JSON.stringify({ question, range, subject }),
     });
 
     if (!res.ok) {

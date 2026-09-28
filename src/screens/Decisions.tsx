@@ -39,11 +39,7 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
   /* Subscribed to both stores, so accepting or dismissing repaints immediately
      and a second tab stays in step. */
   const flags = useFlags();
-  /* Decisions the reader wrote rather than accepted. They have no candidate
-     behind them, so nothing in `decisions()` would ever render them — without
-     this they land in a queue and then disappear from the screen that IS the
-     queue. */
-  const own = flags.filter(isOwnDecision);
+
   /* Read ONCE here, not per row. The first version called a hook inside the
      dismissed list's .map(), which is a hook in a loop -- the count changes with
      the data, React's hook order breaks, and it crashes the moment someone
@@ -63,7 +59,25 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
 
      A proposal and a commitment are different states, so they get different
      places rather than the same place with a badge. */
-  const taken = all.filter((c) => isFlagged('decision', c.id) && !isDismissed(c.id));
+  /* ⭐ Ordered by WHEN YOU DECIDED, newest first — not by what the engine thinks.
+   *
+   * Taken cards were coming out in engine order (tier, then strength) while
+   * written ones came out newest-first, so the thing you just added could land
+   * anywhere in the list. A queue you are working is read top-down, and the item
+   * you just put there is the one you are still thinking about.
+   *
+   * ⚠️ Built from the FLAG list rather than the candidate list, because only the
+   * flag knows when the decision was made. Deriving order from the engine means
+   * the queue is sorted by the engine's opinion of importance, which is exactly
+   * what a queue of YOUR commitments should not be.
+   */
+  const byId = new Map(all.map((c) => [c.id, c]));
+  const queue = [...flags]
+    .filter((f) => f.kind === 'decision')
+    .sort((a, b) => b.at - a.at)
+    .map((f) => ({ flag: f, candidate: byId.get(f.refId) }))
+    .filter((e) => e.candidate !== undefined || isOwnDecision(e.flag));
+
   const live = all.filter((c) => !isDismissed(c.id) && !isFlagged('decision', c.id));
   const hidden = all.filter((c) => isDismissed(c.id));
 
@@ -91,19 +105,25 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
           decided outranks what you are being offered — burying it under three
           tiers of suggestions is the queue arguing that its own output matters
           more than the reader's. */}
-      {(taken.length > 0 || own.length > 0) && (
+      {queue.length > 0 && (
         <section className="gr-dec__tier is-queue">
           <header className="gr-dec__tier-head">
-            <h3 className="gr-type-card-heading">Your queue</h3>
-            <Badge label="Decided" tone="good" />
-            <span className="gr-type-caption">{taken.length + own.length}</span>
+            {/* ⚠️ "Your queue" above "Do these" read as two instructions. Both
+                sounded imperative, and neither said which was DECIDED and which
+                was PROPOSED — the one distinction the whole screen is built on.
+                The headings say it now, so the badges do not have to carry it
+                alone. */}
+            <h3 className="gr-type-card-heading">Decided</h3>
+            <Badge label="You committed to these" tone="good" />
+            <span className="gr-type-caption">{queue.length}</span>
           </header>
           <p className="gr-type-caption gr-dec__tier-note">
-            What you have committed to. Everything below this is still a proposal.
+            Newest first. Everything below this is still only proposed.
           </p>
           <div className="gr-dec__list">
-            {taken.map((c) => <DecisionCard key={c.id} candidate={c} onDiscuss={onDiscuss} />)}
-            {own.map((f) => (
+            {queue.map(({ flag: f, candidate }) => (candidate ? (
+              <DecisionCard key={f.id} candidate={candidate} onDiscuss={onDiscuss} />
+            ) : (
               <article key={f.id} className="gr-card gr-dec__card is-own">
                 <header className="gr-dec__card-head">
                   <h4 className="gr-type-strip gr-dec__action">{f.label}</h4>
@@ -117,12 +137,12 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
                   </Button>
                 </footer>
               </article>
-            ))}
+            )))}
           </div>
         </section>
       )}
 
-      {live.length === 0 && taken.length === 0 && own.length === 0 && (
+      {live.length === 0 && queue.length === 0 && (
         <div className="gr-card gr-dec__empty">
           <p className="gr-type-body">
             Nothing to decide on right now. That is a real answer, not an empty state —
@@ -138,7 +158,9 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
           <section key={tier} className={`gr-dec__tier is-tier-${tier}`}>
             <header className="gr-dec__tier-head">
               <h3 className="gr-type-card-heading">
-                {tier === 3 ? 'Worth investigating' : tier === 2 ? 'Projections' : 'Do these'}
+                {tier === 3 ? 'Worth investigating'
+                  : tier === 2 ? 'Proposed — needs a judgement call'
+                  : 'Proposed — ready to act'}
               </h3>
               <Badge
                 label={TIER_LABEL[tier]}
