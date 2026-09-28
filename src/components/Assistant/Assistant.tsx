@@ -205,10 +205,19 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                             {taken ? '✓ On your queue' : 'Make the decision'}
                           </button>
                           <span className="gr-assist__decision-label gr-type-caption">
-                            {/* The mark and the thing it touches, so a decision
-                                is identified the same way here as on the card it
-                                becomes. */}
-                            {d.channel && <ChannelMark channel={d.channel} size={14} />}
+                            {/* ⚠️ NO channel mark here, deliberately.
+                                
+                                The context beside it already NAMES the channel —
+                                "Paid Search › Non-brand — High Intent" — so a
+                                logo was the same fact twice in a row that has
+                                room for neither. It also competed with the button
+                                for the eye, in a block whose job is to make one
+                                action obvious.
+                                
+                                The marks stay everywhere they earn their place:
+                                the evidence rows, the tables, and the Decisions
+                                cards, where the breadcrumb has room to carry one
+                                and the layout is not a single tight line. */}
                             <span className="gr-assist__decision-text">{d.action}</span>
                             {d.context && (
                               <span className="gr-assist__decision-ctx">{d.context}</span>

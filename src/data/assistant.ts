@@ -79,17 +79,18 @@ export interface Takeable {
   action: string;
   tier: 1 | 2;
   /**
-   * The channel it belongs to, so the row can carry the mark.
+   * Where it lives, in words — "Paid Search › Non-brand — High Intent".
    *
-   * ⚠️ A decision named only by its action loses which account it touches. "Decide
-   * on Non-brand — High Intent" and "Review pacing" look like the same KIND of
-   * thing in a list, and one is a Paid Search campaign while the other is the
-   * whole account. The card on the Decisions screen shows the mark; the button
-   * row in the panel did not, so the same decision was identified two different
-   * ways depending on where you met it.
+   * ⚠️ WORDS, not a mark, and that is the whole field. A decision named only by
+   * its action loses which account it touches: "Decide on Non-brand — High
+   * Intent" and "Review pacing" read as the same KIND of thing, and one is a
+   * campaign while the other is the entire account.
+   *
+   * The panel row deliberately carries no channel logo — naming the channel here
+   * says it once, and a mark beside it said it twice in a line with room for
+   * neither. `Candidate.channel` still exists for the surfaces that do render a
+   * mark; this view-model does not need it, so it does not carry it.
    */
-  channel?: ChannelName;
-  /** What it points at, in words — "Paid Search", or the campaign's name. */
   context?: string;
 }
 

@@ -469,22 +469,26 @@ describe('⭐ the button appears where the decision is argued, not before', () =
 });
 
 describe('a decision is identified the same way wherever you meet it', () => {
-  it('takeable rows carry the channel and what they touch', () => {
+  it('takeable rows say where the decision lives, in words', () => {
     reset();
-    /* ⚠️ A decision named only by its action loses which account it touches.
-       "Decide on Non-brand — High Intent" and "Review pacing" look like the same
-       KIND of thing in a list, and one is a Paid Search campaign while the other
-       is the whole account. The card on the Decisions screen carries the mark;
-       the button row did not, so the same decision was identified two different
-       ways depending on where you met it. */
+    /* ⚠️ Words, not a mark. The panel row carries no channel logo on purpose —
+       the context NAMES the channel, and a mark beside it said the same thing
+       twice in a line with room for neither. The Decisions card still renders a
+       mark, where the breadcrumb has room for one. */
     const takeable = ask('What should I do next?', 30).decisions!;
     expect(takeable.length).toBeGreaterThan(0);
-    for (const d of takeable) {
-      expect(d.context, d.action).toBeTruthy();
+    for (const d of takeable) expect(d.context, d.action).toBeTruthy();
+  });
+
+  it('a channel-scoped decision names its channel in the context', () => {
+    reset();
+    const all = new Map(decisions(30).map((c) => [c.id, c]));
+    for (const d of ask('What should I do next?', 30).decisions ?? []) {
+      const c = all.get(d.id)!;
+      if (!c.channel) continue;
+      /* The logo is gone, so the words have to carry it. */
+      expect(d.context, d.action).toContain(CHANNEL_LABEL[c.channel]);
     }
-    /* At least one is channel-scoped and carries a mark; account-level ones
-       correctly do not. */
-    expect(takeable.some((d) => d.channel)).toBe(true);
   });
 
   it('an account-level decision says so rather than showing nothing', () => {
@@ -492,7 +496,6 @@ describe('a decision is identified the same way wherever you meet it', () => {
     const pacing = ask('What should I do next?', 30).decisions!
       .find((d) => /pacing/i.test(d.action));
     if (!pacing) return;
-    expect(pacing.channel).toBeUndefined();
     /* The account is a scope, not the absence of one. */
     expect(pacing.context).toBe('This account');
   });
@@ -501,11 +504,61 @@ describe('a decision is identified the same way wherever you meet it', () => {
     reset();
     const all = new Map(decisions(30).map((c) => [c.id, c]));
     for (const d of ask('What should I do next?', 30).decisions ?? []) {
-      const c = all.get(d.id)!;
-      expect(d.channel).toBe(c.channel);
       /* One decision, one address — the panel row and the card must not derive
          it separately or they drift. */
-      expect(d.context).toBe(c.scope.join(' \u203a '));
+      expect(d.context).toBe(all.get(d.id)!.scope.join(' \u203a '));
     }
   });
 });
+
+describe('⭐ the button appears where the decision is argued, not before', () => {
+  it('a STATUS answer carries no takeable decisions', () => {
+    reset();
+    /* "What's going on with Total spend" reports: the figures, a finding the
+       engine raised, and what this data cannot tell you. Nothing has been
+       weighed. Asking the reader to commit there skips the deliberation the
+       panel exists to host — and a button under every answer stops reading as a
+       commitment and starts reading as decoration. */
+    for (const q of ["What's going on with Total spend?", "What's going on with Meta?",
+      'Tell me about Paid Search', 'How is TikTok doing?']) {
+      const a = ask(q, 30);
+      expect(a.answered, q).toBe(true);
+      expect(a.decisions ?? [], q).toEqual([]);
+    }
+  });
+
+  it('but it routes you to where the button IS', () => {
+    reset();
+    /* The two-step is the point: ask, then decide. The status answer's first
+       chip has to lead to the decision answer, or the button is unreachable. */
+    const status = ask("What's going on with Meta?", 30);
+    const next = status.followUps![0];
+    expect(next).toMatch(/what would you do/i);
+    expect(ask(next, 30).decisions?.length, next).toBeGreaterThan(0);
+  });
+
+  it('a DECISION answer carries them', () => {
+    reset();
+    for (const q of ['What would you do about Meta?', 'What should I do next?',
+      'What should I cut?']) {
+      const a = ask(q, 30);
+      if (!/Nothing/.test(a.text)) {
+        expect(a.decisions?.length, q).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('the whole two-step works end to end', () => {
+    reset();
+    /* Status -> follow the first chip -> decision -> a real candidate id that
+       accepting would land on. */
+    const step1 = ask("What's going on with Paid Search?", 30);
+    expect(step1.decisions ?? []).toEqual([]);
+
+    const step2 = ask(step1.followUps![0], 30);
+    const take = step2.decisions![0];
+    expect(take).toBeDefined();
+    expect(decisions(30).some((c) => c.id === take.id)).toBe(true);
+  });
+});
+
