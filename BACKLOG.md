@@ -314,7 +314,7 @@ impressions"* is a better interview answer than any feature on this list.
 
 ---
 
-## 🔴 G-013 — Ads have no performance variation, so "which ad is winning" has no answer
+## ✅ G-013 — Ads have no performance variation *(FIXED Sept 27 — `30b9cee` + `a5e5773`)*
 
 **Found by the decision engine finding nothing** — three detectors came back empty and were right to.
 
@@ -366,7 +366,7 @@ a detector finding nothing did.**
 
 ---
 
-## 🔴 G-011 — The generator invents clicks podcasts cannot have *(found Sept 27)*
+## ✅ G-011 — The generator invents clicks podcasts cannot have *(FIXED Sept 27 — `30b9cee`)*
 
 **Found by a test that failed for the right reason**, while building G-010's blended
 coverage. Measured from `rowsFor(channel, 30)`:
@@ -412,6 +412,73 @@ Does a channel's funnel carry **zero** for a metric it cannot report, or **undef
   a real API integration will force anyway, since the field simply will not be in the response.
   **Leaning here**, because the whole point of Phase 3 is that the seeded source and a real one
   behave identically.
+
+---
+
+## ✅ How G-011 and G-013 were resolved *(Sept 27)*
+
+Done **together**, because both are surgery on the same normalisation and two passes would
+mean reconciling twice.
+
+### G-011 — zero, not undefined 🔄 *(reversed my own recommendation)*
+
+**For a podcast, "no clicks" is TRUE** — the falsehood was 7,919, not 0. And the absence
+contract **already exists at the right layer**: `CHANNEL_METRICS` says what a channel may
+display, `coverageFor` says which channels are in a blend. Adding a second contract to `DayRow`
+would be two mechanisms for one job. **Ten modules read `.clicks`.**
+
+⚠️ **The refinement that mattered:** `CANNOT_PRODUCE` is deliberately **not** derived from
+`CHANNEL_METRICS`. That table is a *display* vocabulary; this is a *capability* claim. **Paid
+Search omits `Impressions` from display but reports CTR, which needs impressions as its
+denominator** — zeroing off the display table would have left it claiming a CTR with nothing
+underneath.
+
+**`exportCsv` writes BLANK, not zero.** In a spreadsheet a zero sums and averages and drags a
+CTR column down; an empty cell is excluded from both.
+
+### G-013 — wobble the lead share, compose through the ad set
+
+Spend/impressions/clicks follow **spend** share. Leads/sales/revenue follow a **wobbled lead**
+share. The gap between them *is* efficiency.
+
+⭐ Wobble applied **within** an ad set and renormalised there, then multiplied by that ad set's
+share of its campaign — so ads sum to ad set sum to campaign, all exactly. Wobbling ads directly
+against the campaign would have left them agreeing with the campaign while **disagreeing with
+the ad-set row printed right above them.**
+
+⚠️ First pass used ±15% and the engine **still** found nothing — a 1.2 worst-to-best ratio means
+no ad is ever far enough out of line to pause. **Ads now ±45%, ad sets ±20%**, because creative
+is the biggest lever in paid media while the ad sets in a campaign were built to be comparable.
+Ad CAC now spreads **$27 → $136**.
+
+### 🔄 It invalidated two claims from `52f924b`, and they were right to break
+
+*"An absolute CAC ranking re-derives the channel ranking exactly"* passed **for the wrong
+reason** — with every ad identical, a raw sort had nothing to order by but channel. True of the
+fixture, not the product. Rewritten to the empirical version: the channel spread dwarfs the
+within-channel spread, so **the dearest channel cannot reach the top quartile** however well its
+ads did for their peers.
+
+### ⭐ And chasing the last silent detector produced a better one
+
+`scale-winner` still wouldn't fire — because **the best-returning creatives are PAUSED**
+(`c1a-cr3` at 1.5× its share of spend, switched off; every Active ad between 0.67 and 1.21).
+
+**New `paused-winner` detector.** Tier 1, historical arithmetic only. Says *"review why this is
+paused"* — **never "turn it back on"**, which would be a forecast and belong in tier 2. States
+its own limitation on the card: a paused ad's figures cover the whole window, not its live span.
+
+### ▶️ Left open, deliberately
+- [ ] **The fixture is unrealistically thin on Active campaigns.** No channel runs two. Real
+      accounts run several. Adding one is fixture surgery — Meta's campaigns sum to the channel's
+      published spend *exactly*, so a third means re-splitting it. **Its own commit, with the
+      reconciliation tests as the guard.**
+      *Tests now construct the state via `setStage` so the logic is verified regardless.*
+- [ ] A **paused ad still reports full-window figures** — no per-ad start/stop dates. Currently
+      disclosed on the card rather than fixed.
+- [ ] The **chart's metric toggle still offers all six metrics on every channel**, so a podcast
+      channel screen can plot a flat-zero Clicks line. The KPI row respects `CHANNEL_METRICS`
+      now; the chart does not.
 
 ---
 
