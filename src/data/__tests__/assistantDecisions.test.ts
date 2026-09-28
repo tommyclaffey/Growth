@@ -256,3 +256,53 @@ describe('🚨 every subject any surface can raise is answerable', () => {
     }
   });
 });
+
+describe('the follow-up leads to a decision, not an explanation', () => {
+  it('⭐ "what’s going on" offers "what would you do" FIRST', () => {
+    reset();
+    /* Tommy: "make the very next prompt after we say what's going on prompt it
+       immediately to ask what decision it would make."
+
+       Someone who just read what is going on has exactly one next question, and
+       it is not "why did you say that" -- it is "so what would you do". Leading
+       with the explanation answers a question they have not asked yet. */
+    const a = ask("What's going on with Meta?", 30);
+    expect(a.followUps?.[0]).toMatch(/what would you do/i);
+    expect(a.followUps?.[0]).toContain('Meta');
+  });
+
+  it('and that follow-up is answerable, scoped to the same subject', () => {
+    reset();
+    for (const label of Object.values(CHANNEL_LABEL)) {
+      const first = ask(`What's going on with ${label}?`, 30).followUps![0];
+      const next = ask(first, 30);
+      expect(next.answered, first).toBe(true);
+      expect(next.text, first).toContain(label);
+    }
+  });
+
+  it('gives calls, or says there are none — never fills the space', () => {
+    reset();
+    const a = ask('What would you do about Meta?', 30);
+    expect(a.answered).toBe(true);
+    expect(a.text).toMatch(/call on Meta|calls on Meta|Nothing about Meta/);
+  });
+
+  it('a subject with no supportable action says so plainly', () => {
+    reset();
+    /* The honest empty answer, rather than a manufactured suggestion. */
+    const a = ask('What would you do about Podcasts?', 30);
+    expect(a.answered).toBe(true);
+    if (/Nothing about/.test(a.text)) {
+      expect(a.text).toMatch(/rather say that than manufacture/i);
+    }
+  });
+
+  it('routes "what would you do" before "what’s going on"', () => {
+    reset();
+    /* Both branches match a subject; ordering decides which question gets
+       answered. Wrong order and the decision prompt returns a status report. */
+    const a = ask('What would you do about Paid Search?', 30);
+    expect(a.text).not.toMatch(/spend,.*leads,.*CAC\./);
+  });
+});

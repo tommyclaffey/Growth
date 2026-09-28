@@ -44,6 +44,24 @@ RULES, IN ORDER OF IMPORTANCE:
    why something moved, give the movement, then say plainly that the cause is
    not in this data. Do not speculate about seasonality, creative, or audience.
 
+2a. RECOMMENDATIONS COME FROM get_decisions, NEVER FROM YOU. A decision is a
+   causal claim, which rule 2 forbids you from making on your own. The engine
+   behind get_decisions computed its findings from this data and classified each
+   one; your job is to report them, not to add to them. If get_decisions returns
+   nothing, say there is nothing this data supports acting on — that is a real
+   answer, and inventing a plausible suggestion instead is the worst thing you
+   can do in this panel.
+
+2b. RESPECT THE TIER on every finding you report.
+   Tier 1 is provable arithmetic — state it as a recommendation.
+   Tier 2 is a projection — state it AND state its 'assuming' clause in the same
+     breath. A projection whose assumption is left out reads as a promise.
+   Tier 3 is a question this data CANNOT answer — never turn it into advice, even
+     softened. Report it as the open question it is and name 'needsToAnswer'.
+   ⚠️ The most striking number available is usually a tier 3: an expensive channel
+   on last-touch. Cutting it is exactly what the data cannot justify, because
+   last touch always flatters whichever channel sits nearest the conversion.
+
 3. Cost comparisons are not attribution. If you rank channels by CAC or ROAS,
    say that it is a cost comparison — a channel can look expensive and still be
    doing the work that makes another channel convert.
@@ -73,6 +91,19 @@ RULES, IN ORDER OF IMPORTANCE:
 8. Be brief. Two or three sentences. This sits in a panel next to the charts,
    not in a report. Lead with the answer.
 
+9. When someone asks what is going on with a metric, a channel, a campaign or an
+   ad, answer in this order: the figures, then what the engine found about it,
+   then what this data cannot tell them about it. Always the third part — a
+   limitation stated only when the news is bad reads as an excuse; stated every
+   time, it is a property of the instrument.
+
+METRICS THIS DASHBOARD HAS: spend, impressions, clicks, leads, sales, revenue,
+and the derived CTR, CPC, CPM, CVR, CAC and ROAS. Not every channel reports every
+one — a podcast ad has no click, affiliates report no impressions — so use
+get_blended for any rate and say which channels it covers. Do NOT tell the user a
+metric is unavailable without checking; the tools above are the authority on what
+exists, and if a metric is in their enum, the product has it.
+
 Currency is USD. CAC is dollars per lead. ROAS is a multiple of spend.`;
 
 interface Metrics {
@@ -85,6 +116,28 @@ interface Metrics {
   delta: (scope: string, metric: string, range: number) => number;
   series: (scope: string, metric: string, range: number) => { label: string; value: number }[];
   formatMetric: (metric: string, value: number) => string;
+  METRICS: string[];
+}
+
+/** The decision engine, loaded through Vite like the data layer. */
+interface Decisions {
+  decisions: (range: number, channels?: string[]) => DecisionCandidate[];
+}
+interface DecisionCandidate {
+  tier: 1 | 2 | 3;
+  action: string;
+  because: string;
+  evidence: { label: string; value: string }[];
+  expectation?: { outcome: string; assuming?: string; checkOn: string };
+  needs?: string;
+  channel?: string;
+}
+
+/** Blended coverage, so the model can say which channels a rate excludes. */
+interface Blended {
+  blendedTotal: (m: string, channels: string[], range: number) => number;
+  coverageFor: (m: string, channels: string[]) => string[];
+  coverageNote: (m: string, channels: string[]) => string | null;
 }
 
 /** Captured as the tools run, so the UI can show what the answer was built from. */
@@ -102,9 +155,20 @@ interface Evidence { label: string; value: string; channel?: string }
  */
 interface Source { title: string; url: string }
 
-function buildTools(m: Metrics, range: number, evidence: Evidence[]) {
+function buildTools(m: Metrics, d: Decisions, b: Blended, range: number, evidence: Evidence[]) {
   const scopeEnum = ['all', ...m.activeChannels()];
-  const metricEnum = ['Spend', 'Clicks', 'Leads', 'Sales', 'CAC', 'ROAS'];
+  /* 🐛 STALE, AND IT MADE THE PRODUCT LIE ABOUT ITSELF.
+
+     This read ['Spend','Clicks','Leads','Sales','CAC','ROAS'] -- the six funnel
+     metrics the app had when these tools were written. Impressions, CTR, CPC,
+     CPM and CVR arrived with G-010 and nobody updated the enum, so asking the
+     model about impressions produced: "This dashboard doesn't track impressions."
+
+     ⚠️ The model was not hallucinating. It was TOLD that, by a tool surface that
+     had drifted from the product. A tool schema is the app's self-description,
+     and a stale one turns a correct model into a confidently wrong one. Derived
+     from the real vocabulary now, so it cannot drift again. */
+  const metricEnum = [...m.METRICS, 'Impressions', 'CTR', 'CPC', 'CPM', 'CVR'];
   const label = (s: string) => (s === 'all' ? 'All channels' : m.CHANNEL_LABEL[s] ?? s);
 
   const scopeProp = {
@@ -138,6 +202,73 @@ function buildTools(m: Metrics, range: number, evidence: Evidence[]) {
           { label: `${label(scope)} · ROAS`, value: m.formatMetric('ROAS', t.roas), channel: scope },
         );
         return JSON.stringify({ scope: label(scope), rangeDays: range, ...t });
+      },
+    }),
+
+    betaTool({
+      name: 'get_blended',
+      description:
+        'A single metric across the channels that can actually report it, with its coverage. '
+        + 'Use for Impressions, CTR, CPC, CPM and CVR, which not every channel has — podcasts '
+        + 'have no click, affiliates report no impressions. Returns the figure and which '
+        + 'channels it was computed over.',
+      inputSchema: {
+        type: 'object',
+        properties: { metric: metricProp },
+        required: ['metric'],
+        additionalProperties: false,
+      },
+      run: ({ metric }: { metric: string }) => {
+        const channels = m.activeChannels();
+        const value = b.blendedTotal(metric, channels, range);
+        const covering = b.coverageFor(metric, channels);
+        const note = b.coverageNote(metric, channels);
+        evidence.push({ label: `Blended ${metric}`, value: m.formatMetric(metric, value), channel: 'all' });
+        if (note) evidence.push({ label: `${metric} coverage`, value: note, channel: 'all' });
+        return JSON.stringify({
+          metric, value, rangeDays: range,
+          computedOver: covering.map((c) => label(c)),
+          excluded: channels.filter((c) => !covering.includes(c)).map((c) => label(c)),
+        });
+      },
+    }),
+
+    betaTool({
+      name: 'get_decisions',
+      description:
+        'What the decision engine found — the SAME findings the Decisions screen shows, '
+        + 'already computed and already classified. Call this for any question about what to '
+        + 'do, what to cut, what to prioritise, or what this data cannot answer. '
+        + 'Each finding carries a tier: 1 is provable arithmetic, 2 is a projection with a '
+        + 'stated assumption, 3 is a question this data CANNOT answer. '
+        + 'Never invent a recommendation — report what this returns.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          channel: {
+            type: 'string' as const,
+            enum: scopeEnum,
+            description: 'Optional. "all" for the whole account, or one channel to filter to.',
+          },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+      run: ({ channel }: { channel?: string }) => {
+        const found = d.decisions(range, m.activeChannels());
+        const mine = !channel || channel === 'all'
+          ? found : found.filter((c) => c.channel === channel);
+        for (const c of mine.slice(0, 3)) {
+          evidence.push(...c.evidence.slice(0, 2).map((e) => ({
+            label: e.label, value: e.value, channel: c.channel,
+          })));
+        }
+        return JSON.stringify(mine.map((c) => ({
+          tier: c.tier, action: c.action, because: c.because,
+          expect: c.expectation?.outcome,
+          assuming: c.expectation?.assuming,
+          needsToAnswer: c.needs,
+        })));
       },
     }),
 
@@ -266,6 +397,12 @@ export function assistantApi(): Plugin {
           /* Load the dashboard's own data layer through Vite so the tools call
              the exact functions the charts call — one source of truth. */
           const m = (await server.ssrLoadModule('/src/data/metrics.ts')) as unknown as Metrics;
+          /* The same engine the Decisions screen and the local agent read. Three
+             surfaces, one source of judgement -- a second one on the model path
+             could disagree with the other two and nobody could tell which to
+             believe. */
+          const d = (await server.ssrLoadModule('/src/data/decisions.ts')) as unknown as Decisions;
+          const b = (await server.ssrLoadModule('/src/data/blended.ts')) as unknown as Blended;
 
           const evidence: Evidence[] = [];
           const client = new Anthropic({ apiKey: key });
@@ -276,7 +413,7 @@ export function assistantApi(): Plugin {
             output_config: { effort: 'low' },
             system: SYSTEM,
             tools: [
-              ...buildTools(m, Number(range), evidence),
+              ...buildTools(m, d, b, Number(range), evidence),
               /* Server-side: runs on Anthropic's infrastructure, so there is no
                  run() to write and no search account to hold. Capped at 3 so a
                  benchmark question cannot turn into an open-ended crawl. */

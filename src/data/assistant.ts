@@ -173,6 +173,61 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
 
   const found = decisions(range);
 
+  /* "what would you do about X" -- the decision, scoped to one subject.
+
+     Placed BEFORE the "what's going on" branch because "what would you do about
+     Meta" contains no "what's going on" but does name a subject; routed the
+     other way it would answer the wrong question. */
+  if (/what would you do|what.s the (call|move|decision)|your recommendation/i.test(q)) {
+    const campaignFor = subject?.kind === 'campaign'
+      ? CAMPAIGNS.find((c) => c.id === subject.id)
+      : CAMPAIGNS.find((c) => q.toLowerCase().includes(c.name.toLowerCase().slice(0, 14)));
+    const chFor = subject?.kind === 'channel'
+      ? (subject.id as ChannelName) : findChannels(q)[0];
+
+    const tgt: Target = subject?.kind === 'ad' ? subject
+      : campaignFor ? { kind: 'campaign', id: campaignFor.id, label: campaignFor.name }
+      : chFor ? { kind: 'channel', id: chFor, label: CHANNEL_LABEL[chFor] }
+      : { kind: 'account', id: 'account', label: 'this account' };
+
+    const mine = decisionsFor(tgt, range);
+    const act = mine.filter((c) => c.tier !== 3);
+    const ask3 = mine.filter((c) => c.tier === 3);
+
+    if (act.length === 0) {
+      return {
+        answered: true,
+        text: [
+          `Nothing about ${tgt.label} that this data supports acting on.`,
+          ask3.length > 0
+            ? `${ask3[0].action} ${ask3[0].because}`
+            : 'The numbers are within the bands where a change would be noise rather than a finding.',
+          'I would rather say that than manufacture a recommendation to fill the space.',
+        ].join('\n\n'),
+        followUps: ['What should I do next?', 'What can this data not tell me?'],
+      };
+    }
+
+    return {
+      answered: true,
+      text: [
+        act.length === 1
+          ? `One call on ${tgt.label}:`
+          : `${act.length} calls on ${tgt.label}, best-supported first:`,
+        ...act.slice(0, 3).map((c, i) => `${i + 1}. ${speak(c)}`),
+        ask3.length > 0
+          ? `And one I will not turn into a call: ${ask3[0].action} ${ask3[0].because}`
+          : '',
+      ].filter(Boolean).join('\n\n'),
+      evidence: asEvidence(act[0]),
+      followUps: [
+        `Why \u201c${act[0].action}\u201d?`,
+        'What should I do next?',
+        'What can this data not tell me?',
+      ],
+    };
+  }
+
   /* ── User-initiated: "what's going on with THIS?" ────────────────────────
 
      ⭐ The engine pushes an agenda; this is the pull. A marketer looking at a row
@@ -254,9 +309,18 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
         { label: `${target.label} spend`, value: formatMetric('Spend', t.spend), channel: scope },
         { label: `${target.label} CAC`, value: formatMetric('CAC', t.cac), channel: scope },
       ],
+      /* ⭐ The DECISION comes first, not an explanation.
+         Tommy: "make the very next prompt after we say what's going on... prompt
+         it immediately to ask what decision it would make."
+
+         Right, and it is the difference between a reporting tool and a thought
+         partner. Someone who just read what is going on has exactly one next
+         question, and it is not "why did you say that" -- it is "so what would
+         you do". Leading with the explanation answers a question they have not
+         asked yet. */
       followUps: [
+        `What would you do about ${target.label}?`,
         ...(actionable[0] ? [`Why \u201c${actionable[0].action}\u201d?`] : []),
-        'What should I do next?',
         'What can this data not tell me?',
       ],
     };

@@ -133,13 +133,28 @@
    show; never visible, the affordance does not exist. Focus-visible is what
    keeps it reachable by keyboard rather than mouse-only. */
 .gr-table__ask { width: 3rem; text-align: right; }
+/* A BUTTON, not link text.
+
+   It shipped as bare blue text, which reads as a link -- and a link implies
+   navigation, which this does not do: it opens a panel. The affordance has to
+   match the action. Bordered, on a tinted surface, sized to the 24px control
+   height the rest of the product uses for row-level controls. */
 .gr-ask {
   opacity: 0;
-  padding: var(--space-2) var(--space-8);
-  color: var(--accent-base);
+  height: 24px;
+  padding: 0 var(--space-10);
+  color: var(--accent-text);
+  background: var(--accent-tint);
+  border: var(--border-width-sm) solid var(--accent-soft);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: opacity 120ms ease;
+  white-space: nowrap;
+  transition: opacity 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.gr-ask:hover {
+  background: var(--accent-base);
+  border-color: var(--accent-base);
+  color: var(--brand-on-accent);
 }
 /* ⚠️ Every row class that carries an Ask button, not just the channel table's.
    The Ads screen reuses `gr-campaign__adset-row`, so keying the reveal on

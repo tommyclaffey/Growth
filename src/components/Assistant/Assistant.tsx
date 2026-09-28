@@ -156,7 +156,11 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                 {t.answer.text.split('\n\n').map((para, i) => (
                   <p key={i} className="gr-type-body gr-assist__para">{para}</p>
                 ))}
-                {t.answer.evidence && (
+                {/* 🐛 `evidence &&` rendered the panel for an EMPTY array too,
+                    so a refusal -- which uses no figures by definition -- drew a
+                    "Figures used" heading over nothing. An empty labelled box
+                    reads as a thing that failed to load. */}
+                {t.answer.evidence && t.answer.evidence.length > 0 && (
                   <div className="gr-assist__evidence">
                     <p className="gr-assist__evidence-head gr-type-overline">Figures used</p>
                     {t.answer.evidence.map((e, i) => (
