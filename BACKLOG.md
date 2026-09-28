@@ -81,7 +81,9 @@ more fields on the same record. And G-001 already made the queue accept **derive
 entries rendered differently — **a third source, *proposed*, slots straight in.**
 
 ### 🛣 Build order — step 1 needs no model
-1. **`decisions.ts`** — pure candidate engine, typed, unit tested. No UI, no model.
+1. [x] ~~**`decisions.ts`** — pure candidate engine, typed, unit tested. No UI, no model.~~
+   ✅ **DONE `09eedaa`** — 8 detectors, `validate()` enforcing the tier contract, 24 tests.
+   ⚠️ **Three detectors are silent and right to be — see G-013.**
 2. **Decisions surface** — queue ranked by confidence. Accept → task. Dismiss → reason.
 3. **Tier 3 as questions** — ship early; it is what makes the feature trustworthy.
 4. **Model as narrator** — behind the existing `/api/assistant` fallback. **Never given raw numbers
@@ -89,10 +91,10 @@ entries rendered differently — **a third source, *proposed*, slots straight in
 5. **Grading** — expected vs actual once the check date passes. ⭐ Nobody else's portfolio dashboard
    keeps score of its own recommendations.
 
-### 🔍 Decide before building
-- [ ] **Confidence-tier model** — is the 3-tier scheme above the right frame? It is opinionated and
-      everything else hangs off it.
-- [ ] **Where it lives** — its own nav item, or the Overview attention strip grown up?
+### ✅ Decided Sept 27
+- [x] **Confidence-tier model** → ✅ **three tiers**, as above. `validate()` enforces it in code.
+- [x] **Where it lives** → ✅ **its own nav item**, beside Overview/Channels/Campaigns/Ads.
+      A co-equal surface, not a widget — it is a thought partner, not a panel.
 - [ ] ⚠️ **Capture the research.** Tommy said this came from usability testing or a conversation.
       **Write down what was said.** Growth's case study has no research section — this origin is
       worth more than any feature here.
@@ -309,6 +311,58 @@ the denominator does not exist.
 *show what the medium can honestly report* — extended to the blend, with the coverage stated
 on the card. *"My blended CTR says which channels are in it, because two of six have no
 impressions"* is a better interview answer than any feature on this list.
+
+---
+
+## 🔴 G-013 — Ads have no performance variation, so "which ad is winning" has no answer
+
+**Found by the decision engine finding nothing** — three detectors came back empty and were right to.
+
+`creative.ts` assigns an ad its **spend and its leads by the SAME share** of its ad set. So every
+ad inside a campaign has an **identical CAC by construction:**
+
+```
+c1a-cr1   spend=9920  leads=289.1  cac=34.31
+c1a-cr3   spend=7440  leads=216.8  cac=34.31   ← same, exactly
+c6a-cr1   spend=11040 leads=301.3  cac=36.64
+c6b-cr1   spend=7280  leads=198.7  cac=36.64   ← same, exactly
+```
+
+`adSets.ts` and `adRanking.ts` both scale by spend share only, so the same flatness runs through
+the ad-set tier too. **Performance variation exists only at campaign level and above**, where
+`campaignSeries` adds a per-campaign leads wobble.
+
+### ⚠️ What this undercuts, stated plainly
+
+- **The Ads screen (`52f924b`)** ranks ads that are all equally efficient *within* a campaign. Its
+  relative mode still differentiates across campaigns and channels, so the screen is not useless —
+  but *"which of my 40 ads is winning"* currently resolves to *"which campaign is winning,"* and
+  that was already answerable.
+- **`rankCreatives` by CAC inside a campaign is a no-op** — every ad ties and it falls through to
+  the spend tie-break.
+- **The decision engine's two most valuable detectors cannot fire:**
+  `spend-return-mismatch` (pause an underperformer) and `scale-winner`.
+- 🚨 **And `reallocate-within-channel` cannot fire either**, for a second and separate reason: **no
+  channel has two `Active` campaigns.** Meta has one Active + one Paused, TikTok one + one Draft,
+  Paid Search one + one Review, podcasts one Ended. That is a *fixture* problem, not a code one.
+
+### ⭐ The insight worth keeping
+
+**The decision engine turned out to be a test of the data model.** Pointing it at the dataset
+immediately exposed where the seeded data is too uniform to be realistic — a real ad account has
+wildly varying ad performance, and this one has none. **No amount of UI would have revealed that;
+a detector finding nothing did.**
+
+### ▶️ The fix
+- [ ] Give each ad its own **efficiency wobble**, the way `campaignSeries` already does per
+      campaign — deterministic, seeded from the ad id, and **renormalised so the ads still sum to
+      their ad set exactly.** The reconciliation tests are the guard rail.
+- [ ] Same for ad sets within a campaign.
+- [ ] Add a **second Active campaign** to at least one channel so reallocation has something to
+      compare. ⚠️ Changing a fixture moves the normalised totals — the existing daily-reconciliation
+      tests will catch it.
+- [ ] ⚠️ Do it **with** G-011, not separately. Both are `metrics.ts`/`creative.ts` surgery on the
+      same normalisation, and doing them in two passes means reconciling twice.
 
 ---
 
