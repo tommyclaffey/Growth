@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { decisions, decisionsByTier, validate, type Candidate } from '../decisions';
 import { ALL_CHANNELS } from '../blended';
+import { CAMPAIGNS } from '../campaigns';
 import { CHANNEL_KEYS, CHANNEL_LABEL, RANGES, setActiveChannels } from '../metrics';
 import { setStage } from '../campaignStatus';
 
@@ -412,5 +413,68 @@ describe('every decision says where it lives', () => {
     }
     /* At minimum the ad-level findings on one ad set collapse to one address. */
     expect([...byAddress.keys()].every((k) => k.length > 0)).toBe(true);
+  });
+});
+
+describe('⭐ the engine finds opportunities, not only faults', () => {
+  it('a healthy campaign is no longer a dead end', () => {
+    reset();
+    /* "I'm not getting any sort of opportunity." Every detector before these two
+       answered "what is broken", so a campaign that is fine returned nothing —
+       and "nothing" to every question about a healthy account is technically
+       honest and practically useless. */
+    const branded = all().filter((c) => /Branded Search Defense/.test(c.action));
+    expect(branded.length).toBeGreaterThan(0);
+  });
+
+  it('spots a campaign with no variant to learn from', () => {
+    reset();
+    const found = all().filter((c) => c.kind === 'no-variant');
+    expect(found.length).toBeGreaterThan(0);
+    for (const c of found) {
+      /* ⚠️ Tier 1, and it has to stay there: the claim is structural, not a
+         forecast. "Add a variant" promises the ability to TELL, never better
+         performance — which is what keeps it out of tier 2. */
+      expect(c.tier, c.action).toBe(1);
+      expect(c.expectation?.assuming, c.action).toBeUndefined();
+      expect(c.action, c.action).toMatch(/^Add a second /);
+      /* It must not promise a result. */
+      expect(c.expectation?.outcome, c.action)
+        .not.toMatch(/\b(improve|better performance|lower your|increase)\b/i);
+    }
+  });
+
+  it('spots a campaign beating its own channel, and asks WHY not "scale it"', () => {
+    reset();
+    const found = all().filter((c) => c.kind === 'beats-its-channel');
+    expect(found.length).toBeGreaterThan(0);
+    for (const c of found) {
+      expect(c.tier).toBe(1);
+      /* Scaling is a forecast and would be tier 2. Learning is arithmetic. */
+      expect(c.action).toMatch(/^Find out why /);
+      expect(c.action).not.toMatch(/\b(scale|increase|shift|move)\b/i);
+    }
+  });
+
+  it('⚠️ compares a campaign to its OWN channel, never the account', () => {
+    reset();
+    /* Like-for-like: same medium, same attribution treatment. Comparing it to
+       the account blend would be the podcast trap in miniature — an affiliates
+       campaign would look extraordinary next to podcasts and mean nothing. */
+    for (const c of all().filter((x) => x.kind === 'beats-its-channel')) {
+      expect(c.channel).toBeDefined();
+      expect(c.because).toContain(CHANNEL_LABEL[c.channel!]);
+    }
+  });
+
+  it('a channel with one campaign raises no winner', () => {
+    reset();
+    /* Comparing a campaign to a blend that IS that campaign is the tautology
+       benchmark.ts refuses at n < 2. */
+    const single = CHANNEL_KEYS.filter(
+      (k) => CAMPAIGNS.filter((c) => c.channel === k).length < 2);
+    for (const k of single) {
+      expect(all().some((c) => c.kind === 'beats-its-channel' && c.channel === k)).toBe(false);
+    }
   });
 });

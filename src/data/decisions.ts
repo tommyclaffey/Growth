@@ -3,6 +3,7 @@ import { CAMPAIGNS } from './campaigns';
 import { campaignTotals } from './campaignSeries';
 import { stageOf } from './campaignStatus';
 import { rankedAds } from './adRanking';
+import { creativesFor } from './creative';
 import { CHANNEL_DEPTH } from './channelDepth';
 import { formatDerived } from './channelMetrics';
 import { budgetForRange } from './profile';
@@ -70,6 +71,8 @@ export type DecisionKind =
   | 'reallocate-within-channel'
   | 'stale-review'
   | 'closed-campaign-open-task'
+  | 'no-variant'
+  | 'beats-its-channel'
   | 'concentration-risk'
   | 'pacing'
   | 'cross-channel-cost-gap';
@@ -556,6 +559,174 @@ function concentrationRisk(range: Range, channels: ChannelName[]): Candidate[] {
 }
 
 /**
+ * A campaign with nothing to compare against itself.
+ *
+ * ⭐ THE ENGINE ONLY KNEW HOW TO FIND PROBLEMS. Everything above answers "what is
+ * broken", so a campaign that is fine returned nothing — and "nothing" to every
+ * question about a healthy account is technically honest and practically useless.
+ * Tommy, after the fourth such answer: "I'm not getting any sort of opportunity."
+ *
+ * This is the first detector that finds an OPPORTUNITY rather than a fault, and
+ * it is still tier 1 because it claims nothing about performance. A campaign
+ * running one ad set has no audience to compare against; a campaign whose ad sets
+ * each hold one ad has no creative to compare against. That is a structural fact,
+ * visible without judgement, and it is the most common reason an account stops
+ * learning.
+ *
+ * ⚠️ The action is to ADD a variant, not to change a number. It cannot promise
+ * better performance — it promises the ability to TELL, which is a different and
+ * far more defensible claim, and it is why this stays tier 1.
+ */
+function noVariant(range: Range, channels: ChannelName[]): Candidate[] {
+  const out: Candidate[] = [];
+
+  for (const c of CAMPAIGNS) {
+    if (!channels.includes(c.channel)) continue;
+    if (stageOf(c.id) !== 'Active') continue;
+
+    const noun = CHANNEL_DEPTH[c.channel];
+    const ads = creativesFor(c.id);
+    const t = campaignTotals(c.id, range);
+    if (t.spend <= 0) continue;
+
+    if (c.adSets.length === 1) {
+      out.push({
+        id: `no-variant:adset:${c.id}`,
+        tier: 1,
+        kind: 'no-variant',
+        action: `Add a second ${noun.group.one.toLowerCase()} to \u201c${c.name}\u201d`,
+        because: `It runs one ${noun.group.one.toLowerCase()} on `
+          + `${formatMetric('Spend', t.spend)}, so there is nothing to compare it against `
+          + `\u2014 whatever it is doing, you cannot tell whether something else would do better.`,
+        evidence: [
+          { label: noun.group.many, value: '1' },
+          { label: 'Spend', value: formatMetric('Spend', t.spend) },
+          { label: 'CAC', value: formatDerived('CAC', t.cac) },
+        ],
+        expectation: {
+          outcome: `A second ${noun.group.one.toLowerCase()} makes the current one measurable. `
+            + `Right now its ${formatDerived('CAC', t.cac)} has nothing to be good or bad against.`,
+          checkOn: checkDate(range),
+        },
+        target: { kind: 'campaign', id: c.id, label: c.name },
+        scope: [CHANNEL_LABEL[c.channel], c.name],
+        channel: c.channel,
+        strength: 0.6,
+      });
+      continue;
+    }
+
+    const singles = c.adSets.filter((a) => ads.filter((x) => x.adSetId === a.id).length < 2);
+    if (singles.length === c.adSets.length && c.adSets.length > 0) {
+      out.push({
+        id: `no-variant:ad:${c.id}`,
+        tier: 1,
+        kind: 'no-variant',
+        action: `Add a second ${noun.leaf.one.toLowerCase()} in \u201c${c.name}\u201d`,
+        because: `Every ${noun.group.one.toLowerCase()} in it runs a single `
+          + `${noun.leaf.one.toLowerCase()}, so no creative here is being tested against anything.`,
+        evidence: [
+          { label: noun.group.many, value: String(c.adSets.length) },
+          { label: noun.leaf.many, value: String(ads.length) },
+          { label: 'Spend', value: formatMetric('Spend', t.spend) },
+        ],
+        expectation: {
+          outcome: `Makes the creative measurable. Creative is the largest single lever in `
+            + `paid media, and nothing here is currently measuring it.`,
+          checkOn: checkDate(range),
+        },
+        target: { kind: 'campaign', id: c.id, label: c.name },
+        scope: [CHANNEL_LABEL[c.channel], c.name],
+        channel: c.channel,
+        strength: 0.5,
+      });
+    }
+  }
+
+  return out;
+}
+
+/**
+ * A campaign beating the channel it runs on.
+ *
+ * ⭐ The other half of "only knew how to find problems". Every other detector
+ * looks for something going wrong; this looks for something going RIGHT and says
+ * so, because "this is your best campaign and here is by how much" is information
+ * a dashboard should surface rather than leave a reader to derive.
+ *
+ * ⚠️ Like-for-like on purpose — a campaign against its OWN channel, same medium,
+ * same attribution treatment. The same reasoning that makes within-channel
+ * reallocation tier 2 rather than tier 3. Comparing it to the ACCOUNT would be the
+ * podcast trap in miniature.
+ *
+ * The action is to find out WHY, not to scale it. Scaling is a forecast.
+ */
+function beatsItsChannel(range: Range, channels: ChannelName[]): Candidate[] {
+  const out: Candidate[] = [];
+
+  for (const channel of channels) {
+    /* ⚠️ The population is EVERY campaign on the channel, not just the active
+       ones — because the channel total it is measured against includes them all.
+       Counting only Active campaigns made Paid Search look like a one-campaign
+       channel (its second is in Review) and skipped the comparison entirely,
+       which is exactly the case that prompted this detector.
+
+       A single-campaign channel is still skipped: comparing a campaign to a
+       blend that IS that campaign is the tautology benchmark.ts already refuses
+       at n < 2. */
+    const population = CAMPAIGNS.filter((c) => c.channel === channel);
+    if (population.length < 2) continue;
+
+    /* Findings are only raised for campaigns you can still act on. */
+    const peers = population.filter((c) => stageOf(c.id) === 'Active');
+    if (peers.length === 0) continue;
+
+    const ch = totals(channel, range);
+    if (ch.leads <= 0) continue;
+    const chCac = ch.spend / ch.leads;
+
+    for (const c of peers) {
+      const t = campaignTotals(c.id, range);
+      if (t.leads < 50 || t.cac <= 0) continue;
+      const better = (chCac - t.cac) / chCac;
+      if (better < 0.1) continue;
+
+      out.push({
+        id: `beats-channel:${c.id}`,
+        tier: 1,
+        kind: 'beats-its-channel',
+        action: `Find out why \u201c${c.name}\u201d beats ${CHANNEL_LABEL[channel]}`,
+        /* Names the channel rather than saying "the channel". The card can be
+           scanned without reading the action above it, and "the channel's
+           $85.98" leaves the reader to work out which channel that was. */
+        because: `It costs ${formatDerived('CAC', t.cac)} a lead against `
+          + `${CHANNEL_LABEL[channel]}'s ${formatDerived('CAC', chCac)} `
+          + `\u2014 ${Math.round(better * 100)}% better \u2014 on `
+          + `${formatMetric('Spend', t.spend)}. Whatever it does differently is the only thing `
+          + `on this channel working better than average.`,
+        evidence: [
+          { label: `${c.name} CAC`, value: formatDerived('CAC', t.cac) },
+          { label: `${CHANNEL_LABEL[channel]} CAC`, value: formatDerived('CAC', chCac) },
+          { label: 'Better by', value: `${Math.round(better * 100)}%` },
+          { label: 'Spend', value: formatMetric('Spend', t.spend) },
+        ],
+        expectation: {
+          outcome: `Whatever explains the gap \u2014 audience, creative, match type \u2014 is `
+            + `worth knowing before it gets copied anywhere else.`,
+          checkOn: checkDate(range),
+        },
+        target: { kind: 'campaign', id: c.id, label: c.name },
+        scope: [CHANNEL_LABEL[channel], c.name],
+        channel,
+        strength: Math.min(1, better / 0.4),
+      });
+    }
+  }
+
+  return out;
+}
+
+/**
  * Pacing against the monthly budget.
  *
  * TIER 1. Spend to date and a planned figure, divided. The one thing it must not
@@ -721,6 +892,8 @@ export function decisions(
     ...scaleWinner(range, channels),
     ...reallocateWithinChannel(range, channels),
     ...staleReview(channels),
+    ...noVariant(range, channels),
+    ...beatsItsChannel(range, channels),
     ...concentrationRisk(range, channels),
     ...pacing(range, channels),
     ...crossChannelCostGap(range, channels),
