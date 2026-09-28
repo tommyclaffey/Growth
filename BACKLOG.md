@@ -12,6 +12,93 @@ an ID.
 
 ---
 
+## 🌟 G-012 — THE AI DECISION MAKER *(north star, Sept 27)*
+
+> *"An AI decision maker to help take this data and then suggest decisions to make on this data…
+> a thought partner alongside those analytics."* — Tommy, Sept 27
+
+**Full concept:** `(C) Growth — The AI Decision Maker (North Star, Sept 27 2026)` in the vault.
+**This is the direction everything else now serves.** Not a feature in a list.
+
+**The dashboard says what happened. This says what to do — and shows its work.**
+
+### ⚠️ It is NOT the existing assistant
+
+The assistant answers *"what's my CAC on Meta?"* — retrieval. This answers *"where should my next
+$10k go?"* — judgment. **A wrong answer costs a moment of confusion; a wrong decision costs money,
+and the user acted on it because the product said so.**
+
+### 🚨 The collision, which is the important part
+
+`server/assistantApi.ts` rule 2, written months before this came up:
+
+> *"You can say WHAT changed and BY HOW MUCH. **You cannot say WHY.** This data has no attribution
+> model, no campaign log, and no outside context."*
+
+**A decision is a causal claim.** "Move budget from A to B" means "B will convert it better."
+
+⭐ **The example that proves it matters.** Point a naive AI at this dashboard and its FIRST
+recommendation will be *"cut podcast spend, CAC is $129 vs Meta's $36."* That is precisely what
+rule 3 forbids — and it is probably **wrong**. Podcasts are upper-funnel; a last-touch dashboard
+systematically undervalues them, and the podcast ad is often what caused the branded search Meta
+got credit for. **The most confident, most data-supported recommendation available is a trap, and
+the user cannot tell.**
+
+> The interview line: *"The first thing my AI decision layer refuses to do is the thing it looks
+> most qualified to do."*
+
+### 🏗 The architecture — numbers are code, only the argument is generated
+
+🛑 **Do not ask a model what to do.** A deterministic engine enumerates candidates from the data;
+the model writes the argument.
+
+- **The maths becomes unit-testable.** An LLM's arithmetic is not.
+- **It works with no API key** — so it works in the deployed static build, the constraint that
+  already bit Slack and the assistant.
+- Same precedent as `assistantClient.ts`: *"THE FALLBACK IS THE FEATURE."*
+
+### 🎚 Three confidence tiers — the core of it
+
+| Tier | | Recommend? |
+|---|---|---|
+| **1 · Arithmetic** | *"takes 12% of spend, returns 3% of leads"* | ✅ yes |
+| **2 · Conditional** | *"buys ~180 leads **if CAC holds at that volume**"* | ✅ yes, condition visible |
+| **3 · Causal** | *"cut podcasts"* · *"creative is fatigued"* | 🛑 **no — becomes a QUESTION** naming the missing data |
+
+⚠️ **Rank by how well-supported a decision is, never by how big the number is.** The biggest dollar
+figure on this dashboard is almost always a tier-3 trap.
+
+**Every decision carries a falsifiable expectation** — expected outcome, stated assumption, a date
+to check. A recommendation nobody can grade means nobody ever learns whether the engine is good.
+
+### 🔗 Why it fits: the object is already half-built
+
+**Flag** *(this matters — G-001 ✅)* → **Task** *(someone owns it, by a date — G-008 ✅)* →
+**Decision** *(here's the action, the reason, what we expect)*.
+
+`attention.ts` already says it: *"A task is a FLAG WITH FIELDS, not a second object."* A decision is
+more fields on the same record. And G-001 already made the queue accept **derived** and **assigned**
+entries rendered differently — **a third source, *proposed*, slots straight in.**
+
+### 🛣 Build order — step 1 needs no model
+1. **`decisions.ts`** — pure candidate engine, typed, unit tested. No UI, no model.
+2. **Decisions surface** — queue ranked by confidence. Accept → task. Dismiss → reason.
+3. **Tier 3 as questions** — ship early; it is what makes the feature trustworthy.
+4. **Model as narrator** — behind the existing `/api/assistant` fallback. **Never given raw numbers
+   to do maths on.**
+5. **Grading** — expected vs actual once the check date passes. ⭐ Nobody else's portfolio dashboard
+   keeps score of its own recommendations.
+
+### 🔍 Decide before building
+- [ ] **Confidence-tier model** — is the 3-tier scheme above the right frame? It is opinionated and
+      everything else hangs off it.
+- [ ] **Where it lives** — its own nav item, or the Overview attention strip grown up?
+- [ ] ⚠️ **Capture the research.** Tommy said this came from usability testing or a conversation.
+      **Write down what was said.** Growth's case study has no research section — this origin is
+      worth more than any feature here.
+
+---
+
 ## ✅ G-001 — Every state change is reversible *(done Sept 9)*
 
 **Derived AND assigned.** "Needs attention" now accepts both: attention the data
