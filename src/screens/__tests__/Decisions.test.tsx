@@ -8,7 +8,7 @@ import { CHANNEL_KEYS, setActiveChannels } from '../../data/metrics';
 import { setChannels } from '../../data/channels';
 import { ask } from '../../data/assistant';
 import { dismissals, restore } from '../../data/dismissedDecisions';
-import { flags, removeFlag } from '../../data/attention';
+import { addFlag, flags, isFlagged, removeFlag } from '../../data/attention';
 
 /* ⚠️ Both stores hold a module-level cache that `localStorage.clear()` does NOT
    reset -- the cache is the source of truth in memory and storage is only its
@@ -156,5 +156,38 @@ describe('the empty case is a real answer', () => {
     expect(screen.getByText(/Nothing to decide on right now/)).toBeTruthy();
     setActiveChannels([...CHANNEL_KEYS]);
     setChannels([...CHANNEL_KEYS]);
+  });
+});
+
+describe('the assistant and the Decisions screen share one queue', () => {
+  it('⭐ a decision taken in the conversation appears as accepted on the screen', () => {
+    setChannels([...CHANNEL_KEYS]);
+    /* The loop Tommy asked for: converse, decide, and it lands in the pile.
+       Both surfaces read the same store, so accepting in one is accepting in
+       the other — there is no syncing and nothing to drift. */
+    const takeable = ask('What should I do next?', 30).decisions!;
+    expect(takeable.length).toBeGreaterThan(0);
+
+    const first = takeable[0];
+    addFlag('decision', first.id, first.action);
+
+    const { container } = render(<Decisions range={30} />);
+    const card = [...container.querySelectorAll('.gr-dec__card')]
+      .find((c) => c.textContent?.includes(first.action))!;
+    expect(card, first.action).toBeDefined();
+    expect(within(card as HTMLElement).getByText(/On your attention queue/)).toBeTruthy();
+  });
+
+  it('and undoing on the screen clears it for the conversation too', () => {
+    setChannels([...CHANNEL_KEYS]);
+    const first = ask('What should I do next?', 30).decisions![0];
+    addFlag('decision', first.id, first.action);
+
+    const { container } = render(<Decisions range={30} />);
+    const card = [...container.querySelectorAll('.gr-dec__card')]
+      .find((c) => c.textContent?.includes(first.action)) as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: /^undo$/i }));
+
+    expect(isFlagged('decision', first.id)).toBe(false);
   });
 });

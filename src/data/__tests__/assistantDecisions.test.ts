@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { SUGGESTIONS, ask, followUpsFor } from '../assistant';
+import { SUGGESTIONS, ask, decisionsForQuestion, followUpsFor } from '../assistant';
 import { decisions, decisionsFor } from '../decisions';
 import { CAMPAIGNS } from '../campaigns';
 import { creativesFor } from '../creative';
@@ -353,5 +353,66 @@ describe('🚨 follow-ups do not depend on which engine answered', () => {
     const local = ask(q, 30);
     expect(local.followUps).toEqual(
       followUpsFor(q, { kind: 'channel', label: 'Paid Search' }));
+  });
+});
+
+describe('the conversation ends in a decision you can take', () => {
+  it('a "what would you do" answer carries takeable decisions', () => {
+    reset();
+    const a = ask('What would you do about Paid Search?', 30);
+    expect(a.decisions?.length).toBeGreaterThan(0);
+    /* Each one must name the finding, so the button is not a mystery box. */
+    for (const d of a.decisions!) {
+      expect(d.action.length).toBeGreaterThan(4);
+      expect(d.id).toBeTruthy();
+    }
+  });
+
+  it('🚨 a tier 3 finding is NEVER takeable', () => {
+    reset();
+    /* The assertion this whole tier model exists for. A question has nothing to
+       take; a button there turns the refusal back into the recommendation it was
+       built to prevent. */
+    const t3 = decisions(30).filter((c) => c.tier === 3);
+    expect(t3.length).toBeGreaterThan(0);
+    const t3ids = new Set(t3.map((c) => c.id));
+
+    for (const q of ['What should I do next?', 'What should I cut?',
+      "What's going on with Podcasts?", 'What would you do about Podcasts?']) {
+      for (const d of ask(q, 30).decisions ?? []) {
+        expect(t3ids.has(d.id), `${q} offered a tier 3: ${d.action}`).toBe(false);
+        expect(d.tier).not.toBe(3);
+      }
+    }
+  });
+
+  it('takeable ids match real candidates, so accepting lands on the right thing', () => {
+    reset();
+    const all = new Map(decisions(30).map((c) => [c.id, c]));
+    const a = ask('What should I do next?', 30);
+    for (const d of a.decisions ?? []) {
+      const real = all.get(d.id);
+      expect(real, d.id).toBeDefined();
+      expect(real!.action).toBe(d.action);
+    }
+  });
+
+  it('a plain lookup sprouts no accept buttons', () => {
+    reset();
+    /* Buttons for findings the answer never mentioned would be the panel acting
+       on its own initiative. */
+    expect(decisionsForQuestion('How much did we spend on TikTok?', 30)).toEqual([]);
+  });
+
+  it('the shared rule gives the model path the same decisions', () => {
+    reset();
+    /* Identical reasoning to the follow-ups: the server returns prose and no
+       ids, so if these drift the panel behaves differently depending on whether
+       a key is configured. */
+    const q = 'What would you do about Paid Search?';
+    const local = ask(q, 30, { kind: 'channel', id: 'paidSearch', label: 'Paid Search' });
+    const shared = decisionsForQuestion(q, 30,
+      { kind: 'channel', id: 'paidSearch', label: 'Paid Search' });
+    expect(local.decisions?.map((d) => d.id)).toEqual(shared.map((d) => d.id));
   });
 });

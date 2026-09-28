@@ -1,4 +1,4 @@
-import { ask, followUpsFor, type Answer } from './assistant';
+import { ask, decisionsForQuestion, followUpsFor, type Answer } from './assistant';
 import type { Target } from './decisions';
 import type { Range } from './metrics';
 
@@ -104,7 +104,15 @@ export async function askAssistant(
        also meant they disappeared entirely the moment a key was configured,
        because the server returns none. Same rule, both paths. */
     return {
-      answer: { ...data, followUps: data.followUps ?? followUpsFor(question, subject) },
+      answer: {
+        ...data,
+        followUps: data.followUps ?? followUpsFor(question, subject),
+        /* Same reasoning as the follow-ups: the server returns prose and no ids,
+           so the accept buttons come from the engine on both paths. They match
+           what the model described by construction -- it was told to report
+           get_decisions, and this reads the same function. */
+        decisions: data.decisions ?? decisionsForQuestion(question, range, subject),
+      },
       source: 'model',
     };
   } catch {

@@ -206,3 +206,55 @@
    and the assumption under it are separate lines of one thought. */
 .gr-assist__para { white-space: pre-line; margin: 0 0 var(--space-8); }
 .gr-assist__para:last-of-type { margin-bottom: 0; }
+
+/* Take a decision, straight from the answer.
+
+   Sits above the follow-ups on purpose: acting on what was just said is a more
+   valuable next step than asking another question, and the order of the two
+   blocks is the panel's opinion about that. */
+.gr-assist__decisions {
+  display: flex; flex-direction: column; gap: var(--space-8);
+  margin: var(--space-12) 0 0;
+  padding: var(--space-12) 0 0;
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-assist__decisions .gr-assist__evidence-head { margin: 0; }
+
+.gr-assist__decision {
+  display: flex; align-items: center; gap: var(--space-8); min-width: 0;
+}
+
+/* A real button, not a link — it changes state rather than navigating. */
+.gr-assist__take {
+  flex: none;
+  height: 26px;
+  padding: 0 var(--space-12);
+  color: var(--brand-on-accent);
+  background: var(--accent-base);
+  border: var(--border-width-sm) solid var(--accent-base);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  font: inherit;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.gr-assist__take:hover { background: var(--accent-gradient-bottom); }
+.gr-assist__take:focus-visible {
+  outline: var(--border-width-md) solid var(--accent-base);
+  outline-offset: 2px;
+}
+
+/* Taken. Quiet rather than absent — it has to stay clickable to undo, and a
+   control that changes meaning has to change appearance. */
+.gr-assist__take.is-taken {
+  color: var(--semantic-good);
+  background: transparent;
+  border-color: var(--semantic-good);
+}
+
+/* The decision itself, truncating rather than wrapping the row into two lines. */
+.gr-assist__decision-label {
+  color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+@media (prefers-reduced-motion: reduce) { .gr-assist__take { transition: none; } }

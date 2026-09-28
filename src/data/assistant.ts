@@ -59,6 +59,57 @@ export interface Answer {
    * the one they are least likely to think of on their own.
    */
   followUps?: string[];
+  /**
+   * Decisions the reader can take straight from this answer.
+   *
+   * ⭐ The point of the panel is to end in a DECISION, not in a good sentence.
+   * Reading "pause this ad, it takes 15% of spend for 8% of leads", agreeing, and
+   * then having to go find the Decisions screen to act is a seam the product puts
+   * in front of the one moment it was built for.
+   *
+   * ⚠️ TIER 1 AND 2 ONLY. A tier 3 finding is a question, and there is nothing to
+   * take — offering a button would turn the refusal back into the recommendation
+   * the tier exists to prevent. `takeable()` enforces it.
+   */
+  decisions?: Takeable[];
+}
+
+export interface Takeable {
+  id: string;
+  action: string;
+  tier: 1 | 2;
+}
+
+/**
+ * The actionable findings behind an answer, as things a reader can accept.
+ *
+ * Shared, for the same reason `followUpsFor` is: the model path returns prose
+ * and no ids, so the buttons have to come from the engine either way. They
+ * correspond to what the model described by construction — it was instructed to
+ * report `get_decisions`, and this reads the same function.
+ */
+export function takeable(candidates: Candidate[]): Takeable[] {
+  return candidates
+    .filter((c): c is Candidate & { tier: 1 | 2 } => c.tier !== 3)
+    .slice(0, 3)
+    .map((c) => ({ id: c.id, action: c.action, tier: c.tier }));
+}
+
+/** Decisions a question implies, for whichever engine answered it. */
+export function decisionsForQuestion(
+  question: string, range: Range, subject?: Target,
+): Takeable[] {
+  const q = question.toLowerCase();
+  /* Only where the reader is actually asking what to do. A lookup should not
+     sprout accept buttons for findings it never mentioned. */
+  if (!/what would you do|what should i do|what.s next|recommend|priorit|cut|pause|stop|what.s going on|tell me about|how is|what about/i.test(q)) {
+    return [];
+  }
+  const target: Target | undefined = subject
+    ?? (findChannels(question)[0]
+      ? { kind: 'channel', id: findChannels(question)[0], label: '' }
+      : undefined);
+  return takeable(target ? decisionsFor(target, range) : decisions(range));
 }
 
 const METRIC_WORDS: [RegExp, Metric][] = [
@@ -269,6 +320,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
           : '',
       ].filter(Boolean).join('\n\n'),
       evidence: asEvidence(act[0]),
+      decisions: takeable(act),
       followUps: [
         `Why \u201c${act[0].action}\u201d?`,
         'What should I do next?',
@@ -358,6 +410,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
         { label: `${target.label} spend`, value: formatMetric('Spend', t.spend), channel: scope },
         { label: `${target.label} CAC`, value: formatMetric('CAC', t.cac), channel: scope },
       ],
+      decisions: takeable(actionable),
       /* ⭐ The DECISION comes first, from the shared rule -- so the model path
          offers the same route onward. Someone who just read what is going on has
          exactly one next question, and it is not "why did you say that". */
@@ -390,6 +443,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
           : '',
       ].filter(Boolean).join('\n\n'),
       evidence: asEvidence(top[0]),
+      decisions: takeable(top),
       followUps: [
         `Why “${top[0].action}”?`,
         'What can this data not tell me?',

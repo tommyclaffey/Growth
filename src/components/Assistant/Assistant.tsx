@@ -3,6 +3,7 @@ import { useOverlay } from '../../data/useOverlay';
 import './Assistant.css';
 import { SUGGESTIONS, type Answer } from '../../data/assistant';
 import type { Target } from '../../data/decisions';
+import { addFlag, isFlagged, removeFlag, useFlags } from '../../data/attention';
 import { askAssistant, probeModel, type AnswerSource } from '../../data/assistantClient';
 import { RANGE_LABEL, type Range } from '../../data/metrics';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
@@ -44,6 +45,9 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
      the footer makes a claim to the user, so it has to be checked. `null` is
      "not yet known", and the footer stays silent about the engine until it is. */
   const [hasModel, setHasModel] = useState<boolean | null>(null);
+  /* Subscribed, so taking a decision repaints the button here and the Decisions
+     screen at the same time -- one store, two surfaces. */
+  useFlags();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -174,6 +178,41 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                     ))}
                   </div>
                 )}
+                {/* ⭐ The conversation ends in a DECISION, not in a good
+                    sentence. Agreeing with "pause this ad" and then having to go
+                    find the Decisions screen to act is a seam in front of the one
+                    moment the panel exists for.
+
+                    ⚠️ Tier 1 and 2 only -- a tier 3 finding is a question and
+                    there is nothing to take. A button there would turn the
+                    refusal back into the recommendation it exists to prevent. */}
+                {t.answer.decisions && t.answer.decisions.length > 0 && (
+                  <div className="gr-assist__decisions">
+                    <p className="gr-assist__evidence-head gr-type-overline">
+                      {t.answer.decisions.length === 1 ? 'Take it' : 'Take one'}
+                    </p>
+                    {t.answer.decisions.map((d) => {
+                      const taken = isFlagged('decision', d.id);
+                      return (
+                        <span key={d.id} className="gr-assist__decision">
+                          <button
+                            type="button"
+                            className={`gr-assist__take gr-type-caption ${taken ? 'is-taken' : ''}`}
+                            onClick={() => (taken
+                              ? removeFlag('decision', d.id)
+                              : addFlag('decision', d.id, d.action))}
+                          >
+                            {taken ? '✓ On your queue' : 'Make the decision'}
+                          </button>
+                          <span className="gr-assist__decision-label gr-type-caption">
+                            {d.action}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* Where to go next. The thing that makes this a conversation
                     rather than a search box -- and after a refusal it is the most
                     valuable control on screen, because "so what WOULD tell me?"
