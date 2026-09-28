@@ -69,6 +69,20 @@ export interface KpiCardProps {
   basis?: string;
   /** The unabbreviated version of `basis`, for hover and assistive tech. */
   basisTitle?: string;
+  /**
+   * Hold the basis slot open even when this card has nothing to put in it.
+   *
+   * ⭐ Geometry is a layout problem and belongs in the layout. Coverage notes
+   * appear only on the cards that have a caveat, which is correct — printing "6
+   * of 6 channels" on the rest is four words that tell a reader nothing, added
+   * to keep one card from looking short.
+   *
+   * So the ROW decides. If any card in it carries a note, they all reserve the
+   * slot, and none of them can change height by gaining or losing one. Set per
+   * row rather than per card, because uniformity is a property of the row and a
+   * card cannot see its siblings.
+   */
+  reserveBasis?: boolean;
   /** Fires from the Discuss button, not the whole card. */
   onDiscuss?: () => void;
   /**
@@ -111,6 +125,7 @@ export function KpiCard({
   error = false,
   basis,
   basisTitle,
+  reserveBasis = false,
   onAsk,
   benchmark,
   onDiscuss,
@@ -215,6 +230,10 @@ export function KpiCard({
             {basis}
           </span>
         </span>
+      ) : reserveBasis ? (
+        /* Held open, and hidden from assistive tech -- a screen reader announcing
+           an empty region is worse than the visual gap it exists to prevent. */
+        <span className="gr-kpi__bench is-reserved" aria-hidden="true" />
       ) : null}
 
     </div>

@@ -3,7 +3,10 @@
 .gr-kpi {
   display: flex;
   flex-direction: column;
-  gap: var(--space-8);
+  /* Tightened from 8. The card carries four stacked elements now rather than
+     three, and at 8 the extra row read as a gap between two things rather than
+     the bottom of one card. */
+  gap: var(--space-6);
   /* 233 is the Figma width, kept as the flex BASIS rather than a hard width.
      The row is a fixed set of five cards in a fluid column, so they have to
      share the slack; pinning them left a growing dead gap on the right at
@@ -124,9 +127,20 @@
 .gr-kpi__bench {
   display: flex;
   align-items: center;
-  margin-top: var(--space-4);
+  /* Was 4. Folded into the card's own gap so the basis line sits with the stack
+     instead of being pushed away from it. */
+  margin-top: 0;
   min-width: 0;
+  /* ⚠️ A FIXED height, and this is the whole fix. `.gr-kpi` uses min-height, so
+     a line that appears on some cards and not others changed their height and
+     the flex row stretched the short ones -- which is what left dead space at
+     the bottom of "Total spend". Filled or reserved, this slot is always the
+     same height, so gaining or losing a note cannot move anything. */
+  height: 16px;
 }
+
+/* Reserved but empty. Occupies its height and says nothing. */
+.gr-kpi__bench.is-reserved { visibility: hidden; }
 
 /* Ask sits immediately left of Discuss. 24px control + 6px gap = 30px offset,
    so the pair keeps the same 10px inset from the card's corner and neither one

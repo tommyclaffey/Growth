@@ -95,21 +95,32 @@ describe('a row of cards keeps one shape', () => {
     return root.querySelectorAll('.gr-kpi__bench').length;
   }
 
-  it('every card in a blended row carries a basis line', () => {
-    const metrics = ['Total spend', 'Total impressions', 'Total clicks', 'Blended CTR'];
-    for (const label of metrics) {
-      const { container } = render(
-        <KpiCard label={label} value="1" deltaPercent={1} basis="6 of 6 channels" />,
-      );
-      expect(basisCount(container), label).toBe(1);
-      cleanup();
-    }
+  it('⭐ a reserved card holds the same slot as one with a note', () => {
+    /* The fix, stated as the property it has to have: within a row, a card with
+       a caveat and a card without occupy the SAME slot. `.gr-kpi` uses
+       min-height, so any difference here stretches the row and leaves dead space
+       at the bottom of the shorter card. */
+    const withNote = render(
+      <KpiCard label="Blended CTR" value="0.81%" deltaPercent={0} basis="4 of 6 channels" />,
+    );
+    expect(basisCount(withNote.container)).toBe(1);
+    cleanup();
+
+    const reserved = render(
+      <KpiCard label="Total spend" value="$160,780" deltaPercent={1} reserveBasis />,
+    );
+    expect(basisCount(reserved.container)).toBe(1);
+    /* Held open and silent -- it prints nothing and is hidden from assistive
+       tech, because announcing an empty region is worse than the gap it exists
+       to prevent. */
+    const slot = reserved.container.querySelector('.gr-kpi__bench')!;
+    expect(slot.textContent).toBe('');
+    expect(slot.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('a card with no basis has no line at all — not an empty one', () => {
-    /* An empty reserved line is the obvious fix and leaves the same hole. A
-       channel screen's cards carry no basis, and that row is uniform without
-       one. */
+  it('no reservation means no slot at all', () => {
+    /* A channel screen never has a caveat, so its row reserves nothing and the
+       cards are uniform without any empty space. */
     const { container } = render(<KpiCard label="CAC" value="$35.94" deltaPercent={-2} />);
     expect(basisCount(container)).toBe(0);
   });

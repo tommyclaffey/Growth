@@ -128,29 +128,26 @@ export function blendedSparkline(
 }
 
 /**
- * What the number is computed over, in words.
+ * What the number is computed over — only when that is a CAVEAT.
  *
- * 🔄 REVERSED. This used to return null on a complete blend, reasoning that a
- * note nobody needs is noise and noise crowds out the note that matters. Sound
- * in the abstract, and it produced a visible defect: a KPI row where three cards
- * carried a line and one did not, so the card WITHOUT the caveat grew a patch of
- * dead space when the flex row stretched everything to the tallest. Tommy spotted
- * it immediately — "it kind of messes up the other cards that aren't filled in".
+ * 🔄 Settled after two passes, and the middle one was wrong.
  *
- * ⭐ The fix is not an EMPTY reserved line, which is the obvious move and leaves
- * the same hole. Every blended card states its coverage, and a complete one says
- * so positively: "6 of 6 channels". That fills the space with information rather
- * than padding, and it turns completeness into something the card ASSERTS instead
- * of something the reader has to infer from an absence.
+ * It started as null-when-complete: a note nobody needs is noise, and noise
+ * crowds out the note that matters. That produced a ragged row — three cards
+ * carried a line, one did not, and `.gr-kpi` uses `min-height`, so the flex row
+ * stretched the short one and left dead space.
  *
- * ⚠️ Null for a single channel, because that is not a blend — there is nothing
- * for it to be partial about, and a channel screen's row is uniform without it.
- * The rule is uniformity WITHIN a row, not globally: every card on Overview has
- * the line, no card on a channel screen does.
+ * The fix attempt made every card state coverage, complete ones affirming "6 of
+ * 6 channels". It solved the geometry and lost the argument: "6 of 6" is four
+ * words that tell a reader nothing they would act on, printed on every card
+ * forever to keep one card from looking short.
  *
- * Chart fixed this same defect once already: "One legend, always present… it
- * used to appear only on compare, which made the whole card grow ~20px taller
- * the moment Compare was switched on."
+ * ⭐ Geometry is a LAYOUT problem and belongs in the layout. The note is back to
+ * appearing only when there is something to say; the card reserves the slot so
+ * presence or absence cannot change its height. Uniform rows, no invented text.
+ *
+ * ⚠️ Null for a single channel too — that is not a blend, so there is nothing for
+ * it to be partial about.
  */
 export function coverageNote(
   m: DerivedMetric, channels: ChannelName[] = activeChannels(),
@@ -158,6 +155,7 @@ export function coverageNote(
   const covering = coverageFor(m, channels);
   if (covering.length === 0) return null;
   if (channels.length < 2) return null;
+  if (covering.length === channels.length) return null;
   return `${covering.length} of ${channels.length} channels`;
 }
 
@@ -174,13 +172,8 @@ export function coverageTitle(
 ): string | undefined {
   const covering = coverageFor(m, channels);
   if (covering.length === 0 || channels.length < 2) return undefined;
+  if (covering.length === channels.length) return undefined;
   const names = (list: ChannelName[]) => list.map((c) => CHANNEL_LABEL[c]).join(', ');
-  /* The complete case gets a sentence too, not silence. "All six" is a claim
-     worth making explicitly on a dashboard whose whole argument is that it says
-     what it can and cannot see. */
-  if (covering.length === channels.length) {
-    return `${m} covers all ${channels.length} channels you run: ${names(covering)}.`;
-  }
   const missing = channels.filter((c) => !covering.includes(c));
   return `${m} covers ${names(covering)}. Excluded: ${names(missing)} — `
     + `${missing.length === 1 ? 'it does' : 'they do'} not report ${m}.`;
