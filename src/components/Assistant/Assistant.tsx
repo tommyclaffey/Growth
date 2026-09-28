@@ -105,8 +105,9 @@ export function Assistant({ open, onClose, range }: AssistantProps) {
           {turns.length === 0 && (
             <div className="gr-assist__empty">
               <p className="gr-type-body">
-                Ask about spend, leads, CAC or ROAS by channel. I answer from the numbers
-                on these screens and show my working.
+                Ask me what to do. I read the same numbers the charts do, and I will tell
+                you which findings this data can support and which it cannot — with the
+                figures I used, every time.
               </p>
               <div className="gr-assist__suggestions">
                 {SUGGESTIONS.map((sugg) => (
@@ -124,7 +125,13 @@ export function Assistant({ open, onClose, range }: AssistantProps) {
             <div key={t.id} className="gr-assist__turn">
               <p className="gr-assist__q gr-type-body-medium">{t.question}</p>
               <div className={`gr-assist__a ${t.answer.answered ? '' : 'is-refusal'}`}>
-                <p className="gr-type-body">{t.answer.text}</p>
+                {/* Split on blank lines. A decision answer carries several
+                    findings and each one's assumption on its own line; rendered
+                    as a single <p> it collapsed into a wall of prose, which is
+                    the opposite of what a conversation is for. */}
+                {t.answer.text.split('\n\n').map((para, i) => (
+                  <p key={i} className="gr-type-body gr-assist__para">{para}</p>
+                ))}
                 {t.answer.evidence && (
                   <div className="gr-assist__evidence">
                     <p className="gr-assist__evidence-head gr-type-overline">Figures used</p>
@@ -136,6 +143,23 @@ export function Assistant({ open, onClose, range }: AssistantProps) {
                         <span className="gr-assist__row-label">{e.label}</span>
                         <span className="gr-assist__row-value gr-type-caption-med">{e.value}</span>
                       </p>
+                    ))}
+                  </div>
+                )}
+                {/* Where to go next. The thing that makes this a conversation
+                    rather than a search box -- and after a refusal it is the most
+                    valuable control on screen, because "so what WOULD tell me?"
+                    is the question a reader is least likely to think of and most
+                    needs to ask. */}
+                {t.answer.followUps && t.answer.followUps.length > 0 && (
+                  <div className="gr-assist__followups">
+                    <p className="gr-assist__evidence-head gr-type-overline">Ask next</p>
+                    {t.answer.followUps.map((f) => (
+                      <button key={f} type="button"
+                              className="gr-assist__suggestion gr-type-caption"
+                              onClick={() => submit(f)}>
+                        {f}
+                      </button>
                     ))}
                   </div>
                 )}

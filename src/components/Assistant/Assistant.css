@@ -190,3 +190,19 @@
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
+
+/* Follow-up questions. Same control as the empty-state suggestions -- one
+   affordance, not two that look almost alike -- just tighter, because here they
+   sit under an answer rather than filling an empty panel. */
+.gr-assist__followups {
+  display: flex; flex-wrap: wrap; gap: var(--space-6);
+  margin: var(--space-12) 0 0;
+  padding: var(--space-12) 0 0;
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-assist__followups .gr-assist__evidence-head { flex: 0 0 100%; margin: 0 0 var(--space-4); }
+
+/* Single-newline breaks inside a paragraph are meaningful here -- an expectation
+   and the assumption under it are separate lines of one thought. */
+.gr-assist__para { white-space: pre-line; margin: 0 0 var(--space-8); }
+.gr-assist__para:last-of-type { margin-bottom: 0; }
