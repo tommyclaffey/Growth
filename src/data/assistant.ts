@@ -133,6 +133,44 @@ export function takeable(candidates: Candidate[]): Takeable[] {
     }));
 }
 
+/**
+ * Who or what a question is about, worked out from its text.
+ *
+ * 🐛 THE SUBJECT WAS ONLY TRAVELLING WHEN A ROW BUTTON SUPPLIED IT.
+ *
+ * A follow-up chip calls submit() with the question and nothing else, and a typed
+ * question has nothing else by definition — so "What would you do about App
+ * Walkthrough Series?" reached the server bare, get_decisions ran unscoped, and
+ * the answer came back carrying the pacing finding, a Paid Search review and a
+ * Meta paused ad. Every row correct, none of them about the YouTube campaign that
+ * was asked about.
+ *
+ * ⚠️ And the chips are the MAIN path. "What would you do about X?" is generated
+ * from a subject and then throws it away, which is the worst possible place to
+ * lose it: the product wrote the question itself and still could not say what it
+ * was about.
+ *
+ * So resolution lives in one place and every caller uses it. A control's explicit
+ * subject still wins — it knows an id, and text matching cannot beat that — but
+ * absence of one is no longer absence of a subject.
+ */
+export function resolveSubject(question: string): Target | undefined {
+  const q = question.toLowerCase();
+
+  /* Most specific first, same order the pull branch uses. */
+  const ad = CAMPAIGNS.flatMap((c) => creativesFor(c.id))
+    .find((x) => x.headline.length > 8 && q.includes(x.headline.toLowerCase()));
+  if (ad) return { kind: 'ad', id: ad.id, label: ad.headline };
+
+  const campaign = CAMPAIGNS.find((c) => q.includes(c.name.toLowerCase()));
+  if (campaign) return { kind: 'campaign', id: campaign.id, label: campaign.name };
+
+  const channel = findChannels(question)[0];
+  if (channel) return { kind: 'channel', id: channel, label: CHANNEL_LABEL[channel] };
+
+  return undefined;
+}
+
 /** Decisions a question implies, for whichever engine answered it. */
 export function decisionsForQuestion(
   question: string, range: Range, subject?: Target,

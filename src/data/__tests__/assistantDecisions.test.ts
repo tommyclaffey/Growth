@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { SUGGESTIONS, ask, decisionsForQuestion, followUpsFor } from '../assistant';
+import {
+  SUGGESTIONS, ask, decisionsForQuestion, followUpsFor, resolveSubject,
+} from '../assistant';
 import { decisions, decisionsFor } from '../decisions';
 import { CAMPAIGNS } from '../campaigns';
 import { creativesFor } from '../creative';
@@ -562,3 +564,58 @@ describe('⭐ the button appears where the decision is argued, not before', () =
   });
 });
 
+
+describe('🚨 the subject survives every path into the assistant', () => {
+  it('resolves a campaign from a question the product generated itself', () => {
+    reset();
+    /* 🐛 The chips are the MAIN path, and they threw the subject away. "What
+       would you do about App Walkthrough Series?" is generated FROM a subject and
+       then submitted bare — the product wrote the question and still could not
+       say what it was about. The server ran get_decisions unscoped and answered a
+       YouTube question with pacing, a Paid Search review and a Meta paused ad. */
+    const s = resolveSubject('What would you do about App Walkthrough Series?');
+    expect(s?.kind).toBe('campaign');
+    expect(s?.label).toBe('App Walkthrough Series');
+  });
+
+  it('every follow-up the product generates resolves to what it names', () => {
+    reset();
+    /* The guard, applied to the chips this time. A question the product wrote
+       about a subject must resolve back to that subject. */
+    for (const label of Object.values(CHANNEL_LABEL)) {
+      const chip = ask(`What's going on with ${label}?`, 30).followUps![0];
+      const s = resolveSubject(chip);
+      expect(s?.label, chip).toBe(label);
+    }
+    for (const c of CAMPAIGNS) {
+      const chip = ask(`What's going on with ${c.name}?`, 30).followUps![0];
+      expect(resolveSubject(chip)?.id, chip).toBe(c.id);
+    }
+  });
+
+  it('most specific wins — an ad beats its campaign, a campaign beats its channel', () => {
+    reset();
+    const ad = creativesFor('c1')[0];
+    expect(resolveSubject(`What would you do about ${ad.headline}?`)?.kind).toBe('ad');
+    expect(resolveSubject('What would you do about App Walkthrough Series?')?.kind)
+      .toBe('campaign');
+    expect(resolveSubject('What would you do about Meta?')?.kind).toBe('channel');
+  });
+
+  it('a scoped question answers about that scope, or says there is nothing', () => {
+    reset();
+    /* The behaviour the whole fix exists for: a YouTube campaign question must
+       not come back with Paid Search findings. */
+    const q = 'What would you do about App Walkthrough Series?';
+    const a = ask(q, 30, resolveSubject(q));
+    expect(a.text).toContain('App Walkthrough Series');
+    expect(a.text).not.toMatch(/Non-brand|Paid Search/);
+  });
+
+  it('a question about nothing in particular resolves to nothing', () => {
+    reset();
+    /* Falling back to a stale or invented subject would be worse than none. */
+    expect(resolveSubject('What should I do next?')).toBeUndefined();
+    expect(resolveSubject('How are things?')).toBeUndefined();
+  });
+});

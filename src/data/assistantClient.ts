@@ -1,4 +1,6 @@
-import { ask, decisionsForQuestion, followUpsFor, type Answer } from './assistant';
+import {
+  ask, decisionsForQuestion, followUpsFor, resolveSubject, type Answer,
+} from './assistant';
 import type { Target } from './decisions';
 import type { Range } from './metrics';
 
@@ -71,8 +73,15 @@ function askSafely(question: string, range: Range, subject?: Target): Answer {
 }
 
 export async function askAssistant(
-  question: string, range: Range, subject?: Target,
+  question: string, range: Range, explicit?: Target,
 ): Promise<Reply> {
+  /* ⭐ Resolved ONCE, here, for every path into the assistant.
+   *
+   * A control's subject wins — it knows an id and text matching cannot beat
+   * that — but a follow-up chip and a typed question both arrive without one,
+   * and both are about something. Falling back to the text is what stops the
+   * server answering a scoped question with the whole account. */
+  const subject = explicit ?? resolveSubject(question);
   if (endpointAvailable === false) {
     return { answer: askSafely(question, range, subject), source: 'local' };
   }
