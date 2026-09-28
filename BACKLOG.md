@@ -105,7 +105,7 @@ the idea. **Growth is a portfolio piece, not a project-management product.**
 own tasks. These are tasks *inside a product he is designing*, for a fictional
 marketing team. Different thing entirely.
 
-## 🔨 G-009 — The hierarchy breaks at the ad set *(tier BUILT Sept 27 — `5ba15fc`)*
+## ✅ G-009 — The hierarchy breaks at the ad set *(DONE Sept 27 — `5ba15fc` + `52f924b`)*
 
 > Tommy, Sept 27: *"from the micro, from an individual [ad], to the macro, seeing all the
 > channel traffic, all the way down to the individual ad within the campaign, and how
@@ -175,13 +175,31 @@ only two tiers and should lose the middle level. **Wrong** — every channel gro
 level up, and grouping is what the middle tier *is*. The tier count is the same; only the names
 differ. Recorded in `channelDepth.ts`.
 
-### ▶️ Still to build
-- [ ] **Cross-channel ad ranking** — *"which of my ~40 ads is winning, everywhere?"* still has
-      no home. There is no `ads` nav item; ranking only exists inside one campaign.
-- [ ] Ad-set level **targeting / budget / bid** fields. The tier is real now but still reports
-      only the funnel — it does not yet show what a buyer actually *sets* at this level.
-- [ ] Creative cards still show static totals — the `CreativeSection` note admits it. Same defect
-      the ad-set rows just had, one tier down.
+### ✅ Cross-channel ad ranking — DONE `52f924b`
+- [x] ~~*"which of my ~40 ads is winning, everywhere?"*~~ ✅ new **Ads** screen and nav item
+
+⭐ **The decision that made it more than a sorted list:** ranking ads across channels by raw CAC
+**just re-derives the channel ranking** — podcasts cost ~$129 a lead, Meta ~$36, so Meta wins every
+time regardless of how the ads are performing. **Default rank is channel-relative:** how far each ad
+sits from the average ad on its *own* channel. A podcast spot 30% under its channel out-ranks a Meta
+ad sitting exactly at Meta's average.
+
+**There are two tests for that claim, not a comment asserting it.** One proves an absolute CAC sort
+reproduces the channel order *exactly*; the other proves relative does not. If raw sorting ever
+starts saying something new, the first test fails and the mode stops being justified.
+
+`benchmark.ts`'s core extracted to `benchmarkAgainst()` so ad-vs-channel and campaign-vs-channel
+share one copy of the count-vs-rate rule. All existing benchmark tests still pass — the point of
+extracting rather than copying.
+
+### ▶️ Still open at this tier
+- [ ] Ad-set level **targeting / budget / bid**. The tier is real but reports only the funnel — it
+      does not yet show what a buyer actually *sets* there.
+- [ ] Creative **cards** still show static totals (the `CreativeSection` note admits it). Same
+      defect the ad-set rows had; the new Ads screen is ranged, the cards are not.
+- [ ] ⚠️ **Two doors to "which channels are on"** — `channels.ts` owns the persisted choice and
+      pushes into `metrics.ts`'s runtime list. Components must subscribe to the former. Works, but
+      it is one state with two setters, and that is how they eventually disagree.
 
 ---
 
