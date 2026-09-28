@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { SUGGESTIONS, ask } from '../assistant';
+import { SUGGESTIONS, ask, followUpsFor } from '../assistant';
 import { decisions, decisionsFor } from '../decisions';
 import { CAMPAIGNS } from '../campaigns';
 import { creativesFor } from '../creative';
@@ -304,5 +304,54 @@ describe('the follow-up leads to a decision, not an explanation', () => {
        answered. Wrong order and the decision prompt returns a status report. */
     const a = ask('What would you do about Paid Search?', 30);
     expect(a.text).not.toMatch(/spend,.*leads,.*CAC\./);
+  });
+});
+
+describe('🚨 follow-ups do not depend on which engine answered', () => {
+  it('the shared rule puts the DECISION first after a status question', () => {
+    reset();
+    /* 🐛 The chips shipped as something the LOCAL engine attached to its own
+       answers. The moment an API key was configured and the model started
+       replying, they vanished — the decision-first prompt existed only on the
+       path Tommy was not using. */
+    const f = followUpsFor("What's going on with Meta?", { kind: 'channel', label: 'Meta' });
+    expect(f[0]).toMatch(/what would you do about meta/i);
+  });
+
+  it('covers every question shape the panel can produce', () => {
+    reset();
+    const shapes = [
+      "What's going on with Meta?",
+      'What would you do about Meta?',
+      'What can this data not tell me?',
+      'What should I do next?',
+      'What should I cut?',
+      'How much did we spend on TikTok?',
+    ];
+    for (const q of shapes) {
+      const f = followUpsFor(q);
+      expect(f.length, q).toBeGreaterThan(0);
+      /* And every chip it offers must itself be answerable — the guard that has
+         now caught this class of bug four times. */
+      for (const chip of f) expect(ask(chip, 30).answered, `${q} -> ${chip}`).toBe(true);
+    }
+  });
+
+  it('a lookup still gets a route onward', () => {
+    reset();
+    /* The difference between a search box and a thought partner: even a plain
+       "how much did we spend" offers somewhere to go. */
+    expect(followUpsFor('How much did we spend on TikTok?').length).toBeGreaterThan(0);
+  });
+
+  it('the local engine returns the same chips the shared rule would', () => {
+    reset();
+    /* If these drift, the panel behaves differently depending on whether a key
+       is configured — which is the exact thing assistantClient exists to
+       prevent everywhere else. */
+    const q = "What's going on with Paid Search?";
+    const local = ask(q, 30);
+    expect(local.followUps).toEqual(
+      followUpsFor(q, { kind: 'channel', label: 'Paid Search' }));
   });
 });

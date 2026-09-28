@@ -99,6 +99,55 @@ function lowerIsBetter(metric: Metric): boolean {
   return metric === 'CAC';
 }
 
+/**
+ * Where to go next, given what was just asked.
+ *
+ * ⭐ EXPORTED, because follow-ups are a PRODUCT behaviour, not a model output.
+ *
+ * 🐛 They shipped as something the local engine attached to its own answers, so
+ * the moment an API key was configured and the model started replying, the chips
+ * vanished — the decision-first prompt Tommy asked for existed only on the path
+ * he was not using. The panel behaved differently depending on which engine
+ * answered, which is exactly what `assistantClient` exists to prevent everywhere
+ * else.
+ *
+ * The rule lives here once and both paths use it.
+ */
+export function followUpsFor(
+  question: string, subject?: { kind: string; label: string },
+): string[] {
+  const q = question.toLowerCase();
+
+  /* After a status answer, the next question is the DECISION -- not "why did you
+     say that", which explains something they have not asked about yet. */
+  if (/what.s (going on|happening)|tell me about|how is|what about|dig into/i.test(q)) {
+    return [
+      subject ? `What would you do about ${subject.label}?` : 'What would you do?',
+      'What can this data not tell me?',
+      'What should I do next?',
+    ];
+  }
+
+  if (/what would you do|what.s the (call|move|decision)|recommendation/i.test(q)) {
+    return ['What can this data not tell me?', 'What should I do next?'];
+  }
+
+  if (/cannot tell|can.t tell|not tell|limitation|blind spot/i.test(q)) {
+    return ['What should I do next?', 'What should I cut?'];
+  }
+
+  if (/what should i do|what.s next|recommend|priorit|cut|pause|stop/i.test(q)) {
+    return ['What can this data not tell me?', 'What should I cut?'];
+  }
+
+  /* A plain lookup still gets a route onward — that is the difference between a
+     search box and a thought partner. */
+  return [
+    subject ? `What would you do about ${subject.label}?` : 'What should I do next?',
+    'What can this data not tell me?',
+  ];
+}
+
 export const SUGGESTIONS = [
   /* Decision-shaped first, because that is what the panel is FOR now. The
      lookups still work and still matter, but they are not the reason someone
@@ -309,20 +358,10 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
         { label: `${target.label} spend`, value: formatMetric('Spend', t.spend), channel: scope },
         { label: `${target.label} CAC`, value: formatMetric('CAC', t.cac), channel: scope },
       ],
-      /* ⭐ The DECISION comes first, not an explanation.
-         Tommy: "make the very next prompt after we say what's going on... prompt
-         it immediately to ask what decision it would make."
-
-         Right, and it is the difference between a reporting tool and a thought
-         partner. Someone who just read what is going on has exactly one next
-         question, and it is not "why did you say that" -- it is "so what would
-         you do". Leading with the explanation answers a question they have not
-         asked yet. */
-      followUps: [
-        `What would you do about ${target.label}?`,
-        ...(actionable[0] ? [`Why \u201c${actionable[0].action}\u201d?`] : []),
-        'What can this data not tell me?',
-      ],
+      /* ⭐ The DECISION comes first, from the shared rule -- so the model path
+         offers the same route onward. Someone who just read what is going on has
+         exactly one next question, and it is not "why did you say that". */
+      followUps: followUpsFor(q, target),
     };
   }
 

@@ -132,7 +132,18 @@
    visible, six identical buttons compete with the numbers the row exists to
    show; never visible, the affordance does not exist. Focus-visible is what
    keeps it reachable by keyboard rather than mouse-only. */
-.gr-table__ask { width: 3rem; text-align: right; }
+/* The Ask cell.
+
+   🐛 It ran to the table's right edge with the button flush against it. A control
+   touching the boundary of its container reads as clipped rather than placed, and
+   the row lost the breathing room every other cell has. Padded on both sides and
+   widened to fit the button plus that space. */
+.gr-table__ask {
+  width: 5.5rem;
+  padding-right: var(--space-16);
+  padding-left: var(--space-12);
+  text-align: right;
+}
 /* A BUTTON, not link text.
 
    It shipped as bare blue text, which reads as a link -- and a link implies

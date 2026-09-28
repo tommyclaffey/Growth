@@ -1,4 +1,4 @@
-import { ask, type Answer } from './assistant';
+import { ask, followUpsFor, type Answer } from './assistant';
 import type { Target } from './decisions';
 import type { Range } from './metrics';
 
@@ -95,7 +95,18 @@ export async function askAssistant(
     endpointAvailable = true;
     /* An empty response body is a failure that returned 200. Treat it as one. */
     if (!data.text?.trim()) return { answer: askSafely(question, range, subject), source: 'local' };
-    return { answer: data, source: 'model' };
+
+    /* ⭐ Follow-ups attached HERE, not asked of the model.
+
+       They are a product behaviour -- where this panel thinks you should go next
+       -- and letting the model author them would make the route onward vary with
+       the answer, which is the one part of the conversation that should not. It
+       also meant they disappeared entirely the moment a key was configured,
+       because the server returns none. Same rule, both paths. */
+    return {
+      answer: { ...data, followUps: data.followUps ?? followUpsFor(question, subject) },
+      source: 'model',
+    };
   } catch {
     endpointAvailable = false;
     return { answer: askSafely(question, range, subject), source: 'local' };
