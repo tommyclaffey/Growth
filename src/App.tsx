@@ -394,12 +394,36 @@ export default function App() {
   /* ASSIGNED: put there by a person. Not gated by the alert switches -- those
      control which THINGS THE DATA NOTICES get surfaced, and silencing pacing
      warnings should never silence something Tommy flagged by hand. */
-  const assignedAlerts = attentionFlags.map((f) => ({
-    id: `flag:${f.id}`,
-    label: f.label,
-    tone: 'warn' as const,
-    source: 'assigned' as const,
-  }));
+  /* ⚠️ DECISIONS ARE NOT ATTENTION, and this strip is worse for holding them.
+   *
+   * "Needs attention" answers "what should I look at" — things that surfaced and
+   * are unresolved. "Your queue" answers "what did I commit to". A decision you
+   * have already taken is by definition no longer needing attention: attending
+   * to it is exactly what taking it meant.
+   *
+   * Six items in the strip, four of them already dealt with, burying the two
+   * that were not — the Meta CAC jump and the TikTok pacing gap. A list whose
+   * job is to be short and entirely undealt-with stops working the moment it
+   * holds resolved things, because the reader has to sort it themselves.
+   *
+   * ⚠️ Assigned flags STAY. "You flagged this Tuesday" is an open loop with no
+   * conclusion attached; "you decided to pause this ad" is a closed one. G-001
+   * separated those two kinds for this reason and the distinction still holds.
+   *
+   * ▶️ The case that should bring one back: a decision with a due date that has
+   * passed. An overdue commitment genuinely does need attention again.
+   * `isOverdue` already exists for it — but nothing sets `due` on a decision yet
+   * (G-008's task UI is unbuilt), so writing that branch now would be a condition
+   * that can never be true. Wire it when dates land, not before.
+   */
+  const assignedAlerts = attentionFlags
+    .filter((f) => f.kind !== 'decision')
+    .map((f) => ({
+      id: `flag:${f.id}`,
+      label: f.label,
+      tone: 'warn' as const,
+      source: 'assigned' as const,
+    }));
 
   const shownAlerts = [
     ...assignedAlerts,
@@ -602,7 +626,17 @@ export default function App() {
                 onDismissAll={() => {
                   markAllRead(derivedAlerts.map((a) => a.notifId));
                   dismissAll(derivedAlerts.map((a) => a.id));
-                  attentionFlags.forEach((f) => removeFlag(f.kind, f.refId));
+                  /* 🐛 Only what the strip actually SHOWS. This cleared every
+                     flag in the store, so once decisions stopped appearing here,
+                     "Clear all" would have silently wiped the decision queue —
+                     a control acting on things outside its own visible scope,
+                     with no undo and nothing on screen admitting it happened.
+
+                     The filter has to match the one that built `assignedAlerts`
+                     or the two drift, which is how this bug would come back. */
+                  attentionFlags
+                    .filter((f) => f.kind !== 'decision')
+                    .forEach((f) => removeFlag(f.kind, f.refId));
                   setLastCleared(null);   // one undo, not a stack
                 }}
                 onAlertClick={(id) => {

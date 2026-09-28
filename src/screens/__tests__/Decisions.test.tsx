@@ -276,3 +276,41 @@ describe('taking more than one, and writing your own', () => {
     expect(screen.queryByText('Test a new hook')).toBeNull();
   });
 });
+
+describe('decisions live in the queue, not in the attention strip', () => {
+  it('🚨 "Clear all" on the strip must not wipe the decision queue', () => {
+    setChannels([...CHANNEL_KEYS]);
+    /* The strip stopped showing decisions, so a Clear-all that removed every
+       flag would have deleted them invisibly — no undo, nothing on screen
+       admitting it. A control acting outside its own visible scope.
+
+       This asserts the rule the handler relies on: the set it clears and the set
+       it displays are the same set. */
+    const taken = ask('What should I do next?', 30).decisions![0];
+    addFlag('decision', taken.id, taken.action);
+    addFlag('decision', ownDecisionId('Keep this'), 'Keep this');
+    addFlag('campaign', 'c1', 'Flagged by hand');
+
+    const shown = flags().filter((f) => f.kind !== 'decision');
+    const kept = flags().filter((f) => f.kind === 'decision');
+
+    /* What the strip shows is only the non-decision flags... */
+    expect(shown.map((f) => f.label)).toEqual(['Flagged by hand']);
+    /* ...and the decisions it does not show are the ones that must survive. */
+    expect(kept).toHaveLength(2);
+
+    shown.forEach((f) => removeFlag(f.kind, f.refId));
+
+    expect(isFlagged('decision', taken.id)).toBe(true);
+    expect(isFlagged('decision', ownDecisionId('Keep this'))).toBe(true);
+    expect(isFlagged('campaign', 'c1')).toBe(false);
+  });
+
+  it('a decision still reaches the Decisions screen after the strip is cleared', () => {
+    setChannels([...CHANNEL_KEYS]);
+    addFlag('decision', ownDecisionId('Survives a clear'), 'Survives a clear');
+    flags().filter((f) => f.kind !== 'decision').forEach((f) => removeFlag(f.kind, f.refId));
+    render(<Decisions range={30} />);
+    expect(screen.getByText('Survives a clear')).toBeTruthy();
+  });
+});
