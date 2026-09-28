@@ -31,7 +31,13 @@ import {
 } from './data/metrics';
 import { campaignById } from './data/campaignSeries';
 import { adSetById } from './data/adSets';
-import { trendMark, type DerivedMetric } from './data/channelMetrics';
+import {
+  CHANNEL_METRICS, betterHigher, formatDerived, headlineKpis, trendMark,
+  type DerivedMetric,
+} from './data/channelMetrics';
+import {
+  blendedDelta, blendedMetrics, blendedSparkline, blendedTotal, coverageNote, coverageTitle,
+} from './data/blended';
 import {
   dismissAlert, dismissAll, markAllRead, undismissAlert, usePrefs,
 } from './data/prefs';
@@ -280,7 +286,11 @@ export default function App() {
   /* Clicking a KPI card stages that metric in the chat composer and opens the
      panel. This is what makes the card clickable — it was a <button> with no
      handler, which is the same dead control as a switch that flips nothing. */
-  function shareMetric(m: Metric) {
+  /* Widened from Metric to DerivedMetric when the KPI row stopped being four
+     hardcoded cards. An Overview card can now be CTR or Impressions, and sharing
+     one as "Spend" would put a number in the thread that is not the one the
+     sender clicked -- the same failure the campaign cards already fixed. */
+  function shareMetric(m: DerivedMetric) {
     setPendingView({ channel: scope, metric: m, range });
     setChatOpen(true);
   }
@@ -333,6 +343,21 @@ export default function App() {
        channels next to a table showing 6. Nothing recovered it but a reload or
        a range change. */
   }, [scope, metric, range, enabled]);
+
+  /* The channels a KPI card is computed over: one on a channel screen, every
+     active one on Overview. Deriving the list here rather than inside the row
+     keeps the two screens on one code path. */
+  const kpiScope = useMemo(
+    () => (channel ? [channel] : activeChannels()),
+    [channel, enabled],
+  );
+  /* What a channel can report, or what the blend can. `headlineKpis` filters a
+     fixed funnel order by availability, so Paid Search drops Impressions and
+     podcasts drop Clicks without either needing a special case. */
+  const kpiMetrics = useMemo(
+    () => headlineKpis(channel ? CHANNEL_METRICS[channel] : blendedMetrics(kpiScope)),
+    [channel, kpiScope],
+  );
 
   /* Spend against the budget planned for this many days. Declared after `view`
      because it reads from it -- placing it above the memo is a temporal dead
@@ -494,31 +519,41 @@ export default function App() {
           {showDashboard && (
             <>
               <div className="gr-kpi-row">
-                <KpiCard loading={demo === 'loading'} error={demo === 'error'} onDiscuss={() => shareMetric('Spend')} label="Total spend"
-                         value={formatMetric('Spend', view.totals.spend)}
-                         deltaPercent={delta(scope, 'Spend', range)}
-                         sparkline={sparkline(scope, 'Spend', range)}
-                         sparklineMark={trendMark('Spend')}
-                         channel={scope} />
-                <KpiCard loading={demo === 'loading'} error={demo === 'error'} onDiscuss={() => shareMetric('Leads')} label="Total leads"
-                         value={formatMetric('Leads', view.totals.leads)}
-                         deltaPercent={delta(scope, 'Leads', range)}
-                         sparkline={sparkline(scope, 'Leads', range)}
-                         sparklineMark={trendMark('Leads')}
-                         channel={scope} />
-                <KpiCard loading={demo === 'loading'} error={demo === 'error'} onDiscuss={() => shareMetric('CAC')} higherIsBetter={false}
-                         label={onChannelScreen ? 'CAC' : 'Blended CAC'}
-                         value={formatMetric('CAC', view.totals.cac)}
-                         deltaPercent={delta(scope, 'CAC', range)}
-                         sparkline={sparkline(scope, 'CAC', range)}
-                         sparklineMark={trendMark('CAC')}
-                         channel={scope} />
-                <KpiCard loading={demo === 'loading'} error={demo === 'error'} onDiscuss={() => shareMetric('ROAS')} label={onChannelScreen ? 'ROAS' : 'Blended ROAS'}
-                         value={formatMetric('ROAS', view.totals.roas)}
-                         deltaPercent={delta(scope, 'ROAS', range)}
-                         sparkline={sparkline(scope, 'ROAS', range)}
-                         sparklineMark={trendMark('ROAS')}
-                         channel={scope} />
+                {/* ⭐ Driven by what the scope can report, not four hardcoded
+                    cards.
+
+                    Overview and the channel screens SHARED a row of exactly
+                    four -- Spend, Leads, CAC, ROAS -- while a campaign page
+                    showed up to nine and an ad page the same. The vocabulary got
+                    RICHER the deeper you drilled, which is backwards for a
+                    screen whose entire job is "all the channel traffic".
+
+                    One code path serves both, because a channel screen is just a
+                    blend of one channel: `blendedTotal(m, [channel])` scopes to
+                    that channel and `coverageNote` returns null, so no caveat is
+                    printed where none is needed. */}
+                {kpiMetrics.map((m) => (
+                  <KpiCard
+                    key={m}
+                    loading={demo === 'loading'}
+                    error={demo === 'error'}
+                    onDiscuss={() => shareMetric(m)}
+                    label={kpiLabel(m, onChannelScreen)}
+                    value={formatDerived(m, blendedTotal(m, kpiScope, range))}
+                    higherIsBetter={betterHigher(m)}
+                    deltaPercent={blendedDelta(m, kpiScope, range)}
+                    sparkline={blendedSparkline(m, kpiScope, range)}
+                    sparklineMark={trendMark(m)}
+                    /* Names what the figure is computed over when it cannot
+                       cover every active channel -- "3 of 6 channels" for a
+                       blended CTR, because podcasts have no click and
+                       affiliates report no impressions. Null on a complete
+                       blend, and on any single channel. */
+                    basis={coverageNote(m, kpiScope) ?? undefined}
+                    basisTitle={coverageTitle(m, kpiScope)}
+                    channel={scope}
+                  />
+                ))}
                 {/* Derived, not typed. Was a hardcoded "64%" that stayed 64%
                     with every channel switched off and $0 beside it. */}
                 <KpiCard label="Pace to target"
@@ -680,6 +715,22 @@ export default function App() {
       )}
     </div>
   );
+}
+
+/**
+ * The card's label.
+ *
+ * On a channel screen the bare metric name is right -- the header already says
+ * which channel, so "Meta · CAC" would say it twice. On Overview the number is an
+ * aggregate and the label has to admit it: a count is a TOTAL, a rate is
+ * BLENDED, and those are different words because they are different operations.
+ * Calling a summed figure "blended" or a spend-weighted ratio a "total" would be
+ * the label describing the wrong arithmetic.
+ */
+function kpiLabel(m: DerivedMetric, onChannelScreen: boolean): string {
+  if (onChannelScreen) return m;
+  const RATES = new Set<DerivedMetric>(['CTR', 'CPC', 'CPM', 'CVR', 'CAC', 'ROAS']);
+  return RATES.has(m) ? `Blended ${m}` : `Total ${m.toLowerCase()}`;
 }
 
 function navTitle(nav: NavKey): string {

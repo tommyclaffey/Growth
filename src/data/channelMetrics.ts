@@ -78,6 +78,31 @@ export function kpisFor(channel: ChannelName, objective: string): DerivedMetric[
   return picked;
 }
 
+/**
+ * The metrics a SCREEN-level KPI row shows, given what is available.
+ *
+ * `kpisFor` answers this for a campaign, where there is one objective to serve
+ * and four cards to fill. An account or a channel has no single objective, so the
+ * order here is the FUNNEL -- what you spent, how many saw it, how many clicked,
+ * how well it clicked, how many converted, what each cost, what it returned.
+ * Left to right, it reads as the shape of the business.
+ *
+ * ⚠️ Deliberately NOT "the first N of the channel's list". `CHANNEL_METRICS.meta`
+ * is nine long and ends with CAC and ROAS, so taking the first seven would drop
+ * exactly the two metrics anyone actually judges a channel on and keep CPM.
+ *
+ * Filtering a fixed priority order by availability is also what makes it adapt
+ * for free: Paid Search has no impressions so it shows six, podcasts have no
+ * click so they show five, and neither needed a special case.
+ */
+const HEADLINE_ORDER: DerivedMetric[] = [
+  'Spend', 'Impressions', 'Clicks', 'CTR', 'Leads', 'CAC', 'ROAS',
+];
+
+export function headlineKpis(available: DerivedMetric[]): DerivedMetric[] {
+  return HEADLINE_ORDER.filter((m) => available.includes(m));
+}
+
 /** The metric the chart opens on — the first non-Spend KPI. */
 export function headlineFor(channel: ChannelName, objective: string): DerivedMetric {
   return kpisFor(channel, objective)[1] ?? 'Spend';

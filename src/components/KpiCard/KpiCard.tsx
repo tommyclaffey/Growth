@@ -51,6 +51,24 @@ export interface KpiCardProps {
         note is cut for a 233px card; the meaning must not be. */
     title?: string;
   };
+  /**
+   * What the VALUE is computed over, in words — e.g. "3 of 6 channels".
+   *
+   * ⚠️ A different fact from `benchmark.note`, and worth keeping apart. A
+   * benchmark note says what a PERCENTAGE is measured against; this says what
+   * the NUMBER ITSELF covers. A blended CTR that excludes podcasts and
+   * affiliates is not a comparison — it is a scope, and a reader who does not
+   * know the scope cannot check the figure against the channel rows below it.
+   *
+   * Shares the footer note line with `benchmark.note`, because a 233px card has
+   * room for one. They do not collide in practice: a benchmark belongs to a
+   * campaign card and a coverage basis to a blended one. If both arrive the
+   * benchmark wins, since it is the one paired with a visible pill that would
+   * otherwise have no stated basis at all.
+   */
+  basis?: string;
+  /** The unabbreviated version of `basis`, for hover and assistive tech. */
+  basisTitle?: string;
   /** Fires from the Discuss button, not the whole card. */
   onDiscuss?: () => void;
 }
@@ -78,6 +96,8 @@ export function KpiCard({
   channel,
   loading = false,
   error = false,
+  basis,
+  basisTitle,
   benchmark,
   onDiscuss,
 }: KpiCardProps) {
@@ -148,14 +168,20 @@ export function KpiCard({
       </span>
 
       {/* The basis, in words. No second pill and no second figure -- just what
-          the percentage above is measured against. */}
-      {benchmark && !error && (
+          the figure above is measured against, or computed over. */}
+      {benchmark && !error ? (
         <span className="gr-kpi__bench">
           <span className="gr-kpi__bench-note gr-type-caption" title={benchmark.title}>
             {benchmark.note}
           </span>
         </span>
-      )}
+      ) : basis && !error ? (
+        <span className="gr-kpi__bench">
+          <span className="gr-kpi__bench-note gr-type-caption" title={basisTitle}>
+            {basis}
+          </span>
+        </span>
+      ) : null}
 
     </div>
   );
