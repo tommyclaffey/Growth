@@ -207,6 +207,55 @@ impressions"* is a better interview answer than any feature on this list.
 
 ---
 
+## 🔴 G-011 — The generator invents clicks podcasts cannot have *(found Sept 27)*
+
+**Found by a test that failed for the right reason**, while building G-010's blended
+coverage. Measured from `rowsFor(channel, 30)`:
+
+| Channel | Clicks in the data | Impressions in the data | Should be |
+|---|---|---|---|
+| **Podcasts** | **7,919** | 408,000 | ⚠️ **zero clicks** — an audio ad has none |
+| **Affiliates** | 9,576 | **192,842** | ⚠️ **zero impressions** — never bought, never reported |
+
+⭐ **This is the September defect, one layer deeper.** `CHANNEL_METRICS` was built to stop
+the product *printing* a CTR for an audio ad. It succeeded — the display layer is honest. But
+**the generator underneath still produces the numbers**, so the figures exist, they are
+fictional, and anything that reads `DayRow` directly can surface them.
+
+G-010's blending is safe from it, because coverage scoping happens before the arithmetic. But
+the fiction is still in the data, and two things will trip over it:
+
+1. **CSV export reads the rows directly** — `exportCsv.ts` writes a Clicks column for every
+   channel, so a podcast row currently exports a click count that cannot exist.
+2. 🚨 **The API work.** A real Meta or Google response has no podcast in it at all, and a
+   podcast tracker returns downloads and a promo-code attribution — no clicks, ever. When the
+   seeded generator becomes *one adapter behind an interface* (Phase 3), it has to produce the
+   same SHAPE a real source does, and right now it produces a shape no real source can.
+
+### ⚠️ Why this was not fixed in the same commit
+
+Blast radius. `metrics.ts` normalises the whole series so each channel's totals land on the
+figures the design was built around, and the Sept 7 work derived impressions from spend × CPM
+**specifically so every CPM and CTR lands in its published band**. Zeroing two channels'
+columns moves the blended CAC, the channel rows, the export and several test fixtures at once.
+
+**It wants its own session, with the reconciliation tests as the guard rail** — they already
+assert campaigns sum to channels and ad sets sum to campaigns every day, so they will catch it
+if the normalisation drifts.
+
+### ▶️ The decision to make first
+
+Does a channel's funnel carry **zero** for a metric it cannot report, or **undefined**?
+
+- **Zero** is simpler and wrong in a specific way: zero is a measurement, and it means "we
+  looked and there were none." For a podcast click it should mean "this cannot be measured."
+- ⭐ **Undefined** is honest and forces every consumer to handle absence — which is exactly what
+  a real API integration will force anyway, since the field simply will not be in the response.
+  **Leaning here**, because the whole point of Phase 3 is that the seeded source and a real one
+  behave identically.
+
+---
+
 ## 🔍 G-002 — Paused ads in the creative section
 
 Currently hidden by default with the count on the toggle. Options when this gets
