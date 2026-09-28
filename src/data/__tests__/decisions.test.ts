@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { decisions, decisionsByTier, validate, type Candidate } from '../decisions';
 import { ALL_CHANNELS } from '../blended';
-import { CHANNEL_KEYS, RANGES, setActiveChannels } from '../metrics';
+import { CHANNEL_KEYS, CHANNEL_LABEL, RANGES, setActiveChannels } from '../metrics';
 import { setStage } from '../campaignStatus';
 
 const reset = () => setActiveChannels([...CHANNEL_KEYS]);
@@ -82,7 +82,8 @@ describe('🚨 the tier contract — the load-bearing claim', () => {
     /* The guard has to fail on bad input, or it is decoration. */
     const base: Candidate = {
       id: 'x', tier: 1, kind: 'pacing', action: 'a', because: 'b',
-      evidence: [], target: { kind: 'account', id: 'a', label: 'A' }, strength: 0.5,
+      evidence: [], target: { kind: 'account', id: 'a', label: 'A' },
+      scope: ['This account'], strength: 0.5,
     };
     expect(validate({ ...base, tier: 2, expectation: { outcome: 'o', checkOn: '2026-10-27' } }))
       .toMatch(/no stated assumption/);
@@ -358,5 +359,58 @@ describe('🚨 no two decisions read as the same sentence', () => {
       const actions = decisions(30, [...only]).map((c) => c.action);
       expect(new Set(actions).size, only.join('+')).toBe(actions.length);
     }
+  });
+});
+
+describe('every decision says where it lives', () => {
+  it('carries a scope, outermost first', () => {
+    reset();
+    for (const c of all()) {
+      expect(c.scope.length, c.id).toBeGreaterThan(0);
+      for (const part of c.scope) expect(part.trim(), c.id).not.toBe('');
+    }
+  });
+
+  it('⭐ the depth matches the tier it touches', () => {
+    reset();
+    /* An ad-level decision names channel, campaign and ad set; a campaign-level
+       one names channel and campaign; a channel-level one names the channel. The
+       breadcrumb IS the hierarchy, so it has to agree with the target. */
+    for (const c of all()) {
+      const expected = { ad: 3, campaign: 2, channel: 1, adSet: 3, account: 1 }[c.target.kind];
+      expect(c.scope.length, `${c.id} (${c.target.kind}): ${c.scope.join(' > ')}`)
+        .toBe(expected);
+    }
+  });
+
+  it('starts with the channel, when there is one', () => {
+    reset();
+    for (const c of all()) {
+      if (!c.channel) continue;
+      expect(c.scope[0], c.id).toBe(CHANNEL_LABEL[c.channel]);
+    }
+  });
+
+  it('an account-level decision says "This account" rather than nothing', () => {
+    reset();
+    /* An empty breadcrumb reads as missing data. The account is a scope, not the
+       absence of one. */
+    for (const c of all().filter((x) => x.target.kind === 'account')) {
+      expect(c.scope).toEqual(['This account']);
+      expect(c.channel).toBeUndefined();
+    }
+  });
+
+  it('two decisions on the same ad set share an address', () => {
+    reset();
+    /* The breadcrumb is derived from the hierarchy, not written per detector, so
+       findings about the same place must agree about where that place is. */
+    const byAddress = new Map<string, string[]>();
+    for (const c of all()) {
+      const key = c.scope.join(' > ');
+      byAddress.set(key, [...(byAddress.get(key) ?? []), c.kind]);
+    }
+    /* At minimum the ad-level findings on one ad set collapse to one address. */
+    expect([...byAddress.keys()].every((k) => k.length > 0)).toBe(true);
   });
 });

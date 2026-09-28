@@ -493,6 +493,7 @@ describe('a decision is identified the same way wherever you meet it', () => {
       .find((d) => /pacing/i.test(d.action));
     if (!pacing) return;
     expect(pacing.channel).toBeUndefined();
+    /* The account is a scope, not the absence of one. */
     expect(pacing.context).toBe('This account');
   });
 
@@ -502,7 +503,9 @@ describe('a decision is identified the same way wherever you meet it', () => {
     for (const d of ask('What should I do next?', 30).decisions ?? []) {
       const c = all.get(d.id)!;
       expect(d.channel).toBe(c.channel);
-      expect(d.context).toBe(c.target.kind === 'account' ? 'This account' : c.target.label);
+      /* One decision, one address — the panel row and the card must not derive
+         it separately or they drift. */
+      expect(d.context).toBe(c.scope.join(' \u203a '));
     }
   });
 });

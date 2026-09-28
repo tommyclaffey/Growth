@@ -121,6 +121,21 @@ export interface Candidate {
   /** Tier 3 only: what it would take to actually answer this. */
   needs?: string;
   target: Target;
+  /**
+   * Where this decision lives, outermost first — the breadcrumb.
+   *
+   * ⚠️ A decision without its scope is an instruction with no address. "Review
+   * why 'Start free, no card' is paused" and "Review pacing" read as the same
+   * KIND of thing in a list, and one touches a single creative inside one ad set
+   * of one campaign while the other is the entire account. The reader cannot
+   * weigh them against each other without knowing which is which, and the
+   * evidence rows below say it too quietly and too late.
+   *
+   * Built by the detector rather than derived in the card, because the detector
+   * is the only thing that knows the full path — by the time a Target reaches the
+   * UI it is one id and one label, and the tiers above it are gone.
+   */
+  scope: string[];
   channel?: ChannelName;
   /**
    * Dollars in play. **For display only — never for ranking.**
@@ -218,6 +233,7 @@ function spendReturnMismatch(range: Range, channels: ChannelName[]): Candidate[]
           checkOn: checkDate(range),
         },
         target: { kind: 'ad', id: a.creative.id, label: a.creative.headline },
+        scope: [CHANNEL_LABEL[a.channel], c.name, a.creative.adSetName],
         channel: a.channel,
         atStake: a.totals.spend,
         /* How lopsided it is, capped — a 9x ratio is not nine times more
@@ -285,6 +301,7 @@ function scaleWinner(range: Range, channels: ChannelName[]): Candidate[] {
           checkOn: checkDate(range),
         },
         target: { kind: 'ad', id: a.creative.id, label: a.creative.headline },
+        scope: [CHANNEL_LABEL[a.channel], c.name, a.creative.adSetName],
         channel: a.channel,
         atStake: a.totals.spend * 0.25,
         strength: Math.min(1, (ratio - 1.4) / 1.6),
@@ -368,6 +385,7 @@ function pausedWinner(range: Range, channels: ChannelName[]): Candidate[] {
           checkOn: checkDate(7),
         },
         target: { kind: 'ad', id: a.creative.id, label: a.creative.headline },
+        scope: [CHANNEL_LABEL[a.channel], c.name, a.creative.adSetName],
         channel: a.channel,
         strength: Math.min(1, (ratio - 1.3) / 1.2),
       });
@@ -443,6 +461,7 @@ function reallocateWithinChannel(range: Range, channels: ChannelName[]): Candida
         checkOn: checkDate(range),
       },
       target: { kind: 'campaign', id: worst.c.id, label: worst.c.name },
+      scope: [CHANNEL_LABEL[channel], worst.c.name],
       channel,
       atStake: move,
       strength: Math.min(1, (worstCac / bestCac - 1.3) / 1.7),
@@ -478,6 +497,7 @@ function staleReview(channels: ChannelName[]): Candidate[] {
         checkOn: checkDate(7),
       },
       target: { kind: 'campaign' as const, id: c.id, label: c.name },
+      scope: [CHANNEL_LABEL[c.channel], c.name],
       channel: c.channel,
       /* No atStake. Attaching a dollar figure would rank a decision that costs
          nothing to make alongside ones that move money. */
@@ -526,6 +546,7 @@ function concentrationRisk(range: Range, channels: ChannelName[]): Candidate[] {
         checkOn: checkDate(range),
       },
       target: { kind: 'channel', id: channel, label: CHANNEL_LABEL[channel] },
+      scope: [CHANNEL_LABEL[channel]],
       channel,
       strength: Math.min(1, (share - 0.45) / 0.4),
     });
@@ -579,7 +600,10 @@ function pacing(range: Range, channels: ChannelName[]): Candidate[] {
         : 'Either the plan is wrong or the budget is not being deployed. Both are worth naming.',
       checkOn: checkDate(7),
     },
+    /* The account is a scope, not the absence of one. Saying so beats an empty
+       breadcrumb, which reads as missing data rather than as "everything". */
     target: { kind: 'account', id: 'account', label: 'This account' },
+    scope: ['This account'],
     strength: Math.min(1, Math.abs(ratio - 1) / 0.5),
   }];
 }
@@ -640,6 +664,7 @@ function crossChannelCostGap(range: Range, channels: ChannelName[]): Candidate[]
       + `channel-specific promo codes and vanity URLs. Growth has no attribution `
       + `model, no campaign log and no view of what a user saw before converting.`,
     target: { kind: 'channel', id: dear.c, label: CHANNEL_LABEL[dear.c] },
+    scope: [CHANNEL_LABEL[dear.c]],
     channel: dear.c,
     /* ⚠️ atStake deliberately OMITTED. The dear channel's spend is the biggest
        number this engine could attach to anything, and attaching it here is

@@ -110,7 +110,14 @@ export function takeable(candidates: Candidate[]): Takeable[] {
       action: c.action,
       tier: c.tier,
       channel: c.channel,
-      context: c.target.kind === 'account' ? 'This account' : c.target.label,
+      /* ⭐ The SAME path the card shows, not a second derivation of it. The panel
+         row previously used target.label alone, so an ad-level decision read
+         "Retargeting — 30d" here and "Meta › Advantage+ — Evergreen Signups ›
+         Retargeting — 30d" on the card it becomes. One decision, two addresses.
+
+         Joined rather than an array because the row has one line; the card has
+         room to break it into crumbs. */
+      context: c.scope.join(' \u203a '),
     }));
 }
 

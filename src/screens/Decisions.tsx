@@ -207,8 +207,25 @@ function DecisionCard({ candidate: c, onDiscuss }: {
 
   return (
     <article className={`gr-card gr-dec__card is-tier-${c.tier}`}>
+      {/* ⭐ Where this decision lives, before what it says.
+
+          A decision without its scope is an instruction with no address.
+          "Review why 'Start free, no card' is paused" and "Review pacing" read
+          as the same KIND of thing, and one touches a single creative inside one
+          ad set of one campaign while the other is the whole account. The
+          evidence rows carried it, but too quietly and below the action — by
+          then the reader has already weighed one against the other. */}
+      <p className="gr-dec__scope gr-type-caption">
+        {c.channel && <ChannelMark channel={c.channel} size={14} />}
+        {c.scope.map((part, i) => (
+          <span key={part}>
+            {i > 0 && <span className="gr-dec__crumb" aria-hidden="true"> › </span>}
+            {part}
+          </span>
+        ))}
+      </p>
+
       <header className="gr-dec__card-head">
-        {c.channel && <ChannelMark channel={c.channel} size={18} />}
         <h4 className="gr-type-strip gr-dec__action">{c.action}</h4>
         {c.atStake !== undefined && (
           <span className="gr-type-caption gr-dec__stake">

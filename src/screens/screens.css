@@ -429,3 +429,13 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
    edge, the same way the tiers are -- accent rather than a tier colour, because
    it is not a confidence level, it is a different SOURCE. */
 .gr-dec__card.is-own { border-left: 3px solid var(--accent-base); }
+
+/* The decision's address. Above the action and quieter than it — the action is
+   what you agree to, the scope is where it lands. */
+.gr-dec__scope {
+  display: flex; align-items: center; gap: var(--space-6);
+  flex-wrap: wrap;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-6);
+}
+.gr-dec__crumb { color: var(--text-disabled); }
