@@ -108,6 +108,47 @@ export interface DayRow {
   revenue: number;
 }
 
+/**
+ * What a medium PHYSICALLY CANNOT PRODUCE.
+ *
+ * 🚨 G-011. The generator used to give every channel a full funnel: `clicks =
+ * leads / cvr` and `impressions = spend / cpm * 1000`, for all six. That put
+ * **7,919 clicks on podcasts** and **192,842 impressions on affiliates** —
+ * numbers for things that do not exist. An audio ad has no click. A performance
+ * affiliate network does not report impressions; they are neither bought nor
+ * counted.
+ *
+ * `CHANNEL_METRICS` already stopped the product DISPLAYING those, which was the
+ * September fix. It did not stop the data containing them, so anything reading
+ * `DayRow` directly still surfaced the fiction — `exportCsv` wrote a podcast
+ * click count into a spreadsheet.
+ *
+ * ⚠️ **This is deliberately NOT derived from `CHANNEL_METRICS`, and the
+ * distinction is the whole point.** That table is a DISPLAY vocabulary — what a
+ * channel is bought and judged on. This one is a CAPABILITY claim — what the
+ * medium can physically generate. They are not the same list, and conflating
+ * them breaks things: Paid Search omits `Impressions` from its display
+ * vocabulary because impressions are context rather than the buy, **but Google
+ * Ads absolutely does report them, and Paid Search shows CTR — which needs
+ * impressions as its denominator.** Zeroing on the display table would have left
+ * Paid Search claiming a CTR with nothing underneath it.
+ *
+ * So: two tables, two jobs, and a test asserting nothing listed here is also
+ * offered for display.
+ */
+const CANNOT_PRODUCE: Partial<Record<ChannelName, ('clicks' | 'impressions')[]>> = {
+  /* A podcast ad is audio. There is nothing to click. Attribution runs through
+     a promo code or a vanity URL, which is a different event entirely. */
+  podcasts: ['clicks'],
+  /* Paid on performance. The network reports conversions, not exposure — so an
+     impression count would be a fiction, and a CPM computed from it doubly so. */
+  affiliates: ['impressions'],
+};
+
+export function canProduce(channel: ChannelName, field: 'clicks' | 'impressions'): boolean {
+  return !(CANNOT_PRODUCE[channel] ?? []).includes(field);
+}
+
 /** The raw funnel, one row per channel per day. Everything else derives from this. */
 const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
   CHANNEL_KEYS.map((key) => {
@@ -169,8 +210,14 @@ const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
            impressions at a price. CTR then falls out as clicks over
            impressions, and lands in a realistic band for every channel instead
            of being asserted. */
-        impressions: (spend / c.cpm) * 1000,
-        clicks,
+        /* Zeroed where the medium cannot produce them. Zero rather than
+           undefined, deliberately: for a podcast, "no clicks" is TRUE — the
+           falsehood was 7,919, not 0. And the absence contract already lives in
+           CHANNEL_METRICS and `coverageFor`; adding a second one to DayRow would
+           be two mechanisms for one job, which is the duplication this codebase
+           keeps removing. Ten modules read `.clicks`. */
+        impressions: canProduce(key, 'impressions') ? (spend / c.cpm) * 1000 : 0,
+        clicks: canProduce(key, 'clicks') ? clicks : 0,
         leads,
         sales: leads * c.closeRate,
         revenue: rawRevenue[i] * revScale,

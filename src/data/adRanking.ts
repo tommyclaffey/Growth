@@ -1,7 +1,7 @@
 import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS, type Campaign } from './campaigns';
 import { campaignRows } from './campaignSeries';
-import { creativesFor, type Creative } from './creative';
+import { creativeLeadShare, creativesFor, type Creative } from './creative';
 import { betterHigher, valueOf, type DerivedMetric } from './channelMetrics';
 import {
   EMPTY_FUNNEL, addFunnel, benchmarkAgainst, type Benchmark, type Funnel,
@@ -82,6 +82,14 @@ function gather(range: Range, channels: ChannelName[]): Omit<RankedAd, 'value' |
 
     for (const creative of ads) {
       const share = totalSpend > 0 ? creative.spend / totalSpend : 0;
+      /* ⚠️ The SAME lead share `creativeRows` uses, not a second calculation.
+         This module computes ad totals on its own path for speed -- one pass per
+         campaign rather than resolving each ad individually. That is fine for
+         the arithmetic and dangerous for the RULE: two places deriving an ad's
+         leads would drift, and the Ads ranking would disagree with the ad's own
+         page while both looked authoritative. The loop is local; the share is
+         shared. */
+      const leadShare = creativeLeadShare(creative.id);
       out.push({
         creative,
         campaign,
@@ -90,9 +98,9 @@ function gather(range: Range, channels: ChannelName[]): Omit<RankedAd, 'value' |
           spend: period.spend * share,
           impressions: period.impressions * share,
           clicks: period.clicks * share,
-          leads: period.leads * share,
-          sales: period.sales * share,
-          revenue: period.revenue * share,
+          leads: period.leads * leadShare,
+          sales: period.sales * leadShare,
+          revenue: period.revenue * leadShare,
         },
       });
     }

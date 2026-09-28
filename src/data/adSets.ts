@@ -70,18 +70,95 @@ export function adSetShare(id: string): number {
   return total > 0 ? ref.adSet.spend / total : 0;
 }
 
+/**
+ * An efficiency wobble, deterministic per id.
+ *
+ * 🚨 G-013. Every tier below the campaign used ONE share — spend — for the whole
+ * funnel, which meant leads moved in exact lockstep with spend and **every ad
+ * set inside a campaign had an identical CAC.** So did every ad. `c1a-cr1` and
+ * `c1a-cr3` both came out at exactly $34.31.
+ *
+ * That is not a cosmetic flatness. It meant *"which ad is underperforming"* had
+ * no answer, `rankCreatives` by CAC was a no-op that fell through to its
+ * tie-break, and the decision engine's two most valuable detectors — pause a
+ * loser, scale a winner — could never fire. **The engine finding nothing is what
+ * exposed it.**
+ *
+ * `metrics.ts` already solved this one level up and said why: *"If leads were
+ * simply spend / cac, then CAC would be the constant cac, every single day… the
+ * metric doing nothing while appearing to work."* Same defect, one tier down.
+ */
+/**
+ * How wide the spread is, and why these two numbers differ.
+ *
+ * ⚠️ The first pass used ±15% for both, which was too tight to be real — and the
+ * decision engine proved it by still finding nothing. A ±15% efficiency band
+ * produces a worst-to-best ratio of about 1.2, so no ad was ever badly enough
+ * out of line to be worth pausing. **The flatness had been reduced, not fixed.**
+ *
+ * In a real account these two tiers do not vary by the same amount:
+ *
+ *   **Ads** — creative is the single biggest lever in paid media, and the spread
+ *   between a winning hook and a dead one inside one ad set is routinely 2–3×.
+ *   ±45% gives a ~2.6× worst-to-best ratio, which is realistic and is enough for
+ *   "pause this one" to be a real finding rather than noise.
+ *
+ *   **Ad sets** — an audience or placement band. Narrower, because the ad sets
+ *   inside a campaign were usually built to be comparable. ±20%.
+ *
+ * Both stay deterministic and both renormalise, so nothing above them moves.
+ */
+export const AD_SPREAD = 0.9;
+export const AD_SET_SPREAD = 0.4;
+
+export function adSetWobble(id: string, spread = AD_SET_SPREAD): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i += 1) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  /* 0..1 from the hash, mapped to 1 ± spread/2. Deterministic, so a screenshot
+     is reproducible and the same ad is the same ad on every render. */
+  return 1 - spread / 2 + ((h >>> 0) % 1000) / 1000 * spread;
+}
+
+/**
+ * An ad set's share of its campaign's LEADS — wobbled, then renormalised.
+ *
+ * ⭐ Renormalisation is what makes this safe. The wobble makes ad sets differ
+ * from each other; dividing by the group's total wobbled weight puts the sum
+ * back to exactly one. So CAC varies between ad sets **and** the ad sets still
+ * add up to their campaign every day, exactly. Both guarantees hold, and the
+ * reconciliation tests check the second one.
+ */
+export function adSetLeadShare(id: string): number {
+  const ref = adSetById(id);
+  if (!ref) return 0;
+  const sibs = ref.campaign.adSets;
+  const total = sibs.reduce((a, x) => a + x.spend, 0);
+  if (total <= 0) return 0;
+  /* Weighted by spend share, tilted by the wobble. Starting from spend keeps a
+     big ad set big -- the wobble changes its EFFICIENCY, not its size. */
+  const weights = sibs.map((x) => (x.spend / total) * adSetWobble(x.id));
+  const sum = weights.reduce((a, b) => a + b, 0) || 1;
+  const i = sibs.findIndex((x) => x.id === id);
+  return weights[i] / sum;
+}
+
 /** Daily funnel for one ad set, scaled out of its campaign's. Follows the range. */
 export function adSetRows(id: string, range: Range = 30): DayRow[] {
   const ref = adSetById(id);
   if (!ref) return [];
-  const share = adSetShare(id);
+  /* Spend, impressions and clicks follow SPEND share -- what you bought.
+     Leads, sales and revenue follow the LEAD share -- what it returned. The gap
+     between the two is the ad set's efficiency, and it is the only reason CAC
+     and ROAS differ between siblings at all. */
+  const spendShare = adSetShare(id);
+  const leadShare = adSetLeadShare(id);
   return campaignRows(ref.campaign.id, range).map((r) => ({
-    spend: r.spend * share,
-    impressions: r.impressions * share,
-    clicks: r.clicks * share,
-    leads: r.leads * share,
-    sales: r.sales * share,
-    revenue: r.revenue * share,
+    spend: r.spend * spendShare,
+    impressions: r.impressions * spendShare,
+    clicks: r.clicks * spendShare,
+    leads: r.leads * leadShare,
+    sales: r.sales * leadShare,
+    revenue: r.revenue * leadShare,
   }));
 }
 

@@ -5,6 +5,7 @@ import { campaignRows, campaignSeries } from './campaignSeries';
 import type { DayRow, Metric, Range } from './metrics';
 import { assetFor } from './creativeAssets';
 import { CHANNEL_DEPTH } from './channelDepth';
+import { AD_SPREAD, adSetLeadShare, adSetWobble } from './adSets';
 
 /**
  * The assets running inside a campaign.
@@ -268,19 +269,62 @@ export function creativeShare(id: string): number {
   return total > 0 ? owner.creative.spend / total : 0;
 }
 
+/**
+ * An ad's share of its campaign's LEADS — wobbled, and composed THROUGH its ad set.
+ *
+ * 🚨 G-013, the ad tier. Ads used one share for the whole funnel, so every ad in
+ * a campaign had an identical CAC.
+ *
+ * ⭐ The composition is the careful part. The wobble is applied WITHIN the ad set
+ * and renormalised there, then multiplied by the ad set's own lead share of the
+ * campaign. So:
+ *
+ *   - ads sum to their ad set, exactly
+ *   - ad sets sum to their campaign, exactly
+ *   - therefore ads sum to their campaign, exactly
+ *
+ * Wobbling ads directly against the campaign would have broken the middle link:
+ * the ads would still add up to the campaign while disagreeing with the ad-set
+ * row printed directly above them, which is the worst of the three options
+ * because it is the one nothing on screen admits to.
+ */
+export function creativeLeadShare(id: string): number {
+  const owner = creativeById(id);
+  if (!owner) return 0;
+  const found = creativesFor(owner.campaignId).find((x) => x.id === id);
+  if (!found) return 0;
+
+  /* Siblings inside the same ad set -- the group the wobble is normalised over. */
+  const sibs = creativesFor(owner.campaignId).filter((x) => x.adSetId === found.adSetId);
+  const spendTotal = sibs.reduce((a, x) => a + x.spend, 0);
+  if (spendTotal <= 0) return 0;
+
+  /* AD_SPREAD, not the ad-set default -- creative varies far more than audience. */
+  const weights = sibs.map((x) => (x.spend / spendTotal) * adSetWobble(x.id, AD_SPREAD));
+  const sum = weights.reduce((a, b) => a + b, 0) || 1;
+  const i = sibs.findIndex((x) => x.id === id);
+
+  /* Its slice of the ad set, times the ad set's slice of the campaign. */
+  return (weights[i] / sum) * adSetLeadShare(found.adSetId);
+}
+
 /** Daily rows for one ad, scaled out of its campaign's. Follows the range. */
 export function creativeRows(id: string, range: Range = 30): DayRow[] {
   const owner = creativeById(id);
   if (!owner) return [];
+  /* Bought on spend, returns on leads. The gap between the two shares IS the
+     ad's efficiency -- and the only reason two ads in one campaign can now have
+     different CACs. */
   const share = creativeShare(id);
+  const leadShare = creativeLeadShare(id);
   return campaignRows(owner.campaignId, range).map((r) => ({
     ...r,
     spend: r.spend * share,
     impressions: r.impressions * share,
     clicks: r.clicks * share,
-    leads: r.leads * share,
-    sales: r.sales * share,
-    revenue: r.revenue * share,
+    leads: r.leads * leadShare,
+    sales: r.sales * leadShare,
+    revenue: r.revenue * leadShare,
   }));
 }
 

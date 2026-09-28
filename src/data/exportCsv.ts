@@ -1,5 +1,5 @@
 import {
-  CHANNEL_LABEL, activeChannels, rows, totals,
+  CHANNEL_LABEL, activeChannels, canProduce, rows, totals,
   type Range, type Scope,
 } from './metrics';
 import { workspaceName } from './profile';
@@ -20,6 +20,28 @@ import type { ChannelName } from '../styles/tokens';
 const HEADERS = [
   'Period', 'Channel', 'Spend', 'Clicks', 'Leads', 'Sales', 'Revenue', 'CAC', 'ROAS',
 ];
+
+/**
+ * A field the channel cannot produce is written BLANK, not zero.
+ *
+ * 🚨 G-011's escape hatch. Every other surface asks `CHANNEL_METRICS` what a
+ * channel may display, so a podcast never showed a click. The export asked
+ * nothing and wrote the raw row — so a spreadsheet left this product carrying a
+ * podcast click count, which is the one place the fiction became a document
+ * someone else could act on.
+ *
+ * ⚠️ Blank rather than 0, and the difference matters more here than on screen. In
+ * a spreadsheet a zero is a value: it sums, it averages, and it drags a CTR
+ * column down as though the ad performed badly. **An empty cell is excluded from
+ * both.** Zero says "we measured none"; blank says "there is nothing to measure",
+ * and only the second one is true.
+ */
+function fieldOrBlank(
+  scope: ChannelName | 'all', field: 'clicks' | 'impressions', value: number,
+): string | number {
+  if (scope === 'all') return Math.round(value);
+  return canProduce(scope, field) ? Math.round(value) : '';
+}
 
 function escape(value: string | number): string {
   const s = String(value);
@@ -42,7 +64,7 @@ export function buildCsv(scope: Scope, range: Range): string {
         r.label,
         label,
         r.spend.toFixed(2),
-        Math.round(r.clicks),
+        fieldOrBlank(s, 'clicks', r.clicks),
         Math.round(r.leads),
         Math.round(r.sales),
         r.revenue.toFixed(2),
@@ -58,7 +80,7 @@ export function buildCsv(scope: Scope, range: Range): string {
     `Total (${range} days)`,
     scope === 'all' ? 'All channels' : CHANNEL_LABEL[scope as ChannelName],
     t.spend.toFixed(2),
-    Math.round(t.clicks),
+    fieldOrBlank(scope, 'clicks', t.clicks),
     Math.round(t.leads),
     Math.round(t.sales),
     t.revenue.toFixed(2),

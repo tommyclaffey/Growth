@@ -49,29 +49,71 @@ describe('the ranking covers every ad and reconciles upward', () => {
 });
 
 describe('⭐ the claim the screen rests on', () => {
-  it('an absolute CAC ranking just re-derives the channel ranking', () => {
+  it('an absolute CAC ranking is dominated by channel economics', () => {
     reset();
-    /* The reason relative is the default. If a raw cross-channel sort told you
-       something the channel table does not, this screen would not need a mode.
+    /* 🔄 REWRITTEN, and the reason is worth keeping.
 
-       Sorted by raw CAC, the ads clump by channel -- so the sequence of channels
-       first-seen going down the list is simply the channels ordered by CAC. */
-    const rows = rankedAds('CAC', 'absolute', 30, ALL_CHANNELS);
-    const firstSeen: string[] = [];
-    for (const r of rows) if (!firstSeen.includes(r.channel)) firstSeen.push(r.channel);
+       The original assertion was that a raw CAC sort re-derives the channel
+       ranking EXACTLY -- that the channels clump perfectly going down the list.
+       It passed, and it passed for the wrong reason: at the time, every ad inside
+       a campaign had an identical CAC by construction (G-013), so a raw sort had
+       nothing to order by except channel. The claim was true of the FIXTURE, not
+       of the product.
 
-    /* Each channel's own blended CAC, ascending -- lower is better for CAC. */
-    const byChannelCac = [...new Set(rows.map((r) => r.channel))]
+       With real ad-level variation in place, a strong ad on an expensive channel
+       can now out-price a weak ad on a cheap one, so perfect clumping is gone --
+       correctly. The argument for relative mode survives in a better form:
+       the channel SPREAD ($36 to $129 a lead) dwarfs the within-channel spread,
+       so a raw ranking is still governed by which channel an ad ran on. The
+       expensive channels never reach the top no matter how well their ads did
+       for that channel, which is exactly what makes the raw view repeat the
+       channel table. */
+    const ranked = rankedAds('CAC', 'absolute', 30, ALL_CHANNELS);
+
+    /* Each channel's own blended CAC, cheapest first. */
+    const channelCac = [...new Set(ranked.map((r) => r.channel))]
       .map((ch) => {
-        const mine = rows.filter((r) => r.channel === ch);
+        const mine = ranked.filter((r) => r.channel === ch);
         const spend = mine.reduce((a, r) => a + r.totals.spend, 0);
         const leads = mine.reduce((a, r) => a + r.totals.leads, 0);
         return { ch, cac: spend / leads };
       })
-      .sort((a, b) => a.cac - b.cac)
-      .map((x) => x.ch);
+      .sort((a, b) => a.cac - b.cac);
 
-    expect(firstSeen).toEqual(byChannelCac);
+    const cheapest = channelCac[0].ch;
+    const dearest = channelCac[channelCac.length - 1].ch;
+    const topQuartile = ranked.slice(0, Math.ceil(ranked.length / 4));
+
+    /* The cheapest channel is over-represented at the top... */
+    expect(topQuartile.filter((r) => r.channel === cheapest).length).toBeGreaterThan(0);
+    /* ...and the dearest channel cannot reach it at all, however good its ads
+       are relative to their own peers. That is the whole problem. */
+    expect(topQuartile.some((r) => r.channel === dearest)).toBe(false);
+  });
+
+  it('relative mode surfaces ads that the raw ranking buries', () => {
+    reset();
+    /* ⭐ The claim in its strongest form, and now empirically true rather than
+       an artifact of flat data.
+
+       Relative mode reaches across MORE channels than absolute does, because it
+       asks "is this ad beating its own channel" instead of "is this ad cheap".
+       A paid-search ad at $73 a lead ranks high on that question and is invisible
+       on the other one. */
+    const n = 10;
+    const absChannels = new Set(
+      rankedAds('CAC', 'absolute', 30, ALL_CHANNELS).slice(0, n).map((r) => r.channel));
+    const relChannels = new Set(
+      rankedAds('CAC', 'relative', 30, ALL_CHANNELS).slice(0, n).map((r) => r.channel));
+
+    expect(relChannels.size).toBeGreaterThan(absChannels.size);
+
+    /* And concretely: at least one ad in the relative top-10 would not be in the
+       absolute top-10 at all. */
+    const absTop = new Set(
+      rankedAds('CAC', 'absolute', 30, ALL_CHANNELS).slice(0, n).map((r) => r.creative.id));
+    const relTop = rankedAds('CAC', 'relative', 30, ALL_CHANNELS).slice(0, n);
+    expect(relTop.some((r) => !absTop.has(r.creative.id))).toBe(true);
   });
 
   it('relative ranking does NOT simply reproduce that order', () => {
@@ -83,12 +125,19 @@ describe('⭐ the claim the screen rests on', () => {
     expect(rel).not.toEqual(abs);
   });
 
-  it('the top relative ad is not always from the cheapest channel', () => {
+  it('an ad can beat its own channel while looking poor in raw terms', () => {
     reset();
+    /* 🔄 Replaced an assertion that rel[0] !== abs[0], which is not the property
+       that matters -- the single best ad on a channel may well be the single
+       cheapest overall, and that coincidence would have failed a test for no
+       reason. The property is that SOMEWHERE in the relative top half sits an ad
+       whose raw CAC is worse than the median. That is the finding the mode
+       exists to produce. */
     const rel = rankedAds('CAC', 'relative', 30, ALL_CHANNELS);
-    const abs = rankedAds('CAC', 'absolute', 30, ALL_CHANNELS);
-    /* If it were, relative mode would be a re-sort with no new information. */
-    expect(rel[0].creative.id).not.toBe(abs[0].creative.id);
+    const cacs = rel.map((r) => r.totals.spend / r.totals.leads).sort((a, b) => a - b);
+    const median = cacs[Math.floor(cacs.length / 2)];
+    const topHalf = rel.slice(0, Math.floor(rel.length / 2));
+    expect(topHalf.some((r) => r.totals.spend / r.totals.leads > median)).toBe(true);
   });
 });
 
