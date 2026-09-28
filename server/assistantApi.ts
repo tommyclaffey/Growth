@@ -134,6 +134,44 @@ interface Decisions {
 
 /** What the reader was pointing at when they asked, if a control told us. */
 interface Subject { kind: string; id: string; label: string }
+
+interface CampaignRec { id: string; name: string; channel: string }
+
+/**
+ * Work the subject out from the question when the caller did not send one.
+ *
+ * ⚠️ DEFENSIVE DEPTH, not a duplicate of the client's resolver. The app always
+ * resolves before posting now — but this endpoint answers whatever arrives, and
+ * an unscoped request produced the worst output this panel can make: correct
+ * findings about a different campaign, with that campaign's channel marks beside
+ * them, under a heading saying "Figures used".
+ *
+ * ⭐ The model handled it well when it happened — it named the findings as being
+ * about other things and refused to substitute them. But the EVIDENCE PANEL still
+ * listed them, so the prose said "I am not using these" directly above a box
+ * labelled with what was used. A surface contradicting its own sentence is the
+ * defect this panel exists to avoid, and it should not depend on the caller
+ * remembering to scope.
+ *
+ * Deliberately shallow — name matching only, most specific first. It cannot beat
+ * an explicit subject and does not try to; it only stops "nothing sent" meaning
+ * "the whole account".
+ */
+function inferSubject(
+  question: string, campaigns: CampaignRec[], channelLabel: Record<string, string>,
+): Subject | undefined {
+  const q = question.toLowerCase();
+
+  const campaign = campaigns.find((c) => q.includes(c.name.toLowerCase()));
+  if (campaign) return { kind: 'campaign', id: campaign.id, label: campaign.name };
+
+  for (const [key, label] of Object.entries(channelLabel)) {
+    if (q.includes(label.toLowerCase()) || q.includes(key.toLowerCase())) {
+      return { kind: 'channel', id: key, label };
+    }
+  }
+  return undefined;
+}
 interface DecisionCandidate {
   tier: 1 | 2 | 3;
   action: string;
@@ -494,6 +532,9 @@ export function assistantApi(): Plugin {
           const d = (await server.ssrLoadModule('/src/data/decisions.ts')) as unknown as Decisions;
           const b = (await server.ssrLoadModule('/src/data/blended.ts')) as unknown as Blended;
           const cm = (await server.ssrLoadModule('/src/data/channelMetrics.ts')) as unknown as ChannelMetrics;
+          /* Pure data, no React — safe to load here. */
+          const { CAMPAIGNS } = (await server.ssrLoadModule('/src/data/campaigns.ts')) as
+            unknown as { CAMPAIGNS: CampaignRec[] };
 
           const evidence: Evidence[] = [];
           const client = new Anthropic({ apiKey: key });
@@ -504,7 +545,12 @@ export function assistantApi(): Plugin {
             output_config: { effort: 'low' },
             system: SYSTEM,
             tools: [
-              ...buildTools(m, d, b, cm, Number(range), evidence, subject as Subject | undefined),
+              ...buildTools(
+                m, d, b, cm, Number(range), evidence,
+                /* What the caller said, or failing that what the question names. */
+                (subject as Subject | undefined)
+                  ?? inferSubject(String(question), CAMPAIGNS, m.CHANNEL_LABEL),
+              ),
               /* Server-side: runs on Anthropic's infrastructure, so there is no
                  run() to write and no search account to hold. Capped at 3 so a
                  benchmark question cannot turn into an open-ended crawl. */
