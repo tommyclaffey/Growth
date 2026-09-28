@@ -343,3 +343,84 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 }
 
 .gr-ads__nopeer { color: var(--text-muted); }
+
+/* ---------- Decisions — the decision maker's surface ---------- */
+
+.gr-dec__head {
+  display: flex; align-items: flex-start; gap: var(--space-16);
+  margin: 0 0 var(--space-20);
+}
+.gr-dec__lede { color: var(--text-muted); margin: var(--space-4) 0 0; max-width: 68ch; }
+
+.gr-dec__empty { padding: var(--space-24); }
+
+/* A tier is a section, and the sections are visually distinct because the
+   DIFFERENCE between them is the product. Same card geometry throughout -- only
+   the left edge changes, so nothing reads as a different component. */
+.gr-dec__tier { margin: 0 0 var(--space-28); }
+.gr-dec__tier-head {
+  display: flex; align-items: center; gap: var(--space-8);
+  margin: 0 0 var(--space-8);
+}
+.gr-dec__tier-note {
+  color: var(--text-muted); margin: 0 0 var(--space-12); max-width: 74ch;
+}
+
+.gr-dec__list { display: flex; flex-direction: column; gap: var(--space-12); }
+
+.gr-dec__card { padding: var(--space-16) var(--space-20); }
+
+/* The tier, carried as a left border rather than a background tint. A tinted
+   card competes with the channel colours inside it; an edge marks the section
+   without claiming the card's whole surface. */
+.gr-dec__card.is-tier-1 { border-left: 3px solid var(--semantic-good); }
+.gr-dec__card.is-tier-2 { border-left: 3px solid var(--accent-base); }
+.gr-dec__card.is-tier-3 { border-left: 3px solid var(--semantic-warn); }
+.gr-dec__card.is-dismissed { opacity: 0.6; }
+
+.gr-dec__card-head {
+  display: flex; align-items: center; gap: var(--space-8);
+  margin: 0 0 var(--space-8);
+}
+.gr-dec__action { margin: 0; flex: 1; }
+.gr-dec__stake { color: var(--text-muted); white-space: nowrap; }
+
+.gr-dec__because { margin: 0 0 var(--space-12); }
+
+.gr-dec__evidence {
+  display: flex; flex-wrap: wrap; gap: var(--space-16);
+  margin: 0 0 var(--space-12); padding: var(--space-12) 0 0;
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-dec__evidence dt { color: var(--text-muted); margin: 0 0 var(--space-2); }
+.gr-dec__evidence dd { margin: 0; }
+
+.gr-dec__expect, .gr-dec__needs {
+  padding: var(--space-12); border-radius: var(--radius-md);
+  background: var(--surface-card-tint); margin: 0 0 var(--space-12);
+}
+.gr-dec__expect p, .gr-dec__needs p { margin: 0 0 var(--space-4); }
+.gr-dec__expect p:last-child, .gr-dec__needs p:last-child { margin: 0; }
+.gr-dec__expect span, .gr-dec__needs span { color: var(--text-muted); margin-right: var(--space-4); }
+
+/* The assumption is set apart on purpose. Folded in with the expectation, a
+   projection starts reading as a promise -- which is the one thing tier 2 must
+   not do. */
+.gr-dec__assuming { color: var(--semantic-warn); }
+
+.gr-dec__actions {
+  display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap;
+}
+.gr-dec__accepted { color: var(--semantic-good); }
+.gr-dec__why { color: var(--text-muted); margin: var(--space-4) 0 var(--space-8); }
+
+.gr-dec__dismiss-form { display: flex; gap: var(--space-8); flex: 1; min-width: 16rem; }
+.gr-dec__reason {
+  flex: 1; height: 32px; padding: 0 var(--space-12);
+  color: var(--text-primary); background: var(--surface-card-tint);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+.gr-dec__reason:focus-visible {
+  outline: var(--border-width-md) solid var(--accent-base); outline-offset: 1px;
+}

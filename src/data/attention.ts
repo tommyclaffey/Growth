@@ -19,7 +19,26 @@ export interface Flag {
   /** Stable and derived from the target, so flagging the same thing twice
       cannot produce two entries. */
   id: string;
-  kind: 'campaign' | 'notification';
+  /**
+   * What the flag points at.
+   *
+   * ⭐ `'decision'` is the third SOURCE of attention, and it lands here rather
+   * than in a new store for the reason this file already argues about tasks: one
+   * record with optional fields cannot get out of step with itself, and a
+   * parallel store would drift within a week.
+   *
+   * G-001 established that the queue accepts attention the DATA derived and
+   * attention a PERSON assigned, rendered differently because *"your CAC rose
+   * 42%"* and *"you flagged this Tuesday"* are not the same claim. A decision the
+   * ENGINE proposed is a third such claim — *"Growth thinks you should move
+   * $8k"* — and it must not wear either of the other two costumes.
+   *
+   * `refId` for a decision is the candidate id, not a campaign id. That is
+   * deliberate: a candidate can target an ad, an ad set, a channel or the whole
+   * account, and keying on the target would make a decision about a channel
+   * indistinguishable from a flag on a campaign.
+   */
+  kind: 'campaign' | 'notification' | 'decision';
   refId: string;
   label: string;
   /** Epoch ms. Ordering only -- newest first. */
@@ -81,7 +100,7 @@ function read(): Flag[] {
       const x = f as Partial<Flag>;
       const base = typeof x.id === 'string' && typeof x.refId === 'string'
         && typeof x.label === 'string' && typeof x.at === 'number'
-        && (x.kind === 'campaign' || x.kind === 'notification');
+        && (x.kind === 'campaign' || x.kind === 'notification' || x.kind === 'decision');
       /* Optional fields are validated only if present. A bad owner should not
          discard an otherwise good flag -- it should just not be assigned. */
       const okOwner = x.owner === undefined || typeof x.owner === 'string';

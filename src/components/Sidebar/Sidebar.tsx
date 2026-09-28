@@ -4,7 +4,7 @@ import { Avatar } from '../Avatar/Avatar';
 import { ME, ME_ROLE } from '../../data/chat';
 import { useAvatarFor, useWorkspaceName } from '../../data/profile';
 
-export type NavKey = 'overview' | 'channels' | 'campaigns' | 'ads' | 'reports' | 'notifications' | 'settings';
+export type NavKey = 'overview' | 'channels' | 'campaigns' | 'ads' | 'decisions' | 'reports' | 'notifications' | 'settings';
 
 export interface SidebarProps {
   active: NavKey;
@@ -18,6 +18,9 @@ const NAV: { key: NavKey; label: string; icon: ReactElement }[] = [
   /* Directly under Campaigns, because it is the tier below them -- the nav
      order is the hierarchy, and Ads sitting after Reports would break that. */
   { key: 'ads', label: 'Ads', icon: <IconFrame /> },
+  /* Directly after the hierarchy, before the reporting screens. It reads ACROSS
+     everything above it, so it cannot sit inside any one of them. */
+  { key: 'decisions', label: 'Decisions', icon: <IconCompass /> },
   { key: 'reports', label: 'Reports', icon: <IconDoc /> },
   { key: 'notifications', label: 'Notifications', icon: <IconBell /> },
   { key: 'settings', label: 'Settings', icon: <IconSliders /> },
@@ -119,6 +122,12 @@ function IconBars() {
 function IconTarget() {
   return <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
     <circle cx="9" cy="9" r="6.5" /><circle cx="9" cy="9" r="2.5" />
+  </svg>;
+}
+function IconCompass() {
+  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
+    <circle cx="9" cy="9" r="6.5" />
+    <path d="M11.5 6.5l-1.6 3.4L6.5 11.5l1.6-3.4z" />
   </svg>;
 }
 function IconFrame() {

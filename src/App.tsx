@@ -18,6 +18,7 @@ import { Assistant } from './components/Assistant/Assistant';
 import { downloadCsv } from './data/exportCsv';
 import { Reports } from './screens/Reports';
 import { Ads } from './screens/Ads';
+import { Decisions } from './screens/Decisions';
 import { Notifications } from './screens/Notifications';
 import { Settings } from './screens/Settings';
 import { CampaignDetail } from './screens/CampaignDetail';
@@ -700,6 +701,8 @@ export default function App() {
               />
             )
             : <Ads range={range} onOpenAd={setAdId} />)}
+
+          {nav === 'decisions' && <Decisions range={range} />}
 
           {nav === 'reports' && <Reports />}
           {nav === 'notifications' && <Notifications onOpenCampaign={(id) => openCampaign(id)} />}
