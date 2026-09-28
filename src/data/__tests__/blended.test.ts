@@ -23,14 +23,29 @@ describe('coverage is honest about which channels report what', () => {
     expect(ctr.length).toBeLessThanOrEqual(impressions.length);
   });
 
-  it('spend, leads, CAC and ROAS cover everything', () => {
+  it('spend, leads, CAC and ROAS cover everything, and SAY so', () => {
     for (const m of ['Spend', 'Leads', 'CAC', 'ROAS'] as const) {
       expect(coverageFor(m, ALL_CHANNELS)).toHaveLength(ALL_CHANNELS.length);
-      /* No note, because a caveat on a complete blend is noise -- and noise on
-         the cards that do not need it is what stops anyone reading the one that
-         does. */
-      expect(coverageNote(m, ALL_CHANNELS)).toBeNull();
-      expect(coverageTitle(m, ALL_CHANNELS)).toBeUndefined();
+      /* 🔄 This used to assert null on a complete blend -- "a caveat nobody needs
+         is noise". It produced a visible defect: three cards in a row carried a
+         line and one did not, so the one without grew a patch of dead space when
+         the flex row stretched to the tallest.
+
+         Every blended card states coverage now, and a complete one states it
+         positively. Completeness becomes something the card ASSERTS rather than
+         something a reader infers from an absence. */
+      expect(coverageNote(m, ALL_CHANNELS)).toBe('6 of 6 channels');
+      expect(coverageTitle(m, ALL_CHANNELS)).toMatch(/covers all 6 channels/);
+    }
+  });
+
+  it('a single channel is not a blend, so it carries no line', () => {
+    /* ⚠️ The rule is uniformity WITHIN a row, not globally. Every card on
+       Overview has the line; no card on a channel screen does, because there is
+       nothing there for a blend to be partial about. */
+    for (const m of ['Spend', 'CTR', 'CAC'] as const) {
+      expect(coverageNote(m, ['meta'])).toBeNull();
+      expect(coverageTitle(m, ['meta'])).toBeUndefined();
     }
   });
 

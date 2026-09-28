@@ -82,3 +82,49 @@ describe('KpiCard shows exactly one percentage', () => {
     expect(container.querySelector('.gr-delta.is-bad'), 'above-average CAC must read bad').toBeTruthy();
   });
 });
+
+describe('a row of cards keeps one shape', () => {
+  /* 🐛 The defect Tommy caught by looking at it: Total spend had no coverage
+     line while Impressions, Clicks and CTR did. `.gr-kpi` has `min-height` not
+     `height`, so the three with a line grew ~20px, the flex row stretched all
+     four to the tallest, and the one without gained a patch of dead space.
+
+     Structural sameness is the assertable form of "the row looks right". */
+
+  function basisCount(root: HTMLElement) {
+    return root.querySelectorAll('.gr-kpi__bench').length;
+  }
+
+  it('every card in a blended row carries a basis line', () => {
+    const metrics = ['Total spend', 'Total impressions', 'Total clicks', 'Blended CTR'];
+    for (const label of metrics) {
+      const { container } = render(
+        <KpiCard label={label} value="1" deltaPercent={1} basis="6 of 6 channels" />,
+      );
+      expect(basisCount(container), label).toBe(1);
+      cleanup();
+    }
+  });
+
+  it('a card with no basis has no line at all — not an empty one', () => {
+    /* An empty reserved line is the obvious fix and leaves the same hole. A
+       channel screen's cards carry no basis, and that row is uniform without
+       one. */
+    const { container } = render(<KpiCard label="CAC" value="$35.94" deltaPercent={-2} />);
+    expect(basisCount(container)).toBe(0);
+  });
+
+  it('a basis never renders alongside a benchmark — one footer line, one owner', () => {
+    const { container } = render(
+      <KpiCard
+        label="CAC" value="$35.94" basis="4 of 6 channels"
+        benchmark={{ percent: -8, note: 'Your Meta avg $29.80' }}
+      />,
+    );
+    expect(basisCount(container)).toBe(1);
+    /* The benchmark wins, because it is the one paired with a visible pill that
+       would otherwise have no stated basis. */
+    expect(container.textContent).toContain('Your Meta avg');
+    expect(container.textContent).not.toContain('4 of 6');
+  });
+});

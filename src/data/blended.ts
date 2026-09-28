@@ -128,18 +128,36 @@ export function blendedSparkline(
 }
 
 /**
- * What the number is computed over, in words — or null when it needs no caveat.
+ * What the number is computed over, in words.
  *
- * ⭐ Null when every active channel reports the metric. A note on a complete
- * blend is noise, and noise on the cards that do not need it is what stops
- * anyone reading the note on the card that does.
+ * 🔄 REVERSED. This used to return null on a complete blend, reasoning that a
+ * note nobody needs is noise and noise crowds out the note that matters. Sound
+ * in the abstract, and it produced a visible defect: a KPI row where three cards
+ * carried a line and one did not, so the card WITHOUT the caveat grew a patch of
+ * dead space when the flex row stretched everything to the tallest. Tommy spotted
+ * it immediately — "it kind of messes up the other cards that aren't filled in".
+ *
+ * ⭐ The fix is not an EMPTY reserved line, which is the obvious move and leaves
+ * the same hole. Every blended card states its coverage, and a complete one says
+ * so positively: "6 of 6 channels". That fills the space with information rather
+ * than padding, and it turns completeness into something the card ASSERTS instead
+ * of something the reader has to infer from an absence.
+ *
+ * ⚠️ Null for a single channel, because that is not a blend — there is nothing
+ * for it to be partial about, and a channel screen's row is uniform without it.
+ * The rule is uniformity WITHIN a row, not globally: every card on Overview has
+ * the line, no card on a channel screen does.
+ *
+ * Chart fixed this same defect once already: "One legend, always present… it
+ * used to appear only on compare, which made the whole card grow ~20px taller
+ * the moment Compare was switched on."
  */
 export function coverageNote(
   m: DerivedMetric, channels: ChannelName[] = activeChannels(),
 ): string | null {
   const covering = coverageFor(m, channels);
   if (covering.length === 0) return null;
-  if (covering.length === channels.length) return null;
+  if (channels.length < 2) return null;
   return `${covering.length} of ${channels.length} channels`;
 }
 
@@ -155,9 +173,15 @@ export function coverageTitle(
   m: DerivedMetric, channels: ChannelName[] = activeChannels(),
 ): string | undefined {
   const covering = coverageFor(m, channels);
-  if (covering.length === 0 || covering.length === channels.length) return undefined;
-  const missing = channels.filter((c) => !covering.includes(c));
+  if (covering.length === 0 || channels.length < 2) return undefined;
   const names = (list: ChannelName[]) => list.map((c) => CHANNEL_LABEL[c]).join(', ');
+  /* The complete case gets a sentence too, not silence. "All six" is a claim
+     worth making explicitly on a dashboard whose whole argument is that it says
+     what it can and cannot see. */
+  if (covering.length === channels.length) {
+    return `${m} covers all ${channels.length} channels you run: ${names(covering)}.`;
+  }
+  const missing = channels.filter((c) => !covering.includes(c));
   return `${m} covers ${names(covering)}. Excluded: ${names(missing)} — `
     + `${missing.length === 1 ? 'it does' : 'they do'} not report ${m}.`;
 }
