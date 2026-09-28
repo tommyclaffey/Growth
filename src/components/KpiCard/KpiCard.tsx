@@ -71,6 +71,19 @@ export interface KpiCardProps {
   basisTitle?: string;
   /** Fires from the Discuss button, not the whole card. */
   onDiscuss?: () => void;
+  /**
+   * Starts a conversation about this metric with the decision agent.
+   *
+   * ⚠️ A DIFFERENT DESTINATION from `onDiscuss`, and the two sit side by side, so
+   * the difference has to be legible. Discuss shares the number with a PERSON —
+   * it stages a card in the team chat. Ask puts it to the AGENT, which reads the
+   * same engine the Decisions screen does.
+   *
+   * Same size, same corner, same reveal-on-hover. Different icon and different
+   * label, because "send this to a teammate" and "ask the model about this" are
+   * not variants of one action.
+   */
+  onAsk?: () => void;
 }
 
 /**
@@ -98,6 +111,7 @@ export function KpiCard({
   error = false,
   basis,
   basisTitle,
+  onAsk,
   benchmark,
   onDiscuss,
 }: KpiCardProps) {
@@ -132,11 +146,31 @@ export function KpiCard({
           This is the card's actual affordance for starting a conversation
           about a number; the whole card being clickable was my approximation
           of it. Kept in the tab order so it is reachable without a mouse. */}
+      {/* Ask sits LEFT of Discuss, so the pair reads outward from the corner in
+          order of how often it gets used. */}
+      {onAsk && (
+        <button
+          type="button"
+          className="gr-kpi__discuss gr-kpi__ask"
+          aria-label={`Ask about ${label}`}
+          title={`Ask the assistant about ${label}`}
+          onClick={(e) => { e.stopPropagation(); onAsk(); }}
+        >
+          {/* A spark, not a second speech bubble. Two bubbles side by side would
+              read as one control rendered twice. */}
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+               stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 1.6l1.3 3.1 3.1 1.3-3.1 1.3L7 10.4 5.7 7.3 2.6 6l3.1-1.3z" />
+            <path d="M11.2 10.2l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z" />
+          </svg>
+        </button>
+      )}
       {onDiscuss && (
         <button
           type="button"
           className="gr-kpi__discuss"
           aria-label={`Discuss ${label}`}
+          title={`Share ${label} with the team`}
           onClick={(e) => { e.stopPropagation(); onDiscuss(); }}
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"

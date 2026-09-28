@@ -141,7 +141,14 @@
   cursor: pointer;
   transition: opacity 120ms ease;
 }
+/* ⚠️ Every row class that carries an Ask button, not just the channel table's.
+   The Ads screen reuses `gr-campaign__adset-row`, so keying the reveal on
+   `gr-table__row` alone left the button permanently at opacity 0 -- present in
+   the DOM, clickable by keyboard, and invisible to a mouse. A control nobody can
+   see is the same as one that does not exist. */
 .gr-table__row:hover .gr-ask,
+.gr-campaigns__row:hover .gr-ask,
+.gr-campaign__adset-row:hover .gr-ask,
 .gr-ask:focus-visible { opacity: 1; }
 .gr-ask:focus-visible {
   outline: var(--border-width-md) solid var(--accent-base);

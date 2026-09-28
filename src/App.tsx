@@ -33,6 +33,7 @@ import {
 } from './data/metrics';
 import { campaignById } from './data/campaignSeries';
 import { adSetById } from './data/adSets';
+import type { Target } from './data/decisions';
 import {
   CHANNEL_METRICS, betterHigher, formatDerived, headlineKpis, trendMark,
   type DerivedMetric,
@@ -101,6 +102,15 @@ export default function App() {
   const [assistOpen, setAssistOpen] = useState(false);
   /* A question staged for the assistant by another screen. Cleared once asked. */
   const [assistSeed, setAssistSeed] = useState<string | null>(null);
+  /* ONE way to raise a subject with the agent, used by every surface that can.
+     Six call sites each opening the panel their own way is how one of them ends
+     up not clearing the seed, or not opening at all. */
+  const [assistSubject, setAssistSubject] = useState<Target | null>(null);
+  const askAbout = useCallback((question: string, subject?: Target) => {
+    setAssistSeed(question);
+    setAssistSubject(subject ?? null);
+    setAssistOpen(true);
+  }, []);
   const enabled = useChannels();
   /* Drives the loading/error/empty states, which are otherwise unreachable —
      the data layer is synchronous, so nothing here can be slow or fail. */
@@ -542,6 +552,12 @@ export default function App() {
                     loading={demo === 'loading'}
                     error={demo === 'error'}
                     onDiscuss={() => shareMetric(m)}
+                    /* The subject is the metric AND the scope -- "Blended CTR"
+                       on Overview and "CTR" on a channel screen are different
+                       questions, and the label already encodes which. */
+                    onAsk={() => askAbout(
+                      `What's going on with ${kpiLabel(m, onChannelScreen)}${
+                        onChannelScreen && channel ? ` on ${CHANNEL_LABEL[channel]}` : ''}?`)}
                     label={kpiLabel(m, onChannelScreen)}
                     value={formatDerived(m, blendedTotal(m, kpiScope, range))}
                     higherIsBetter={betterHigher(m)}
@@ -644,10 +660,7 @@ export default function App() {
           {nav === 'channels' && !onChannelScreen && (
             <ChannelTable rows={view.rows} metric={metric} wideColumns={!chatOpen}
                           onRowClick={(k) => setChannel(k)}
-                          onAskAbout={(question) => {
-                            setAssistSeed(question);
-                            setAssistOpen(true);
-                          }} />
+                          onAskAbout={askAbout} />
           )}
 
           {/* Deepest tier first. The chain is campaign → ad set → ad, and Back
@@ -692,7 +705,8 @@ export default function App() {
                 wideColumns={!chatOpen}
               />
             )
-            : <CampaignTable wideColumns={!chatOpen} onOpenCampaign={(id) => openCampaign(id)} />)}
+            : <CampaignTable wideColumns={!chatOpen} onOpenCampaign={(id) => openCampaign(id)}
+                             onAskAbout={askAbout} />)}
 
           {/* The cross-channel ad ranking, and an ad opened FROM it returns to
               it -- the breadcrumb has to name where Back actually lands, and
@@ -706,12 +720,12 @@ export default function App() {
                 backLabel="All ads"
               />
             )
-            : <Ads range={range} onOpenAd={setAdId} />)}
+            : <Ads range={range} onOpenAd={setAdId} onAskAbout={askAbout} />)}
 
           {nav === 'decisions' && (
             <Decisions
               range={range}
-              onDiscuss={(question) => { setAssistSeed(question); setAssistOpen(true); }}
+              onDiscuss={askAbout}
             />
           )}
 
@@ -736,7 +750,8 @@ export default function App() {
         onClose={() => setAssistOpen(false)}
         range={range}
         seed={assistSeed}
-        onSeedConsumed={() => setAssistSeed(null)}
+        seedSubject={assistSubject}
+        onSeedConsumed={() => { setAssistSeed(null); setAssistSubject(null); }}
       />
 
       {chatOpen && (

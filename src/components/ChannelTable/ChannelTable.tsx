@@ -5,6 +5,7 @@ import { formatMetric, type Metric, higherIsBetter } from '../../data/metrics';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { Sparkline } from '../Sparkline/Sparkline';
 import { channelGradient, type ChannelName } from '../../styles/tokens';
+import type { Target } from '../../data/decisions';
 
 /**
  * Rows carry NUMBERS, not formatted strings.
@@ -37,7 +38,7 @@ export interface ChannelTableProps {
    * are asking "what is going on here", and an agenda cannot answer a question it
    * did not anticipate.
    */
-  onAskAbout?: (question: string) => void;
+  onAskAbout?: (question: string, subject?: Target) => void;
   /** Chat open shrinks the content column, so the table drops its wide columns. */
   wideColumns?: boolean;
   /** The metric being shown. Decides whether a rising delta is good news. */
@@ -207,7 +208,8 @@ export function ChannelTable({ rows, onRowClick, onAskAbout, wideColumns = true,
                         /* The row navigates. This must not, or asking about a
                            channel would also leave the screen you asked from. */
                         e.stopPropagation();
-                        onAskAbout(`What's going on with ${r.name}?`);
+                        onAskAbout(`What's going on with ${r.name}?`,
+                          { kind: 'channel', id: r.key, label: r.name });
                       }}
                     >
                       Ask

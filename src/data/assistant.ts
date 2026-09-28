@@ -3,8 +3,9 @@ import {
   type Metric, type Range, type Scope,
 } from './metrics';
 import type { ChannelName } from '../styles/tokens';
-import { decisions, decisionsFor, limitsFor, type Candidate } from './decisions';
+import { decisions, decisionsFor, limitsFor, type Candidate, type Target } from './decisions';
 import { CAMPAIGNS } from './campaigns';
+import { creativeById, creativesFor } from './creative';
 
 /**
  * The assistant.
@@ -147,7 +148,22 @@ function speak(c: Candidate): string {
   return lines.join('\n');
 }
 
-export function ask(question: string, range: Range): Answer {
+/**
+ * Ask the agent something.
+ *
+ * ⭐ `subject` is how a BUTTON says what it is pointing at, instead of hoping the
+ * agent can parse it back out of a sentence.
+ *
+ * 🐛 The bug that forced it: ad headlines are not unique. "Start free, no card"
+ * appears in several campaigns, because the copy generator cycles a fixed set of
+ * hooks. So resolving an ad by its headline returned whichever one matched first
+ * -- click Ask on a TikTok ad and get an answer about a Meta ad with the same
+ * words, confidently, with evidence attached.
+ *
+ * Name-matching stays for questions a PERSON types, where a name is all there is.
+ * A control has an id and should say so.
+ */
+export function ask(question: string, range: Range, subject?: Target): Answer {
   const q = question.trim();
   if (!q) return { text: '', answered: false };
 
@@ -171,15 +187,32 @@ export function ask(question: string, range: Range): Answer {
     /* Campaign or ad by name before channel, because the more specific match is
        almost always the intent -- someone naming a campaign does not want its
        whole channel's answer. */
-    const campaign = CAMPAIGNS.find((c) =>
-      q.toLowerCase().includes(c.name.toLowerCase().slice(0, 14)));
-    const channel = findChannels(q)[0];
+    /* An explicit subject wins outright -- a control knows what it pointed at,
+       and re-deriving it from prose can only lose. Falls back to name matching
+       for a typed question, most specific first. */
+    const ad = subject?.kind === 'ad'
+      ? creativeById(subject.id)?.creative
+      : CAMPAIGNS.flatMap((c) => creativesFor(c.id))
+          .find((x) => x.headline.length > 8
+            && q.toLowerCase().includes(x.headline.toLowerCase()));
 
-    const target = campaign
-      ? { kind: 'campaign' as const, id: campaign.id, label: campaign.name }
-      : channel
-        ? { kind: 'channel' as const, id: channel, label: CHANNEL_LABEL[channel] }
-        : { kind: 'account' as const, id: 'account', label: 'this account' };
+    const campaign = ad
+      ? CAMPAIGNS.find((c) => c.id === creativeById(ad.id)?.campaignId)
+      : subject?.kind === 'campaign'
+        ? CAMPAIGNS.find((c) => c.id === subject.id)
+        : CAMPAIGNS.find((c) => q.toLowerCase().includes(c.name.toLowerCase().slice(0, 14)));
+
+    const channel = subject?.kind === 'channel'
+      ? (subject.id as ChannelName)
+      : findChannels(q)[0];
+
+    const target: Target = ad
+      ? { kind: 'ad', id: ad.id, label: ad.headline }
+      : campaign
+        ? { kind: 'campaign', id: campaign.id, label: campaign.name }
+        : channel
+          ? { kind: 'channel', id: channel, label: CHANNEL_LABEL[channel] }
+          : { kind: 'account', id: 'account', label: 'this account' };
 
     const mine = decisionsFor(target, range);
     const actionable = mine.filter((c) => c.tier !== 3);
@@ -189,7 +222,9 @@ export function ask(question: string, range: Range): Answer {
     /* The numbers first, because that is what they are looking at. */
     const scope: Scope = target.kind === 'channel' ? (target.id as ChannelName) : 'all';
     const t = totals(scope, range);
-    const head = target.kind === 'campaign'
+    const head = target.kind === 'ad'
+      ? `“${target.label}” — an ad in ${campaign?.name ?? 'this account'}, over the ${period}.`
+      : target.kind === 'campaign'
       ? `${target.label} over the ${period}.`
       : `${target.label} over the ${period}: ${formatMetric('Spend', t.spend)} spend, `
         + `${formatMetric('Leads', t.leads)} leads, ${formatMetric('CAC', t.cac)} CAC.`;

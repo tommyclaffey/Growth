@@ -2,6 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import { SUGGESTIONS, ask } from '../assistant';
 import { decisions, decisionsFor } from '../decisions';
+import { CAMPAIGNS } from '../campaigns';
+import { creativesFor } from '../creative';
 import { CHANNEL_KEYS, CHANNEL_LABEL, setActiveChannels } from '../metrics';
 
 const reset = () => setActiveChannels([...CHANNEL_KEYS]);
@@ -157,6 +159,100 @@ describe('user-initiated: asking about a specific thing', () => {
     for (const label of Object.values(CHANNEL_LABEL)) {
       expect(ask(`What's going on with ${label}?`, 30).answered,
         `dead end for ${label}`).toBe(true);
+    }
+  });
+});
+
+describe('🚨 every subject any surface can raise is answerable', () => {
+  /* ⚠️ The guard, now applied exhaustively rather than per-surface.
+
+     Four surfaces generate questions for the agent: channel rows, campaign rows,
+     ad rows, and KPI cards. Each one builds its string independently, and a
+     button that hands the agent something it cannot parse looks like the agent is
+     broken -- the user cannot tell a bad question from a bad assistant.
+
+     This enumerates the same strings the components build. If a surface changes
+     its phrasing without the matcher following, this fails. */
+
+  it('channel rows', () => {
+    reset();
+    for (const label of Object.values(CHANNEL_LABEL)) {
+      const a = ask(`What's going on with ${label}?`, 30);
+      expect(a.answered, label).toBe(true);
+      expect(a.text, label).toContain(label);
+    }
+  });
+
+  it('campaign rows', () => {
+    reset();
+    for (const c of CAMPAIGNS) {
+      const a = ask(`What's going on with ${c.name}?`, 30);
+      expect(a.answered, c.name).toBe(true);
+      expect(a.text, c.name).toContain(c.name);
+    }
+  });
+
+  it('⭐ ad rows resolve to the exact AD, by id', () => {
+    reset();
+    /* 🐛 The bug that forced identity-passing: ad headlines are NOT unique. The
+       copy generator cycles a fixed set of hooks, so "Start free, no card"
+       exists in several campaigns. Matching on the headline returned whichever
+       came first -- click Ask on a TikTok ad, get a confident answer about a
+       Meta ad with the same words, evidence attached.
+
+       The row now passes {kind:'ad', id} the way the component does, so the
+       question text stays human while the resolution stays exact. */
+    for (const c of CAMPAIGNS) {
+      for (const ad of creativesFor(c.id)) {
+        const a = ask(`What's going on with “${ad.headline}”?`, 30,
+          { kind: 'ad', id: ad.id, label: ad.headline });
+        expect(a.answered, ad.id).toBe(true);
+        expect(a.text, ad.id).toContain(ad.headline);
+        /* THE assertion: the right campaign, even when the headline is shared. */
+        expect(a.text, ad.id).toContain(c.name);
+      }
+    }
+  });
+
+  it('a duplicated headline resolves to different ads by id', () => {
+    reset();
+    /* Proves the ambiguity is real and that identity resolves it, rather than
+       trusting that it would. */
+    const all = CAMPAIGNS.flatMap((c) => creativesFor(c.id).map((ad) => ({ c, ad })));
+
+    const byHeadline = new Map<string, typeof all>();
+    for (const item of all) {
+      byHeadline.set(item.ad.headline, [...(byHeadline.get(item.ad.headline) ?? []), item]);
+    }
+    /* A headline used by ads in two DIFFERENT campaigns is the ambiguous case. */
+    const shared = [...byHeadline.values()].find(
+      (group) => new Set(group.map((g) => g.c.id)).size > 1);
+    expect(shared, 'expected a headline shared across campaigns').toBeDefined();
+
+    const a = shared!.find((x) => x.c.id !== shared![0].c.id)!;
+    const b = shared![0];
+
+    const qa = ask(`What's going on with “${a.ad.headline}”?`, 30,
+      { kind: 'ad', id: a.ad.id, label: a.ad.headline });
+    const qb = ask(`What's going on with “${b.ad.headline}”?`, 30,
+      { kind: 'ad', id: b.ad.id, label: b.ad.headline });
+
+    /* Same words typed, different ads answered — each naming its own campaign. */
+    expect(qa.text).toContain(a.c.name);
+    expect(qb.text).toContain(b.c.name);
+    expect(qa.text).not.toBe(qb.text);
+  });
+
+  it('KPI cards, blended and per-channel', () => {
+    reset();
+    const RATES = ['CTR', 'CPC', 'CPM', 'CVR', 'CAC', 'ROAS'];
+    for (const m of ['Spend', 'Leads', 'CAC', 'ROAS', 'Impressions', 'Clicks', 'CTR']) {
+      const blended = RATES.includes(m) ? `Blended ${m}` : `Total ${m.toLowerCase()}`;
+      expect(ask(`What's going on with ${blended}?`, 30).answered, blended).toBe(true);
+      for (const label of Object.values(CHANNEL_LABEL)) {
+        expect(ask(`What's going on with ${m} on ${label}?`, 30).answered,
+          `${m} on ${label}`).toBe(true);
+      }
     }
   });
 });

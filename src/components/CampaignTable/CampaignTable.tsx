@@ -8,6 +8,7 @@ import { CAMPAIGNS, type Campaign } from '../../data/campaigns';
 import { setStage, useCampaignStatus } from '../../data/campaignStatus';
 import { CHANNEL_LABEL } from '../../data/metrics';
 import type { ChannelName } from '../../styles/tokens';
+import type { Target } from '../../data/decisions';
 
 
 const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
@@ -20,9 +21,11 @@ export interface CampaignTableProps {
   wideColumns?: boolean;
   /** Opens the campaign's detail page. The caret still expands in place. */
   onOpenCampaign?: (id: string) => void;
+  /** Raises this campaign with the decision agent. */
+  onAskAbout?: (question: string, subject?: Target) => void;
 }
 
-export function CampaignTable({ channel = null, wideColumns = true, onOpenCampaign }: CampaignTableProps) {
+export function CampaignTable({ channel = null, wideColumns = true, onOpenCampaign, onAskAbout }: CampaignTableProps) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const stageOf = useCampaignStatus();
   const [filter, setFilter] = useState<ChannelName | null>(channel);
@@ -65,6 +68,7 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
             <th scope="col">Leads</th>
             {wideColumns && <th scope="col">CAC</th>}
             <th scope="col">ROAS</th>
+            {onAskAbout && <th scope="col"><span className="gr-sr-only">Discuss</span></th>}
           </tr>
         </thead>
         <tbody>
@@ -122,6 +126,21 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
                   <td className="gr-type-body">{c.leads.toLocaleString()}</td>
                   {wideColumns && <td className="gr-type-body">{cacOf(c)}</td>}
                   <td className="gr-type-body">{c.roas.toFixed(1)}x</td>
+                  {onAskAbout && (
+                    <td className="gr-table__ask">
+                      <button type="button" className="gr-unbutton gr-ask"
+                              aria-label={`Ask about ${c.name}`}
+                              onClick={(e) => {
+                                /* The row expands on click; this must not also
+                                   toggle it open behind the panel. */
+                                e.stopPropagation();
+                                onAskAbout(`What's going on with ${c.name}?`,
+                                  { kind: 'campaign', id: c.id, label: c.name });
+                              }}>
+                        Ask
+                      </button>
+                    </td>
+                  )}
                 </tr>
 
                 {isOpen &&

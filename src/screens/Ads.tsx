@@ -9,10 +9,13 @@ import { betterHigher, formatDerived, type DerivedMetric } from '../data/channel
 import { groupNoun, leafNoun } from '../data/channelDepth';
 import { CHANNEL_LABEL, type Range } from '../data/metrics';
 import { useChannels } from '../data/channels';
+import type { Target } from '../data/decisions';
 
 export interface AdsProps {
   range: Range;
   onOpenAd?: (id: string) => void;
+  /** Raises this ad with the decision agent. */
+  onAskAbout?: (question: string, subject?: Target) => void;
 }
 
 /**
@@ -30,7 +33,7 @@ export interface AdsProps {
  * four of them. Using cards here would make the reader scroll past the artwork
  * to compare numbers that belong in a column.
  */
-export function Ads({ range, onOpenAd }: AdsProps) {
+export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
   const [metric, setMetric] = useState<DerivedMetric>('CAC');
   /* Relative by default, and that is the whole argument of this screen. See
      adRanking.ts: an absolute cross-channel CAC sort just re-derives the channel
@@ -92,12 +95,13 @@ export function Ads({ range, onOpenAd }: AdsProps) {
             <th scope="col">{metric}</th>
             <th scope="col">vs its channel</th>
             <th scope="col">Status</th>
+            {onAskAbout && <th scope="col"><span className="gr-sr-only">Discuss</span></th>}
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 && (
             <tr>
-              <td colSpan={7} className="gr-table__empty gr-type-body">
+              <td colSpan={onAskAbout ? 8 : 7} className="gr-table__empty gr-type-body">
                 No channels are switched on. Turn one back on in Settings to see ads here.
               </td>
             </tr>
@@ -150,6 +154,22 @@ export function Ads({ range, onOpenAd }: AdsProps) {
                 )}
               </td>
               <td><StatusPill stage={r.creative.stage} /></td>
+              {onAskAbout && (
+                <td className="gr-table__ask">
+                  <button type="button" className="gr-unbutton gr-ask"
+                          aria-label={`Ask about ${r.creative.headline}`}
+                          /* ⚠️ The ID travels, not just the headline. Ad
+                              headlines are NOT unique -- the copy generator
+                              cycles a fixed set of hooks, so "Start free, no
+                              card" exists in several campaigns. Name matching
+                              returned whichever matched first. */
+                          onClick={() => onAskAbout(
+                            `What's going on with “${r.creative.headline}”?`,
+                            { kind: 'ad', id: r.creative.id, label: r.creative.headline })}>
+                    Ask
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

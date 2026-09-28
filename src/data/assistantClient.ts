@@ -1,4 +1,5 @@
 import { ask, type Answer } from './assistant';
+import type { Target } from './decisions';
 import type { Range } from './metrics';
 
 /**
@@ -58,9 +59,9 @@ let endpointAvailable: boolean | null = null;
  *
  * A fallback that can throw is not a fallback.
  */
-function askSafely(question: string, range: Range): Answer {
+function askSafely(question: string, range: Range, subject?: Target): Answer {
   try {
-    return ask(question, range);
+    return ask(question, range, subject);
   } catch {
     return {
       answered: false,
@@ -69,8 +70,12 @@ function askSafely(question: string, range: Range): Answer {
   }
 }
 
-export async function askAssistant(question: string, range: Range): Promise<Reply> {
-  if (endpointAvailable === false) return { answer: askSafely(question, range), source: 'local' };
+export async function askAssistant(
+  question: string, range: Range, subject?: Target,
+): Promise<Reply> {
+  if (endpointAvailable === false) {
+    return { answer: askSafely(question, range, subject), source: 'local' };
+  }
 
   try {
     const res = await fetch('/api/assistant', {
@@ -83,16 +88,16 @@ export async function askAssistant(question: string, range: Range): Promise<Repl
       /* 503 means the endpoint is there but unconfigured — a missing key, not a
          missing server. Keep trying: the key can appear on the next restart. */
       if (res.status !== 503) endpointAvailable = false;
-      return { answer: askSafely(question, range), source: 'local' };
+      return { answer: askSafely(question, range, subject), source: 'local' };
     }
 
     const data = (await res.json()) as Answer;
     endpointAvailable = true;
     /* An empty response body is a failure that returned 200. Treat it as one. */
-    if (!data.text?.trim()) return { answer: askSafely(question, range), source: 'local' };
+    if (!data.text?.trim()) return { answer: askSafely(question, range, subject), source: 'local' };
     return { answer: data, source: 'model' };
   } catch {
     endpointAvailable = false;
-    return { answer: askSafely(question, range), source: 'local' };
+    return { answer: askSafely(question, range, subject), source: 'local' };
   }
 }

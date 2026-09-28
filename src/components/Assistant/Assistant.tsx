@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useOverlay } from '../../data/useOverlay';
 import './Assistant.css';
 import { SUGGESTIONS, type Answer } from '../../data/assistant';
+import type { Target } from '../../data/decisions';
 import { askAssistant, probeModel, type AnswerSource } from '../../data/assistantClient';
 import { RANGE_LABEL, type Range } from '../../data/metrics';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
@@ -22,6 +23,8 @@ export interface AssistantProps {
    * persisting its conversation parameter.
    */
   seed?: string | null;
+  /** What the seeding control pointed at, so the agent need not re-derive it. */
+  seedSubject?: Target | null;
   onSeedConsumed?: () => void;
 }
 
@@ -33,7 +36,7 @@ export interface AssistantProps {
  * data functions, and every answer shows the figures it used, so the panel
  * can never state a number the product cannot show.
  */
-export function Assistant({ open, onClose, range, seed, onSeedConsumed }: AssistantProps) {
+export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsumed }: AssistantProps) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<string | null>(null);
@@ -54,7 +57,7 @@ export function Assistant({ open, onClose, range, seed, onSeedConsumed }: Assist
      same reasoning the deep-link `t` parameter already uses. */
   useEffect(() => {
     if (!open || !seed) return;
-    void submit(seed);
+    void submit(seed, seedSubject ?? undefined);
     onSeedConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, seed]);
@@ -76,7 +79,7 @@ export function Assistant({ open, onClose, range, seed, onSeedConsumed }: Assist
 
   if (!open) return null;
 
-  async function submit(text: string) {
+  async function submit(text: string, subject?: Target) {
     const q = text.trim();
     if (!q || pending) return;
     setDraft('');
@@ -89,7 +92,7 @@ export function Assistant({ open, onClose, range, seed, onSeedConsumed }: Assist
        askSafely() removes the known throw; this makes the state machine
        recover from ones nobody has thought of yet. */
     try {
-      const { answer, source: src } = await askAssistant(q, range);
+      const { answer, source: src } = await askAssistant(q, range, subject);
       /* The probe can be optimistic — a key can be present but the call can still
          fail and fall back. Let what actually happened correct the claim. */
       if (src === 'local' && hasModel) setHasModel(false);

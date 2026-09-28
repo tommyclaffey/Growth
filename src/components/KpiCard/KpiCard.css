@@ -127,3 +127,8 @@
   margin-top: var(--space-4);
   min-width: 0;
 }
+
+/* Ask sits immediately left of Discuss. 24px control + 6px gap = 30px offset,
+   so the pair keeps the same 10px inset from the card's corner and neither one
+   touches the 20px radius. */
+.gr-kpi__ask { right: 40px; }
