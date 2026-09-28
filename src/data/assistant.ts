@@ -3,7 +3,8 @@ import {
   type Metric, type Range, type Scope,
 } from './metrics';
 import type { ChannelName } from '../styles/tokens';
-import { decisions, type Candidate } from './decisions';
+import { decisions, decisionsFor, limitsFor, type Candidate } from './decisions';
+import { CAMPAIGNS } from './campaigns';
 
 /**
  * The assistant.
@@ -155,6 +156,76 @@ export function ask(question: string, range: Range): Answer {
   const period = RANGE_LABEL[range].toLowerCase();
 
   const found = decisions(range);
+
+  /* ── User-initiated: "what's going on with THIS?" ────────────────────────
+
+     ⭐ The engine pushes an agenda; this is the pull. A marketer looking at a row
+     is not asking "what should I do" -- they are asking about the thing in front
+     of them, and an agenda cannot answer a question it did not anticipate.
+
+     Same engine and the same tiers. The only difference is who chose the subject,
+     which matters because a separate "explain this entity" path would be a second
+     source of judgement that could disagree with the first -- and the reader would
+     have no way to know which to believe. */
+  if (/what.s (going on|happening)|tell me about|look at|explain|how is|what about|dig into/i.test(q)) {
+    /* Campaign or ad by name before channel, because the more specific match is
+       almost always the intent -- someone naming a campaign does not want its
+       whole channel's answer. */
+    const campaign = CAMPAIGNS.find((c) =>
+      q.toLowerCase().includes(c.name.toLowerCase().slice(0, 14)));
+    const channel = findChannels(q)[0];
+
+    const target = campaign
+      ? { kind: 'campaign' as const, id: campaign.id, label: campaign.name }
+      : channel
+        ? { kind: 'channel' as const, id: channel, label: CHANNEL_LABEL[channel] }
+        : { kind: 'account' as const, id: 'account', label: 'this account' };
+
+    const mine = decisionsFor(target, range);
+    const actionable = mine.filter((c) => c.tier !== 3);
+    const questions = mine.filter((c) => c.tier === 3);
+    const limits = limitsFor(target.kind);
+
+    /* The numbers first, because that is what they are looking at. */
+    const scope: Scope = target.kind === 'channel' ? (target.id as ChannelName) : 'all';
+    const t = totals(scope, range);
+    const head = target.kind === 'campaign'
+      ? `${target.label} over the ${period}.`
+      : `${target.label} over the ${period}: ${formatMetric('Spend', t.spend)} spend, `
+        + `${formatMetric('Leads', t.leads)} leads, ${formatMetric('CAC', t.cac)} CAC.`;
+
+    const body: string[] = [head];
+
+    if (actionable.length > 0) {
+      body.push(actionable.length === 1 ? 'One thing I can act on:' : `${actionable.length} things I can act on:`);
+      body.push(...actionable.slice(0, 3).map((c) => speak(c)));
+    } else {
+      body.push('Nothing here that this data supports acting on. Not a problem -- just not a finding.');
+    }
+
+    if (questions.length > 0) {
+      body.push(`And one I will not turn into a recommendation: ${questions[0].action} ${questions[0].because}`);
+    }
+
+    /* ⚠️ The limits are stated EVERY time, not only when something looks wrong.
+       A caveat that appears only alongside bad news reads as an excuse; stated
+       always, it is a property of the instrument. */
+    body.push(`What I cannot tell you about it: ${limits.join('; ')}.`);
+
+    return {
+      answered: true,
+      text: body.join('\n\n'),
+      evidence: actionable[0] ? asEvidence(actionable[0]) : [
+        { label: `${target.label} spend`, value: formatMetric('Spend', t.spend), channel: scope },
+        { label: `${target.label} CAC`, value: formatMetric('CAC', t.cac), channel: scope },
+      ],
+      followUps: [
+        ...(actionable[0] ? [`Why \u201c${actionable[0].action}\u201d?`] : []),
+        'What should I do next?',
+        'What can this data not tell me?',
+      ],
+    };
+  }
 
   /* "what should I do" — the agenda, best-supported first. */
   if (/what should i do|what.s next|recommend|suggest|where should|advice|priorit/i.test(q)) {

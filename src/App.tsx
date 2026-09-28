@@ -643,7 +643,11 @@ export default function App() {
 
           {nav === 'channels' && !onChannelScreen && (
             <ChannelTable rows={view.rows} metric={metric} wideColumns={!chatOpen}
-                          onRowClick={(k) => setChannel(k)} />
+                          onRowClick={(k) => setChannel(k)}
+                          onAskAbout={(question) => {
+                            setAssistSeed(question);
+                            setAssistOpen(true);
+                          }} />
           )}
 
           {/* Deepest tier first. The chain is campaign → ad set → ad, and Back

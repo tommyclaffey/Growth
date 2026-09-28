@@ -700,6 +700,70 @@ export function decisions(
     || a.id.localeCompare(b.id));
 }
 
+/**
+ * Findings that touch one specific thing the user pointed at.
+ *
+ * ⭐ THE ENGINE PUSHES; THIS MAKES IT PULL. `decisions()` decides what is worth
+ * raising and the Decisions screen shows that agenda. But a marketer looking at a
+ * row is not asking "what should I do" — they are asking *"what is going on with
+ * THIS?"*, and an agenda cannot answer a question it did not anticipate.
+ *
+ * Same engine, same tiers, same arithmetic. The only difference is who chose the
+ * subject. That matters because the alternative — a separate "explain this entity"
+ * path — would be a second source of judgement that could disagree with the first,
+ * and the user would have no way to tell which one to believe.
+ *
+ * ⚠️ Matches on the TARGET and on the channel, because a finding about a channel
+ * is relevant when you are looking at one of its campaigns. Asking about Paid
+ * Search should surface the ad-level pause inside it, not just findings whose
+ * target id happens to equal `paidSearch`.
+ */
+export function decisionsFor(
+  target: { kind: Target['kind']; id: string },
+  range: Range = 30,
+  channels: ChannelName[] = activeChannels(),
+): Candidate[] {
+  const all = decisions(range, channels);
+
+  return all.filter((c) => {
+    if (c.target.kind === target.kind && c.target.id === target.id) return true;
+    /* A channel question inherits everything running on that channel. */
+    if (target.kind === 'channel' && c.channel === target.id) return true;
+    /* And an account-level question inherits the pacing finding, which targets
+       the account rather than anything inside it. */
+    if (target.kind === 'account' && c.target.kind === 'account') return true;
+    return false;
+  });
+}
+
+/**
+ * What this data cannot say about one specific thing.
+ *
+ * Separate from the findings, because "here is what I know" and "here is what I
+ * cannot know" are different answers and running them together is how a caveat
+ * gets skimmed past. Returned as sentences rather than a flag, so the agent can
+ * say them.
+ */
+export function limitsFor(kind: Target['kind']): string[] {
+  const universal = [
+    'why a number moved — there is no campaign log, no creative history and no record of what changed when',
+    'what someone saw before they converted — this is last-touch only',
+  ];
+  if (kind === 'channel') {
+    return [
+      ...universal,
+      'whether this channel is creating demand another one is getting credit for — that needs an incrementality test',
+    ];
+  }
+  if (kind === 'ad') {
+    return [
+      ...universal,
+      'whether this creative is fatiguing — that needs frequency and reach, which this data does not carry',
+    ];
+  }
+  return universal;
+}
+
 /** Grouped for display, since the surface shows tiers as sections. */
 export function decisionsByTier(
   range: Range = 30,

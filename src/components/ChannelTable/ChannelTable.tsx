@@ -29,6 +29,15 @@ type SortKey = 'name' | 'spend' | 'leads' | 'cac' | 'roas' | 'delta' | 'share';
 export interface ChannelTableProps {
   rows: ChannelRow[];
   onRowClick?: (key: ChannelName) => void;
+  /**
+   * Starts a conversation about THIS row.
+   *
+   * ⭐ The engine decides what to raise; this is how a reader raises something
+   * themselves. Someone staring at a row is not asking "what should I do" -- they
+   * are asking "what is going on here", and an agenda cannot answer a question it
+   * did not anticipate.
+   */
+  onAskAbout?: (question: string) => void;
   /** Chat open shrinks the content column, so the table drops its wide columns. */
   wideColumns?: boolean;
   /** The metric being shown. Decides whether a rising delta is good news. */
@@ -50,7 +59,7 @@ const COLUMNS: { key: SortKey; label: string; wideOnly?: boolean; numeric?: bool
   { key: 'share', label: 'Share of spend', wideOnly: true, numeric: true },
 ];
 
-export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: ChannelTableProps) {
+export function ChannelTable({ rows, onRowClick, onAskAbout, wideColumns = true, metric }: ChannelTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({
     key: 'spend', dir: 'desc',
   });
@@ -101,6 +110,10 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
               );
             })}
             <th scope="col">Trend</th>
+            {/* An unlabelled column, because the button says what it does and a
+                header reading "Ask" above six Ask buttons is noise. Named for
+                assistive tech instead of visually. */}
+            {onAskAbout && <th scope="col"><span className="gr-sr-only">Discuss</span></th>}
           </tr>
         </thead>
         <tbody>
@@ -111,7 +124,7 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
               nothing at all with no explanation. */}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={wideColumns ? 8 : 5} className="gr-table__empty gr-type-body">
+              <td colSpan={wideColumns ? 9 : 6} className="gr-table__empty gr-type-body">
                 No channels are switched on. Turn one back on in Settings to see spend here.
               </td>
             </tr>
@@ -181,6 +194,26 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
                 <td>
                   <Sparkline values={r.trend} channel={r.key} variant="line" height={20} />
                 </td>
+                {onAskAbout && (
+                  <td className="gr-table__ask">
+                    {/* Revealed on row hover and on keyboard focus -- always
+                        visible it becomes six identical buttons competing with the
+                        numbers, which is what the row is for. */}
+                    <button
+                      type="button"
+                      className="gr-unbutton gr-ask"
+                      aria-label={`Ask about ${r.name}`}
+                      onClick={(e) => {
+                        /* The row navigates. This must not, or asking about a
+                           channel would also leave the screen you asked from. */
+                        e.stopPropagation();
+                        onAskAbout(`What's going on with ${r.name}?`);
+                      }}
+                    >
+                      Ask
+                    </button>
+                  </td>
+                )}
               </tr>
             );
           })}

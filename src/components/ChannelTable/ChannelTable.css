@@ -125,3 +125,26 @@
 }
 .gr-share__fill { display: block; height: 100%; border-radius: var(--radius-pill); opacity: 0.72; }
 .gr-table__row:hover .gr-share__fill { opacity: 1; }
+
+/* The per-row Ask control.
+
+   Hidden until the row is hovered or the button itself is focused. Always
+   visible, six identical buttons compete with the numbers the row exists to
+   show; never visible, the affordance does not exist. Focus-visible is what
+   keeps it reachable by keyboard rather than mouse-only. */
+.gr-table__ask { width: 3rem; text-align: right; }
+.gr-ask {
+  opacity: 0;
+  padding: var(--space-2) var(--space-8);
+  color: var(--accent-base);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+.gr-table__row:hover .gr-ask,
+.gr-ask:focus-visible { opacity: 1; }
+.gr-ask:focus-visible {
+  outline: var(--border-width-md) solid var(--accent-base);
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) { .gr-ask { transition: none; } }
