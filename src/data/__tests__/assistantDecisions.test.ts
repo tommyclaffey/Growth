@@ -4,6 +4,7 @@ import {
   SUGGESTIONS, ask, decisionsForQuestion, followUpsFor, resolveSubject,
 } from '../assistant';
 import { decisions, decisionsFor } from '../decisions';
+import { addFlag, flags } from '../attention';
 import { CAMPAIGNS } from '../campaigns';
 import { creativesFor } from '../creative';
 import { CHANNEL_KEYS, CHANNEL_LABEL, setActiveChannels } from '../metrics';
@@ -617,5 +618,44 @@ describe('🚨 the subject survives every path into the assistant', () => {
     /* Falling back to a stale or invented subject would be worse than none. */
     expect(resolveSubject('What should I do next?')).toBeUndefined();
     expect(resolveSubject('How are things?')).toBeUndefined();
+  });
+});
+
+describe('🚨 the prose and the buttons describe the same set', () => {
+  it('a taken decision is neither offered nor narrated', () => {
+    reset();
+    /* 🐛 The model narrated every finding while the client offered buttons only
+       for the untaken ones — prose describing three things, one button beneath
+       it, and nothing explaining where the other two went. The remaining button
+       looked arbitrary because from the reader's side it was.
+
+       The filter has to be the SAME on both sides, so the client sends what it
+       has taken and the server applies it. This asserts the client half; the
+       server half is the same list. */
+    const target = { kind: 'channel' as const, id: 'meta', label: 'Meta' };
+    const before = decisionsFor(target, 30).filter((c) => c.tier !== 3);
+    expect(before.length).toBeGreaterThan(1);
+
+    addFlag('decision', before[0].id, before[0].action);
+
+    const offered = ask('What would you do about Meta?', 30, target).decisions ?? [];
+    expect(offered.map((d) => d.id)).not.toContain(before[0].id);
+    /* And the set the SERVER would be told to exclude is that same set. */
+    const takenIds = flags().filter((f) => f.kind === 'decision').map((f) => f.refId);
+    expect(takenIds).toContain(before[0].id);
+    for (const d of offered) expect(takenIds).not.toContain(d.id);
+  });
+
+  it('taking everything leaves nothing offered, and says so', () => {
+    reset();
+    const target = { kind: 'channel' as const, id: 'meta', label: 'Meta' };
+    for (const c of decisionsFor(target, 30).filter((c) => c.tier !== 3)) {
+      addFlag('decision', c.id, c.action);
+    }
+    const a = ask('What would you do about Meta?', 30, target);
+    expect(a.decisions ?? []).toEqual([]);
+    /* An empty offer must not read as an empty answer. */
+    expect(a.answered).toBe(true);
+    expect(a.text.length).toBeGreaterThan(20);
   });
 });

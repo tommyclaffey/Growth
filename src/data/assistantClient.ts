@@ -1,6 +1,7 @@
 import {
   ask, decisionsForQuestion, followUpsFor, resolveSubject, type Answer,
 } from './assistant';
+import { flags } from './attention';
 import type { Target } from './decisions';
 import type { Range } from './metrics';
 
@@ -96,7 +97,22 @@ export async function askAssistant(
          Search logos beside them. The marks were right per row; the FINDINGS
          were wrong for the question, which is a much worse failure wearing a
          cosmetic one's clothes. */
-      body: JSON.stringify({ question, range, subject }),
+      /* ⭐ What the reader has ALREADY decided travels too.
+       *
+       * 🐛 Without it the model narrated every finding while the client offered
+       * buttons only for the untaken ones — prose describing three things, one
+       * button beneath it, and nothing explaining where the other two went. The
+       * remaining button looked arbitrary because from the reader's side it was.
+       *
+       * The engine is one source of judgement; this keeps it one source of
+       * ATTENTION too. A decision already on the queue is not a suggestion any
+       * more, and the narration should stop treating it as one. */
+      body: JSON.stringify({
+        question,
+        range,
+        subject,
+        taken: flags().filter((f) => f.kind === 'decision').map((f) => f.refId),
+      }),
     });
 
     if (!res.ok) {

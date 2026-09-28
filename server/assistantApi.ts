@@ -173,6 +173,8 @@ function inferSubject(
   return undefined;
 }
 interface DecisionCandidate {
+  id: string;
+  scope: string[];
   tier: 1 | 2 | 3;
   action: string;
   because: string;
@@ -212,7 +214,7 @@ interface Source { title: string; url: string }
 
 function buildTools(
   m: Metrics, d: Decisions, b: Blended, cm: ChannelMetrics,
-  range: number, evidence: Evidence[], subject?: Subject,
+  range: number, evidence: Evidence[], subject?: Subject, taken: string[] = [],
 ) {
   const scopeEnum = ['all', ...m.activeChannels()];
   /* 🐛 STALE, AND IT MADE THE PRODUCT LIE ABOUT ITSELF.
@@ -339,11 +341,22 @@ function buildTools(
         const found = subject
           ? d.decisionsFor(subject, range, m.activeChannels())
           : d.decisions(range, m.activeChannels());
-        const mine = !channel || channel === 'all'
+        const scoped = !channel || channel === 'all'
           ? found : found.filter((c) => c.channel === channel);
+        /* ⚠️ Already-decided findings are not suggestions. Narrating one the
+           reader committed to earlier puts it back in the "here is what you could
+           do" list, one screen away from the queue where they already did it. */
+        const mine = scoped.filter((c) => !taken.includes(c.id));
         for (const c of mine.slice(0, 3)) {
+          /* 🐛 Prefixed with where the finding lives. Three ads produced three
+             rows all labelled "Share of campaign leads" — 3%, 33%, 6% — with
+             nothing saying which ad each belonged to. Same defect as two
+             decisions reading as one sentence, now in the figures box. */
+          const where = c.scope[c.scope.length - 1] ?? '';
           evidence.push(...c.evidence.slice(0, 2).map((e) => ({
-            label: e.label, value: e.value, channel: c.channel,
+            label: where ? `${where} · ${e.label}` : e.label,
+            value: e.value,
+            channel: c.channel,
           })));
         }
         /* 🐛 An empty array taught the model the wrong lesson. Asked about a
@@ -470,7 +483,9 @@ function buildTools(
 
 async function readBody(
   req: IncomingMessage,
-): Promise<{ question?: string; range?: number; subject?: Subject }> {
+): Promise<{
+  question?: string; range?: number; subject?: Subject; taken?: string[];
+}> {
   const chunks: Buffer[] = [];
   for await (const c of req) chunks.push(c as Buffer);
   try {
@@ -518,7 +533,7 @@ export function assistantApi(): Plugin {
           });
         }
 
-        const { question, range = 30, subject } = await readBody(req);
+        const { question, range = 30, subject, taken } = await readBody(req);
         if (!question?.trim()) return send(res, 400, { error: 'Question required.' });
 
         try {
@@ -550,6 +565,7 @@ export function assistantApi(): Plugin {
                 /* What the caller said, or failing that what the question names. */
                 (subject as Subject | undefined)
                   ?? inferSubject(String(question), CAMPAIGNS, m.CHANNEL_LABEL),
+                Array.isArray(taken) ? taken : [],
               ),
               /* Server-side: runs on Anthropic's infrastructure, so there is no
                  run() to write and no search account to hold. Capped at 3 so a
