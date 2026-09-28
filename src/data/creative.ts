@@ -4,6 +4,7 @@ import { CAMPAIGNS, type AdSet, type Campaign } from './campaigns';
 import { campaignRows, campaignSeries } from './campaignSeries';
 import type { DayRow, Metric, Range } from './metrics';
 import { assetFor } from './creativeAssets';
+import { CHANNEL_DEPTH } from './channelDepth';
 
 /**
  * The assets running inside a campaign.
@@ -203,11 +204,17 @@ export function creativesFor(campaignId: string): Creative[] {
   return c.adSets.flatMap((a) => forAdSet(c, a));
 }
 
-/** What this channel's assets are called, so the section header is not "Assets". */
-export const CREATIVE_NOUN: Record<ChannelName, string> = {
-  meta: 'Ads', tiktok: 'Ads', youtube: 'Video ads',
-  paidSearch: 'Text ads', affiliates: 'Placements', podcasts: 'Spots',
-};
+/**
+ * What this channel's assets are called, so the section header is not "Assets".
+ *
+ * Derived from CHANNEL_DEPTH rather than restated. It used to be its own table
+ * with the same six answers in it, which is one rule written twice -- and the
+ * copy that is not the source is the one that goes stale. Renaming a tier now
+ * happens in exactly one file.
+ */
+export const CREATIVE_NOUN: Record<ChannelName, string> = Object.fromEntries(
+  (Object.keys(CHANNEL_DEPTH) as ChannelName[]).map((k) => [k, CHANNEL_DEPTH[k].leaf.many]),
+) as Record<ChannelName, string>;
 
 export type CreativeSort = 'Leads' | 'Spend' | 'CAC';
 export const CREATIVE_SORTS: CreativeSort[] = ['Leads', 'Spend', 'CAC'];

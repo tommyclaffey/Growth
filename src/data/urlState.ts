@@ -3,6 +3,7 @@ import { CHANNEL_KEYS, METRICS, RANGES, type Metric, type Range } from './metric
 import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS } from './campaigns';
 import { creativeById } from './creative';
+import { adSetById } from './adSets';
 
 /**
  * The screen you are looking at, expressed in the address bar.
@@ -22,6 +23,8 @@ export interface UrlState {
   metric: Metric;
   range: Range;
   campaign: string | null;
+  /** The ad set being inspected, when one is. */
+  adSet: string | null;
   /** The ad being inspected, when one is. */
   ad: string | null;
 }
@@ -52,6 +55,11 @@ export function readUrlState(search: string): Partial<UrlState> {
   const p = q.get('p');
   if (p && CAMPAIGNS.some((x) => x.id === p)) out.campaign = p;
 
+  /* Same validation as the campaign and the ad: an id that no longer resolves
+     falls back to absent rather than reaching the render. */
+  const g = q.get('s');
+  if (g && adSetById(g)) out.adSet = g;
+
   /* Validated against the real ad list, so a stale link cannot navigate to a
      page that renders "that ad no longer exists" when the campaign it names is
      perfectly fine. */
@@ -68,6 +76,10 @@ export function urlStateQuery(s: UrlState): string {
   q.set('m', s.metric);
   q.set('r', String(s.range));
   if (s.campaign) q.set('p', s.campaign);
+  /* `s` for the ad-set tier. Short, because these URLs get pasted into Slack
+     messages where a long query reads as noise and gets truncated by the
+     unfurl. */
+  if (s.adSet) q.set('s', s.adSet);
   if (s.ad) q.set('a', s.ad);
   /* `t` -- the conversation a Slack link pointed at -- is deliberately never
      written. It is a one-shot instruction to open a thread, not a property of

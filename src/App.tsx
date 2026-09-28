@@ -21,6 +21,7 @@ import { Notifications } from './screens/Notifications';
 import { Settings } from './screens/Settings';
 import { CampaignDetail } from './screens/CampaignDetail';
 import { AdDetail } from './screens/AdDetail';
+import { AdSetDetail } from './screens/AdSetDetail';
 import { CAMPAIGNS } from './data/campaigns';
 import { useMonthlyBudget } from './data/profile';
 import {
@@ -29,6 +30,7 @@ import {
   type Metric, type Range, type Scope,
 } from './data/metrics';
 import { campaignById } from './data/campaignSeries';
+import { adSetById } from './data/adSets';
 import { trendMark, type DerivedMetric } from './data/channelMetrics';
 import {
   dismissAlert, dismissAll, markAllRead, undismissAlert, usePrefs,
@@ -103,6 +105,10 @@ export default function App() {
      in the URL -- it describes how you arrived, not where you are, and after a
      reload the honest answer is that we do not know. */
   const [cameFrom, setCameFrom] = useState<ChannelName | null>(null);
+  /* The ad set being inspected. A third level of nesting, between the campaign
+     and the ad -- and the tier a media buyer actually works in, so it needed a
+     place in navigation rather than being a row you could only read. */
+  const [adSetId, setAdSetId] = useState<string | null>(initialUrl.adSet ?? null);
   /* The ad being inspected. Nested under a campaign, so opening one does not
      clear campaignId -- Back has to land on the campaign, not the list. */
   const [adId, setAdId] = useState<string | null>(initialUrl.ad ?? null);
@@ -138,12 +144,18 @@ export default function App() {
   const openCampaign = useCallback((id: string, from: ChannelName | null = null) => {
     setCameFrom(from);
     setAdId(null);
+    setAdSetId(null);
     setCampaignId(id);
     setNav('campaigns');
   }, []);
 
   const closeCampaign = useCallback(() => {
     setCampaignId(null);
+    /* Both deeper tiers clear with it. Leaving either set would route straight
+       back into the page you just closed -- the render checks the deepest id
+       first, so a stale one wins over the campaign you asked for. */
+    setAdSetId(null);
+    setAdId(null);
     if (cameFrom) { setChannel(cameFrom); setNav('channels'); setCameFrom(null); }
   }, [cameFrom]);
 
@@ -162,12 +174,15 @@ export default function App() {
     if (v.campaign) {
       setCameFrom(null);
       setAdId(null);
+      setAdSetId(null);
       setCampaignId(v.campaign);
       setNav('campaigns');
       return;
     }
 
     setCampaignId(null);
+    setAdSetId(null);
+    setAdId(null);
     if (v.channel === 'all') { setChannel(null); setNav('overview'); }
     else { setChannel(v.channel as ChannelName); setNav('channels'); }
   }, []);
@@ -184,12 +199,12 @@ export default function App() {
      changed and there is nothing left to compare to. */
   const lastPlace = useRef<string | null>(null);
   useEffect(() => {
-    const place = `${nav}|${channel ?? 'all'}|${campaignId ?? ''}|${adId ?? ''}`;
+    const place = `${nav}|${channel ?? 'all'}|${campaignId ?? ''}|${adSetId ?? ''}|${adId ?? ''}`;
     const isNavigation = lastPlace.current !== null && lastPlace.current !== place;
     lastPlace.current = place;
-    writeUrlState({ nav, channel, metric, range, campaign: campaignId, ad: adId },
+    writeUrlState({ nav, channel, metric, range, campaign: campaignId, adSet: adSetId, ad: adId },
                   isNavigation ? 'push' : 'replace');
-  }, [nav, channel, metric, range, campaignId, adId]);
+  }, [nav, channel, metric, range, campaignId, adSetId, adId]);
 
   /* The back button. Without this, history entries existed and pressing back
      changed the URL while the screen stayed exactly where it was -- which is
@@ -203,10 +218,11 @@ export default function App() {
       setMetric(u.metric ?? 'Spend');
       setRange(u.range ?? 30);
       setCampaignId(u.campaign ?? null);
+      setAdSetId(u.adSet ?? null);
       setAdId(u.ad ?? null);
       /* Keeps the writer from pushing a fresh entry for a move the user made
          by going back -- that would make forward unreachable. */
-      lastPlace.current = `${u.nav ?? 'overview'}|${u.channel ?? 'all'}|${u.campaign ?? ''}|${u.ad ?? ''}`;
+      lastPlace.current = `${u.nav ?? 'overview'}|${u.channel ?? 'all'}|${u.campaign ?? ''}|${u.adSet ?? ''}|${u.ad ?? ''}`;
     }
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
@@ -403,8 +419,17 @@ export default function App() {
       {/* Clearing campaignId here is what makes the Campaigns nav item work
           while a campaign page is open. Without it, clicking Campaigns from a
           detail page sets nav to the value it already has and nothing moves --
-          a nav item that appears dead. */}
-      <Sidebar active={nav} onNavigate={(k) => { setNav(k); setChannel(null); setCampaignId(null); }} />
+          a nav item that appears dead.
+
+          ⚠️ It cleared ONLY campaignId, which meant the dead-nav bug it was
+          written to fix still happened one level deeper: from an ad page,
+          clicking Campaigns cleared the campaign and left `adId` set, and the
+          render checks `adId` first -- so you stayed on the ad, now with no
+          campaign behind it and a breadcrumb reading "Campaign". Every tier has
+          to clear, not just the first one that was noticed. */}
+      <Sidebar active={nav} onNavigate={(k) => {
+        setNav(k); setChannel(null); setCampaignId(null); setAdSetId(null); setAdId(null);
+      }} />
 
       <div className={`gr-main ${chatOpen ? 'is-chat-open' : ''}`}>
         <header className="gr-header">
@@ -582,13 +607,32 @@ export default function App() {
                           onRowClick={(k) => setChannel(k)} />
           )}
 
+          {/* Deepest tier first. The chain is campaign → ad set → ad, and Back
+              walks it one step at a time: an ad opened from an ad set returns to
+              that ad set, not past it to the campaign. */}
           {nav === 'campaigns' && (adId
             ? (
               <AdDetail
                 id={adId}
                 range={range}
                 onBack={() => setAdId(null)}
+                /* Names where Back actually lands. Opened from an ad set, that
+                   is the ad set -- labelling it with the campaign would offer a
+                   screen the button does not go to. */
+                backLabel={adSetId
+                  ? (adSetById(adSetId)?.adSet.name ?? 'Ad set')
+                  : (CAMPAIGNS.find((c) => c.id === campaignId)?.name ?? 'Campaign')}
+              />
+            )
+            : adSetId
+            ? (
+              <AdSetDetail
+                id={adSetId}
+                range={range}
+                metric={metric}
+                onBack={() => setAdSetId(null)}
                 backLabel={CAMPAIGNS.find((c) => c.id === campaignId)?.name ?? 'Campaign'}
+                onOpenAd={setAdId}
               />
             )
             : campaignId
@@ -601,6 +645,7 @@ export default function App() {
                 backLabel={cameFrom ? CHANNEL_LABEL[cameFrom] : 'Campaigns'}
                 onDiscuss={(m) => shareCampaign(campaignId, m)}
                 onOpenAd={setAdId}
+                onOpenAdSet={setAdSetId}
                 wideColumns={!chatOpen}
               />
             )

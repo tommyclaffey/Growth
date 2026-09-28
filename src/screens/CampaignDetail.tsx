@@ -15,6 +15,8 @@ import { CHANNEL_LABEL, formatMetric, type Metric, type Range } from '../data/me
 import { betterHigher, formatDerived, headlineFor, kpisFor, trendMark, valueOf, type DerivedMetric } from '../data/channelMetrics';
 import { benchmarkFor, benchmarkLabel, benchmarkTitle } from '../data/benchmark';
 import { creativesFor } from '../data/creative';
+import { adSetTotals } from '../data/adSets';
+import { groupNoun } from '../data/channelDepth';
 import { CreativeSection } from '../components/CreativeCard/CreativeSection';
 
 export interface CampaignDetailProps {
@@ -30,6 +32,8 @@ export interface CampaignDetailProps {
   onDiscuss?: (metric: DerivedMetric) => void;
   /** Opens one ad's own page. */
   onOpenAd?: (id: string) => void;
+  /** Opens one ad set's own page — the tier between this page and an ad. */
+  onOpenAdSet?: (id: string) => void;
   wideColumns?: boolean;
 }
 
@@ -46,7 +50,8 @@ export interface CampaignDetailProps {
  * not three calculations that agree today.
  */
 export function CampaignDetail({
-  id, metric, range, onBack, onDiscuss, onOpenAd, backLabel = 'Campaigns', wideColumns = true,
+  id, metric, range, onBack, onDiscuss, onOpenAd, onOpenAdSet,
+  backLabel = 'Campaigns', wideColumns = true,
 }: CampaignDetailProps) {
   const campaign = campaignById(id);
   /* Subscribed here so the pill re-renders when the table, or a second tab,
@@ -206,13 +211,14 @@ export function CampaignDetail({
 
       <section className="gr-card">
         <header className="gr-card__header">
-          <h3 className="gr-card__title gr-type-card-heading">Ad sets</h3>
+          {/* The platform's own word, not Meta's for everybody. */}
+          <h3 className="gr-card__title gr-type-card-heading">{groupNoun(campaign.channel).many}</h3>
           <span className="gr-type-caption">{campaign.adSets.length}</span>
         </header>
         <table className="gr-table">
           <thead>
             <tr className="gr-type-overline">
-              <th scope="col">Ad set</th>
+              <th scope="col">{groupNoun(campaign.channel).one}</th>
               <th scope="col">Status</th>
               <th scope="col">Spend</th>
               {wideColumns && <th scope="col">Share</th>}
@@ -221,31 +227,44 @@ export function CampaignDetail({
             </tr>
           </thead>
           <tbody>
-            {campaign.adSets.map((a) => (
-              <tr key={a.id} className="gr-campaign__adset-row">
-                <td className="gr-type-body-medium">{a.name}</td>
-                <td><StatusPill stage={a.stage} /></td>
-                <td className="gr-type-body">{formatMetric('Spend', a.spend)}</td>
-                {/* Share of the campaign, so a reader can see which ad set is
-                    actually carrying it without doing the division. */}
-                {wideColumns && (
-                  <td className="gr-type-body">
-                    {adSetSpend > 0 ? `${Math.round((a.spend / adSetSpend) * 100)}%` : '—'}
+            {campaign.adSets.map((a) => {
+              /* ⭐ Ranged totals, not the static figures off the record. These
+                 rows used to sit still while every other number on the page
+                 moved with the range picker, and the page had to apologise for
+                 it in a caption underneath. Now they derive from the same daily
+                 rows the chart above does. */
+              const at = adSetTotals(a.id, range);
+              const open = () => onOpenAdSet?.(a.id);
+              return (
+                <tr key={a.id} className="gr-campaign__adset-row">
+                  <td className="gr-type-body-medium">
+                    {/* A button, not a click handler on the row: the name is the
+                        thing you are activating, and a real button is reachable
+                        by keyboard and announced as one. */}
+                    {onOpenAdSet ? (
+                      <button type="button" className="gr-unbutton gr-campaign__adset-open" onClick={open}>
+                        {a.name}
+                      </button>
+                    ) : a.name}
                   </td>
-                )}
-                <td className="gr-type-body">{a.leads.toLocaleString()}</td>
-                <td className="gr-type-body">
-                  {a.leads > 0 ? formatMetric('CAC', a.spend / a.leads) : '—'}
-                </td>
-              </tr>
-            ))}
+                  <td><StatusPill stage={a.stage} /></td>
+                  <td className="gr-type-body">{formatMetric('Spend', at.spend)}</td>
+                  {/* Share of the campaign, so a reader can see which one is
+                      actually carrying it without doing the division. */}
+                  {wideColumns && (
+                    <td className="gr-type-body">
+                      {adSetSpend > 0 ? `${Math.round((a.spend / adSetSpend) * 100)}%` : '—'}
+                    </td>
+                  )}
+                  <td className="gr-type-body">{Math.round(at.leads).toLocaleString()}</td>
+                  <td className="gr-type-body">
+                    {at.leads > 0 ? formatMetric('CAC', at.cac) : '—'}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
-        {/* Ad sets are static totals — they do not have daily series. Saying so
-            is better than letting a reader assume the range picker moved them. */}
-        <p className="gr-type-caption gr-campaign__note">
-          Ad set figures are period totals and do not follow the date range.
-        </p>
       </section>
     </>
   );

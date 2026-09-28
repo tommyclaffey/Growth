@@ -138,6 +138,26 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-campaign__title h2 { margin: 0; color: var(--text-primary); }
 .gr-campaign__meta { color: var(--text-muted); margin: 0; }
 .gr-campaign__adset-row { height: 44px; }
+
+/* The ad-set name, now that it opens a page.
+
+   Inherits its type from the cell rather than restating it -- that is what
+   .gr-unbutton is for. Only the affordance is declared here: the underline on
+   hover, and the accent on the row you are pointing at. A name that navigates
+   and a name that does not must not look identical, which is what they did when
+   the rows were plain text. */
+.gr-campaign__adset-open {
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-radius: var(--radius-xs);
+}
+.gr-campaign__adset-open:hover { color: var(--accent-base); text-decoration: underline; }
+.gr-campaign__adset-open:focus-visible {
+  outline: var(--border-width-md) solid var(--accent-base);
+  outline-offset: 2px;
+  text-decoration: none;
+}
 .gr-campaign__note {
   color: var(--text-muted);
   padding: var(--space-12) var(--space-12) 0;
