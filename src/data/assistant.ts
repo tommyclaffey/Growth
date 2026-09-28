@@ -393,7 +393,14 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
       : { kind: 'account', id: 'account', label: 'this account' };
 
     const mine = decisionsFor(tgt, range);
-    const act = mine.filter((c) => c.tier !== 3);
+    /* ⚠️ Taken decisions leave the NARRATION, not just the buttons.
+       
+       The prose used `act` and the buttons used takeable(act), which filters what
+       is already on the queue — so after taking everything the answer still said
+       "3 calls on Meta" above zero buttons. The same divergence the server fix
+       closed, sitting untouched in the local engine because both halves lived in
+       one function and looked like they agreed. */
+    const act = mine.filter((c) => c.tier !== 3 && !isFlagged('decision', c.id));
     const ask3 = mine.filter((c) => c.tier === 3);
 
     if (act.length === 0) {
@@ -415,13 +422,17 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
       };
     }
 
+    const shown = act.slice(0, 3);
     return {
       answered: true,
+      /* ⚠️ Counts what it SHOWS, not what it found. Both the narration and the
+         buttons cap at three, so `act.length` would announce "5 calls" above
+         three of them — the header disagreeing with the list underneath it. */
       text: [
-        act.length === 1
+        shown.length === 1
           ? `One call on ${tgt.label}:`
-          : `${act.length} calls on ${tgt.label}, best-supported first:`,
-        ...act.slice(0, 3).map((c, i) => `${i + 1}. ${speak(c)}`),
+          : `${shown.length} calls on ${tgt.label}, best-supported first:`,
+        ...shown.map((c, i) => `${i + 1}. ${speak(c)}`),
         ask3.length > 0
           ? `And one I will not turn into a call: ${ask3[0].action} ${ask3[0].because}`
           : '',
@@ -527,7 +538,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
 
   /* "what should I do" — the agenda, best-supported first. */
   if (/what should i do|what.s next|recommend|suggest|where should|advice|priorit/i.test(q)) {
-    const actionable = found.filter((c) => c.tier !== 3);
+    const actionable = found.filter((c) => c.tier !== 3 && !isFlagged('decision', c.id));
     if (actionable.length === 0) {
       return {
         answered: true,
@@ -723,6 +734,13 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
         value: formatMetric(metric, valueOf(scope, metric, range)),
         channel: scope,
       }],
+      /* ⚠️ A lookup was the one answer that ended the conversation — it returned
+         a figure and no route onward, so the panel went quiet at exactly the
+         moment a reader has just learned something and might want to act on it.
+         Every other answer offers somewhere to go; this one now does too. */
+      followUps: followUpsFor(q, channels.length > 0
+        ? { kind: 'channel', label: CHANNEL_LABEL[channels[0]] }
+        : undefined),
     };
   }
 

@@ -208,10 +208,24 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                     mattered. */}
                 {t.answer.decisions && (
                   <div className="gr-assist__decisions">
-                    <p className="gr-assist__evidence-head gr-type-overline">
-                      {t.answer.decisions.length === 0 ? 'Decide anyway'
-                        : t.answer.decisions.length === 1 ? 'Take it'
-                        : 'Take any of these'}
+                    {/* ⭐ The agent ASKS, rather than labelling a control group.
+                    
+                        This was an uppercase overline — "TAKE ANY OF THESE" —
+                        which reads as a form header on a panel where everything
+                        above it is speech. The block appeared beside the answer
+                        without belonging to it, so the buttons arrived out of
+                        nowhere rather than as the next beat of the conversation.
+                        
+                        ⚠️ And the empty state carried TWO prompts: an overline
+                        saying "Decide anyway" above a link saying "Make a
+                        decision". One question, one action. */}
+                    <p className="gr-assist__ask gr-type-body">
+                      {t.answer.decisions.length === 0
+                        ? 'Nothing here I\u2019d suggest \u2014 but if you\u2019ve decided '
+                          + 'something anyway, write it down and I\u2019ll add it to your queue.'
+                        : t.answer.decisions.length === 1
+                          ? 'Want me to put this on your queue?'
+                          : 'Want me to put any of these on your queue?'}
                     </p>
                     {t.answer.decisions.map((d) => {
                       const taken = isFlagged('decision', d.id);

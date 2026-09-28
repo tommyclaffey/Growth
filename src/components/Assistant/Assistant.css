@@ -300,3 +300,11 @@
 /* What it touches — the campaign, the channel, or the account. Quieter than the
    action, because the action is the thing being agreed to. */
 .gr-assist__decision-ctx { color: var(--text-muted); white-space: nowrap; flex: none; }
+
+/* The agent asking, not a label over a control group. Body type because
+   everything else in this panel that speaks is body type — an overline here read
+   as a form header and made the buttons feel bolted on rather than offered. */
+.gr-assist__ask {
+  color: var(--text-primary);
+  margin: 0 0 var(--space-4);
+}

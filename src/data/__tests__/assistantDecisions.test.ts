@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import {
   SUGGESTIONS, ask, decisionsForQuestion, followUpsFor, resolveSubject,
 } from '../assistant';
 import { decisions, decisionsFor } from '../decisions';
-import { addFlag, flags, isFlagged } from '../attention';
+import { addFlag, flags, isFlagged, removeFlag } from '../attention';
 import { CAMPAIGNS } from '../campaigns';
 import { setStage } from '../campaignStatus';
 import { creativesFor } from '../creative';
@@ -749,5 +749,88 @@ describe('🚨 one evaluation, not two', () => {
     const after = decisions(30).filter((c) => c.kind === 'no-variant').length;
     expect(after).toBeGreaterThan(before);
     setStage('c4', 'Draft');
+  });
+});
+
+describe('🚨 the conversation is coherent in every state', () => {
+  /* ⚠️ Flags too, not just channels. `reset()` clears the active channel list
+     and nothing else, so decisions taken by earlier suites in this file were
+     still on the queue here — and a taken decision is filtered out of both the
+     narration and the offers, which silently changed what this audit was
+     auditing. Test isolation has now bitten three times in this codebase, always
+     through a module-level cache that localStorage.clear() does not reach. */
+  beforeEach(() => {
+    for (const f of [...flags()]) removeFlag(f.kind, f.refId);
+  });
+
+  /* An end-to-end audit rather than a unit test. Each state has to agree with
+     itself: what the prose says, what the block offers, and where it points
+     next. Three bugs lived in the gaps between those three things. */
+
+  const state = (q: string) => {
+    const a = ask(q, 30, resolveSubject(q));
+    return {
+      block: a.decisions === undefined ? 'none'
+        : a.decisions.length === 0 ? 'write-in' : 'offers',
+      text: a.text,
+      next: a.followUps ?? [],
+      answer: a,
+    };
+  };
+
+  it('a STATUS answer offers no block but routes to the decision', () => {
+    reset();
+    const s = state("What's going on with Meta?");
+    expect(s.block).toBe('none');
+    expect(s.next[0]).toMatch(/what would you do/i);
+  });
+
+  it('a DECISION answer offers exactly what it narrates', () => {
+    reset();
+    const s = state('What would you do about Meta?');
+    expect(s.block).toBe('offers');
+    /* The count in the prose and the number of buttons are the same number. */
+    const said = Number((s.text.match(/^(\d+) calls/) ?? [])[1] ?? 1);
+    expect(s.answer.decisions!.length).toBe(said);
+  });
+
+  it('⭐ a LOOKUP is not a dead end', () => {
+    reset();
+    /* 🐛 It returned a figure and no route onward — the panel went quiet at
+       exactly the moment a reader has just learned something and might act on
+       it. Every other answer offered somewhere to go; this one offered nothing. */
+    const s = state('How much did we spend on TikTok?');
+    expect(s.next.length).toBeGreaterThan(0);
+    for (const f of s.next) expect(ask(f, 30).answered, f).toBe(true);
+  });
+
+  it('⭐ an EMPTY answer narrates nothing and offers nothing', () => {
+    reset();
+    /* 🐛 The prose used the unfiltered list and the buttons used the filtered
+       one, so after taking everything the answer still said "3 calls on Meta"
+       above zero buttons. The same divergence the server fix closed, sitting
+       untouched in the local engine because both halves lived in one function
+       and looked like they agreed. */
+    for (const c of decisions(30).filter((x) => x.tier !== 3)) {
+      addFlag('decision', c.id, c.action);
+    }
+    for (const q of ['What should I do next?', 'What would you do about Meta?']) {
+      const s = state(q);
+      expect(s.block, q).toBe('write-in');
+      expect(s.text, q).toMatch(/[Nn]othing/);
+      /* And it does not ask what to do next, having just said there is nothing. */
+      expect(s.next, q).not.toContain('What should I do next?');
+    }
+  });
+
+  it('every state leads somewhere answerable', () => {
+    reset();
+    for (const q of ["What's going on with Meta?", 'What would you do about Meta?',
+      'How much did we spend on TikTok?', 'What can this data not tell me?',
+      'What should I cut?']) {
+      for (const f of state(q).next) {
+        expect(ask(f, 30).answered, `${q} -> ${f}`).toBe(true);
+      }
+    }
   });
 });
