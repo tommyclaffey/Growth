@@ -111,14 +111,27 @@
 .gr-chart__bar {
   width: 100%;
   min-height: 2px;
-  transition: filter 120ms ease;
+  transition: filter 120ms ease, opacity 120ms ease;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   border: var(--border-width-sm) solid transparent;
   border-bottom: none;
 }
 
-.gr-chart__bar.is-hovered { filter: brightness(1.12); }
+/* Bars rest a step lighter and the hovered bar comes forward at full
+   strength, a touch darker. Applied to EVERY bar chart in every state --
+   with or without a comparison -- so the chart never looks different
+   depending on what else is switched on. (It used to fade only while
+   comparing, which is what made the two states disagree.) */
+.gr-chart__bar { opacity: 0.72; }
+.gr-chart__bar.is-hovered { opacity: 1; filter: brightness(0.9) saturate(1.1); }
 
+/* Baseline and date labels span the CANVAS, not the whole card: inset by the
+   axis column + gap on the left, and running to the card edge on the right
+   exactly as the bars do. They used to run under the y-axis numbers
+   too, so "Aug 1" sat half a bar left of Aug 1's bar -- and further off
+   still once the right axis took its share. */
+.gr-chart__baseline,
+.gr-chart__x { margin-inline-start: calc(32px + var(--space-16)); }
 .gr-chart__baseline { height: 1px; background: var(--border-default); }
 
 @media (prefers-reduced-motion: reduce) { .gr-chart__bar { transition: none; } }
@@ -128,7 +141,7 @@
   gap: 5px;
   color: var(--text-muted);
 }
-.gr-chart__x > span { flex: 1; }
+.gr-chart__x > span { flex: 1; min-width: 0; white-space: nowrap; overflow: visible; }
 
 .gr-chart__state {
   flex: 1;
@@ -183,3 +196,130 @@
   outline-offset: 2px;
 }
 @media (prefers-reduced-motion: reduce) { .gr-chart__mark { transition: none; } }
+
+
+/* ---- compare overlay ----------------------------------------------------
+   The overlay wears ink, not a channel colour: the channel colour already
+   means "the main metric", and a second hue would ask the reader to learn a
+   new mapping. A thin smooth line in ink is distinct from every channel in
+   both themes, without the noise of a dash. */
+
+/* Same 32px tray as MetricToggle, so the header reads as one row of controls. */
+.gr-chart__compare {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  margin-left: auto;
+  padding: 0 var(--space-4) 0 var(--space-12);
+  border-radius: var(--radius-md);
+  background: var(--surface-page-top);
+  transition: background 120ms ease;
+}
+.gr-chart__compare:hover { background: var(--border-subtle); }
+.gr-chart__compare + .gr-chart__marks { margin-left: 0; }
+
+.gr-chart__compare-field { display: inline-flex; align-items: center; gap: var(--space-6); cursor: pointer; }
+.gr-chart__compare-label { color: var(--text-muted); }
+
+/* The select is the text, not a box: no border, no fill, a small chevron. */
+.gr-chart__compare-select {
+  height: 24px;
+  padding: 0 var(--space-20) 0 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent
+    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3e%3cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%239A9AA6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3e%3c/svg%3e")
+    no-repeat right var(--space-4) center / 10px;
+  color: var(--text-primary);
+  appearance: none;
+  cursor: pointer;
+}
+/* Idle, the whole tray is the target: the select is stretched invisibly over
+   it, so a click anywhere on "Compare" opens the native menu. The chevron
+   moves onto the label. */
+.gr-chart__compare { position: relative; }
+.gr-chart__compare:not(.is-on) { padding-right: var(--space-12); }
+.gr-chart__compare:not(.is-on) .gr-chart__compare-label {
+  padding-right: var(--space-16);
+  color: var(--text-secondary);
+  background:
+    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3e%3cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%239A9AA6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3e%3c/svg%3e")
+    no-repeat right center / 10px;
+}
+.gr-chart__compare:not(.is-on) .gr-chart__compare-select {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+}
+
+.gr-chart__compare-select option { color: var(--text-primary); }
+/* The ring goes around the whole tray, not the word inside it, so keyboard
+   focus reads as "this control" rather than a box squeezed round "ROAS". */
+.gr-chart__compare-select:focus-visible { outline: none; }
+.gr-chart__compare:has(.gr-chart__compare-select:focus-visible) {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.gr-chart__compare-clear {
+  width: 24px; height: 24px;
+  display: grid; place-items: center;
+  margin-left: var(--space-2, 2px);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--icon-muted);
+  cursor: pointer;
+}
+.gr-chart__compare-clear svg { stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; fill: none; }
+.gr-chart__compare-clear:hover { color: var(--icon-default); background: var(--surface-card); }
+.gr-chart__compare-clear:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* ---- legend ----
+   Measured to the 4px grid: 8px glyph-to-word, 16px key-to-key, and 12px
+   down to the first axis number (the body's 8px gap + 4px) -- it had a
+   negative margin that sat the legend almost on top of "$6.0k". Both glyphs
+   share one 12px footprint so the words start the same distance in. */
+.gr-chart__axes {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  margin-bottom: var(--space-4);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.gr-chart__axis-title { display: inline-flex; align-items: center; gap: var(--space-8); }
+.gr-chart__glyph { display: inline-block; flex: none; width: 12px; }
+.gr-chart__glyph--main { height: 8px; width: 8px; margin-inline: 2px; border-radius: 2px; }
+.gr-chart__glyph--compare {
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--text-primary);
+}
+
+.gr-chart__y--right { text-align: left; }
+/* Baseline and dates stop where the bars stop, so each date stays under its bar. */
+.gr-chart__body.has-right-axis .gr-chart__baseline,
+.gr-chart__body.has-right-axis .gr-chart__x { margin-inline-end: calc(32px + var(--space-16)); }
+
+/* No fading while comparing. It was tried at 50% and 70%: on violet it read
+   as "lighter", but on YouTube red it turned the bars pink -- a different
+   colour, not a quieter one. The bars are identical with or without a
+   comparison; only the line, the right axis and the second legend key change. */
+
+.gr-chart__overlay { position: absolute; inset: 0; pointer-events: none; }
+.gr-chart__overlay-line {
+  fill: none;
+  stroke: var(--text-primary);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.gr-chart__marker--compare { border-color: var(--text-primary); z-index: 1; }
+.gr-chart__tip-name { color: var(--text-muted); font-weight: 400; }
+
+@media (prefers-reduced-motion: reduce) { .gr-chart__compare { transition: none; } }

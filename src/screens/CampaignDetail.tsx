@@ -12,7 +12,7 @@ import {
   campaignById, campaignDelta, campaignSeries, campaignSparkline, campaignTotals,
 } from '../data/campaignSeries';
 import { CHANNEL_LABEL, formatMetric, type Metric, type Range } from '../data/metrics';
-import { betterHigher, formatDerived, headlineFor, kpisFor, valueOf, type DerivedMetric } from '../data/channelMetrics';
+import { betterHigher, formatDerived, headlineFor, kpisFor, trendMark, valueOf, type DerivedMetric } from '../data/channelMetrics';
 import { benchmarkFor, benchmarkLabel, benchmarkTitle } from '../data/benchmark';
 import { creativesFor } from '../data/creative';
 import { CreativeSection } from '../components/CreativeCard/CreativeSection';
@@ -164,6 +164,7 @@ export function CampaignDetail({
                  nothing else, which is how they looked before either existed. */
               deltaPercent={b ? undefined : campaignDelta(campaign.id, m, range)}
               sparkline={campaignSparkline(campaign.id, m, range)}
+              sparklineMark={trendMark(m)}
               benchmark={b ? {
                 percent: b.deltaPercent,
                 note: benchmarkLabel(m, b, CHANNEL_LABEL[campaign.channel]),
@@ -183,6 +184,7 @@ export function CampaignDetail({
         metric={chartMetric}
         onMetricChange={setChartMetric}
         data={data}
+        compareSeries={(m) => campaignSeries(id, m, range)}
         title={`${chartMetric} over time`}
       />
 

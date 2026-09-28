@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CSS_CHANNEL } from '../../styles/tokens';
 import './Chart.css';
 import { channelGradient, type ChannelName } from '../../styles/tokens';
@@ -6,6 +6,7 @@ import {
   METRICS, domainFor, formatMetric, isRatio, yTicks as computeTicks,
   type Metric, CHANNEL_LABEL } from '../../data/metrics';
 import { resolveMark, type Mark } from './mark';
+import { smoothPath } from './smoothPath';
 import { MetricToggle } from '../MetricToggle/MetricToggle';
 
 export { METRICS };
@@ -23,6 +24,13 @@ export interface ChartProps {
   state?: 'ready' | 'loading' | 'error' | 'empty';
   /** Fired by Retry in the error state. Without it the button is decoration. */
   onRetry?: () => void;
+  /**
+   * Returns the series for a second metric, drawn over the first on its own
+   * right-hand axis. Omit it and the Compare control does not render.
+   * A function rather than data, because only the chart knows which metric
+   * the reader picked -- the caller only knows how to fetch one.
+   */
+  compareSeries?: (m: Metric) => { label: string; value: number }[];
 }
 
 
@@ -34,8 +42,22 @@ export function Chart({
   data,
   mark = 'auto',
   state = 'ready', onRetry,
+  compareSeries,
 }: ChartProps) {
   const [hover, setHover] = useState<number | null>(null);
+
+  /* The overlay metric. Derived against `metric` rather than reset in an
+     effect: comparing Spend with Spend is meaningless, so if the reader
+     switches the main metric to whatever they were comparing against, the
+     overlay simply stops drawing -- and comes back if they switch away. */
+  const [comparePick, setComparePick] = useState<Metric | null>(null);
+  /* Whether the last press on the select came from a pointer. Chrome treats a
+     <select> as :focus-visible even after a mouse click, so the ring stayed on
+     after picking a metric. A mouse pick lets go of focus; a keyboard pick
+     keeps it, because a keyboard user still needs to see where they are. */
+  const pickedByPointer = useRef(false);
+  const compare = compareSeries && comparePick && comparePick !== metric ? comparePick : null;
+  const cData = compare ? compareSeries!(compare) : [];
 
   /* A reader's override of the automatic choice, null while they have not
      expressed one. Kept separate from the `mark` prop rather than replacing
@@ -76,6 +98,32 @@ export function Chart({
   }).join(' ');
   const areaPath = `${linePath} L 100 100 L 0 100 Z`;
 
+  /* ---- The overlay: a second metric on its own scale ----------------------
+
+     Two metrics almost never share units -- Spend is thousands of dollars,
+     ROAS is 3 to 5 -- so the overlay gets its own domain and its own axis on
+     the right. What the reader compares is SHAPE: does ROAS fall as spend
+     rises? The two axes are labelled so nobody reads the heights against
+     each other as if they were one scale.
+
+     Always a line, whatever the main mark is: a line over bars stays legible,
+     bars over bars would hide each other. Same zero rule as the main line --
+     a quantity starts at zero, a ratio does not. */
+  const cZero = compare ? !isRatio(compare) : true;
+  const cTicks = compare ? computeTicks(compare, cData, cZero) : [];
+  const [cLo, cHi] = compare ? domainFor(cData, cZero) : [0, 1];
+  const cSpan = cHi - cLo || 1;
+  /* Over bars, each point sits on its bar's centre, not on an edge-to-edge
+     spread -- otherwise the first and last points hang off the outer bars and
+     every reading in between drifts half a bar sideways. */
+  const cPointAt = (i: number) => ({
+    x: resolved === 'bar'
+      ? ((i + 0.5) / cData.length) * 100
+      : cData.length === 1 ? 50 : (i / (cData.length - 1)) * 100,
+    y: 100 - ((cData[i].value - cLo) / cSpan) * 100,
+  });
+  const cPath = smoothPath(cData.map((_, i) => cPointAt(i)));
+
   function onMove(e: React.MouseEvent<HTMLDivElement>) {
     const box = e.currentTarget.getBoundingClientRect();
     const ratio = (e.clientX - box.left) / box.width;
@@ -83,7 +131,11 @@ export function Chart({
   }
 
   const hovered = hover !== null ? data[hover] : null;
-  const hoverX = hover !== null ? pointAt(hover).x : 0;
+  const cHovered = compare && hover !== null ? cData[hover] : null;
+  // The crosshair follows the same rule: bar centre over bars, point over a line.
+  const hoverX = hover === null ? 0
+    : resolved === 'bar' ? ((hover + 0.5) / data.length) * 100
+    : pointAt(hover).x;
 
   /* The chart's numbers, reachable without sight.
 
@@ -101,13 +153,17 @@ export function Chart({
     <table className="gr-sr-only">
       <caption>{title ?? `${metric} over time`}</caption>
       <thead>
-        <tr><th scope="col">Date</th><th scope="col">{metric}</th></tr>
+        <tr>
+          <th scope="col">Date</th><th scope="col">{metric}</th>
+          {compare && <th scope="col">{compare}</th>}
+        </tr>
       </thead>
       <tbody>
         {data.map((d, i) => (
           <tr key={i}>
             <th scope="row">{d.label}</th>
             <td>{formatMetric(metric, d.value)}</td>
+            {compare && cData[i] && <td>{formatMetric(compare, cData[i].value)}</td>}
           </tr>
         ))}
       </tbody>
@@ -120,6 +176,45 @@ export function Chart({
       <header className="gr-chart__header">
         <h3 className="gr-chart__title gr-type-card-heading">{title ?? `${metric} over time`}</h3>
         <MetricToggle value={metric} onChange={(m) => onMetricChange?.(m)} />
+
+        {/* A native select, not a second segmented control: two rows of six
+            identical pills would make "which one is the main metric" a
+            question. Styled to sit on the same 32px tray as the toggle, and
+            the main metric is excluded from its own options. */}
+        {compareSeries && (
+          <div className={`gr-chart__compare ${compare ? 'is-on' : ''}`}>
+            <label className="gr-chart__compare-field">
+              <span className="gr-chart__compare-label gr-type-label-button">
+                {compare ? 'vs' : 'Compare'}
+              </span>
+              <select
+                className="gr-chart__compare-select gr-type-label-button"
+                value={compare ?? ''}
+                aria-label="Compare with a second metric"
+                onPointerDown={() => { pickedByPointer.current = true; }}
+                onKeyDown={() => { pickedByPointer.current = false; }}
+                onChange={(e) => {
+                  setComparePick((e.target.value || null) as Metric | null);
+                  if (pickedByPointer.current) e.target.blur();
+                }}
+              >
+                <option value="">None</option>
+                {METRICS.filter((m) => m !== metric).map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </label>
+            {compare && (
+              <button type="button" className="gr-chart__compare-clear"
+                      aria-label={`Stop comparing with ${compare}`}
+                      onClick={() => setComparePick(null)}>
+                <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+                  <path d="M3 3l6 6M9 3l-6 6" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Bar or line. Disabled rather than hidden for a ratio: a control
             that disappears leaves the reader wondering whether they imagined
@@ -158,7 +253,23 @@ export function Chart({
       </header>
 
       {state === 'ready' ? (
-        <div className="gr-chart__body">
+        <div className={`gr-chart__body ${compare ? 'has-right-axis' : ''}`}>
+          {/* One legend, always present. The main key shows on its own until
+              there is a comparison, then the second key joins beside it. It
+              used to appear only on compare, which made the whole card grow
+              ~20px taller the moment Compare was switched on. */}
+          <div className="gr-chart__axes gr-type-overline" aria-hidden="true">
+            <span className="gr-chart__axis-title">
+              <span className="gr-chart__glyph gr-chart__glyph--main" style={{ background: stroke }} />
+              {metric}
+            </span>
+            {compare && (
+              <span className="gr-chart__axis-title">
+                <span className="gr-chart__glyph gr-chart__glyph--compare" />
+                {compare}
+              </span>
+            )}
+          </div>
           <div className="gr-chart__plot">
             <div className="gr-chart__y" aria-hidden="true">
               {ticks.map((t, i) => <span key={i} className="gr-type-micro">{t}</span>)}
@@ -206,6 +317,16 @@ export function Chart({
                 </svg>
               )}
 
+              {compare && (
+                <svg className="gr-chart__svg gr-chart__overlay" viewBox="0 0 100 100"
+                     preserveAspectRatio="none" aria-hidden="true">
+                  {/* No halo. It cut a white notch into every bar the line
+                      crossed. Ink on the channel colour is legible on its own. */}
+                  <path d={cPath} className="gr-chart__overlay-line"
+                        vectorEffect="non-scaling-stroke" />
+                </svg>
+              )}
+
               {hovered && (
                 <>
                   <span className="gr-chart__crosshair" style={{ left: `${hoverX}%` }} aria-hidden="true" />
@@ -217,6 +338,13 @@ export function Chart({
                         top: `${pointAt(hover!).y}%`,
                         borderColor: stroke,
                       }}
+                      aria-hidden="true"
+                    />
+                  )}
+                  {cHovered && (
+                    <span
+                      className="gr-chart__marker gr-chart__marker--compare"
+                      style={{ left: `${hoverX}%`, top: `${cPointAt(hover!).y}%` }}
                       aria-hidden="true"
                     />
                   )}
@@ -234,12 +362,30 @@ export function Chart({
                   >
                     <span className="gr-chart__tip-label gr-type-micro">{hovered.label}</span>
                     <span className="gr-chart__tip-value gr-type-caption-med">
+                      {compare && <span className="gr-chart__tip-name">{metric} </span>}
                       {formatMetric(metric, hovered.value)}
                     </span>
+                    {cHovered && (
+                      <span className="gr-chart__tip-value gr-type-caption-med">
+                        <span className="gr-chart__tip-name">{compare} </span>
+                        {formatMetric(compare!, cHovered.value)}
+                      </span>
+                    )}
                   </div>
                 </>
               )}
             </div>
+
+            {/* The overlay's scale gets its own column, mirroring the left
+                axis: the bars stop before it rather than running underneath.
+                Numbers laid over the last bar on chips were tried and read as
+                clutter. Only present while comparing, so a single-metric
+                chart still runs its bars to the edge of the card. */}
+            {compare && (
+              <div className="gr-chart__y gr-chart__y--right" aria-hidden="true">
+                {cTicks.map((t, i) => <span key={i} className="gr-type-micro">{t}</span>)}
+              </div>
+            )}
           </div>
 
           <div className="gr-chart__baseline" />

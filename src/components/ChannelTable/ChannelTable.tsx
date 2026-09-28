@@ -4,7 +4,7 @@ import { ChannelMark } from '../ChannelMark/ChannelMark';
 import { formatMetric, type Metric, higherIsBetter } from '../../data/metrics';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { Sparkline } from '../Sparkline/Sparkline';
-import type { ChannelName } from '../../styles/tokens';
+import { channelGradient, type ChannelName } from '../../styles/tokens';
 
 /**
  * Rows carry NUMBERS, not formatted strings.
@@ -24,14 +24,14 @@ export interface ChannelRow {
   trend: number[];
 }
 
-type SortKey = 'name' | 'spend' | 'leads' | 'cac' | 'roas' | 'delta';
+type SortKey = 'name' | 'spend' | 'leads' | 'cac' | 'roas' | 'delta' | 'share';
 
 export interface ChannelTableProps {
   rows: ChannelRow[];
   onRowClick?: (key: ChannelName) => void;
   /** Chat open shrinks the content column, so the table drops its wide columns. */
   wideColumns?: boolean;
-  /** The metric the trend column is showing, so the mark can follow the rule. */
+  /** The metric being shown. Decides whether a rising delta is good news. */
   metric?: Metric;
 }
 
@@ -43,6 +43,11 @@ const COLUMNS: { key: SortKey; label: string; wideOnly?: boolean; numeric?: bool
   { key: 'cac',   label: 'CAC',  wideOnly: true, numeric: true },
   { key: 'roas',  label: 'ROAS', wideOnly: true, numeric: true },
   { key: 'delta', label: 'Δ Prev', numeric: true },
+  /* Share of spend sits beside ROAS on purpose: together they answer "is the
+     money going where the return is?" -- a channel with 38% of the budget and
+     the lowest ROAS is the finding. Derived here from the rows, so it always
+     sums to 100% of whatever channels are switched on. */
+  { key: 'share', label: 'Share of spend', wideOnly: true, numeric: true },
 ];
 
 export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: ChannelTableProps) {
@@ -59,7 +64,10 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
         : { key, dir: key === 'name' ? 'asc' : 'desc' });
   }
 
-  const sorted = [...rows].sort((a, b) => {
+  const totalSpend = rows.reduce((t, r) => t + r.spend, 0);
+  const withShare = rows.map((r) => ({ ...r, share: totalSpend > 0 ? r.spend / totalSpend : 0 }));
+
+  const sorted = [...withShare].sort((a, b) => {
     const dir = sort.dir === 'asc' ? 1 : -1;
     if (sort.key === 'name') return a.name.localeCompare(b.name) * dir;
     return (a[sort.key] - b[sort.key]) * dir;
@@ -103,7 +111,7 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
               nothing at all with no explanation. */}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={wideColumns ? 7 : 5} className="gr-table__empty gr-type-body">
+              <td colSpan={wideColumns ? 8 : 5} className="gr-table__empty gr-type-body">
                 No channels are switched on. Turn one back on in Settings to see spend here.
               </td>
             </tr>
@@ -155,8 +163,23 @@ export function ChannelTable({ rows, onRowClick, wideColumns = true, metric }: C
                       card above rendered the same number red. */}
                   <DeltaBadge percent={r.delta} higherIsBetter={higherIsBetter(metric)} bare />
                 </td>
+                {wideColumns && (
+                  <td>
+                    <span className="gr-share">
+                      <span className="gr-share__value gr-type-body">{Math.round(r.share * 100)}%</span>
+                      <span className="gr-share__track" aria-hidden="true">
+                        <span className="gr-share__fill"
+                              /* The track is 100% of spend, so the bar is the true share:
+                                 38% fills 38% of the track. Scaling to the largest
+                                 share made Meta's 38% look like the whole budget. */
+                              style={{ width: `${r.share * 100}%`,
+                                       background: channelGradient(r.key) }} />
+                      </span>
+                    </span>
+                  </td>
+                )}
                 <td>
-                  <Sparkline values={r.trend} metric={metric} channel={r.key} />
+                  <Sparkline values={r.trend} channel={r.key} variant="line" height={20} />
                 </td>
               </tr>
             );

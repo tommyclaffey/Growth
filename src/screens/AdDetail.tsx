@@ -12,6 +12,7 @@ import {
   creativesFor, rankCreatives,
 } from '../data/creative';
 import {
+  trendMark,
   betterHigher, formatDerived, kpisFor, valueOf, type DerivedMetric,
 } from '../data/channelMetrics';
 import { CHANNEL_LABEL, deltaOf, formatMetric, sampleOf, type Metric, type Range } from '../data/metrics';
@@ -159,6 +160,7 @@ export function AdDetail({ id, range, onBack, backLabel = 'Campaign' }: AdDetail
               channel={campaign.channel}
               deltaPercent={deltaOf(daily)}
               sparkline={sampleOf(daily)}
+              sparklineMark={trendMark(m)}
             />
           );
         })}
@@ -169,6 +171,7 @@ export function AdDetail({ id, range, onBack, backLabel = 'Campaign' }: AdDetail
         metric={chartMetric}
         onMetricChange={setChartMetric}
         data={creativeSeries(id, chartMetric, range)}
+        compareSeries={(m) => creativeSeries(id, m, range)}
         title={`${chartMetric} over time`}
       />
 

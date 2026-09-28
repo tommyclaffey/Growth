@@ -29,7 +29,7 @@ import {
   type Metric, type Range, type Scope,
 } from './data/metrics';
 import { campaignById } from './data/campaignSeries';
-import type { DerivedMetric } from './data/channelMetrics';
+import { trendMark, type DerivedMetric } from './data/channelMetrics';
 import {
   dismissAlert, dismissAll, markAllRead, undismissAlert, usePrefs,
 } from './data/prefs';
@@ -473,23 +473,27 @@ export default function App() {
                          value={formatMetric('Spend', view.totals.spend)}
                          deltaPercent={delta(scope, 'Spend', range)}
                          sparkline={sparkline(scope, 'Spend', range)}
-                         metric="Spend" channel={scope} />
+                         sparklineMark={trendMark('Spend')}
+                         channel={scope} />
                 <KpiCard loading={demo === 'loading'} error={demo === 'error'} onDiscuss={() => shareMetric('Leads')} label="Total leads"
                          value={formatMetric('Leads', view.totals.leads)}
                          deltaPercent={delta(scope, 'Leads', range)}
                          sparkline={sparkline(scope, 'Leads', range)}
-                         metric="Leads" channel={scope} />
+                         sparklineMark={trendMark('Leads')}
+                         channel={scope} />
                 <KpiCard loading={demo === 'loading'} error={demo === 'error'} onDiscuss={() => shareMetric('CAC')} higherIsBetter={false}
                          label={onChannelScreen ? 'CAC' : 'Blended CAC'}
                          value={formatMetric('CAC', view.totals.cac)}
                          deltaPercent={delta(scope, 'CAC', range)}
                          sparkline={sparkline(scope, 'CAC', range)}
-                         metric="CAC" channel={scope} />
+                         sparklineMark={trendMark('CAC')}
+                         channel={scope} />
                 <KpiCard loading={demo === 'loading'} error={demo === 'error'} onDiscuss={() => shareMetric('ROAS')} label={onChannelScreen ? 'ROAS' : 'Blended ROAS'}
                          value={formatMetric('ROAS', view.totals.roas)}
                          deltaPercent={delta(scope, 'ROAS', range)}
                          sparkline={sparkline(scope, 'ROAS', range)}
-                         metric="ROAS" channel={scope} />
+                         sparklineMark={trendMark('ROAS')}
+                         channel={scope} />
                 {/* Derived, not typed. Was a hardcoded "64%" that stayed 64%
                     with every channel switched off and $0 beside it. */}
                 <KpiCard label="Pace to target"
@@ -542,6 +546,7 @@ export default function App() {
                 metric={metric}
                 onMetricChange={setMetric}
                 data={view.data}
+                compareSeries={(m) => series(scope, m, range)}
                 state={demo}
                 onRetry={() => setDemoState('ready')}
               />

@@ -2,7 +2,6 @@ import './KpiCard.css';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { Sparkline } from '../Sparkline/Sparkline';
-import type { Metric } from '../../data/metrics';
 import type { ChannelName } from '../../styles/tokens';
 
 export interface KpiCardProps {
@@ -20,8 +19,8 @@ export interface KpiCardProps {
   progress?: number;
   /** Raw values, oldest first. Seven points in the Figma spec. */
   sparkline?: number[];
-  /** Passed through so the mark follows the same rule the chart does. */
-  metric?: Metric;
+  /** Bars for counts and amounts, a line for rates and ratios. See trendMark(). */
+  sparklineMark?: 'bars' | 'line';
   channel?: ChannelName | 'all';
   loading?: boolean;
   /** Renders the error state: an em dash, and the badge and sparkline in semantic/bad. */
@@ -75,7 +74,7 @@ export function KpiCard({
   higherIsBetter = true,
   progress,
   sparkline,
-  metric,
+  sparklineMark = 'bars',
   channel,
   loading = false,
   error = false,
@@ -143,7 +142,8 @@ export function KpiCard({
         {progress !== undefined ? (
           <ProgressBar value={progress} label={label} />
         ) : sparkline && sparkline.length > 0 ? (
-          <Sparkline values={sparkline} metric={metric} channel={channel} />
+          <Sparkline values={sparkline} channel={channel} variant={sparklineMark}
+                     height={sparklineMark === 'line' ? 20 : undefined} />
         ) : null}
       </span>
 

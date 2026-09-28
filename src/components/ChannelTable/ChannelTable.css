@@ -108,3 +108,20 @@
   padding: var(--space-28) var(--space-12);
   color: var(--text-muted);
 }
+
+
+/* ---- share of spend ----
+   Percentage first, fixed width so every bar starts on the same line; the bar
+   takes the rest. Rounded like the chart bars, resting at the same 72% as the
+   chart so the table and chart read as one system. */
+.gr-share { display: flex; align-items: center; gap: var(--space-12); min-width: 160px; }
+.gr-share__value { width: 3ch; text-align: right; flex: none; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.gr-share__track {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-page-top);
+  overflow: hidden;
+}
+.gr-share__fill { display: block; height: 100%; border-radius: var(--radius-pill); opacity: 0.72; }
+.gr-table__row:hover .gr-share__fill { opacity: 1; }

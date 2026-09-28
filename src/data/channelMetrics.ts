@@ -27,6 +27,20 @@ export type DerivedMetric =
   | 'Spend' | 'Impressions' | 'Clicks' | 'Leads' | 'Sales'
   | 'CTR' | 'CPC' | 'CPM' | 'CAC' | 'ROAS' | 'CVR';
 
+/**
+ * How a metric's small trend mark is drawn.
+ *
+ * A count or an amount (Spend, Leads, Clicks...) adds up day to day, so a bar
+ * per day is honest. A rate or a ratio (CAC, ROAS, CTR, CPC, CPM, CVR) does
+ * not add up -- two days at 4x are not 8x -- so it is drawn as a line, the
+ * same rule the big chart follows. Accepts a plain string so both metric sets
+ * (Overview's Metric and a campaign's DerivedMetric) use the one rule.
+ */
+const RATE_METRICS = new Set(['CAC', 'ROAS', 'CTR', 'CPC', 'CPM', 'CVR']);
+export function trendMark(metric: string): 'bars' | 'line' {
+  return RATE_METRICS.has(metric) ? 'line' : 'bars';
+}
+
 /** Metrics this channel is allowed to display, in reporting order. */
 export const CHANNEL_METRICS: Record<ChannelName, DerivedMetric[]> = {
   meta:       ['Spend', 'Impressions', 'Clicks', 'CTR', 'CPC', 'CPM', 'Leads', 'CAC', 'ROAS'],
