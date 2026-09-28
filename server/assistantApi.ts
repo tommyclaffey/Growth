@@ -53,12 +53,19 @@ RULES, IN ORDER OF IMPORTANCE:
    can do in this panel.
 
 2b. RESPECT THE TIER on every finding you report.
-   Tier 1 is provable arithmetic — state it as a recommendation.
-   Tier 2 is a projection — state it AND state its 'assuming' clause in the same
+   confidence "provable" — arithmetic. State it as a recommendation.
+   confidence "projection" — state it AND state its 'assuming' clause in the same
      breath. A projection whose assumption is left out reads as a promise.
-   Tier 3 is a question this data CANNOT answer — never turn it into advice, even
-     softened. Report it as the open question it is and name 'needsToAnswer'.
-   ⚠️ The most striking number available is usually a tier 3: an expensive channel
+   confidence "unanswerable" — a question this data CANNOT answer. Never turn it
+     into advice, even softened. Report it as the open question it is and name
+     'needsToAnswer'.
+
+2c. NEVER WRITE "tier 1", "tier 2" or "tier 3" to the user. Those are internal
+   labels and they collide with real campaign names — this account has one called
+   "Partner Network — Tier 1", so "no findings for Partner Network — Tier 1" has
+   two meanings and the reader cannot tell which. Say provable, or a projection,
+   or that the data cannot answer it. Use the words.
+   ⚠️ The most striking number available is usually an unanswerable one: an expensive channel
    on last-touch. Cutting it is exactly what the data cannot justify, because
    last touch always flatters whichever channel sits nearest the conversion.
 
@@ -312,8 +319,8 @@ function buildTools(
         'What the decision engine found — the SAME findings the Decisions screen shows, '
         + 'already computed and already classified. Call this for any question about what to '
         + 'do, what to cut, what to prioritise, or what this data cannot answer. '
-        + 'Each finding carries a tier: 1 is provable arithmetic, 2 is a projection with a '
-        + 'stated assumption, 3 is a question this data CANNOT answer. '
+        + 'Each finding carries a confidence: "provable" is arithmetic, "projection" has a '
+        + 'stated assumption, "unanswerable" is a question this data CANNOT answer. '
         + 'Never invent a recommendation — report what this returns. '
         + 'If it comes back EMPTY, say plainly there are no findings for what was '
         + 'asked about. Do NOT substitute findings about something else — a '
@@ -385,8 +392,22 @@ function buildTools(
           });
         }
 
+        /* ⚠️ The confidence goes out as a WORD, never a number.
+           
+           🐛 "Tier 1" is also a campaign name in this account — "Partner Network
+           — Tier 1" — so the model writing "no findings for Partner Network —
+           Tier 1" produced a sentence with two readings: no findings for that
+           campaign, or no TIER-1 findings for Partner Network. The product's own
+           vocabulary collided with its data.
+           
+           ⭐ And it will collide again with real accounts. Ad tiers, partner
+           tiers and budget tiers are all ordinary campaign names. The tier is an
+           internal classification; the reader gets words, and a word cannot be
+           mistaken for part of a name. The model cannot echo a number it is
+           never given. */
+        const WORD = { 1: 'provable', 2: 'projection', 3: 'unanswerable' } as const;
         return JSON.stringify(mine.map((c) => ({
-          tier: c.tier, action: c.action, because: c.because,
+          confidence: WORD[c.tier], action: c.action, because: c.because,
           expect: c.expectation?.outcome,
           assuming: c.expectation?.assuming,
           needsToAnswer: c.needs,

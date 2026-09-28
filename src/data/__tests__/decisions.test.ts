@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { decisions, decisionsByTier, validate, type Candidate } from '../decisions';
+import {
+  TIER_LABEL, decisions, decisionsByTier, validate, type Candidate,
+} from '../decisions';
 import { ALL_CHANNELS } from '../blended';
 import { CAMPAIGNS } from '../campaigns';
 import { CHANNEL_KEYS, CHANNEL_LABEL, RANGES, setActiveChannels } from '../metrics';
@@ -475,6 +477,36 @@ describe('⭐ the engine finds opportunities, not only faults', () => {
       (k) => CAMPAIGNS.filter((c) => c.channel === k).length < 2);
     for (const k of single) {
       expect(all().some((c) => c.kind === 'beats-its-channel' && c.channel === k)).toBe(false);
+    }
+  });
+});
+
+describe('the confidence vocabulary does not collide with the data', () => {
+  it('⭐ tier labels are words, never numbers', () => {
+    /* 🐛 "Partner Network — Tier 1" is a real campaign in this account, so the
+       model writing "no findings for Partner Network — Tier 1" produced a
+       sentence with two readings: no findings for that campaign, or no TIER-1
+       findings for Partner Network. The product's own vocabulary collided with
+       its data and the answer became unreadable.
+
+       ⚠️ It will collide again with real accounts — ad tiers, partner tiers and
+       budget tiers are all ordinary campaign names. The tier stays as an internal
+       classification; everything a reader sees is a word, because a word cannot
+       be mistaken for part of a name. */
+    for (const t of [1, 2, 3] as const) {
+      expect(TIER_LABEL[t]).not.toMatch(/tier\s*\d/i);
+      expect(TIER_LABEL[t].length).toBeGreaterThan(10);
+    }
+  });
+
+  it('no finding writes a tier number into its own prose', () => {
+    reset();
+    for (const c of all()) {
+      const prose = `${c.action} ${c.because} ${c.expectation?.outcome ?? ''} ${c.needs ?? ''}`;
+      /* Campaign names carrying "Tier 1" are legitimate and excluded — the test
+         is about the ENGINE's vocabulary, not the account's. */
+      const scrubbed = prose.replace(/Partner Network — Tier 1/g, '');
+      expect(scrubbed, c.id).not.toMatch(/\btier\s*[123]\b/i);
     }
   });
 });
