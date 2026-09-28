@@ -31,23 +31,73 @@ export interface Benchmark {
   deltaPercent: number;
   /** Higher is not always better. CAC above the channel average is bad news. */
   better: boolean;
-  basis: 'campaign-average' | 'channel-rate';
-  /** Campaigns the average is drawn from — the caption says so. */
+  basis: 'campaign-average' | 'channel-rate' | 'ad-average' | 'channel-ad-rate';
+  /** Members the average is drawn from — campaigns, or ads. The caption says so. */
   n: number;
 }
 
 const COUNTS: DerivedMetric[] = ['Spend', 'Impressions', 'Clicks', 'Leads', 'Sales'];
+
+export interface Funnel {
+  spend: number; impressions: number; clicks: number;
+  leads: number; sales: number; revenue: number;
+}
+
+export const EMPTY_FUNNEL: Funnel = {
+  spend: 0, impressions: 0, clicks: 0, leads: 0, sales: 0, revenue: 0,
+};
+
+export function addFunnel(a: Funnel, b: Funnel): Funnel {
+  return {
+    spend: a.spend + b.spend, impressions: a.impressions + b.impressions,
+    clicks: a.clicks + b.clicks, leads: a.leads + b.leads,
+    sales: a.sales + b.sales, revenue: a.revenue + b.revenue,
+  };
+}
+
+/**
+ * The comparison itself, given a population's summed funnel and its size.
+ *
+ * Extracted so that comparing an AD to its channel and comparing a CAMPAIGN to
+ * its channel share one implementation. The populations differ -- the ads on a
+ * channel versus the campaigns on it -- but the rule for turning a population
+ * into a benchmark does not, and it is the rule that is easy to get wrong.
+ *
+ * ⚠️ Two copies of the count-versus-rate distinction is how the CAC direction
+ * bug would come back: a count divides by n because the honest comparison is the
+ * average member, a rate does not because it is already normalised. Written once.
+ */
+export function benchmarkAgainst(
+  metric: DerivedMetric, sum: Funnel, n: number, actual: number,
+  basisNames: { count: Benchmark['basis']; rate: Benchmark['basis'] },
+): Benchmark | null {
+  /* A population of one has no benchmark -- the "average" would be the member
+     itself, so every card would read 0% and mean nothing. */
+  if (n < 2) return null;
+
+  const isCount = COUNTS.includes(metric);
+  const populationValue = valueOf(metric, sum);
+  const value = isCount ? populationValue / n : populationValue;
+
+  if (!Number.isFinite(value) || value === 0 || !Number.isFinite(actual)) return null;
+
+  const deltaPercent = ((actual - value) / value) * 100;
+  return {
+    value,
+    deltaPercent,
+    /* Sign alone does not say good or bad. betterHigher owns that rule for the
+       whole app; re-deciding it here is how the CAC direction bug happened. */
+    better: (deltaPercent >= 0) === betterHigher(metric),
+    basis: isCount ? basisNames.count : basisNames.rate,
+    n,
+  };
+}
 
 export function benchmarkFor(
   channel: ChannelName, metric: DerivedMetric, range: Range, actual: number,
 ): Benchmark | null {
   const peers = CAMPAIGNS.filter((c) => c.channel === channel);
   const n = peers.length;
-
-  /* A channel running one campaign has no benchmark -- the "average" would be
-     that campaign, so every card would read "0% vs average" and mean nothing.
-     Showing no comparison is better than showing a tautology. */
-  if (n < 2) return null;
 
   /* Summed from the CAMPAIGNS, not from channel totals divided by n.
      The two are within ~0.2% of each other, and the difference is the point:
@@ -65,25 +115,11 @@ export function benchmarkFor(
     };
   }, { spend: 0, impressions: 0, clicks: 0, leads: 0, sales: 0, revenue: 0 });
 
-  const isCount = COUNTS.includes(metric);
   /* Rates come from the SUMMED funnel, not the mean of each campaign's rate --
      that weights by spend, so a $90k campaign does not get the same vote as a
      $900 one. */
-  const channelValue = valueOf(metric, sum);
-  const value = isCount ? channelValue / n : channelValue;
-
-  if (!Number.isFinite(value) || value === 0 || !Number.isFinite(actual)) return null;
-
-  const deltaPercent = ((actual - value) / value) * 100;
-  return {
-    value,
-    deltaPercent,
-    /* Sign alone does not say good or bad. betterHigher owns that rule for the
-       whole app; re-deciding it here is how the CAC direction bug happened. */
-    better: (deltaPercent >= 0) === betterHigher(metric),
-    basis: isCount ? 'campaign-average' : 'channel-rate',
-    n,
-  };
+  return benchmarkAgainst(metric, sum, n, actual,
+    { count: 'campaign-average', rate: 'channel-rate' });
 }
 
 /**

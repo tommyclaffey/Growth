@@ -17,6 +17,7 @@ import { ChatPanel } from './components/ChatPanel/ChatPanel';
 import { Assistant } from './components/Assistant/Assistant';
 import { downloadCsv } from './data/exportCsv';
 import { Reports } from './screens/Reports';
+import { Ads } from './screens/Ads';
 import { Notifications } from './screens/Notifications';
 import { Settings } from './screens/Settings';
 import { CampaignDetail } from './screens/CampaignDetail';
@@ -685,6 +686,20 @@ export default function App() {
               />
             )
             : <CampaignTable wideColumns={!chatOpen} onOpenCampaign={(id) => openCampaign(id)} />)}
+
+          {/* The cross-channel ad ranking, and an ad opened FROM it returns to
+              it -- the breadcrumb has to name where Back actually lands, and
+              from here that is the ranking rather than a campaign. */}
+          {nav === 'ads' && (adId
+            ? (
+              <AdDetail
+                id={adId}
+                range={range}
+                onBack={() => setAdId(null)}
+                backLabel="All ads"
+              />
+            )
+            : <Ads range={range} onOpenAd={setAdId} />)}
 
           {nav === 'reports' && <Reports />}
           {nav === 'notifications' && <Notifications onOpenCampaign={(id) => openCampaign(id)} />}

@@ -29,7 +29,7 @@ export interface UrlState {
   ad: string | null;
 }
 
-const NAV_KEYS: NavKey[] = ['overview', 'channels', 'campaigns', 'reports', 'notifications', 'settings'];
+const NAV_KEYS: NavKey[] = ['overview', 'channels', 'campaigns', 'ads', 'reports', 'notifications', 'settings'];
 
 /* Every field validated against the real list. A URL is untrusted input --
    this one arrives from Slack, from a bookmark written by an older build, and

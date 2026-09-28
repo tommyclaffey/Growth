@@ -283,3 +283,63 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
   outline: var(--border-width-md) solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+/* ---------- Ads — the cross-channel ranking ---------- */
+
+/* Controls sit in the card header, after the count, pushed right. The header is
+   already a flex row with a title and a caption, so this only needs to claim the
+   remaining space rather than re-laying the header out. */
+.gr-ads__controls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.gr-ads__metric { display: inline-flex; align-items: center; }
+
+/* Matched to the Chip beside it -- 24 tall, same radius, same border. A native
+   select that is two pixels taller than its neighbours reads as misaligned even
+   when nobody can say why. */
+.gr-ads__select {
+  height: 24px;
+  padding: 0 var(--space-8);
+  color: var(--text-default);
+  background: var(--surface-card);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.gr-ads__select:focus-visible {
+  outline: var(--border-width-md) solid var(--accent-base);
+  outline-offset: 1px;
+}
+
+/* The explanation of the default ranking. Sits above the table rather than in a
+   tooltip: it is the argument for what the reader is looking at, and an argument
+   nobody can find is one that was not made. */
+.gr-ads__lede {
+  color: var(--text-muted);
+  margin: 0 0 var(--space-12);
+  max-width: 62ch;
+}
+
+/* A narrow, right-aligned ordinal. Tabular so the numbers line up as the list
+   passes 9 and the digits change width. */
+.gr-ads__rank {
+  width: 2.5rem;
+  text-align: right;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gr-ads__channel { display: inline-flex; align-items: center; gap: var(--space-8); }
+
+/* The secondary line inside a cell -- the ad's format, or the ad set it belongs
+   to. Block, so it sits under the primary text rather than running on after it. */
+.gr-ads__kind {
+  display: block;
+  color: var(--text-muted);
+}
+
+.gr-ads__nopeer { color: var(--text-muted); }
