@@ -309,7 +309,7 @@ export function creativeLeadShare(id: string): number {
 }
 
 /** Daily rows for one ad, scaled out of its campaign's. Follows the range. */
-export function creativeRows(id: string, range: Range = 30): DayRow[] {
+export function creativeRows(id: string, range: Range = 30, back = 0): DayRow[] {
   const owner = creativeById(id);
   if (!owner) return [];
   /* Bought on spend, returns on leads. The gap between the two shares IS the
@@ -317,7 +317,7 @@ export function creativeRows(id: string, range: Range = 30): DayRow[] {
      different CACs. */
   const share = creativeShare(id);
   const leadShare = creativeLeadShare(id);
-  return campaignRows(owner.campaignId, range).map((r) => ({
+  return campaignRows(owner.campaignId, range, back).map((r) => ({
     ...r,
     spend: r.spend * share,
     impressions: r.impressions * share,

@@ -1,7 +1,7 @@
 import type { ChannelName } from '../styles/tokens';
 import { CHANNEL_METRICS, valueOf, type DerivedMetric } from './channelMetrics';
 import {
-  CHANNEL_KEYS, CHANNEL_LABEL, activeChannels, deltaOf, rowsFor, sampleOf,
+  CHANNEL_KEYS, CHANNEL_LABEL, activeChannels, changeOf, rowsFor, sampleOf,
   type DayRow, type Range,
 } from './metrics';
 
@@ -73,9 +73,9 @@ export function blendedMetrics(channels: ChannelName[] = activeChannels()): Deri
  * blend spend-weighted, which is what "blended CAC" means everywhere else in
  * this industry.
  */
-function combinedRows(channels: ChannelName[], range: Range): DayRow[] {
+function combinedRows(channels: ChannelName[], range: Range, back = 0): DayRow[] {
   if (channels.length === 0) return [];
-  const per = channels.map((c) => rowsFor(c, range));
+  const per = channels.map((c) => rowsFor(c, range, back));
   const days = per[0].length;
   return Array.from({ length: days }, (_, d) =>
     per.reduce<DayRow>((a, rows) => ({
@@ -118,7 +118,8 @@ export function blendedTotal(
 export function blendedDelta(
   m: DerivedMetric, channels: ChannelName[] = activeChannels(), range: Range = 30,
 ): number {
-  return deltaOf(blendedValues(m, channels, range));
+  const cover = coverageFor(m, channels);
+  return changeOf(m, combinedRows(cover, range), combinedRows(cover, range, 1));
 }
 
 export function blendedSparkline(

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { CAMPAIGNS } from '../campaigns';
 import { campaignDelta, campaignSparkline, campaignTotals, campaignValues } from '../campaignSeries';
 import { kpisFor, valueOf } from '../channelMetrics';
-import { deltaOf, type Range } from '../metrics';
+import { changeOf, type Range } from '../metrics';
+import { campaignRows } from '../campaignSeries';
 
 const RANGES: Range[] = [7, 30, 90];
 
@@ -39,7 +40,7 @@ describe('every campaign card is fully populated', () => {
   it('uses ONE definition of period-over-period, not a campaign copy of it', () => {
     const c = CAMPAIGNS[0];
     expect(campaignDelta(c.id, 'Spend', 30))
-      .toBe(deltaOf(campaignValues(c.id, 'Spend', 30)));
+      .toBe(changeOf('Spend', campaignRows(c.id, 30), campaignRows(c.id, 30, 1)));
   });
 
   it('samples to the END of the series, so the mark ends where the number does', () => {

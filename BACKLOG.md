@@ -550,6 +550,8 @@ wait on other people: the **Meta app** and the **Google Ads developer token**.
 
 ## ✅ Done
 
+- **Δ Prev is now the preceding window** *(Sept 28)* — was the back half of the selected window vs its front half (3 vs 4 days on a 7-day range) and a mean of daily ratios. Now this window vs the equal-length one immediately before, both summed then the metric taken once. Needed 90 days of history before the window (`HISTORY`), generated from separate seeds so no recent number moved. Every tier and the assistant read the same `changeOf`. ⚠️ Seeded deltas no longer match the Figma screens' Δ figures — the design numbers were half-splits; real windows differ. Campaigns/ad sets/ads share a constant fraction of their channel, so their Spend Δ equals the channel's by construction (true of seeded data only).
+
 - Campaign detail pages, per-channel metric vocabularies, channel benchmarks
 - Ad detail pages, creative section, drop-in asset library
 - P1 — every control on screen does what it says

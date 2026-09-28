@@ -1,7 +1,7 @@
 import { CAMPAIGNS, type AdSet, type Campaign } from './campaigns';
 import { campaignRows, campaignSeries } from './campaignSeries';
 import { valueOf, type DerivedMetric } from './channelMetrics';
-import { deltaOf, sampleOf, type DayRow, type Metric, type Range } from './metrics';
+import { changeOf, sampleOf, type DayRow, type Metric, type Range } from './metrics';
 
 /**
  * The ad-set tier, which until now had no numbers of its own.
@@ -143,7 +143,7 @@ export function adSetLeadShare(id: string): number {
 }
 
 /** Daily funnel for one ad set, scaled out of its campaign's. Follows the range. */
-export function adSetRows(id: string, range: Range = 30): DayRow[] {
+export function adSetRows(id: string, range: Range = 30, back = 0): DayRow[] {
   const ref = adSetById(id);
   if (!ref) return [];
   /* Spend, impressions and clicks follow SPEND share -- what you bought.
@@ -152,7 +152,7 @@ export function adSetRows(id: string, range: Range = 30): DayRow[] {
      and ROAS differ between siblings at all. */
   const spendShare = adSetShare(id);
   const leadShare = adSetLeadShare(id);
-  return campaignRows(ref.campaign.id, range).map((r) => ({
+  return campaignRows(ref.campaign.id, range, back).map((r) => ({
     spend: r.spend * spendShare,
     impressions: r.impressions * spendShare,
     clicks: r.clicks * spendShare,
@@ -215,10 +215,10 @@ export function adSetValues(id: string, metric: DerivedMetric, range: Range = 30
   return adSetRows(id, range).map((r) => valueOf(metric, r));
 }
 
-/** Period-over-period change, through the shared `deltaOf` rather than a second
-    implementation of "the window, split in half". */
+/** Period-over-period change: this window against the one before it, through
+    the shared `changeOf`. */
 export function adSetDelta(id: string, metric: DerivedMetric, range: Range = 30): number {
-  return deltaOf(adSetValues(id, metric, range));
+  return changeOf(metric, adSetRows(id, range), adSetRows(id, range, 1));
 }
 
 /** Sparkline samples through the shared sampler, so the mark ends where the

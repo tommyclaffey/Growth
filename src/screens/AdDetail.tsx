@@ -15,7 +15,7 @@ import {
   trendMark,
   betterHigher, formatDerived, kpisFor, valueOf, type DerivedMetric,
 } from '../data/channelMetrics';
-import { CHANNEL_LABEL, deltaOf, formatMetric, sampleOf, type Metric, type Range } from '../data/metrics';
+import { CHANNEL_LABEL, changeOf, formatMetric, sampleOf, type Metric, type Range } from '../data/metrics';
 
 export interface AdDetailProps {
   id: string;
@@ -158,7 +158,7 @@ export function AdDetail({ id, range, onBack, backLabel = 'Campaign' }: AdDetail
               value={formatDerived(m, valueOf(m, t))}
               higherIsBetter={betterHigher(m)}
               channel={campaign.channel}
-              deltaPercent={deltaOf(daily)}
+              deltaPercent={changeOf(m, creativeRows(id, range), creativeRows(id, range, 1))}
               sparkline={sampleOf(daily)}
               sparklineMark={trendMark(m)}
             />

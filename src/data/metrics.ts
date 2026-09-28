@@ -12,15 +12,22 @@
    ============================================================ */
 
 import type { ChannelName } from '../styles/tokens';
+import { valueOf, type DerivedMetric } from './channelMetrics';
 
 export type Metric = 'Spend' | 'Clicks' | 'Leads' | 'Sales' | 'CAC' | 'ROAS';
 export const METRICS: Metric[] = ['Spend', 'Clicks', 'Leads', 'Sales', 'CAC', 'ROAS'];
 
-/* 72 points of history so the range picker has something real to select from.
-   The 30-day window is the last 24 of them, and that is the window normalised
-   to the design's totals — so "Last 30 days" still reads $160,780 exactly,
-   while 7 and 90 day are honestly derived rather than faked. */
+/* 90 days to select from, plus HISTORY (below) before them for comparison.
+   The 30-day window is the last 30 of them, normalised to the design's totals —
+   so "Last 30 days" still reads $160,780 exactly, while 7 and 90 day are
+   honestly derived rather than faked. */
 export const POINTS = 90;
+/* The 90 days BEFORE the longest window. "Δ Prev" compares a window with the one
+   immediately preceding it, and for the 90-day range that needs 90 earlier days
+   to exist. They are never displayed as a window of their own -- they are only
+   ever the comparison. */
+export const HISTORY = 90;
+export const TOTAL_POINTS = HISTORY + POINTS;
 export const DAYS = 30;
 
 export type Range = 7 | 30 | 90;
@@ -49,7 +56,7 @@ const CHANNELS: Record<ChannelName, {
   closeRate: number;  // lead -> sale
   roas: number;
   cac: number;
-  trend: number;      // second half vs first half, as a fraction
+  trend: number;      // slope of the seeded ramp (second half vs first half of 90 days). NOT the Δ Prev shown on screen -- that compares real windows, see changeOf().
   cpm: number;        // $ per 1,000 impressions — what the media actually costs
 }> = {
   meta:       { label: 'Meta',        spend: 61240, cvr: 0.034, closeRate: 0.12, roas: 4.6, cac:  35.94, trend:  0.06, cpm: 12 },
@@ -92,9 +99,9 @@ function hash(s: string): number {
 const PERIOD_END = new Date(Date.UTC(2026, 7, 12)); // 12 Aug 2026
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-export const DAY_LABELS = Array.from({ length: POINTS }, (_, i) => {
+export const DAY_LABELS = Array.from({ length: TOTAL_POINTS }, (_, i) => {
   const d = new Date(PERIOD_END);
-  d.setUTCDate(d.getUTCDate() - (POINTS - 1 - i));
+  d.setUTCDate(d.getUTCDate() - (TOTAL_POINTS - 1 - i));
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
 });
 
@@ -154,6 +161,10 @@ const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
   CHANNEL_KEYS.map((key) => {
     const c = CHANNELS[key];
     const rand = mulberry32(hash(key));
+    /* The earlier 90 days draw from their OWN generators. Sharing `rand` would
+       shift every value in the recent window the moment history was prepended,
+       and every number on every screen would quietly change. */
+    const histRand = mulberry32(hash(key + ':history'));
 
     /* A linear ramp whose halves differ by exactly `trend`.
        If the second half averages (1 + t) times the first, and the ramp runs
@@ -162,10 +173,13 @@ const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
        the number in the design instead of merely near it. */
     const k = (4 * c.trend) / (2 + c.trend);
 
-    const shape = Array.from({ length: POINTS }, (_, d) => {
+    /* `d` counts from the start of the RECENT 90 days, so history is d < 0 and
+       the ramp simply continues backwards at the same slope. */
+    const shape = Array.from({ length: TOTAL_POINTS }, (_, i) => {
+      const d = i - HISTORY;
       const ramp = 1 - k / 2 + (k * d) / (POINTS - 1);
       const weekly = 1 + Math.sin((d / 7) * Math.PI * 2) * 0.08;
-      const noise = 0.94 + rand() * 0.12;
+      const noise = 0.94 + (d < 0 ? histRand() : rand()) * 0.12;
       return ramp * weekly * noise;
     });
 
@@ -182,8 +196,11 @@ const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
        forever, which is not a quiet inaccuracy; it is the metric doing
        nothing while appearing to work. */
     const effRand = mulberry32(hash(key + ':efficiency'));
-    const cacFactor = spendByDay.map(() => 0.86 + effRand() * 0.28);
-    const roasFactor = spendByDay.map(() => 0.9 + effRand() * 0.2);
+    /* Recent days first and in the original order, history from a separate
+       generator -- see histRand. */
+    const histEff = mulberry32(hash(key + ':efficiency:history'));
+    const cacFactor = spendByDay.map((_, i) => 0.86 + (i < HISTORY ? histEff() : effRand()) * 0.28);
+    const roasFactor = spendByDay.map((_, i) => 0.9 + (i < HISTORY ? histEff() : effRand()) * 0.2);
 
     const rawLeads = spendByDay.map((sp, i) => sp / (c.cac * cacFactor[i]));
     const rawRevenue = spendByDay.map((sp, i) => sp * c.roas * roasFactor[i]);
@@ -263,7 +280,7 @@ let blendCache: DayRow[] | null = null;
 
 function blend(): DayRow[] {
   if (blendCache) return blendCache;
-  blendCache = Array.from({ length: POINTS }, (_, d) =>
+  blendCache = Array.from({ length: TOTAL_POINTS }, (_, d) =>
     ACTIVE.reduce<DayRow>(
       (acc, key) => {
         const r = SERIES[key][d];
@@ -285,9 +302,13 @@ function blend(): DayRow[] {
 /* Exported so campaign series can be derived FROM the channel rows rather
    than generated alongside them. Deriving is what guarantees a channel's
    campaigns sum to that channel; generating separately only hopes they do. */
-export function rowsFor(scope: Scope, range: Range = 30): DayRow[] {
+export function rowsFor(scope: Scope, range: Range = 30, back = 0): DayRow[] {
   const all = scope === 'all' ? blend() : SERIES[scope];
-  return all.slice(-POINTS_FOR[range]);
+  const n = POINTS_FOR[range];
+  /* `back` = how many whole windows to step earlier. 0 is the window itself, 1
+     is the window immediately before it -- the comparison "Δ Prev" refers to. */
+  const end = all.length - back * n;
+  return end - n < 0 ? [] : all.slice(end - n, end);
 }
 
 /**
@@ -337,7 +358,6 @@ export function totals(scope: Scope, range: Range = 30) {
   };
 }
 
-/** Percentage change, last 12 days against the 12 before them. */
 /* ------------------------------------------------- direction & verdict -- */
 
 /**
@@ -378,24 +398,34 @@ export function deltaTone(percent: number, better = true): Tone {
 }
 
 /**
- * Period-over-period change for a bare list of daily values.
+ * Period-over-period change: this window against the one immediately before it.
  *
- * Extracted so campaign pages compute this the SAME way channel screens do.
- * "The selected window, split in half" is a convention, not a fact -- two
- * implementations of it would eventually disagree and there would be no way to
- * tell from the screen which one you were looking at.
+ * 🚨 This used to be `deltaOf(values)`, which split the selected window in half
+ * and compared the second half with the first. A "Δ Prev" badge that reads as
+ * "vs the previous period" but means "the back half vs the front half of THIS
+ * period" is a wrong number wearing the right label -- and on a 7-day range it
+ * compared 3 days with 4. It also averaged daily ratios, so a CAC delta was the
+ * change in the mean of daily CACs, not in the period's CAC.
+ *
+ * Now both windows are summed first and the metric is taken ONCE from each, the
+ * way every period total in this codebase is. Returns 0 when there is no prior
+ * window or its figure is 0 -- there is nothing to compare against.
  */
-export function deltaOf(values: number[]): number {
-  const half = Math.floor(values.length / 2);
-  const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
-  const prev = avg(values.slice(0, half));
-  const curr = avg(values.slice(half));
-  if (prev === 0) return 0;
-  return Math.round(((curr - prev) / prev) * 100);
+export function changeOf(metric: DerivedMetric, current: DayRow[], prior: DayRow[]): number {
+  if (current.length === 0 || prior.length === 0) return 0;
+  const sum = (rs: DayRow[]) => rs.reduce<DayRow>((a, r) => ({
+    spend: a.spend + r.spend, impressions: a.impressions + r.impressions,
+    clicks: a.clicks + r.clicks, leads: a.leads + r.leads,
+    sales: a.sales + r.sales, revenue: a.revenue + r.revenue,
+  }), { spend: 0, impressions: 0, clicks: 0, leads: 0, sales: 0, revenue: 0 });
+  const before = valueOf(metric, sum(prior));
+  if (before === 0) return 0;
+  const now = valueOf(metric, sum(current));
+  return Math.round(((now - before) / before) * 100);
 }
 
 export function delta(scope: Scope, metric: Metric, range: Range = 30): number {
-  return deltaOf(series(scope, metric, range).map((d) => d.value));
+  return changeOf(metric, rowsFor(scope, range), rowsFor(scope, range, 1));
 }
 
 /**

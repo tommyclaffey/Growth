@@ -1,4 +1,4 @@
-import { deltaOf, sampleOf } from './metrics';
+import { changeOf, sampleOf } from './metrics';
 import { valueOf, type DerivedMetric } from './channelMetrics';
 import { CAMPAIGNS, type Campaign } from './campaigns';
 import { DAY_LABELS, POINTS_FOR, formatMetric, isRatio, rowsFor, type DayRow, type Metric, type Range } from './metrics';
@@ -45,7 +45,7 @@ function wobble(id: string, d: number): number {
 }
 
 /** The campaign's funnel, one row per day, over the full history. */
-export function campaignRows(id: string, range: Range = 30): DayRow[] {
+export function campaignRows(id: string, range: Range = 30, back = 0): DayRow[] {
   const c = byId.get(id);
   if (!c) return [];
 
@@ -54,7 +54,7 @@ export function campaignRows(id: string, range: Range = 30): DayRow[] {
   const groupLeads = group.reduce((a, x) => a + x.leads, 0);
   const spendShare = groupSpend > 0 ? c.spend / groupSpend : 0;
 
-  const channel = rowsFor(c.channel, range);
+  const channel = rowsFor(c.channel, range, back);
 
   /* Leads: wobble, then renormalise across the window so the campaign's own
      total still lands on its stated figure. */
@@ -132,15 +132,11 @@ export function campaignValues(id: string, metric: DerivedMetric, range: Range =
 }
 
 /**
- * Period-over-period change for a campaign, on any metric.
- *
- * Uses `deltaOf` -- the same halving the channel screens use -- rather than a
- * second implementation of "the window, split in half". Two versions of that
- * convention would eventually disagree, and nothing on screen would say which
- * one you were reading.
+ * Period-over-period change for a campaign, on any metric: this window against
+ * the one immediately before it, through the shared `changeOf`.
  */
 export function campaignDelta(id: string, metric: DerivedMetric, range: Range = 30): number {
-  return deltaOf(campaignValues(id, metric, range));
+  return changeOf(metric, campaignRows(id, range), campaignRows(id, range, 1));
 }
 
 /** Sparkline samples, through the shared sampler so the mark ends where the
