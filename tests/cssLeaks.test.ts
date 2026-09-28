@@ -47,3 +47,44 @@ describe('cropping rules cannot reach into nested components', () => {
       .toEqual([]);
   });
 });
+
+/**
+ * A rule written to override a reset has to actually win the cascade.
+ *
+ * 🐛 `.gr-table td:last-child { padding-right: 0 }` exists so a column of
+ * numbers reads flush to the card's inner edge — correct, and the reason the
+ * figures line up. `.gr-table__ask { padding-right: 16px }` was written to pull
+ * the Ask button away from that edge and did nothing at all: 0-2-1 beats 0-1-0,
+ * so the reset won and the button stayed flush.
+ *
+ * ⚠️ Nothing about that failure is visible in the source. The declaration is
+ * there, the value is right, the property is correct, and the build is clean.
+ * It took someone looking at the screen and saying it "looks like a mistake".
+ *
+ * So: any rule that sets padding on the ask cell must name the element as well
+ * as the class, which is what gets it past the reset.
+ */
+describe('cell overrides out-specify the last-child reset', () => {
+  const files = walk(SRC);
+
+  it('ask-cell padding is declared at a specificity that wins', () => {
+    const declaring = files.flatMap((f) => {
+      const css = readFileSync(f, 'utf8');
+      /* Selector blocks that set padding-right AND mention the ask cell. */
+      return [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+        .filter(([, sel, body]) =>
+          sel.includes('gr-table__ask') && /padding(-right)?\s*:/.test(body))
+        .map(([, sel]) => sel.trim());
+    });
+
+    expect(declaring.length, 'no rule sets padding on the ask cell').toBeGreaterThan(0);
+
+    for (const sel of declaring) {
+      /* `td.gr-table__ask` or `th.gr-table__ask` — an element plus the class,
+         which clears `.gr-table td:last-child`. A bare `.gr-table__ask` does
+         not, and that is the bug this guards. */
+      expect(sel, `"${sel}" cannot out-specify .gr-table td:last-child`)
+        .toMatch(/\b(td|th)\.gr-table__ask/);
+    }
+  });
+});
