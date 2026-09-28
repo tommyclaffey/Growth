@@ -134,8 +134,14 @@ interface DecisionCandidate {
 }
 
 /** Blended coverage, so the model can say which channels a rate excludes. */
+/** Formatting for the derived vocabulary — percentages, and money to 2dp. */
+interface ChannelMetrics {
+  formatDerived: (m: string, v: number) => string;
+}
+
 interface Blended {
   blendedTotal: (m: string, channels: string[], range: number) => number;
+  blendedDelta: (m: string, channels: string[], range: number) => number;
   coverageFor: (m: string, channels: string[]) => string[];
   coverageNote: (m: string, channels: string[]) => string | null;
 }
@@ -155,7 +161,10 @@ interface Evidence { label: string; value: string; channel?: string }
  */
 interface Source { title: string; url: string }
 
-function buildTools(m: Metrics, d: Decisions, b: Blended, range: number, evidence: Evidence[]) {
+function buildTools(
+  m: Metrics, d: Decisions, b: Blended, cm: ChannelMetrics,
+  range: number, evidence: Evidence[],
+) {
   const scopeEnum = ['all', ...m.activeChannels()];
   /* 🐛 STALE, AND IT MADE THE PRODUCT LIE ABOUT ITSELF.
 
@@ -170,6 +179,18 @@ function buildTools(m: Metrics, d: Decisions, b: Blended, range: number, evidenc
      from the real vocabulary now, so it cannot drift again. */
   const metricEnum = [...m.METRICS, 'Impressions', 'CTR', 'CPC', 'CPM', 'CVR'];
   const label = (s: string) => (s === 'all' ? 'All channels' : m.CHANNEL_LABEL[s] ?? s);
+
+  /* 🐛 formatMetric only speaks the six funnel metrics. Handed CTR it fell
+     through to the count formatter and rendered 0.81 as "1" -- so the evidence
+     row read "Blended CTR = 1" directly under a sentence saying 0.81%. The panel
+     contradicting its own answer is worse than either number alone, because the
+     reader cannot tell which to believe and both look authoritative.
+
+     One formatter per vocabulary, picked by which vocabulary the metric is in. */
+  const fmt = (metric: string, v: number) =>
+    (m.METRICS as string[]).includes(metric)
+      ? m.formatMetric(metric, v)
+      : cm.formatDerived(metric, v);
 
   const scopeProp = {
     type: 'string' as const,
@@ -223,7 +244,7 @@ function buildTools(m: Metrics, d: Decisions, b: Blended, range: number, evidenc
         const value = b.blendedTotal(metric, channels, range);
         const covering = b.coverageFor(metric, channels);
         const note = b.coverageNote(metric, channels);
-        evidence.push({ label: `Blended ${metric}`, value: m.formatMetric(metric, value), channel: 'all' });
+        evidence.push({ label: `Blended ${metric}`, value: fmt(metric, value), channel: 'all' });
         if (note) evidence.push({ label: `${metric} coverage`, value: note, channel: 'all' });
         return JSON.stringify({
           metric, value, rangeDays: range,
@@ -283,7 +304,30 @@ function buildTools(m: Metrics, d: Decisions, b: Blended, range: number, evidenc
         additionalProperties: false,
       },
       run: ({ scope, metric }: { scope: string; metric: string }) => {
-        const d = m.delta(scope, metric, range);
+        /* 🐛 m.delta only speaks the six FUNNEL metrics. Asked for Impressions it
+           returned NaN, the tool reported "NaN%", and that string reached the
+           evidence panel -- a figure the product cannot show, shown. The model
+           handled it well ("not computable for this metric") which is exactly
+           what made it easy to miss: a graceful answer over a broken number.
+
+           The derived metrics ARE computable, through the same blended path the
+           cards use. Routed there instead. */
+        const funnel = (m.METRICS as string[]).includes(metric);
+        const d = funnel
+          ? m.delta(scope, metric, range)
+          : b.blendedDelta(metric, scope === 'all' ? m.activeChannels() : [scope], range);
+
+        /* ⚠️ And never push a non-finite value regardless. A guard on the symptom
+           as well as the cause, because the next metric added will find this
+           path before anyone re-reads this comment. */
+        if (!Number.isFinite(d)) {
+          return JSON.stringify({
+            scope: label(scope), metric, rangeDays: range,
+            percentChange: null,
+            note: 'Not computable for this metric over this scope.',
+          });
+        }
+
         evidence.push({
           label: `${label(scope)} · ${metric} change`,
           value: `${d > 0 ? '+' : ''}${d}%`,
@@ -403,6 +447,7 @@ export function assistantApi(): Plugin {
              believe. */
           const d = (await server.ssrLoadModule('/src/data/decisions.ts')) as unknown as Decisions;
           const b = (await server.ssrLoadModule('/src/data/blended.ts')) as unknown as Blended;
+          const cm = (await server.ssrLoadModule('/src/data/channelMetrics.ts')) as unknown as ChannelMetrics;
 
           const evidence: Evidence[] = [];
           const client = new Anthropic({ apiKey: key });
@@ -413,7 +458,7 @@ export function assistantApi(): Plugin {
             output_config: { effort: 'low' },
             system: SYSTEM,
             tools: [
-              ...buildTools(m, d, b, Number(range), evidence),
+              ...buildTools(m, d, b, cm, Number(range), evidence),
               /* Server-side: runs on Anthropic's infrastructure, so there is no
                  run() to write and no search account to hold. Capped at 3 so a
                  benchmark question cannot turn into an open-ended crawl. */
