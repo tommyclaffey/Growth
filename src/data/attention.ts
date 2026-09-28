@@ -84,6 +84,38 @@ export function isOverdue(f: Flag, today = new Date()): boolean {
 const KEY = 'growth.attention';
 const CHANGED = 'growth:attention';
 
+/**
+ * A decision the PERSON wrote, as opposed to one the engine proposed.
+ *
+ * ⭐ The fourth source of attention, and it belongs here for the reason this file
+ * has argued twice already: one record with optional fields cannot get out of
+ * step with itself.
+ *
+ * G-001 separated attention the DATA derived from attention a PERSON assigned,
+ * because "your CAC rose 42%" and "you flagged this Tuesday" are different
+ * claims. G-012 added "Growth thinks you should move $8k". This is the fourth —
+ * "I have decided to do this" — and it is the strongest of the four, because
+ * the engine proposing something is a suggestion and a person writing it down is
+ * a commitment.
+ *
+ * ⚠️ It must stay visibly distinct from an accepted proposal. A queue that shows
+ * "the engine suggested this and you agreed" identically to "you decided this
+ * yourself" has lost the only thing that separates a tool from a record.
+ *
+ * Keyed by a slug of the text, so writing the same decision twice is idempotent
+ * — the same rule `flagId` already applies to everything else.
+ */
+export const OWN_PREFIX = 'own:';
+
+export function ownDecisionId(text: string): string {
+  return OWN_PREFIX + text.trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+}
+
+export function isOwnDecision(f: Flag): boolean {
+  return f.kind === 'decision' && f.refId.startsWith(OWN_PREFIX);
+}
+
 export function flagId(kind: Flag['kind'], refId: string) {
   return `${kind}:${refId}`;
 }

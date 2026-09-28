@@ -266,3 +266,25 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
 }
 @media (prefers-reduced-motion: reduce) { .gr-assist__take { transition: none; } }
+
+/* The write-in. Quiet until used — it is the escape hatch, not the main path. */
+.gr-assist__own-open {
+  align-self: flex-start;
+  padding: var(--space-4) 0;
+  color: var(--accent-text);
+  background: none; border: none; cursor: pointer;
+}
+.gr-assist__own-open:hover { text-decoration: underline; }
+
+.gr-assist__own { display: flex; gap: var(--space-8); align-items: center; }
+.gr-assist__own-input {
+  flex: 1; min-width: 0; height: 26px;
+  padding: 0 var(--space-10);
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+.gr-assist__own-input:focus-visible {
+  outline: var(--border-width-md) solid var(--accent-base); outline-offset: 1px;
+}

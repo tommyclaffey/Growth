@@ -4,7 +4,7 @@ import { Button } from '../components/Button/Button';
 import { Badge } from '../components/Badge/Badge';
 import { ChannelMark } from '../components/ChannelMark/ChannelMark';
 import { decisions, TIER_LABEL, type Candidate, type Tier } from '../data/decisions';
-import { addFlag, isFlagged, removeFlag, useFlags } from '../data/attention';
+import { addFlag, isFlagged, isOwnDecision, removeFlag, useFlags } from '../data/attention';
 import { dismiss, isDismissed, restore, useDismissals } from '../data/dismissedDecisions';
 import { useChannels } from '../data/channels';
 import { formatMetric, type Range } from '../data/metrics';
@@ -38,7 +38,12 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
   const channels = useChannels();
   /* Subscribed to both stores, so accepting or dismissing repaints immediately
      and a second tab stays in step. */
-  useFlags();
+  const flags = useFlags();
+  /* Decisions the reader wrote rather than accepted. They have no candidate
+     behind them, so nothing in `decisions()` would ever render them — without
+     this they land in a queue and then disappear from the screen that IS the
+     queue. */
+  const own = flags.filter(isOwnDecision);
   /* Read ONCE here, not per row. The first version called a hook inside the
      dismissed list's .map(), which is a hook in a loop -- the count changes with
      the data, React's hook order breaks, and it crashes the moment someone
@@ -120,6 +125,35 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
           </section>
         );
       })}
+
+      {own.length > 0 && (
+        <section className="gr-dec__tier is-own">
+          <header className="gr-dec__tier-head">
+            <h3 className="gr-type-card-heading">Your decisions</h3>
+            <Badge label="You wrote these" tone="accent" />
+            <span className="gr-type-caption">{own.length}</span>
+          </header>
+          {/* ⚠️ Kept visibly apart from the engine's findings, per G-001's rule
+              about the kinds of attention this queue holds. "Growth suggested
+              this and you agreed" and "you decided this yourself" are different
+              claims, and a queue that renders them identically has lost the only
+              thing separating a tool from a record. */}
+          <p className="gr-type-caption gr-dec__tier-note">
+            Not proposed by the engine — these are yours, so there is no evidence
+            panel and nothing to check them against.
+          </p>
+          <div className="gr-dec__list">
+            {own.map((f) => (
+              <div key={f.id} className="gr-card gr-dec__card is-own">
+                <p className="gr-type-body-medium">{f.label}</p>
+                <Button variant="ghost" onClick={() => removeFlag('decision', f.refId)}>
+                  Remove
+                </Button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {showDismissed && hidden.length > 0 && (
         <section className="gr-dec__tier">

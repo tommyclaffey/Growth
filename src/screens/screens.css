@@ -424,3 +424,8 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-dec__reason:focus-visible {
   outline: var(--border-width-md) solid var(--accent-base); outline-offset: 1px;
 }
+
+/* A decision the reader wrote. Distinct from the engine's findings by its left
+   edge, the same way the tiers are -- accent rather than a tier colour, because
+   it is not a confidence level, it is a different SOURCE. */
+.gr-dec__card.is-own { border-left: 3px solid var(--accent-base); }

@@ -8,7 +8,7 @@ import { CHANNEL_KEYS, setActiveChannels } from '../../data/metrics';
 import { setChannels } from '../../data/channels';
 import { ask } from '../../data/assistant';
 import { dismissals, restore } from '../../data/dismissedDecisions';
-import { addFlag, flags, isFlagged, removeFlag } from '../../data/attention';
+import { addFlag, flags, isFlagged, ownDecisionId, removeFlag } from '../../data/attention';
 
 /* ⚠️ Both stores hold a module-level cache that `localStorage.clear()` does NOT
    reset -- the cache is the source of truth in memory and storage is only its
@@ -189,5 +189,69 @@ describe('the assistant and the Decisions screen share one queue', () => {
     fireEvent.click(within(card).getByRole('button', { name: /^undo$/i }));
 
     expect(isFlagged('decision', first.id)).toBe(false);
+  });
+});
+
+describe('taking more than one, and writing your own', () => {
+  it('⭐ multiple decisions can be taken at once', () => {
+    setChannels([...CHANNEL_KEYS]);
+    /* "It shouldn't be just choose one." It never was — the buttons are
+       independent — but the heading said "Take one", which invented a constraint
+       the code does not have. Asserting the behaviour so the label can never
+       drift back. */
+    const takeable = ask('What should I do next?', 30).decisions!;
+    expect(takeable.length).toBeGreaterThan(1);
+    for (const d of takeable) addFlag('decision', d.id, d.action);
+    for (const d of takeable) expect(isFlagged('decision', d.id), d.action).toBe(true);
+
+    const { container } = render(<Decisions range={30} />);
+    const accepted = [...container.querySelectorAll('.gr-dec__card')]
+      .filter((c) => c.textContent?.includes('On your attention queue'));
+    expect(accepted.length).toBe(takeable.length);
+  });
+
+  it('a written decision reaches the queue and the screen', () => {
+    setChannels([...CHANNEL_KEYS]);
+    /* Without a section for them these land in the store and then vanish from
+       the screen that IS the queue — nothing in decisions() would render a flag
+       with no candidate behind it. */
+    addFlag('decision', ownDecisionId('Move $8k to affiliates'), 'Move $8k to affiliates');
+    render(<Decisions range={30} />);
+    expect(screen.getByText('Move $8k to affiliates')).toBeTruthy();
+    expect(screen.getByText(/Your decisions/)).toBeTruthy();
+  });
+
+  it('and stays visibly separate from the engine’s findings', () => {
+    setChannels([...CHANNEL_KEYS]);
+    /* G-001's rule about the kinds of attention this queue holds. "Growth
+       suggested this and you agreed" and "you decided this yourself" are
+       different claims. */
+    addFlag('decision', ownDecisionId('Pause everything on Fridays'), 'Pause everything on Fridays');
+    const { container } = render(<Decisions range={30} />);
+    const card = [...container.querySelectorAll('.gr-dec__card')]
+      .find((c) => c.textContent?.includes('Pause everything on Fridays'))!;
+    expect(card.className).toMatch(/is-own/);
+    /* No evidence panel — there is nothing to check it against, and pretending
+       otherwise would be the panel borrowing authority it has not earned. */
+    expect(card.querySelector('.gr-dec__evidence')).toBeNull();
+  });
+
+  it('writing the same decision twice is idempotent', () => {
+    setChannels([...CHANNEL_KEYS]);
+    const id = ownDecisionId('Shift budget to TikTok');
+    addFlag('decision', id, 'Shift budget to TikTok');
+    addFlag('decision', ownDecisionId('  Shift Budget To TikTok  '), 'Shift budget to TikTok');
+    render(<Decisions range={30} />);
+    expect(screen.getAllByText('Shift budget to TikTok')).toHaveLength(1);
+  });
+
+  it('a written decision can be removed', () => {
+    setChannels([...CHANNEL_KEYS]);
+    addFlag('decision', ownDecisionId('Test a new hook'), 'Test a new hook');
+    const { container } = render(<Decisions range={30} />);
+    const card = [...container.querySelectorAll('.gr-dec__card')]
+      .find((c) => c.textContent?.includes('Test a new hook')) as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: /remove/i }));
+    expect(screen.queryByText('Test a new hook')).toBeNull();
   });
 });

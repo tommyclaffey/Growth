@@ -3,7 +3,7 @@ import { useOverlay } from '../../data/useOverlay';
 import './Assistant.css';
 import { SUGGESTIONS, type Answer } from '../../data/assistant';
 import type { Target } from '../../data/decisions';
-import { addFlag, isFlagged, removeFlag, useFlags } from '../../data/attention';
+import { addFlag, isFlagged, ownDecisionId, removeFlag, useFlags } from '../../data/attention';
 import { askAssistant, probeModel, type AnswerSource } from '../../data/assistantClient';
 import { RANGE_LABEL, type Range } from '../../data/metrics';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
@@ -189,7 +189,7 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                 {t.answer.decisions && t.answer.decisions.length > 0 && (
                   <div className="gr-assist__decisions">
                     <p className="gr-assist__evidence-head gr-type-overline">
-                      {t.answer.decisions.length === 1 ? 'Take it' : 'Take one'}
+                      {t.answer.decisions.length === 1 ? 'Take it' : 'Take any of these'}
                     </p>
                     {t.answer.decisions.map((d) => {
                       const taken = isFlagged('decision', d.id);
@@ -210,6 +210,15 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                         </span>
                       );
                     })}
+
+                    {/* ⭐ Or decide something else entirely.
+
+                        The engine proposes; a person decides. An agent that only
+                        lets you accept its own suggestions is a menu, and the most
+                        useful thing a reader can do with three findings is often a
+                        fourth thing none of them said. Written decisions land in
+                        the same queue, marked as the reader's own. */}
+                    <OwnDecision />
                   </div>
                 )}
 
@@ -291,5 +300,52 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * Write a decision the engine did not propose.
+ *
+ * Deliberately small and last: it is the escape hatch, not the primary path.
+ * Leading with it would suggest the findings above are a formality.
+ */
+function OwnDecision() {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+
+  if (!open) {
+    return (
+      <button type="button" className="gr-assist__own-open gr-type-caption"
+              onClick={() => setOpen(true)}>
+        + Decide something else
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className="gr-assist__own"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const v = text.trim();
+        if (!v) return;
+        /* Same store, same queue -- marked as the reader's own rather than an
+           accepted proposal, because "I decided this" and "I agreed with the
+           engine" are different claims and the queue already separates the
+           kinds of attention it holds. */
+        addFlag('decision', ownDecisionId(v), v);
+        setText('');
+        setOpen(false);
+      }}
+    >
+      <input
+        className="gr-assist__own-input gr-type-caption"
+        placeholder="What are you actually going to do?"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        autoFocus
+      />
+      <button type="submit" className="gr-assist__take gr-type-caption">Add it</button>
+    </form>
   );
 }
