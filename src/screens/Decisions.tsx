@@ -11,6 +11,8 @@ import { formatMetric, type Range } from '../data/metrics';
 
 export interface DecisionsProps {
   range: Range;
+  /** Opens the assistant on this finding, so the card can be argued with. */
+  onDiscuss?: (question: string) => void;
 }
 
 /**
@@ -32,7 +34,7 @@ export interface DecisionsProps {
  * does not understand why a cheap-looking recommendation is filed under "cannot
  * answer" will override it, and the refusal will have cost nothing.
  */
-export function Decisions({ range }: DecisionsProps) {
+export function Decisions({ range, onDiscuss }: DecisionsProps) {
   const channels = useChannels();
   /* Subscribed to both stores, so accepting or dismissing repaints immediately
      and a second tab stays in step. */
@@ -111,7 +113,9 @@ export function Decisions({ range }: DecisionsProps) {
             )}
 
             <div className="gr-dec__list">
-              {mine.map((c) => <DecisionCard key={c.id} candidate={c} />)}
+              {mine.map((c) => (
+                <DecisionCard key={c.id} candidate={c} onDiscuss={onDiscuss} />
+              ))}
             </div>
           </section>
         );
@@ -141,7 +145,10 @@ export function Decisions({ range }: DecisionsProps) {
   );
 }
 
-function DecisionCard({ candidate: c }: { candidate: Candidate }) {
+function DecisionCard({ candidate: c, onDiscuss }: {
+  candidate: Candidate;
+  onDiscuss?: (question: string) => void;
+}) {
   const [dismissing, setDismissing] = useState(false);
   const [reason, setReason] = useState('');
   const accepted = isFlagged('decision', c.id);
@@ -214,6 +221,16 @@ function DecisionCard({ candidate: c }: { candidate: Candidate }) {
               Accept
             </Button>
           )
+        )}
+
+        {/* ⭐ The route from the queue into the conversation. A card states a
+            finding; this is how you argue with it. Tier 3 gets it too -- in fact
+            it needs it most, because "why won't you answer that?" is exactly the
+            question a refusal provokes. */}
+        {onDiscuss && (
+          <Button variant="ghost" onClick={() => onDiscuss(`Why “${c.action}”?`)}>
+            Talk about this
+          </Button>
         )}
 
         {dismissing ? (

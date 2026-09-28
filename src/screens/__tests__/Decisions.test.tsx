@@ -6,6 +6,7 @@ import { decisions } from '../../data/decisions';
 import { ALL_CHANNELS } from '../../data/blended';
 import { CHANNEL_KEYS, setActiveChannels } from '../../data/metrics';
 import { setChannels } from '../../data/channels';
+import { ask } from '../../data/assistant';
 import { dismissals, restore } from '../../data/dismissedDecisions';
 import { flags, removeFlag } from '../../data/attention';
 
@@ -108,6 +109,43 @@ describe('Accept and Dismiss actually do something', () => {
     expect(screen.getByText(/brand play, not a lead play/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /restore/i }));
     expect(screen.queryByText(/brand play, not a lead play/)).toBeNull();
+  });
+});
+
+describe('the route into the conversation', () => {
+  it('“Talk about this” asks the assistant about THAT finding', () => {
+    setChannels([...CHANNEL_KEYS]);
+    const asked: string[] = [];
+    const { container } = render(<Decisions range={30} onDiscuss={(q) => asked.push(q)} />);
+    const card = container.querySelector('.gr-dec__card') as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: /talk about this/i }));
+    expect(asked).toHaveLength(1);
+    /* The question must name the finding, or the panel opens with no context and
+       the reader has to re-type what they were already looking at. */
+    expect(asked[0]).toContain(all()[0].action);
+  });
+
+  it('a tier 3 card can be argued with too', () => {
+    setChannels([...CHANNEL_KEYS]);
+    const asked: string[] = [];
+    const { container } = render(<Decisions range={30} onDiscuss={(q) => asked.push(q)} />);
+    const t3 = container.querySelector('.gr-dec__card.is-tier-3') as HTMLElement;
+    /* It needs this most: "why won't you answer that?" is exactly the question a
+       refusal provokes, and the refusal is worthless if there is nowhere to ask. */
+    expect(within(t3).getByRole('button', { name: /talk about this/i })).toBeTruthy();
+    fireEvent.click(within(t3).getByRole('button', { name: /talk about this/i }));
+    expect(asked[0]).toMatch(/Is Podcasts spend creating demand/);
+  });
+
+  it('the question it stages is one the assistant can answer', () => {
+    setChannels([...CHANNEL_KEYS]);
+    const asked: string[] = [];
+    const { container } = render(<Decisions range={30} onDiscuss={(q) => asked.push(q)} />);
+    const card = container.querySelector('.gr-dec__card') as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: /talk about this/i }));
+    /* ⚠️ Same class of bug as the dead-end follow-up chip: a button that hands the
+       assistant a question it cannot parse looks like the agent is broken. */
+    expect(ask(asked[0], 30).answered).toBe(true);
   });
 });
 

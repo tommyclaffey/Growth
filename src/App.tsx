@@ -99,6 +99,8 @@ export default function App() {
   const [range, setRange] = useState<Range>(initialUrl.range ?? 30);
   const [pendingView, setPendingView] = useState<ViewRef | null>(null);
   const [assistOpen, setAssistOpen] = useState(false);
+  /* A question staged for the assistant by another screen. Cleared once asked. */
+  const [assistSeed, setAssistSeed] = useState<string | null>(null);
   const enabled = useChannels();
   /* Drives the loading/error/empty states, which are otherwise unreachable —
      the data layer is synchronous, so nothing here can be slow or fail. */
@@ -702,7 +704,12 @@ export default function App() {
             )
             : <Ads range={range} onOpenAd={setAdId} />)}
 
-          {nav === 'decisions' && <Decisions range={range} />}
+          {nav === 'decisions' && (
+            <Decisions
+              range={range}
+              onDiscuss={(question) => { setAssistSeed(question); setAssistOpen(true); }}
+            />
+          )}
 
           {nav === 'reports' && <Reports />}
           {nav === 'notifications' && <Notifications onOpenCampaign={(id) => openCampaign(id)} />}
@@ -720,7 +727,13 @@ export default function App() {
         </main>
       </div>
 
-      <Assistant open={assistOpen} onClose={() => setAssistOpen(false)} range={range} />
+      <Assistant
+        open={assistOpen}
+        onClose={() => setAssistOpen(false)}
+        range={range}
+        seed={assistSeed}
+        onSeedConsumed={() => setAssistSeed(null)}
+      />
 
       {chatOpen && (
         <ChatPanel

@@ -13,6 +13,16 @@ export interface AssistantProps {
   open: boolean;
   onClose: () => void;
   range: Range;
+  /**
+   * A question to ask on open, handed in from another surface.
+   *
+   * ⚠️ Consumed after asking rather than held. A seed is an instruction that
+   * arrived once; treating it as state would re-ask it every time the panel is
+   * reopened, which is the same defect the chat deep-link avoided by never
+   * persisting its conversation parameter.
+   */
+  seed?: string | null;
+  onSeedConsumed?: () => void;
 }
 
 /**
@@ -23,7 +33,7 @@ export interface AssistantProps {
  * data functions, and every answer shows the figures it used, so the panel
  * can never state a number the product cannot show.
  */
-export function Assistant({ open, onClose, range }: AssistantProps) {
+export function Assistant({ open, onClose, range, seed, onSeedConsumed }: AssistantProps) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<string | null>(null);
@@ -37,6 +47,17 @@ export function Assistant({ open, onClose, range }: AssistantProps) {
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
+
+  /* A question handed in from elsewhere -- "talk about this" on a decision card.
+     Asked once and then CONSUMED, so reopening the panel later does not re-ask
+     it: a seed is an instruction that arrived, not a property of being open. The
+     same reasoning the deep-link `t` parameter already uses. */
+  useEffect(() => {
+    if (!open || !seed) return;
+    void submit(seed);
+    onSeedConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, seed]);
 
   useEffect(() => {
     if (open && hasModel === null) void probeModel().then(setHasModel);
