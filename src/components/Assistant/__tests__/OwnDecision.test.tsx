@@ -26,7 +26,8 @@ async function askAndWrite(text: string) {
     <Assistant open onClose={() => {}} range={30} seed="What should I do next?" />,
   );
   await screen.findByText(/Take any of these|Take it|Decide anyway/);
-  fireEvent.click(screen.getByRole('button', { name: /make another decision|decide something/i }));
+  /* The link, whatever it is labelled — it never auto-opens now. */
+  fireEvent.click(screen.getByRole('button', { name: /make (a|another) decision/i }));
   fireEvent.change(screen.getByPlaceholderText(/what are you actually going to do/i),
     { target: { value: text } });
   fireEvent.click(screen.getByRole('button', { name: /^add it$/i }));
@@ -78,5 +79,33 @@ describe('a decision you write stays previewed, like one you accept', () => {
     fireEvent.click(screen.getByRole('button', { name: /^add it$/i }));
     expect(screen.getByText('First call')).toBeTruthy();
     expect(screen.getByText('Second call')).toBeTruthy();
+  });
+});
+
+describe('the write-in offers itself honestly', () => {
+  it('⭐ never opens on its own', async () => {
+    setChannels([...CHANNEL_KEYS]);
+    render(<Assistant open onClose={() => {}} range={30} seed="What should I do next?" />);
+    await screen.findByText(/Take any of these|Take it|Decide anyway/);
+    /* 🐛 It used to auto-open when nothing was on offer, putting an empty input
+       and an "Add it" button in front of a reader who had asked for neither —
+       the panel offering to record a decision before they had decided anything.
+       The link is the offer; the form is the response to it. */
+    expect(screen.queryByPlaceholderText(/what are you actually going to do/i)).toBeNull();
+    expect(screen.getByRole('button', { name: /make (a|another) decision/i })).toBeTruthy();
+  });
+
+  it('says "another" only once there has been a first', async () => {
+    setChannels([...CHANNEL_KEYS]);
+    render(<Assistant open onClose={() => {}} range={30} seed="What should I do next?" />);
+    await screen.findByText(/Take any of these|Take it|Decide anyway/);
+    /* This answer carries offers, so a written one would be "another". */
+    expect(screen.getByRole('button', { name: /make another decision/i })).toBeTruthy();
+  });
+
+  it('after writing one, it still offers another', async () => {
+    await askAndWrite('First call');
+    /* "Another" is now true by its own doing, regardless of what was offered. */
+    expect(screen.getByRole('button', { name: /make another decision/i })).toBeTruthy();
   });
 });

@@ -385,3 +385,29 @@ describe('a taken decision is not offered again', () => {
     expect(screen.getByText(first.action)).toBeTruthy();
   });
 });
+
+describe('a written decision carries what it honestly can', () => {
+  it('⭐ says whose it is and when it was made', () => {
+    setChannels([...CHANNEL_KEYS]);
+    /* ⚠️ It rendered as a line of text and a Remove button — bare next to an
+       engine card. It cannot carry evidence (there is nothing to check it
+       against, and inventing a panel would be the card borrowing authority it
+       has not earned), but whose it is and when it was made are two facts that
+       DO exist. An empty card is not the same as an honest one. */
+    addFlag('decision', ownDecisionId('TEST THIS ONE'), 'TEST THIS ONE');
+    const { container } = render(<Decisions range={30} />);
+    const card = [...container.querySelectorAll('.gr-dec__card')]
+      .find((c) => c.textContent?.includes('TEST THIS ONE'))!;
+    expect(card.querySelector('.gr-dec__scope')?.textContent).toMatch(/Your decision/);
+    expect(card.querySelector('.gr-dec__scope')?.textContent).toMatch(/decided/);
+  });
+
+  it('still shows no evidence panel', () => {
+    setChannels([...CHANNEL_KEYS]);
+    addFlag('decision', ownDecisionId('No evidence here'), 'No evidence here');
+    const { container } = render(<Decisions range={30} />);
+    const card = [...container.querySelectorAll('.gr-dec__card')]
+      .find((c) => c.textContent?.includes('No evidence here'))!;
+    expect(card.querySelector('.gr-dec__evidence')).toBeNull();
+  });
+});

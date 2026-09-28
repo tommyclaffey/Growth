@@ -243,18 +243,12 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                         useful thing a reader can do with three findings is often a
                         fourth thing none of them said. Written decisions land in
                         the same queue, marked as the reader's own. */}
-                    <OwnDecision
-                      /* When there is nothing on offer the write-in IS the
-                         section, so it opens rather than hiding behind a link. */
-                      startOpen={t.answer.decisions.length === 0}
-                      /* Reads as a pair with the buttons above it — "Make the
-                         decision" / "Make another decision" — so adding a second
-                         one is obviously available rather than a different
-                         feature that happens to sit nearby. */
-                      label={t.answer.decisions.length === 0
-                        ? 'Decide something anyway'
-                        : 'Make another decision'}
-                    />
+                    {/* ⚠️ It never opens itself. Auto-opening put an empty input
+                        and an "Add it" button in front of a reader who had not
+                        asked for either — the panel offering to record a decision
+                        before they had decided anything. The link is the offer;
+                        the form is the response to it. */}
+                    <OwnDecision offered={t.answer.decisions.length > 0} />
                   </div>
                 )}
 
@@ -356,11 +350,8 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
  *
  * Deliberately small and last: it is the escape hatch, not the primary path.
  */
-function OwnDecision({ startOpen = false, label = 'Make another decision' }: {
-  startOpen?: boolean;
-  label?: string;
-}) {
-  const [open, setOpen] = useState(startOpen);
+function OwnDecision({ offered }: { offered: boolean }) {
+  const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   /* What was written from THIS answer, so it can stay previewed. */
   const [added, setAdded] = useState<{ id: string; label: string }[]>([]);
@@ -404,6 +395,15 @@ function OwnDecision({ startOpen = false, label = 'Make another decision' }: {
         );
       })}
 
+      {/* ⭐ The label follows what has actually happened, because "another"
+          claims a first one existed.
+
+          Nothing offered and nothing written  -> "Make a decision"
+          Something offered, or already written -> "Make another decision"
+
+          "Decide something anyway" was wrong in both directions: pushy when there
+          was simply nothing to suggest, and nonsense once the reader had already
+          taken every offer — there was no "anyway" about it. */}
       {open ? (
         <form
           className="gr-assist__own"
@@ -421,7 +421,7 @@ function OwnDecision({ startOpen = false, label = 'Make another decision' }: {
       ) : (
         <button type="button" className="gr-assist__own-open gr-type-caption"
                 onClick={() => setOpen(true)}>
-          + {label}
+          + {offered || added.length > 0 ? 'Make another decision' : 'Make a decision'}
         </button>
       )}
     </>

@@ -125,9 +125,23 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
               <DecisionCard key={f.id} candidate={candidate} onDiscuss={onDiscuss} />
             ) : (
               <article key={f.id} className="gr-card gr-dec__card is-own">
+                {/* ⚠️ A written decision looked bare next to an engine card —
+                    a line of text and a Remove button, no context at all.
+
+                    It cannot carry evidence: there is nothing to check it
+                    against, and inventing a panel would be the card borrowing
+                    authority it has not earned. But it CAN say whose it is and
+                    when it was made, and those are the two facts that actually
+                    exist. An empty card is not the same as an honest one. */}
+                <p className="gr-dec__scope gr-type-caption">
+                  Your decision
+                  <span className="gr-dec__crumb" aria-hidden="true"> › </span>
+                  decided {new Date(f.at).toLocaleDateString(undefined, {
+                    month: 'short', day: 'numeric',
+                  })}
+                </p>
                 <header className="gr-dec__card-head">
                   <h4 className="gr-type-strip gr-dec__action">{f.label}</h4>
-                  <span className="gr-type-caption gr-dec__stake">Yours</span>
                 </header>
                 {/* No evidence panel: nothing to check it against, and showing
                     one would be the card borrowing authority it has not earned. */}
