@@ -319,3 +319,44 @@ describe('the detectors that the default fixture cannot exercise', () => {
     }
   });
 });
+
+describe('🚨 no two decisions read as the same sentence', () => {
+  it('every action in the queue is distinguishable from every other', () => {
+    reset();
+    /* 🐛 Two buttons labelled "Review why “Start free, no card” is paused" sat
+       one above the other in the assistant, doing different things — c1c-cr1 and
+       c1a-cr3, different ad sets of the same campaign, same headline.
+
+       Distinct ids are not enough. A reader acts on the SENTENCE, and two
+       identical sentences with different consequences is the same defect class
+       as a control that claims what it does not do. */
+    for (const range of RANGES) {
+      const actions = all(range).map((c) => c.action);
+      const dupes = actions.filter((a, i) => actions.indexOf(a) !== i);
+      expect(dupes, `duplicate action text: ${[...new Set(dupes)].join(' / ')}`)
+        .toEqual([]);
+    }
+  });
+
+  it('an ad-level action names its ad set, not just the headline', () => {
+    reset();
+    /* Real accounts reuse copy across ad sets — that IS an audience test. An ad
+       is identified by its headline AND where it runs. */
+    const adLevel = all().filter((c) => c.target.kind === 'ad');
+    expect(adLevel.length).toBeGreaterThan(0);
+    for (const c of adLevel) {
+      /* Anywhere in the sentence, not anchored to the end -- "Review why X
+         (Broad — US 25-54) is paused" carries it mid-string. */
+      expect(c.action, c.id).toMatch(/\(.+\)/);
+    }
+  });
+
+  it('holds when channels are switched off', () => {
+    reset();
+    /* A narrower account is where collisions get likelier, not less. */
+    for (const only of [['meta'], ['meta', 'tiktok'], ['paidSearch']] as const) {
+      const actions = decisions(30, [...only]).map((c) => c.action);
+      expect(new Set(actions).size, only.join('+')).toBe(actions.length);
+    }
+  });
+});

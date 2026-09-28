@@ -228,6 +228,11 @@
 .gr-assist__take {
   flex: none;
   height: 26px;
+  /* ⚠️ Both states share a width. "Make the decision" and "✓ On your queue" are
+     different lengths, so without this the button resized on click and the
+     action text beside it jumped sideways -- a control that moves the thing it
+     describes at the moment you press it. */
+  min-width: 9.5rem;
   padding: 0 var(--space-12);
   color: var(--brand-on-accent);
   background: var(--accent-base);
@@ -235,7 +240,10 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
-  font: inherit;
+  /* 🐛 `font: inherit` was here and it overrode `gr-type-caption` on the element
+     -- same specificity, later in source, so the shorthand won and the button
+     rendered at the panel's body size. The type class is the one owner of type;
+     a component restating it is how the two drift. */
   transition: background 120ms ease, border-color 120ms ease;
 }
 .gr-assist__take:hover { background: var(--accent-gradient-bottom); }

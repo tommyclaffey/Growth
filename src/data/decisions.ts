@@ -143,6 +143,23 @@ function pct(n: number): string {
   return `${Math.round(n * 100)}%`;
 }
 
+/**
+ * How an ad is named in an action.
+ *
+ * 🐛 The headline alone is not unique and never was. `c1c-cr1` and `c1a-cr3` are
+ * different ads in different ad sets of the same campaign, both headlined "Start
+ * free, no card" — so two decisions rendered as the SAME sentence, with two
+ * buttons doing two different things and no way to tell them apart.
+ *
+ * ⚠️ And this is not a fixture quirk to work around. Real accounts reuse copy
+ * across ad sets constantly — that IS what an audience test is. An ad is
+ * identified by its headline AND the ad set it runs in; naming only the headline
+ * was the mistake, not the duplication.
+ */
+function adName(headline: string, adSetName: string): string {
+  return `“${headline}” (${adSetName})`;
+}
+
 /* ------------------------------------------------------------- detectors -- */
 
 /**
@@ -184,7 +201,7 @@ function spendReturnMismatch(range: Range, channels: ChannelName[]): Candidate[]
         id: `mismatch:${a.creative.id}`,
         tier: 1,
         kind: 'spend-return-mismatch',
-        action: `Pause “${a.creative.headline}”`,
+        action: `Pause ${adName(a.creative.headline, a.creative.adSetName)}`,
         because: `It takes ${pct(sShare)} of ${c.name}’s spend and returns ${pct(lShare)} of its leads.`,
         evidence: [
           { label: 'Share of campaign spend', value: pct(sShare) },
@@ -251,7 +268,7 @@ function scaleWinner(range: Range, channels: ChannelName[]): Candidate[] {
         id: `scale:${a.creative.id}`,
         tier: 2,
         kind: 'scale-winner',
-        action: `Increase budget on “${a.creative.headline}”`,
+        action: `Increase budget on ${adName(a.creative.headline, a.creative.adSetName)}`,
         because: `It returns ${pct(lShare)} of ${c.name}’s leads on ${pct(sShare)} of its spend.`,
         evidence: [
           { label: 'Share of campaign leads', value: pct(lShare) },
@@ -330,7 +347,7 @@ function pausedWinner(range: Range, channels: ChannelName[]): Candidate[] {
         id: `paused-winner:${a.creative.id}`,
         tier: 1,
         kind: 'paused-winner',
-        action: `Review why “${a.creative.headline}” is paused`,
+        action: `Review why ${adName(a.creative.headline, a.creative.adSetName)} is paused`,
         because: `While it ran it returned ${pct(lShare)} of ${c.name}’s leads on `
           + `${pct(sShare)} of its spend, at ${formatDerived('CAC', cac)} a lead against the `
           + `campaign’s ${formatDerived('CAC', spend / leads)} — and the campaign is still active.`,
