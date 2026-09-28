@@ -1,7 +1,9 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { decisions, decisionsByTier, validate, type Candidate } from '../decisions';
 import { ALL_CHANNELS } from '../blended';
 import { CHANNEL_KEYS, RANGES, setActiveChannels } from '../metrics';
+import { setStage } from '../campaignStatus';
 
 const reset = () => setActiveChannels([...CHANNEL_KEYS]);
 const all = (range: 7 | 30 | 90 = 30) => decisions(range, ALL_CHANNELS);
@@ -244,5 +246,76 @@ describe('the findings are about real things', () => {
     }
     /* And with one channel there is no cross-channel question to ask. */
     expect(only.some((c) => c.kind === 'cross-channel-cost-gap')).toBe(false);
+  });
+});
+
+describe('the detectors that the default fixture cannot exercise', () => {
+  /* ⚠️ Two detectors return nothing against the seeded account, and the reason is
+     the FIXTURE rather than the code. Asserting "length > 0" on the default data
+     would be a test demanding the engine invent a finding; asserting nothing at
+     all would leave real logic unverified. So the state they are built for gets
+     constructed, through the same `setStage` override a user would use. */
+
+  it('reallocation fires once a channel has two Active campaigns with a real gap', () => {
+    reset();
+    /* Paid Search has the gap: c7 at ~$76 a lead against c8 at ~$109, which is
+       44% and clears the 30% threshold. c8 ships in `Review`, so no channel in
+       the default account has two Active campaigns — that is why the detector is
+       silent, and it is a fixture property, not a bug. */
+    setStage('c7', 'Active');
+    setStage('c8', 'Active');
+
+    const found = decisions(30, ALL_CHANNELS)
+      .filter((c) => c.kind === 'reallocate-within-channel');
+    expect(found.length).toBeGreaterThan(0);
+
+    const ps = found.find((c) => c.channel === 'paidSearch')!;
+    expect(ps).toBeDefined();
+    expect(ps.tier).toBe(2);
+    /* It must state the assumption — that is what makes it tier 2 rather than a
+       promise. */
+    expect(ps.expectation?.assuming).toMatch(/holds/);
+    /* And it must move money FROM the expensive one TO the cheap one, not the
+       reverse. Getting this backwards is the CAC inversion in a new costume. */
+    expect(ps.action).toMatch(/from “Non-brand — High Intent” to “Branded Search Defense”/);
+    expect(ps.target.id).toBe('c8');
+
+    setStage('c7', 'Active');
+    setStage('c8', 'Review');
+  });
+
+  it('reallocation refuses when the two campaigns are too close to call', () => {
+    reset();
+    /* TikTok's two campaigns sit within a fraction of a percent of each other.
+       A finding there would be noise dressed as a decision. */
+    setStage('c3', 'Active');
+    setStage('c4', 'Active');
+    const tiktok = decisions(30, ALL_CHANNELS)
+      .filter((c) => c.kind === 'reallocate-within-channel' && c.channel === 'tiktok');
+    expect(tiktok).toHaveLength(0);
+    setStage('c4', 'Draft');
+  });
+
+  it('finds the paused ad that was out-performing', () => {
+    reset();
+    /* ⭐ Why scale-winner is silent: in this account the best-returning creatives
+       are PAUSED. c1a-cr3 returned 1.5x its share of its campaign's spend with the
+       switch off. That is one of the most common real states in a paid account —
+       creative rotated out during a test and never looked at again. */
+    const found = decisions(30, ALL_CHANNELS).filter((c) => c.kind === 'paused-winner');
+    expect(found.length).toBeGreaterThan(0);
+
+    for (const c of found) {
+      expect(c.tier).toBe(1);
+      /* "Review", never "turn it back on" — the latter is a forecast and would
+         have to be tier 2. */
+      expect(c.action).toMatch(/^Review why /);
+      expect(c.action).not.toMatch(/\b(scale|increase|resume|turn)\b/i);
+      /* Tier 1, so no assumption. */
+      expect(c.expectation?.assuming).toBeUndefined();
+      /* And the limitation is stated on the card rather than left implied: a
+         paused ad's figures here cover the whole window, not its live span. */
+      expect(c.evidence.some((e) => /caveat/i.test(e.label))).toBe(true);
+    }
   });
 });

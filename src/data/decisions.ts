@@ -65,6 +65,7 @@ export const TIER_LABEL: Record<Tier, string> = {
 
 export type DecisionKind =
   | 'spend-return-mismatch'
+  | 'paused-winner'
   | 'scale-winner'
   | 'reallocate-within-channel'
   | 'stale-review'
@@ -270,6 +271,88 @@ function scaleWinner(range: Range, channels: ChannelName[]): Candidate[] {
         channel: a.channel,
         atStake: a.totals.spend * 0.25,
         strength: Math.min(1, (ratio - 1.4) / 1.6),
+      });
+    }
+  }
+
+  return out;
+}
+
+/**
+ * An ad that OUT-PERFORMED and is switched off.
+ *
+ * ⭐ Found because `scale-winner` would not fire, and the reason turned out to be
+ * worth a detector of its own: in this account the best-returning creatives are
+ * PAUSED. `c1a-cr3` returned 1.5x its share of its campaign's spend and is off.
+ *
+ * That is not a fixture quirk — it is one of the most common real states in a paid
+ * account. Creative gets paused during a test, at the end of a flight, or because
+ * someone rotated it out on a hunch, and nobody goes back to check what it was
+ * doing when it stopped. **The engine noticing is the entire value.**
+ *
+ * TIER 1, because the claim is purely historical arithmetic: *while it ran, this
+ * is what it returned.* It deliberately does NOT say "turn it back on" — that
+ * would be a forecast, and a forecast belongs in tier 2. It says review, and it
+ * says why.
+ *
+ * ⚠️ And it states the limitation on the card. A paused ad's figures in this
+ * dataset still cover the whole window, because the data layer has no per-ad
+ * start and stop dates. So the numbers describe the period, not the ad's live
+ * span, and the card says so rather than letting a reader assume otherwise.
+ */
+function pausedWinner(range: Range, channels: ChannelName[]): Candidate[] {
+  const out: Candidate[] = [];
+  const ads = rankedAds('Leads', 'absolute', range, channels);
+
+  for (const c of CAMPAIGNS) {
+    if (!channels.includes(c.channel)) continue;
+    /* Only inside campaigns that are still running. A paused ad in an Ended
+       campaign is not a missed opportunity, it is just history. */
+    if (stageOf(c.id) !== 'Active') continue;
+
+    const mine = ads.filter((a) => a.campaign.id === c.id);
+    if (mine.length < 2) continue;
+    const spend = mine.reduce((a, x) => a + x.totals.spend, 0);
+    const leads = mine.reduce((a, x) => a + x.totals.leads, 0);
+    if (spend <= 0 || leads <= 0) continue;
+
+    for (const a of mine) {
+      if (a.creative.stage !== 'Paused') continue;
+      const sShare = a.totals.spend / spend;
+      const lShare = a.totals.leads / leads;
+      if (sShare <= 0) continue;
+
+      const ratio = lShare / sShare;
+      if (ratio < 1.3 || a.totals.leads < 20) continue;
+
+      const cac = a.totals.spend / a.totals.leads;
+      out.push({
+        id: `paused-winner:${a.creative.id}`,
+        tier: 1,
+        kind: 'paused-winner',
+        action: `Review why “${a.creative.headline}” is paused`,
+        because: `While it ran it returned ${pct(lShare)} of ${c.name}’s leads on `
+          + `${pct(sShare)} of its spend, at ${formatDerived('CAC', cac)} a lead against the `
+          + `campaign’s ${formatDerived('CAC', spend / leads)} — and the campaign is still active.`,
+        evidence: [
+          { label: 'Status', value: 'Paused' },
+          { label: 'Share of campaign leads', value: pct(lShare) },
+          { label: 'Share of campaign spend', value: pct(sShare) },
+          { label: 'Its CAC', value: formatDerived('CAC', cac) },
+          /* Said on the card, not buried in a doc. */
+          { label: 'Caveat', value: 'Figures cover the full period, not its live span' },
+        ],
+        expectation: {
+          /* No assumption, so it stays tier 1 — which is only possible because
+             the action is "review", not "scale". Turning it back on would be a
+             forecast about future performance and belongs in tier 2. */
+          outcome: 'Either it goes back on, or the reason it was stopped gets written down. '
+            + 'Right now neither has happened.',
+          checkOn: checkDate(7),
+        },
+        target: { kind: 'ad', id: a.creative.id, label: a.creative.headline },
+        channel: a.channel,
+        strength: Math.min(1, (ratio - 1.3) / 1.2),
       });
     }
   }
@@ -592,6 +675,7 @@ export function decisions(
 ): Candidate[] {
   const all = [
     ...spendReturnMismatch(range, channels),
+    ...pausedWinner(range, channels),
     ...scaleWinner(range, channels),
     ...reallocateWithinChannel(range, channels),
     ...staleReview(channels),
