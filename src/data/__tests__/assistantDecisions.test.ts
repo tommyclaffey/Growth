@@ -416,3 +416,54 @@ describe('the conversation ends in a decision you can take', () => {
     expect(local.decisions?.map((d) => d.id)).toEqual(shared.map((d) => d.id));
   });
 });
+
+describe('⭐ the button appears where the decision is argued, not before', () => {
+  it('a STATUS answer carries no takeable decisions', () => {
+    reset();
+    /* "What's going on with Total spend" reports: the figures, a finding the
+       engine raised, and what this data cannot tell you. Nothing has been
+       weighed. Asking the reader to commit there skips the deliberation the
+       panel exists to host — and a button under every answer stops reading as a
+       commitment and starts reading as decoration. */
+    for (const q of ["What's going on with Total spend?", "What's going on with Meta?",
+      'Tell me about Paid Search', 'How is TikTok doing?']) {
+      const a = ask(q, 30);
+      expect(a.answered, q).toBe(true);
+      expect(a.decisions ?? [], q).toEqual([]);
+    }
+  });
+
+  it('but it routes you to where the button IS', () => {
+    reset();
+    /* The two-step is the point: ask, then decide. The status answer's first
+       chip has to lead to the decision answer, or the button is unreachable. */
+    const status = ask("What's going on with Meta?", 30);
+    const next = status.followUps![0];
+    expect(next).toMatch(/what would you do/i);
+    expect(ask(next, 30).decisions?.length, next).toBeGreaterThan(0);
+  });
+
+  it('a DECISION answer carries them', () => {
+    reset();
+    for (const q of ['What would you do about Meta?', 'What should I do next?',
+      'What should I cut?']) {
+      const a = ask(q, 30);
+      if (!/Nothing/.test(a.text)) {
+        expect(a.decisions?.length, q).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('the whole two-step works end to end', () => {
+    reset();
+    /* Status -> follow the first chip -> decision -> a real candidate id that
+       accepting would land on. */
+    const step1 = ask("What's going on with Paid Search?", 30);
+    expect(step1.decisions ?? []).toEqual([]);
+
+    const step2 = ask(step1.followUps![0], 30);
+    const take = step2.decisions![0];
+    expect(take).toBeDefined();
+    expect(decisions(30).some((c) => c.id === take.id)).toBe(true);
+  });
+});

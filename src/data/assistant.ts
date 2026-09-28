@@ -100,9 +100,24 @@ export function decisionsForQuestion(
   question: string, range: Range, subject?: Target,
 ): Takeable[] {
   const q = question.toLowerCase();
-  /* Only where the reader is actually asking what to do. A lookup should not
-     sprout accept buttons for findings it never mentioned. */
-  if (!/what would you do|what should i do|what.s next|recommend|priorit|cut|pause|stop|what.s going on|tell me about|how is|what about/i.test(q)) {
+
+  /* ⭐ ONLY where a decision was actually argued.
+   *
+   * "What's going on with Total spend" is a STATUS question. Its answer informs:
+   * here are the figures, here is a finding the engine raised, here is what this
+   * data cannot tell you. Nothing has been weighed yet — so putting "Make the
+   * decision" under it asks the reader to commit before the case has been made,
+   * and skips the deliberation this panel exists to host.
+   *
+   * ⚠️ It also makes the button cheap. A control that appears under every answer
+   * stops reading as a commitment and starts reading as decoration, which is
+   * exactly the wrong thing for the one irreversible-ish action here.
+   *
+   * The status answer already routes onward: its first follow-up chip is "What
+   * would you do about X?". THAT answer argues the decision, and that is where
+   * the button belongs. Ask, then decide — two steps, on purpose.
+   */
+  if (!/what would you do|what should i do|what.s next|recommend|priorit|what.s the (call|move|decision)|\bcut\b|\bpause\b|\bstop\b/i.test(q)) {
     return [];
   }
   const target: Target | undefined = subject
@@ -410,10 +425,10 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
         { label: `${target.label} spend`, value: formatMetric('Spend', t.spend), channel: scope },
         { label: `${target.label} CAC`, value: formatMetric('CAC', t.cac), channel: scope },
       ],
-      decisions: takeable(actionable),
-      /* ⭐ The DECISION comes first, from the shared rule -- so the model path
-         offers the same route onward. Someone who just read what is going on has
-         exactly one next question, and it is not "why did you say that". */
+      /* ⚠️ NO takeable decisions here, deliberately. This is a status answer --
+         it reports, it does not argue. The first follow-up routes to "What would
+         you do about X?", and the button lives on THAT answer, where the case has
+         actually been made. */
       followUps: followUpsFor(q, target),
     };
   }
@@ -477,6 +492,11 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
           gap ? `At the CHANNEL level I would not answer it. ${gap.because}` : '',
         ].filter(Boolean).join('\n\n'),
         evidence: asEvidence(pauses[0]),
+        /* ⚠️ The pauses only. `gap` is the tier-3 cross-channel question and it
+           is deliberately NOT takeable -- this branch names it in the same
+           breath as the pauses, which is exactly where a button on it would do
+           the most damage. */
+        decisions: takeable(pauses),
         followUps: gap
           ? ['What can this data not tell me?', 'What should I do next?']
           : ['What should I do next?'],
