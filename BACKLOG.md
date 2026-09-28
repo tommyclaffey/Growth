@@ -105,7 +105,7 @@ the idea. **Growth is a portfolio piece, not a project-management product.**
 own tasks. These are tasks *inside a product he is designing*, for a fictional
 marketing team. Different thing entirely.
 
-## 🟢 G-009 — The hierarchy breaks at the ad set *(captured Sept 27)*
+## 🔨 G-009 — The hierarchy breaks at the ad set *(tier BUILT Sept 27 — `5ba15fc`)*
 
 > Tommy, Sept 27: *"from the micro, from an individual [ad], to the macro, seeing all the
 > channel traffic, all the way down to the individual ad within the campaign, and how
@@ -152,13 +152,36 @@ vocabulary named per platform (*Ad set* on Meta, *Ad group* on Google and TikTok
 on affiliates, *Show* on podcasts). The UI navigates as deep as the channel goes and stops,
 rather than rendering an empty tier.
 
-### ▶️ To build
-- [ ] `CHANNEL_DEPTH` — tiers + per-platform vocabulary
-- [ ] Ad sets get a real funnel — impressions, clicks, revenue, daily series, share-based so
-      they reconcile with the campaign the way ads already do
-- [ ] Ad-set detail page — reuse `CampaignDetail`'s shape
-- [ ] Ad sets follow the date range; **delete the apology**
-- [ ] Cross-channel ad ranking — *"which of my ~40 ads is winning, everywhere?"* has no home
+### ✅ Built Sept 27 — `5ba15fc`
+- [x] ~~`CHANNEL_DEPTH` — tiers + per-platform vocabulary~~ ✅ and `CREATIVE_NOUN` now derives
+      from it instead of restating the same six answers
+- [x] ~~Ad sets get a real funnel~~ ✅ `adSets.ts` — constant share of the campaign's daily rows,
+      so they sum to the campaign **every day, exactly, by construction**
+- [x] ~~Ad-set detail page~~ ✅ `AdSetDetail.tsx`, mirroring `CampaignDetail`'s shape
+- [x] ~~Ad sets follow the date range; delete the apology~~ ✅ both
+- [x] ~~Back walks the chain one step at a time~~ ✅ ad → ad set → campaign, breadcrumb names
+      where it actually lands
+- [x] ~~19 tests~~ ✅ daily reconciliation at every range · shares sum to exactly 1 · period CAC
+      is not the mean of daily rates · render tests, because a green data suite cannot see a
+      blank page
+
+🐛 **Found while wiring the route:** the sidebar cleared `campaignId` and nothing else, so the
+dead-nav bug its own comment described still happened one level deeper — from an ad page,
+clicking Campaigns left you on the ad with no campaign behind it. `closeCampaign` and
+`applyView` had the same hole. All three fixed.
+
+🔄 **And a correction to the audit that produced this:** it claimed affiliates and podcasts have
+only two tiers and should lose the middle level. **Wrong** — every channel groups its ads one
+level up, and grouping is what the middle tier *is*. The tier count is the same; only the names
+differ. Recorded in `channelDepth.ts`.
+
+### ▶️ Still to build
+- [ ] **Cross-channel ad ranking** — *"which of my ~40 ads is winning, everywhere?"* still has
+      no home. There is no `ads` nav item; ranking only exists inside one campaign.
+- [ ] Ad-set level **targeting / budget / bid** fields. The tier is real now but still reports
+      only the funnel — it does not yet show what a buyer actually *sets* at this level.
+- [ ] Creative cards still show static totals — the `CreativeSection` note admits it. Same defect
+      the ad-set rows just had, one tier down.
 
 ---
 
