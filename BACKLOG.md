@@ -105,6 +105,85 @@ the idea. **Growth is a portfolio piece, not a project-management product.**
 own tasks. These are tasks *inside a product he is designing*, for a fictional
 marketing team. Different thing entirely.
 
+## 🟢 G-009 — The hierarchy breaks at the ad set *(captured Sept 27)*
+
+> Tommy, Sept 27: *"from the micro, from an individual [ad], to the macro, seeing all the
+> channel traffic, all the way down to the individual ad within the campaign, and how
+> everything in between is performing."*
+
+**"Everything in between" is the part that does not exist.** Full audit:
+`(C) Growth — Finish & Beta Plan (Sept 27 2026)` in the vault.
+
+| Tier | Page | Daily series | Follows range | Metrics |
+|---|---|---|---|---|
+| Blended | ✅ | ✅ | ✅ | ⚠️ 4 only |
+| Channel | ✅ | ✅ | ✅ | ✅ up to 9 |
+| Campaign | ✅ | ✅ | ✅ | ✅ |
+| **Ad set** | 🔴 none | 🔴 none | 🔴 static | 🔴 spend + leads |
+| Ad | ✅ | ✅ | ✅ | ✅ |
+
+⭐ **The chain breaks in the MIDDLE, and the tier below has more depth than the tier above.**
+An ad has a daily funnel, a chart, a peer rank, a creative preview and a share figure. Its
+parent ad set has five fields. `CampaignDetail.tsx` currently apologises for it on screen:
+*"Ad set figures are period totals and do not follow the date range."* It is the only place
+in the product that has to explain itself away.
+
+⚠️ **And the ad set is where media buyers actually work** — budget, audience, placement and
+bid all live at that tier. Campaign → ad skips it.
+
+### 🔍 The decision that makes this more than CRUD
+
+**Five tiers is not universal, and the product currently assumes it is.**
+
+| Channel | Real hierarchy | Tiers |
+|---|---|---|
+| Meta | Account → Campaign → **Ad Set** → Ad | 4 |
+| Google Ads / YouTube | Customer → Campaign → **Ad Group** → Ad | 4 |
+| TikTok | Advertiser → Campaign → **Ad Group** → Ad | 4 |
+| Affiliates | Network → Partner | 2 |
+| Podcasts | Show → Spot | 2 |
+
+**There is no ad set inside a podcast campaign.** Inventing one is the same defect this
+codebase already named and fixed for metrics — printing a CTR for an audio ad.
+
+⭐ **The fix is the pattern already here.** `CHANNEL_METRICS` declares what a channel can
+*report*. Add a sibling — **`CHANNEL_DEPTH`** — for what a channel *contains*, with the
+vocabulary named per platform (*Ad set* on Meta, *Ad group* on Google and TikTok, *Partner*
+on affiliates, *Show* on podcasts). The UI navigates as deep as the channel goes and stops,
+rather than rendering an empty tier.
+
+### ▶️ To build
+- [ ] `CHANNEL_DEPTH` — tiers + per-platform vocabulary
+- [ ] Ad sets get a real funnel — impressions, clicks, revenue, daily series, share-based so
+      they reconcile with the campaign the way ads already do
+- [ ] Ad-set detail page — reuse `CampaignDetail`'s shape
+- [ ] Ad sets follow the date range; **delete the apology**
+- [ ] Cross-channel ad ranking — *"which of my ~40 ads is winning, everywhere?"* has no home
+
+---
+
+## 🔍 G-010 — The macro view is thinner than the tier under it *(captured Sept 27)*
+
+Overview shows **4 blended KPIs.** A channel page shows up to **9.** The product gets
+*narrower* as you zoom out, and "see all the channel traffic" is the headline promise.
+
+⚠️ **There is a real design problem in here, not just a missing feature.** You cannot blend
+CTR across six channels when **podcasts and affiliates have no impressions and no clicks** —
+the denominator does not exist.
+
+1. Blend only what every active channel reports — honest, but it shrinks when podcasts are on,
+   which looks like a bug
+2. ⭐ **Blend across the channels that CAN report it, and name the coverage** — *"CTR, paid
+   social + search only — 4 of 6 channels"*
+3. Blend counts only, rates per channel — safest, least useful
+
+**Leaning hard on 2.** It is the same judgment `CHANNEL_METRICS` already makes one tier down —
+*show what the medium can honestly report* — extended to the blend, with the coverage stated
+on the card. *"My blended CTR says which channels are in it, because two of six have no
+impressions"* is a better interview answer than any feature on this list.
+
+---
+
 ## 🔍 G-002 — Paused ads in the creative section
 
 Currently hidden by default with the count on the toggle. Options when this gets
@@ -140,6 +219,15 @@ that cannot shrink inside `position: fixed; overflow: hidden`. Usable floor
 ~1300px with chat open; Reports breaks on a 1280px laptop.
 
 **A real project, not an afternoon.**
+
+⭐ **DECIDED Sept 27 — this is NOT a beta blocker, and it stays parked.** The beta is a
+recruited, moderated one: five testers, watched, on an environment we choose. *"Desktop,
+1440px+, Chrome"* is a legitimate constraint, **and a marketing analytics dashboard genuinely
+is a desktop product** — nobody audits ad spend on a phone.
+
+⚠️ It becomes blocking the moment the beta stops being moderated, or a tester is asked to use
+it on their own machine on their own time. **The constraint has to be STATED to testers, not
+assumed** — an unannounced 1300px floor is a broken product; an announced one is a scope.
 
 ---
 
