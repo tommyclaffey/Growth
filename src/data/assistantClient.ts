@@ -2,6 +2,7 @@ import {
   ask, decisionsForQuestion, followUpsFor, resolveSubject, type Answer,
 } from './assistant';
 import { flags } from './attention';
+import { decisionsFor, decisions as allDecisions } from './decisions';
 import type { Target } from './decisions';
 import type { Range } from './metrics';
 
@@ -83,6 +84,7 @@ export async function askAssistant(
    * and both are about something. Falling back to the text is what stops the
    * server answering a scoped question with the whole account. */
   const subject = explicit ?? resolveSubject(question);
+  const taken = flags().filter((f) => f.kind === 'decision').map((f) => f.refId);
   if (endpointAvailable === false) {
     return { answer: askSafely(question, range, subject), source: 'local' };
   }
@@ -107,11 +109,28 @@ export async function askAssistant(
        * The engine is one source of judgement; this keeps it one source of
        * ATTENTION too. A decision already on the queue is not a suggestion any
        * more, and the narration should stop treating it as one. */
+      /* ⭐ THE FINDINGS THEMSELVES, not the inputs to recompute them.
+        *
+        * 🐛 The server was running the engine again from its own state — and it
+        * has no localStorage, so `stageOf` fell back to the SEEDED campaign
+        * stages. Set a campaign Active in the UI and the client found a finding
+        * the server could not: prose saying "no findings on TikTok" directly
+        * above a TikTok finding with a button on it.
+        *
+        * Active channels, the monthly budget, campaign status and the taken list
+        * all live client-side, so ANY of them diverges the two evaluations. The
+        * claim that one engine backs every surface was quietly false the moment a
+        * user changed anything.
+        *
+        * Sending the computed findings makes it true. The model narrates exactly
+        * what the buttons offer because they are the same array, and no amount of
+        * client state can pull them apart again. */
       body: JSON.stringify({
         question,
         range,
         subject,
-        taken: flags().filter((f) => f.kind === 'decision').map((f) => f.refId),
+        findings: (subject ? decisionsFor(subject, range) : allDecisions(range))
+          .filter((c) => !taken.includes(c.id)),
       }),
     });
 

@@ -214,7 +214,8 @@ interface Source { title: string; url: string }
 
 function buildTools(
   m: Metrics, d: Decisions, b: Blended, cm: ChannelMetrics,
-  range: number, evidence: Evidence[], subject?: Subject, taken: string[] = [],
+  range: number, evidence: Evidence[], subject?: Subject,
+  findings?: DecisionCandidate[],
 ) {
   const scopeEnum = ['all', ...m.activeChannels()];
   /* 🐛 STALE, AND IT MADE THE PRODUCT LIE ABOUT ITSELF.
@@ -331,22 +332,27 @@ function buildTools(
         additionalProperties: false,
       },
       run: ({ channel }: { channel?: string }) => {
-        /* ⚠️ A SUBJECT WINS OVER THE MODEL'S OWN FILTER.
+        /* ⭐ The CLIENT'S findings when it sent them, because the client is the
+           only place that can evaluate them correctly.
 
-           When a control says what the reader was pointing at, that is what the
-           question is ABOUT. The model cannot recover it from the sentence, and
-           guessing produced the worst kind of answer: findings about a different
-           campaign, each correct in itself, presented as the answer to a question
-           about this one — with the other campaign's channel logos beside them. */
-        const found = subject
-          ? d.decisionsFor(subject, range, m.activeChannels())
-          : d.decisions(range, m.activeChannels());
-        const scoped = !channel || channel === 'all'
+           Campaign status overrides, the active channel set, the budget and the
+           taken list all live in localStorage, which this process cannot read —
+           so recomputing here silently used the SEEDED state. Set a campaign
+           Active in the UI and the client found a finding the server could not:
+           prose saying "no findings on TikTok" directly above a TikTok finding
+           with a button on it.
+
+           Recomputation is the fallback for a caller that sends nothing, not the
+           normal path. ⚠️ A subject still wins over the model's own filter there:
+           a control knows what the reader pointed at, and the model cannot
+           recover it from prose. */
+        const found = findings
+          ?? (subject
+            ? d.decisionsFor(subject, range, m.activeChannels())
+            : d.decisions(range, m.activeChannels()));
+        /* Already filtered by the client -- taken decisions never arrive. */
+        const mine = !channel || channel === 'all'
           ? found : found.filter((c) => c.channel === channel);
-        /* ⚠️ Already-decided findings are not suggestions. Narrating one the
-           reader committed to earlier puts it back in the "here is what you could
-           do" list, one screen away from the queue where they already did it. */
-        const mine = scoped.filter((c) => !taken.includes(c.id));
         for (const c of mine.slice(0, 3)) {
           /* 🐛 Prefixed with where the finding lives. Three ads produced three
              rows all labelled "Share of campaign leads" — 3%, 33%, 6% — with
@@ -484,7 +490,8 @@ function buildTools(
 async function readBody(
   req: IncomingMessage,
 ): Promise<{
-  question?: string; range?: number; subject?: Subject; taken?: string[];
+  question?: string; range?: number; subject?: Subject;
+  findings?: DecisionCandidate[];
 }> {
   const chunks: Buffer[] = [];
   for await (const c of req) chunks.push(c as Buffer);
@@ -533,7 +540,7 @@ export function assistantApi(): Plugin {
           });
         }
 
-        const { question, range = 30, subject, taken } = await readBody(req);
+        const { question, range = 30, subject, findings } = await readBody(req);
         if (!question?.trim()) return send(res, 400, { error: 'Question required.' });
 
         try {
@@ -565,7 +572,7 @@ export function assistantApi(): Plugin {
                 /* What the caller said, or failing that what the question names. */
                 (subject as Subject | undefined)
                   ?? inferSubject(String(question), CAMPAIGNS, m.CHANNEL_LABEL),
-                Array.isArray(taken) ? taken : [],
+                Array.isArray(findings) ? findings : undefined,
               ),
               /* Server-side: runs on Anthropic's infrastructure, so there is no
                  run() to write and no search account to hold. Capped at 3 so a

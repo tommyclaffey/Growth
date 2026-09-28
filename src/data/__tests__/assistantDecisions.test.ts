@@ -4,8 +4,9 @@ import {
   SUGGESTIONS, ask, decisionsForQuestion, followUpsFor, resolveSubject,
 } from '../assistant';
 import { decisions, decisionsFor } from '../decisions';
-import { addFlag, flags } from '../attention';
+import { addFlag, flags, isFlagged } from '../attention';
 import { CAMPAIGNS } from '../campaigns';
+import { setStage } from '../campaignStatus';
 import { creativesFor } from '../creative';
 import { CHANNEL_KEYS, CHANNEL_LABEL, setActiveChannels } from '../metrics';
 
@@ -713,5 +714,40 @@ describe('⭐ a "nothing to do" answer stays coherent with itself', () => {
     if (!/[Nn]othing/.test(a.text)) return;
     expect(a.decisions).toEqual([]);
     expect(a.followUps ?? []).not.toContain('What should I do next?');
+  });
+});
+
+describe('🚨 one evaluation, not two', () => {
+  it('the client sends findings rather than inputs to recompute', () => {
+    reset();
+    /* 🐛 The server ran the engine again from its OWN state, and it has no
+       localStorage — so `stageOf` fell back to the seeded campaign stages. Set a
+       campaign Active in the UI and the client found a finding the server could
+       not: prose saying "no findings on TikTok" directly above a TikTok finding
+       with a button on it.
+
+       Campaign status, active channels, the budget and the taken list all live
+       client-side. ANY of them diverges the two evaluations, so "one engine backs
+       every surface" was quietly false the moment a user changed anything.
+
+       This asserts the property that makes it true: what the buttons offer is
+       exactly what gets sent to be narrated. */
+    const target = { kind: 'channel' as const, id: 'meta', label: 'Meta' };
+    const offered = ask('What would you do about Meta?', 30, target).decisions ?? [];
+    const sent = decisionsFor(target, 30)
+      .filter((c) => c.tier !== 3)
+      .filter((c) => !isFlagged('decision', c.id));
+    expect(offered.map((d) => d.id)).toEqual(sent.slice(0, 3).map((c) => c.id));
+  });
+
+  it('a status override changes what the client finds', () => {
+    reset();
+    /* The exact divergence: a campaign the seed calls Draft, set Active. The
+       server cannot see this; the client must be the one that evaluates. */
+    const before = decisions(30).filter((c) => c.kind === 'no-variant').length;
+    setStage('c4', 'Active');
+    const after = decisions(30).filter((c) => c.kind === 'no-variant').length;
+    expect(after).toBeGreaterThan(before);
+    setStage('c4', 'Draft');
   });
 });

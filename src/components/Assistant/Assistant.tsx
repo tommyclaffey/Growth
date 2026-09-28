@@ -247,6 +247,13 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                       /* When there is nothing on offer the write-in IS the
                          section, so it opens rather than hiding behind a link. */
                       startOpen={t.answer.decisions.length === 0}
+                      /* Reads as a pair with the buttons above it — "Make the
+                         decision" / "Make another decision" — so adding a second
+                         one is obviously available rather than a different
+                         feature that happens to sit nearby. */
+                      label={t.answer.decisions.length === 0
+                        ? 'Decide something anyway'
+                        : 'Make another decision'}
                     />
                   </div>
                 )}
@@ -338,7 +345,10 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
  * Deliberately small and last: it is the escape hatch, not the primary path.
  * Leading with it would suggest the findings above are a formality.
  */
-function OwnDecision({ startOpen = false }: { startOpen?: boolean }) {
+function OwnDecision({ startOpen = false, label = 'Make another decision' }: {
+  startOpen?: boolean;
+  label?: string;
+}) {
   const [open, setOpen] = useState(startOpen);
   const [text, setText] = useState('');
 
@@ -346,7 +356,7 @@ function OwnDecision({ startOpen = false }: { startOpen?: boolean }) {
     return (
       <button type="button" className="gr-assist__own-open gr-type-caption"
               onClick={() => setOpen(true)}>
-        + Decide something else
+        + {label}
       </button>
     );
   }
