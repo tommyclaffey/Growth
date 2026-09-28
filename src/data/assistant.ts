@@ -72,6 +72,17 @@ export interface Answer {
    * take — offering a button would turn the refusal back into the recommendation
    * the tier exists to prevent. `takeable()` enforces it.
    */
+  /**
+   * ⚠️ Three states, and the difference matters to the panel:
+   *   undefined — this was not a decision question. No block at all.
+   *   []        — it WAS, and there is nothing to offer. The block renders with
+   *               the write-in only, because someone may act anyway.
+   *   [items]   — offers, plus the write-in.
+   *
+   * An empty array used to be indistinguishable from undefined, so a "nothing to
+   * do" answer lost the write-in — the one moment a reader most needs to record
+   * a decision the engine did not propose.
+   */
   decisions?: Takeable[];
 }
 
@@ -395,7 +406,12 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
             : 'The numbers are within the bands where a change would be noise rather than a finding.',
           'I would rather say that than manufacture a recommendation to fill the space.',
         ].join('\n\n'),
-        followUps: ['What should I do next?', 'What can this data not tell me?'],
+        /* ⚠️ A decision question that found nothing. The write-in still renders. */
+        decisions: [],
+        /* ⚠️ And NOT "What should I do next?" — asking that immediately after
+           saying there is nothing to do contradicts the sentence above it. The
+           useful next question after a no is about the limits of the no. */
+        followUps: ['What can this data not tell me?'],
       };
     }
 
@@ -516,6 +532,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
       return {
         answered: true,
         text: `Nothing in this data supports an action right now. That is a real answer rather than an empty one — I would rather say so than manufacture a recommendation.`,
+        decisions: [],
         followUps: ['What can this data not tell me?'],
       };
     }

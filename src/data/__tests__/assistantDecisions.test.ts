@@ -659,3 +659,59 @@ describe('🚨 the prose and the buttons describe the same set', () => {
     expect(a.text.length).toBeGreaterThan(20);
   });
 });
+
+describe('⭐ a "nothing to do" answer stays coherent with itself', () => {
+  /* Everything about the empty case has to agree with the sentence. Telling
+     someone there is nothing to do and then asking "what should I do next?" is
+     the panel arguing with itself one line later. */
+
+  function nothingAnswer() {
+    reset();
+    /* Take every actionable finding so the next question genuinely has none. */
+    for (const c of decisions(30).filter((x) => x.tier !== 3)) {
+      addFlag('decision', c.id, c.action);
+    }
+    return ask('What should I do next?', 30);
+  }
+
+  it('does not ask what to do next, having just said there is nothing', () => {
+    const a = nothingAnswer();
+    expect(a.text).toMatch(/[Nn]othing/);
+    expect(a.followUps ?? []).not.toContain('What should I do next?');
+  });
+
+  it('offers no decisions — but says it WAS a decision question', () => {
+    const a = nothingAnswer();
+    /* ⚠️ [] and undefined are different claims. [] means "asked, nothing to
+       offer" and keeps the write-in; undefined means "not a decision question"
+       and renders no block at all. Collapsing them removed the escape hatch at
+       the one moment a reader needs it. */
+    expect(a.decisions).toEqual([]);
+    expect(a.decisions).not.toBeUndefined();
+  });
+
+  it('a non-decision question carries no decisions key at all', () => {
+    reset();
+    const a = ask('How much did we spend on TikTok?', 30);
+    expect(a.decisions).toBeUndefined();
+  });
+
+  it('the follow-up it DOES offer is answerable', () => {
+    const a = nothingAnswer();
+    for (const f of a.followUps ?? []) {
+      expect(ask(f, 30).answered, f).toBe(true);
+    }
+  });
+
+  it('a scoped nothing behaves the same way', () => {
+    reset();
+    const target = { kind: 'campaign' as const, id: 'c9', label: 'Mid-roll Sponsorships' };
+    for (const c of decisionsFor(target, 30).filter((x) => x.tier !== 3)) {
+      addFlag('decision', c.id, c.action);
+    }
+    const a = ask('What would you do about Mid-roll Sponsorships?', 30, target);
+    if (!/[Nn]othing/.test(a.text)) return;
+    expect(a.decisions).toEqual([]);
+    expect(a.followUps ?? []).not.toContain('What should I do next?');
+  });
+});

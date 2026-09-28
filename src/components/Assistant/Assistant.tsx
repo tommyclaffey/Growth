@@ -186,10 +186,19 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                     ⚠️ Tier 1 and 2 only -- a tier 3 finding is a question and
                     there is nothing to take. A button there would turn the
                     refusal back into the recommendation it exists to prevent. */}
-                {t.answer.decisions && t.answer.decisions.length > 0 && (
+                {/* ⚠️ Renders when `decisions` EXISTS, not when it has items.
+                    An empty array means "this was a decision question and there
+                    is nothing to offer" — and that is precisely when a reader
+                    most needs the write-in, because they may act anyway and the
+                    engine has just told them it has no opinion. Treating empty
+                    as absent removed the escape hatch at the one moment it
+                    mattered. */}
+                {t.answer.decisions && (
                   <div className="gr-assist__decisions">
                     <p className="gr-assist__evidence-head gr-type-overline">
-                      {t.answer.decisions.length === 1 ? 'Take it' : 'Take any of these'}
+                      {t.answer.decisions.length === 0 ? 'Decide anyway'
+                        : t.answer.decisions.length === 1 ? 'Take it'
+                        : 'Take any of these'}
                     </p>
                     {t.answer.decisions.map((d) => {
                       const taken = isFlagged('decision', d.id);
@@ -234,7 +243,11 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                         useful thing a reader can do with three findings is often a
                         fourth thing none of them said. Written decisions land in
                         the same queue, marked as the reader's own. */}
-                    <OwnDecision />
+                    <OwnDecision
+                      /* When there is nothing on offer the write-in IS the
+                         section, so it opens rather than hiding behind a link. */
+                      startOpen={t.answer.decisions.length === 0}
+                    />
                   </div>
                 )}
 
@@ -325,8 +338,8 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
  * Deliberately small and last: it is the escape hatch, not the primary path.
  * Leading with it would suggest the findings above are a formality.
  */
-function OwnDecision() {
-  const [open, setOpen] = useState(false);
+function OwnDecision({ startOpen = false }: { startOpen?: boolean }) {
+  const [open, setOpen] = useState(startOpen);
   const [text, setText] = useState('');
 
   if (!open) {
