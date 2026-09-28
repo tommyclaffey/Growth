@@ -60,6 +60,27 @@ export interface Flag {
   owner?: string;
   /** ISO yyyy-mm-dd. Date only -- reminders need a backend, overdue does not. */
   due?: string;
+
+  /* ---- Context, for a decision the reader wrote ---------------------------
+
+     ⭐ A written decision is written ABOUT something -- the subject the answer
+     was scoped to when they typed it. That context exists at that moment and was
+     being thrown away, so the card rendered as a bare line of text beside engine
+     cards carrying a breadcrumb and four figures.
+
+     "Nothing to check it against" was true of the CLAIM and false of the
+     CONTEXT. The sentence cannot be verified; the numbers they were looking at
+     when they wrote it can, and they belong on the card.
+
+     ⚠️ Captured at write time, not looked up at render time. The figures are
+     what the reader was seeing when they decided -- re-deriving them later would
+     silently restate the decision against numbers that have since moved. */
+
+  /** Breadcrumb, outermost first. */
+  scope?: string[];
+  channel?: string;
+  /** The figures on screen when the decision was made. */
+  evidence?: { label: string; value: string }[];
 }
 
 /** True once any task field is set. A flag with an owner or a date is a task. */
@@ -137,7 +158,16 @@ function read(): Flag[] {
          discard an otherwise good flag -- it should just not be assigned. */
       const okOwner = x.owner === undefined || typeof x.owner === 'string';
       const okDue = x.due === undefined || /^\d{4}-\d{2}-\d{2}$/.test(String(x.due));
-      return base && okOwner && okDue;
+      /* Context is optional and validated shallowly -- a malformed breadcrumb
+         should cost the card its context, never the whole flag. */
+      const okScope = x.scope === undefined
+        || (Array.isArray(x.scope) && x.scope.every((v) => typeof v === 'string'));
+      const okEvidence = x.evidence === undefined
+        || (Array.isArray(x.evidence) && x.evidence.every((e) =>
+          e && typeof e === 'object'
+          && typeof (e as { label?: unknown }).label === 'string'
+          && typeof (e as { value?: unknown }).value === 'string'));
+      return base && okOwner && okDue && okScope && okEvidence;
     });
   } catch {
     return [];
@@ -173,10 +203,13 @@ export function isFlagged(kind: Flag['kind'], refId: string): boolean {
   return cache.some((f) => f.id === flagId(kind, refId));
 }
 
-export function addFlag(kind: Flag['kind'], refId: string, label: string) {
+export function addFlag(
+  kind: Flag['kind'], refId: string, label: string,
+  context?: Pick<Flag, 'scope' | 'channel' | 'evidence'>,
+) {
   const id = flagId(kind, refId);
   if (cache.some((f) => f.id === id)) return;      // idempotent
-  cache = [{ id, kind, refId, label, at: Date.now() }, ...cache];
+  cache = [{ id, kind, refId, label, at: Date.now(), ...context }, ...cache];
   save();
 }
 

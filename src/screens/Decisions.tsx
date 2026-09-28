@@ -3,6 +3,7 @@ import './screens.css';
 import { Button } from '../components/Button/Button';
 import { Badge } from '../components/Badge/Badge';
 import { ChannelMark } from '../components/ChannelMark/ChannelMark';
+import type { ChannelName } from '../styles/tokens';
 import { decisions, TIER_LABEL, type Candidate, type Tier } from '../data/decisions';
 import { addFlag, isFlagged, isOwnDecision, removeFlag, useFlags } from '../data/attention';
 import { dismiss, isDismissed, restore, useDismissals } from '../data/dismissedDecisions';
@@ -125,26 +126,53 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
               <DecisionCard key={f.id} candidate={candidate} onDiscuss={onDiscuss} />
             ) : (
               <article key={f.id} className="gr-card gr-dec__card is-own">
-                {/* ⚠️ A written decision looked bare next to an engine card —
-                    a line of text and a Remove button, no context at all.
+                {/* ⭐ The SAME shape as an engine card: breadcrumb with the
+                    channel mark, the action, then the figures.
 
-                    It cannot carry evidence: there is nothing to check it
-                    against, and inventing a panel would be the card borrowing
-                    authority it has not earned. But it CAN say whose it is and
-                    when it was made, and those are the two facts that actually
-                    exist. An empty card is not the same as an honest one. */}
-                <p className="gr-dec__scope gr-type-caption">
-                  Your decision
-                  <span className="gr-dec__crumb" aria-hidden="true"> › </span>
-                  decided {new Date(f.at).toLocaleDateString(undefined, {
-                    month: 'short', day: 'numeric',
-                  })}
-                </p>
+                    "There is nothing to check it against" was true of the CLAIM
+                    and false of the CONTEXT. A decision written in the panel was
+                    written ABOUT something, and the numbers on screen at that
+                    moment are as real as any the engine cites. Discarding them
+                    is what made this card look unfinished beside its neighbour.
+
+                    ⚠️ Rendered from what was CAPTURED, never re-derived. These
+                    are the figures the reader was looking at when they decided;
+                    looking them up now would quietly restate the decision
+                    against numbers that have moved since. */}
+                {f.scope && f.scope.length > 0 && (
+                  <p className="gr-dec__scope gr-type-caption">
+                    {f.channel && (
+                      <ChannelMark channel={f.channel as ChannelName} size={14} />
+                    )}
+                    {f.scope.map((part, i) => (
+                      <span key={`${part}-${i}`}>
+                        {i > 0 && <span className="gr-dec__crumb" aria-hidden="true"> › </span>}
+                        {part}
+                      </span>
+                    ))}
+                    <span className="gr-dec__crumb" aria-hidden="true"> › </span>
+                    decided {new Date(f.at).toLocaleDateString(undefined, {
+                      month: 'short', day: 'numeric',
+                    })}
+                  </p>
+                )}
+
                 <header className="gr-dec__card-head">
                   <h4 className="gr-type-strip gr-dec__action">{f.label}</h4>
+                  <span className="gr-type-caption gr-dec__stake">Your decision</span>
                 </header>
-                {/* No evidence panel: nothing to check it against, and showing
-                    one would be the card borrowing authority it has not earned. */}
+
+                {f.evidence && f.evidence.length > 0 && (
+                  <dl className="gr-dec__evidence">
+                    {f.evidence.map((e) => (
+                      <div key={e.label}>
+                        <dt className="gr-type-overline">{e.label}</dt>
+                        <dd className="gr-type-body-medium">{e.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+
                 <footer className="gr-dec__actions">
                   <Button variant="ghost" onClick={() => removeFlag('decision', f.refId)}>
                     Remove

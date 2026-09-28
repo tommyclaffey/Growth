@@ -979,6 +979,66 @@ export function limitsFor(kind: Target['kind']): string[] {
   return universal;
 }
 
+/**
+ * The figures for whatever the reader was looking at.
+ *
+ * ⭐ A decision written in the panel is written ABOUT something — the subject the
+ * answer was scoped to. That context exists at the moment it is typed and was
+ * being discarded, which is why a written card rendered as a bare line of text
+ * beside engine cards carrying a breadcrumb and four figures.
+ *
+ * "There is nothing to check it against" was true of the CLAIM and false of the
+ * CONTEXT. The reader's sentence cannot be verified; the numbers they were
+ * looking at when they wrote it absolutely can, and they belong on the card.
+ */
+export function figuresFor(
+  target: { kind: Target['kind']; id: string },
+  range: Range = 30,
+): { scope: string[]; channel?: ChannelName; evidence: Evidence[] } {
+  if (target.kind === 'campaign') {
+    const c = CAMPAIGNS.find((x) => x.id === target.id);
+    if (c) {
+      const t = campaignTotals(c.id, range);
+      return {
+        scope: [CHANNEL_LABEL[c.channel], c.name],
+        channel: c.channel,
+        evidence: [
+          { label: 'Spend', value: formatMetric('Spend', t.spend) },
+          { label: 'Leads', value: Math.round(t.leads).toLocaleString() },
+          { label: 'CAC', value: formatDerived('CAC', t.cac) },
+          { label: 'ROAS', value: formatDerived('ROAS', t.roas) },
+        ],
+      };
+    }
+  }
+
+  if (target.kind === 'channel') {
+    const ch = target.id as ChannelName;
+    const t = totals(ch, range);
+    return {
+      scope: [CHANNEL_LABEL[ch]],
+      channel: ch,
+      evidence: [
+        { label: 'Spend', value: formatMetric('Spend', t.spend) },
+        { label: 'Leads', value: Math.round(t.leads).toLocaleString() },
+        { label: 'CAC', value: formatDerived('CAC', t.cac) },
+        { label: 'ROAS', value: formatDerived('ROAS', t.roas) },
+      ],
+    };
+  }
+
+  const t = totals('all', range);
+  return {
+    scope: ['This account'],
+    evidence: [
+      { label: 'Spend', value: formatMetric('Spend', t.spend) },
+      { label: 'Leads', value: Math.round(t.leads).toLocaleString() },
+      { label: 'Blended CAC', value: formatDerived('CAC', t.cac) },
+      { label: 'Blended ROAS', value: formatDerived('ROAS', t.roas) },
+    ],
+  };
+}
+
 /** Grouped for display, since the surface shows tiers as sections. */
 export function decisionsByTier(
   range: Range = 30,

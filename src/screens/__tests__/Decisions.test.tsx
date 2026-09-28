@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { Decisions } from '../Decisions';
-import { decisions } from '../../data/decisions';
+import { decisions, figuresFor } from '../../data/decisions';
 import { ALL_CHANNELS } from '../../data/blended';
 import { CHANNEL_KEYS, setActiveChannels } from '../../data/metrics';
 import { setChannels } from '../../data/channels';
@@ -386,28 +386,57 @@ describe('a taken decision is not offered again', () => {
   });
 });
 
-describe('a written decision carries what it honestly can', () => {
-  it('⭐ says whose it is and when it was made', () => {
+describe('⭐ a written decision carries the context it was written under', () => {
+  it('shows the same breadcrumb and figures an engine card does', () => {
     setChannels([...CHANNEL_KEYS]);
-    /* ⚠️ It rendered as a line of text and a Remove button — bare next to an
-       engine card. It cannot carry evidence (there is nothing to check it
-       against, and inventing a panel would be the card borrowing authority it
-       has not earned), but whose it is and when it was made are two facts that
-       DO exist. An empty card is not the same as an honest one. */
-    addFlag('decision', ownDecisionId('TEST THIS ONE'), 'TEST THIS ONE');
+    /* 🐛 It rendered as a line of text and a Remove button beside engine cards
+       carrying a breadcrumb and four figures. I had argued that was correct —
+       "there is nothing to check it against."
+
+       That was true of the CLAIM and false of the CONTEXT. A decision written in
+       the panel is written ABOUT something, and the numbers on screen at that
+       moment are as real as any the engine cites. Throwing them away is what made
+       the card look unfinished. */
+    const ctx = figuresFor({ kind: 'channel', id: 'meta' }, 30);
+    addFlag('decision', ownDecisionId('TEST SSS'), 'TEST SSS', {
+      scope: ctx.scope, channel: ctx.channel, evidence: ctx.evidence,
+    });
+
     const { container } = render(<Decisions range={30} />);
     const card = [...container.querySelectorAll('.gr-dec__card')]
-      .find((c) => c.textContent?.includes('TEST THIS ONE'))!;
-    expect(card.querySelector('.gr-dec__scope')?.textContent).toMatch(/Your decision/);
+      .find((c) => c.textContent?.includes('TEST SSS'))!;
+
+    expect(card.querySelector('.gr-dec__scope')?.textContent).toMatch(/Meta/);
     expect(card.querySelector('.gr-dec__scope')?.textContent).toMatch(/decided/);
+    /* The figures grid, same element the engine cards use. */
+    expect(card.querySelectorAll('.gr-dec__evidence dt').length).toBe(ctx.evidence.length);
+    expect(card.textContent).toMatch(/CAC/);
   });
 
-  it('still shows no evidence panel', () => {
+  it('⚠️ renders what was CAPTURED, not what is true now', () => {
     setChannels([...CHANNEL_KEYS]);
-    addFlag('decision', ownDecisionId('No evidence here'), 'No evidence here');
+    /* The figures are what the reader was looking at when they decided. Looking
+       them up at render time would quietly restate the decision against numbers
+       that have moved since. */
+    addFlag('decision', ownDecisionId('Frozen figures'), 'Frozen figures', {
+      scope: ['Meta'], channel: 'meta',
+      evidence: [{ label: 'CAC', value: '$99.99' }],
+    });
     const { container } = render(<Decisions range={30} />);
     const card = [...container.querySelectorAll('.gr-dec__card')]
-      .find((c) => c.textContent?.includes('No evidence here'))!;
+      .find((c) => c.textContent?.includes('Frozen figures'))!;
+    expect(card.textContent).toContain('$99.99');
+  });
+
+  it('a decision written with no subject still renders cleanly', () => {
+    setChannels([...CHANNEL_KEYS]);
+    /* Context is optional — an older flag, or one written outside the panel,
+       must not break the card. */
+    addFlag('decision', ownDecisionId('Bare one'), 'Bare one');
+    const { container } = render(<Decisions range={30} />);
+    const card = [...container.querySelectorAll('.gr-dec__card')]
+      .find((c) => c.textContent?.includes('Bare one'))!;
+    expect(card).toBeDefined();
     expect(card.querySelector('.gr-dec__evidence')).toBeNull();
   });
 });

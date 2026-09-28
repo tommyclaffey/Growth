@@ -1,15 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { useOverlay } from '../../data/useOverlay';
 import './Assistant.css';
-import { SUGGESTIONS, type Answer } from '../../data/assistant';
-import type { Target } from '../../data/decisions';
+import { SUGGESTIONS, resolveSubject, type Answer } from '../../data/assistant';
+import { figuresFor, type Target } from '../../data/decisions';
 import { addFlag, isFlagged, ownDecisionId, removeFlag, useFlags } from '../../data/attention';
 import { askAssistant, probeModel, type AnswerSource } from '../../data/assistantClient';
 import { RANGE_LABEL, type Range } from '../../data/metrics';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
 
 
-interface Turn { id: number; question: string; answer: Answer; source: AnswerSource }
+interface Turn {
+  id: number;
+  question: string;
+  answer: Answer;
+  source: AnswerSource;
+  /* What the answer was ABOUT, kept so a decision written from it inherits the
+     same context an engine finding would carry. */
+  subject?: Target;
+}
 
 export interface AssistantProps {
   open: boolean;
@@ -100,7 +108,12 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
       /* The probe can be optimistic — a key can be present but the call can still
          fail and fall back. Let what actually happened correct the claim. */
       if (src === 'local' && hasModel) setHasModel(false);
-      setTurns((prev) => [...prev, { id: prev.length, question: q, answer, source: src }]);
+      setTurns((prev) => [...prev, {
+        id: prev.length, question: q, answer, source: src,
+        /* Resolved the same way the request was scoped, so the turn remembers
+           what it was about. */
+        subject: subject ?? resolveSubject(q),
+      }]);
     } finally {
       setPending(null);
     }
@@ -248,7 +261,14 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                         asked for either — the panel offering to record a decision
                         before they had decided anything. The link is the offer;
                         the form is the response to it. */}
-                    <OwnDecision offered={t.answer.decisions.length > 0} />
+                    {/* The subject this answer was about travels with the
+                        decision, so a written one lands with the same context an
+                        engine one carries. */}
+                    <OwnDecision
+                      offered={t.answer.decisions.length > 0}
+                      subject={t.subject}
+                      range={range}
+                    />
                   </div>
                 )}
 
@@ -350,7 +370,11 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
  *
  * Deliberately small and last: it is the escape hatch, not the primary path.
  */
-function OwnDecision({ offered }: { offered: boolean }) {
+function OwnDecision({ offered, subject, range }: {
+  offered: boolean;
+  subject?: Target;
+  range: Range;
+}) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   /* What was written from THIS answer, so it can stay previewed. */
@@ -364,7 +388,17 @@ function OwnDecision({ offered }: { offered: boolean }) {
        accepted proposal, because "I decided this" and "I agreed with the engine"
        are different claims and the queue already separates the kinds of
        attention it holds. */
-    addFlag('decision', id, v);
+    /* ⭐ The figures the reader was looking at when they decided — captured
+       NOW, not looked up when the card renders. Re-deriving later would restate
+       the decision against numbers that have since moved. */
+    const ctx = figuresFor(
+      subject ?? { kind: 'account', id: 'account' }, range,
+    );
+    addFlag('decision', id, v, {
+      scope: ctx.scope,
+      channel: ctx.channel,
+      evidence: ctx.evidence,
+    });
     setAdded((prev) => (prev.some((a) => a.id === id) ? prev : [...prev, { id, label: v }]));
     setText('');
     setOpen(false);
