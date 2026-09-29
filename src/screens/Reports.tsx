@@ -16,8 +16,9 @@ import {
   CHANNEL_LABEL, DAY_LABELS, delta, formatMetric, totals, type Range,
 } from '../data/metrics';
 import type { ChannelName } from '../styles/tokens';
+import type { ReportRef } from '../data/chat';
 import {
-  WINDOW, addReport, exportChannels, formatRun, nextRun, removeReport, scopeLabel,
+  WINDOW, addReport, exportChannels, formatRun, nextRun, removeReport, scopeLabel, snapshot,
   setReportStage, useReports, type Cadence, type Report,
 } from '../data/reports';
 
@@ -45,7 +46,12 @@ function windowLabel(range: Range, back = 0): string {
  * and open a spreadsheet. Preview shows the actual figures, built from the same
  * functions as the CSV, so the preview and the file cannot disagree.
  */
-export function Reports() {
+export interface ReportsProps {
+  /** Stages a report's current figures in team chat -- pick the conversation, send. */
+  onSend?: (r: ReportRef) => void;
+}
+
+export function Reports({ onSend }: ReportsProps = {}) {
   const list = useReports();
   const active = useChannels();
   const [creating, setCreating] = useState(false);
@@ -119,6 +125,9 @@ export function Reports() {
             <Button variant="primary" onClick={() => setCreating(true)}>New report</Button>
           )}
         </header>
+        {/* Scrolls sideways rather than clipping when the chat panel narrows
+            the page -- the Export column was being cut off behind it. */}
+        <div className="gr-table-scroll">
         <table className="gr-table">
           <thead>
             <tr className="gr-type-overline">
@@ -204,7 +213,7 @@ export function Reports() {
                   {isOpen && (
                     <tr className="gr-report-preview-row">
                       <td colSpan={6} id={panel}>
-                        <Preview report={r} channels={run} />
+                        <Preview report={r} channels={run} onSend={onSend} />
                       </td>
                     </tr>
                   )}
@@ -213,6 +222,7 @@ export function Reports() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </>
   );
@@ -223,7 +233,9 @@ export function Reports() {
  * the window before it. Plus the controls that change the report itself, kept
  * here rather than crowding every row with four buttons.
  */
-function Preview({ report: r, channels }: { report: Report; channels: ChannelName[] | null }) {
+function Preview({ report: r, channels, onSend }: {
+  report: Report; channels: ChannelName[] | null; onSend?: (r: ReportRef) => void;
+}) {
   const range = WINDOW[r.cadence];
 
   return (
@@ -236,6 +248,11 @@ function Preview({ report: r, channels }: { report: Report; channels: ChannelNam
           </p>
         </div>
         <span className="gr-spacer" />
+        {/* ⭐ Into the team's conversation, now -- the schedule cannot send
+            without a mail server, but the team channel is right here. */}
+        {onSend && channels && (
+          <Button variant="primary" onClick={() => onSend(snapshot(r, channels))}>Send to chat</Button>
+        )}
         {r.stage === 'Active' && (
           <Button variant="ghost" onClick={() => setReportStage(r.id, 'Paused')}>Pause</Button>
         )}

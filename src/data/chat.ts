@@ -80,6 +80,24 @@ export interface Message {
   view?: ViewRef;
   /** A decision shared into the conversation -- see DecisionRef. */
   decision?: DecisionRef;
+  /** A report sent into the conversation -- see ReportRef. */
+  report?: ReportRef;
+}
+
+/**
+ * A report, sent to the team as a message.
+ *
+ * ⭐ A SNAPSHOT: the figures as they were when it was sent, formatted. A report
+ * is a record of what the team was told -- re-reading live numbers into an old
+ * message would quietly rewrite what was said.
+ */
+export interface ReportRef {
+  id: string;
+  name: string;
+  /** "Aug 6 – Aug 12, compared with Jul 30 – Aug 5" */
+  window: string;
+  rows: { channel: string; spend: string; leads: string; cac: string; change: string }[];
+  total?: { spend: string; leads: string; cac: string };
 }
 
 /**

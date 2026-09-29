@@ -374,3 +374,13 @@
 }
 .gr-chat__decision-open:hover { text-decoration: underline; }
 .gr-chat__decision-open:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+.gr-chat__report { border-left-color: var(--semantic-good); }
+.gr-chat__report-table { width: 100%; margin-top: var(--space-8); border-collapse: collapse; color: var(--text-secondary); }
+.gr-chat__report-table th { text-align: left; font-weight: 500; color: var(--text-primary); padding: 2px var(--space-6) 2px 0; }
+.gr-chat__report-table td { padding: 2px var(--space-6); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gr-chat__report-table tr.is-total th, .gr-chat__report-table tr.is-total td {
+  border-top: var(--border-width-sm) solid var(--border-subtle); color: var(--text-primary); padding-top: var(--space-4);
+}
+.gr-chat__report-table thead th { color: var(--text-muted); font-weight: 400; padding-bottom: var(--space-2); }
+.gr-chat__report-chg { color: var(--text-muted); }

@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import type { ChannelName } from '../styles/tokens';
 import type { Stage } from '../components/StatusPill/StatusPill';
-import { CHANNEL_KEYS, CHANNEL_LABEL, PERIOD_END, type Range } from './metrics';
+import { CHANNEL_KEYS, CHANNEL_LABEL, DAY_LABELS, PERIOD_END, delta, formatMetric, totals, type Range } from './metrics';
+import type { ReportRef } from './chat';
 
 /**
  * Scheduled reports.
@@ -226,4 +227,37 @@ function subscribe(fn: () => void) {
 
 export function useReports(): Report[] {
   return useSyncExternalStore(subscribe, reports, () => SEED);
+}
+
+/**
+ * What a report says right now, frozen for sending -- the same figures the
+ * Preview panel shows, formatted once.
+ */
+export function snapshot(r: Report, channels: ChannelName[]): ReportRef {
+  const range = WINDOW[r.cadence];
+  const n = DAY_LABELS.length;
+  const win = `${DAY_LABELS[n - range]} – ${DAY_LABELS[n - 1]}, compared with ${DAY_LABELS[n - 2 * range]} – ${DAY_LABELS[n - range - 1]}`;
+  const rows = channels.map((c) => {
+    const t = totals(c, range);
+    const d = delta(c, 'CAC', range);
+    return {
+      channel: CHANNEL_LABEL[c],
+      spend: formatMetric('Spend', t.spend),
+      leads: Math.round(t.leads).toLocaleString(),
+      cac: formatMetric('CAC', t.cac),
+      change: `${d > 0 ? '+' : ''}${d}% CAC`,
+    };
+  });
+  const sum = channels.reduce((a, c) => {
+    const t = totals(c, range);
+    return { spend: a.spend + t.spend, leads: a.leads + t.leads };
+  }, { spend: 0, leads: 0 });
+  return {
+    id: r.id, name: r.name, window: win, rows,
+    total: channels.length > 1 ? {
+      spend: formatMetric('Spend', sum.spend),
+      leads: Math.round(sum.leads).toLocaleString(),
+      cac: formatMetric('CAC', sum.leads > 0 ? sum.spend / sum.leads : 0),
+    } : undefined,
+  };
 }

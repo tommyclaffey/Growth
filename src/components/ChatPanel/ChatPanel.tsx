@@ -21,7 +21,7 @@ import { Button } from '../Button/Button';
 import { getDraft, setDraft as saveDraft } from '../../data/drafts';
 import {
   ME, groupMessages, nowLabel,
-  type DecisionRef, type Member, type Message, type ViewRef,
+  type DecisionRef, type Member, type Message, type ReportRef, type ViewRef,
 } from '../../data/chat';
 import {
   CHANNEL_LABEL, METRICS, rangeLabel, delta, totals,
@@ -58,6 +58,9 @@ export interface ChatPanelProps {
   onClearPendingDecision?: () => void;
   /** "Open in Decisions" on a decision in the thread. */
   onOpenDecision?: () => void;
+  /** A report staged for sending -- "Send to chat" on a report preview. */
+  pendingReport?: ReportRef | null;
+  onClearPendingReport?: () => void;
 }
 
 /**
@@ -72,6 +75,7 @@ export interface ChatPanelProps {
 export function ChatPanel({
   onClose, pending, onClearPending, initialConversationId, onOpenView,
   pendingDecision = null, onClearPendingDecision, onOpenDecision,
+  pendingReport = null, onClearPendingReport,
 }: ChatPanelProps) {
   const [pendingFail, setPendingFail] = useState<string | null>(null);
   const [source, setSource] = useState<ChatSource>('seed');
@@ -341,12 +345,19 @@ export function ChatPanel({
   async function send() {
     if (!openId || !open) return;
     const body = draft.trim();
-    if (!body && !pending && !pendingDecision) return;
-    const text = body || (pendingDecision ? 'Sharing this decision.' : 'Sharing this view.');
-    /* Slack sees the decision as a line of text -- it has no card for it. The
+    if (!body && !pending && !pendingDecision && !pendingReport) return;
+    const text = body || (pendingReport ? `${pendingReport.name}.`
+      : pendingDecision ? 'Sharing this decision.' : 'Sharing this view.');
+    /* Slack sees attachments as lines of text -- it has no card for them. The
        card is Growth's; the words are for everyone. */
-    const slackText = pendingDecision ? `${text}\n📌 Decision: ${pendingDecision.label}` : text;
+    const slackText = pendingReport
+      ? [text, pendingReport.window,
+          ...pendingReport.rows.map((r) => `• ${r.channel}: ${r.spend} spend, ${r.leads} leads, ${r.cac} CAC (${r.change})`),
+          ...(pendingReport.total ? [`Total: ${pendingReport.total.spend}, ${pendingReport.total.leads} leads, ${pendingReport.total.cac} CAC`] : []),
+        ].join('\n')
+      : pendingDecision ? `${text}\n📌 Decision: ${pendingDecision.label}` : text;
     const sharedDecision = pendingDecision ?? undefined;
+    const sharedReport = pendingReport ?? undefined;
 
     appendMessage(openId, {
       id: `local-${Date.now()}`,
@@ -356,6 +367,7 @@ export function ChatPanel({
       minutesAgo: 0,
       view: pending ?? undefined,
       decision: sharedDecision,
+      report: sharedReport,
       /* Pending until Slack echoes it back. This is what stops the 3s sync
          from treating a message Slack never received as one it deleted. */
       pending: true,
@@ -364,6 +376,7 @@ export function ChatPanel({
     setTick((n) => n + 1);
     onClearPending();
     onClearPendingDecision?.();
+    onClearPendingReport?.();
 
     if (source !== 'slack') return;
 
@@ -506,6 +519,7 @@ export function ChatPanel({
                     <p className="gr-type-body">{renderBody(m.body)}</p>
                     {m.view && <ViewCard view={m.view} onOpen={onOpenView} />}
                     {m.decision && <DecisionAttachment decision={m.decision} onOpen={onOpenDecision} />}
+                    {m.report && <ReportAttachment report={m.report} />}
                   </div>
                 ))}
               </div>
@@ -516,6 +530,13 @@ export function ChatPanel({
       </div>
 
       <div className="gr-chat__composer">
+        {pendingReport && (
+          <div className="gr-chat__attachment">
+            <ReportAttachment report={pendingReport} />
+            <button type="button" className="gr-chat__unattach" onClick={onClearPendingReport}
+                    aria-label="Remove attached report">✕</button>
+          </div>
+        )}
         {pendingDecision && (
           <div className="gr-chat__attachment">
             <DecisionAttachment decision={pendingDecision} />
@@ -617,6 +638,34 @@ function DecisionAttachment({ decision: d, onOpen }: { decision: DecisionRef; on
           Open in Decisions →
         </button>
       )}
+    </div>
+  );
+}
+
+/** A report in the thread: its window and each channel's line, as sent. */
+function ReportAttachment({ report: r }: { report: ReportRef }) {
+  return (
+    <div className="gr-chat__decision gr-chat__report">
+      <p className="gr-type-overline gr-chat__decision-kind">📊 Report</p>
+      <p className="gr-type-body-medium gr-chat__decision-label">{r.name}</p>
+      <p className="gr-type-caption gr-chat__decision-meta">{r.window}</p>
+      <table className="gr-chat__report-table gr-type-caption">
+        <thead><tr><th scope="col" /><th scope="col">Spend</th><th scope="col">Leads</th><th scope="col">CAC · vs prior</th></tr></thead>
+        <tbody>
+          {r.rows.map((row) => (
+            <tr key={row.channel}>
+              <th scope="row">{row.channel}</th><td>{row.spend}</td><td>{row.leads}</td>
+              {/* CAC and its change in one cell -- five columns did not fit
+                  the chat panel and the change was cut off at the edge. */}
+              <td>{row.cac} <span className="gr-chat__report-chg">{row.change.replace(' CAC', '')}</span></td>
+            </tr>
+          ))}
+          {r.total && (
+            <tr className="is-total"><th scope="row">Total</th><td>{r.total.spend}</td>
+              <td>{r.total.leads}</td><td>{r.total.cac}</td></tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }

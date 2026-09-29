@@ -64,3 +64,31 @@ describe('decisions reach people', () => {
     expect(screen.getAllByText(action).length).toBeGreaterThan(0);
   });
 });
+
+describe('reports reach the team', () => {
+  it('a snapshot freezes the Preview figures, formatted', async () => {
+    const { reports, snapshot } = await import('../data/reports');
+    const r = reports().find((x) => x.name === 'Creator channel blended')!;
+    const s = snapshot(r, ['tiktok', 'youtube']);
+    expect(s.window).toMatch(/Jul 14 – Aug 12, compared with Jun 14 – Jul 13/);
+    expect(s.rows.map((x) => x.channel)).toEqual(['TikTok', 'YouTube']);
+    expect(s.total?.spend).toBe('$50,580');
+  });
+
+  it('⭐ Send to chat stages the report; Send puts it in the conversation', async () => {
+    setChannels([...CHANNEL_KEYS]);
+    window.history.replaceState(null, '', '/?v=reports');
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Preview Meta deep dive' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send to chat' }));
+    const chat = await waitFor(() => container.querySelector('.gr-chat') as HTMLElement);
+    const conv = await waitFor(() => within(chat).getAllByRole('button')
+      .find((b) => /growth-analytics/.test(b.textContent ?? ''))!);
+    fireEvent.click(conv);
+    await waitFor(() => expect(chat.querySelector('.gr-chat__attachment .gr-chat__report')).not.toBeNull());
+    fireEvent.click(within(chat).getByRole('button', { name: 'Send' }));
+    const sent = allConversations().flatMap((c) => c.messages).find((m) => m.report?.name === 'Meta deep dive');
+    expect(sent?.body).toBe('Meta deep dive.');
+    expect(sent?.report?.rows[0].channel).toBe('Meta');
+  });
+});

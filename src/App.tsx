@@ -52,7 +52,7 @@ import {
 import { onAttentionStrip, removeFlag, restoreFlag, useFlags, type Flag } from './data/attention';
 import { readUrlState, writeUrlState } from './data/urlState';
 import type { ChannelName } from './styles/tokens';
-import type { DecisionRef, ViewRef } from './data/chat';
+import type { DecisionRef, ReportRef, ViewRef } from './data/chat';
 import { MEMBERS, readDeepLink } from './data/chat';
 
 /* The alerts, with the view each one points at.
@@ -104,6 +104,7 @@ export default function App() {
   /* A decision staged in team chat by "Share" -- the same pattern as a view
      staged by "Discuss": chat opens, you pick the conversation, you send. */
   const [pendingDecision, setPendingDecision] = useState<DecisionRef | null>(null);
+  const [pendingReport, setPendingReport] = useState<ReportRef | null>(null);
   const [assistOpen, setAssistOpen] = useState(false);
   /* A question staged for the assistant by another screen. Cleared once asked. */
   const [assistSeed, setAssistSeed] = useState<string | null>(null);
@@ -858,7 +859,7 @@ export default function App() {
             />
           )}
 
-          {nav === 'reports' && <Reports />}
+          {nav === 'reports' && <Reports onSend={(r) => { setPendingReport(r); setChatOpen(true); }} />}
           {nav === 'notifications' && (
             <Notifications
               onOpenDecisions={() => { setCampaignId(null); setAdSetId(null); setAdId(null); setNav('decisions'); }}
@@ -906,6 +907,8 @@ export default function App() {
           onClearPending={() => setPendingView(null)}
           pendingDecision={pendingDecision}
           onClearPendingDecision={() => setPendingDecision(null)}
+          pendingReport={pendingReport}
+          onClearPendingReport={() => setPendingReport(null)}
           onOpenDecision={() => { setCampaignId(null); setAdSetId(null); setAdId(null); setNav('decisions'); }}
           initialConversationId={deepLink?.conversationId ?? null}
           onOpenView={applyView}

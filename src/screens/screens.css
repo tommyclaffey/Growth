@@ -158,7 +158,7 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
   border-radius: var(--radius-lg);
   background: var(--surface-page-top);
 }
-.gr-report-preview__head { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-12); }
+.gr-report-preview__head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-8); margin-bottom: var(--space-12); }
 /* `.gr-spacer` only flexes inside .gr-section-head, so Pause sat against the
    title instead of at the right edge. */
 .gr-report-preview__head .gr-spacer { flex: 1; }
