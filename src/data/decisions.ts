@@ -772,9 +772,12 @@ function pacing(range: Range, channels: ChannelName[]): Candidate[] {
       checkOn: checkDate(7),
     },
     /* The account is a scope, not the absence of one. Saying so beats an empty
-       breadcrumb, which reads as missing data rather than as "everything". */
-    target: { kind: 'account', id: 'account', label: 'This account' },
-    scope: ['This account'],
+       breadcrumb, which reads as missing data rather than as "everything".
+       ⚠️ "All channels", the words the switcher, chat and export already use.
+       It said "This account", which Tommy read as meaning nothing -- one more
+       name for one thing. */
+    target: { kind: 'account', id: 'account', label: 'All channels' },
+    scope: ['All channels'],
     strength: Math.min(1, Math.abs(ratio - 1) / 0.5),
   }];
 }
@@ -1029,7 +1032,7 @@ export function figuresFor(
 
   const t = totals('all', range);
   return {
-    scope: ['This account'],
+    scope: ['All channels'],
     evidence: [
       { label: 'Spend', value: formatMetric('Spend', t.spend) },
       { label: 'Leads', value: Math.round(t.leads).toLocaleString() },

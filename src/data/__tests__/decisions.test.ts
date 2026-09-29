@@ -86,7 +86,7 @@ describe('🚨 the tier contract — the load-bearing claim', () => {
     const base: Candidate = {
       id: 'x', tier: 1, kind: 'pacing', action: 'a', because: 'b',
       evidence: [], target: { kind: 'account', id: 'a', label: 'A' },
-      scope: ['This account'], strength: 0.5,
+      scope: ['All channels'], strength: 0.5,
     };
     expect(validate({ ...base, tier: 2, expectation: { outcome: 'o', checkOn: '2026-10-27' } }))
       .toMatch(/no stated assumption/);
@@ -394,12 +394,12 @@ describe('every decision says where it lives', () => {
     }
   });
 
-  it('an account-level decision says "This account" rather than nothing', () => {
+  it('an account-level decision says "All channels" rather than nothing', () => {
     reset();
     /* An empty breadcrumb reads as missing data. The account is a scope, not the
        absence of one. */
     for (const c of all().filter((x) => x.target.kind === 'account')) {
-      expect(c.scope).toEqual(['This account']);
+      expect(c.scope).toEqual(['All channels']);
       expect(c.channel).toBeUndefined();
     }
   });

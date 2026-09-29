@@ -501,7 +501,7 @@ describe('a decision is identified the same way wherever you meet it', () => {
       .find((d) => /pacing/i.test(d.action));
     if (!pacing) return;
     /* The account is a scope, not the absence of one. */
-    expect(pacing.context).toBe('This account');
+    expect(pacing.context).toBe('All channels');
   });
 
   it('context matches the candidate it came from', () => {
