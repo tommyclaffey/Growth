@@ -252,9 +252,14 @@ export function compareShift(p: ComparePeriod): number {
   if (p === 'week') return 7;
   const endIso = DAY_ISO[DAY_ISO.length - 1 - WINDOW_END];
   const end = new Date(`${endIso}T00:00:00Z`);
-  const then = new Date(end);
-  if (p === 'month') then.setUTCMonth(then.getUTCMonth() - 1);
-  else then.setUTCFullYear(then.getUTCFullYear() - 1);
+  /* 🐛 setUTCMonth(m - 1) ROLLS OVER when the earlier month is shorter: Mar 31
+     became "Feb 31" = Mar 3, so "last month" for Mar 1-31 compared against
+     Feb 1 - Mar 3 -- overlapping the window itself. Clamped to the earlier
+     month's last day (and Feb 29 to Feb 28 for a year). */
+  const y = end.getUTCFullYear() - (p === 'year' ? 1 : 0);
+  const m = end.getUTCMonth() - (p === 'month' ? 1 : 0);
+  const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  const then = new Date(Date.UTC(y, m, Math.min(end.getUTCDate(), lastDay)));
   return Math.round((end.getTime() - then.getTime()) / 86_400_000);
 }
 
@@ -708,7 +713,10 @@ export function deltaTone(percent: number, better = true): Tone {
  * window or its figure is 0 -- there is nothing to compare against.
  */
 export function changeOf(metric: DerivedMetric, current: DayRow[], prior: DayRow[]): number {
-  if (current.length === 0 || prior.length === 0) return 0;
+  /* NaN, not 0, when there is nothing to compare: 0 renders "0% -- no
+     change", a claim; NaN renders a dash. (A custom window at the start of the
+     data has no window before it.) */
+  if (current.length === 0 || prior.length === 0) return NaN;
   const sum = (rs: DayRow[]) => rs.reduce<DayRow>((a, r) => ({
     spend: a.spend + r.spend, impressions: a.impressions + r.impressions,
     clicks: a.clicks + r.clicks, leads: a.leads + r.leads,
@@ -719,9 +727,9 @@ export function changeOf(metric: DerivedMetric, current: DayRow[], prior: DayRow
      window unable to report the metric means there is no change to state.
      (The collapse itself is still reported -- by Leads, at −100%.) */
   const a = sum(prior); const b = sum(current);
-  if (!reportable(metric, a) || !reportable(metric, b)) return 0;
+  if (!reportable(metric, a) || !reportable(metric, b)) return NaN;
   const before = valueOf(metric, a);
-  if (before === 0) return 0;
+  if (before === 0) return NaN;
   const now = valueOf(metric, b);
   return Math.round(((now - before) / before) * 100);
 }
@@ -766,7 +774,9 @@ export function sparkline(scope: Scope, metric: Metric, range: Range = 30, point
 
 /** The raw funnel rows behind a view, with their labels. Used by the export. */
 export function rows(scope: Scope, range: Range = 30) {
-  const labels = DAY_LABELS.slice(-range);
+  /* 🐛 Was DAY_LABELS.slice(-range): under custom dates every CSV row carried
+     the date 12 days AFTER its data. The window owns the labels too. */
+  const labels = windowLabels(range);
   return rowsFor(scope, range).map((r, i) => ({ label: labels[i], ...r }));
 }
 

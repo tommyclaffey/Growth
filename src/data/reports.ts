@@ -259,7 +259,7 @@ export function snapshot(r: Report, channels: ChannelName[]): ReportRef {
       leads: Math.round(t.leads).toLocaleString(),
       /* No leads: no CAC, and no change in it -- a dash, never "$0.00" or "−100%". */
       cac: t.leads > 0 ? formatMetric('CAC', t.cac) : '—',
-      change: t.leads > 0 ? `${d > 0 ? '+' : ''}${d}% CAC` : '—',
+      change: t.leads > 0 && Number.isFinite(d) ? `${d > 0 ? '+' : ''}${d}% CAC` : '—',
     };
   });
   const sum = channels.reduce((a, c) => {

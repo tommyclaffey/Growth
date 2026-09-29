@@ -762,13 +762,14 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
     const change = delta(scope, metric, range);
     const value = valueOf(scope, metric, range);
     const name = scope === 'all' ? 'Blended' : CHANNEL_LABEL[scope as ChannelName];
-    const dir = change === 0 ? 'flat' : change > 0 ? `up ${change}%` : `down ${Math.abs(change)}%`;
+    const dir = !Number.isFinite(change) ? 'with no earlier period of the same length to compare against'
+      : change === 0 ? 'flat' : change > 0 ? `up ${change}%` : `down ${Math.abs(change)}%`;
     return {
       answered: true,
-      text: `${name} ${metric} is ${formatMetric(metric, value)} over ${periodOver}, ${dir} against the preceding period. I can tell you that it moved and by how much. I cannot tell you why — this data has no campaign changes, creative refreshes or auction pressure in it, so anything I said about cause would be invention.`,
+      text: `${name} ${metric} is ${formatMetric(metric, value)} over ${periodOver}, ${Number.isFinite(change) ? `${dir} against the preceding period` : dir}. I can tell you that it moved and by how much. I cannot tell you why — this data has no campaign changes, creative refreshes or auction pressure in it, so anything I said about cause would be invention.`,
       evidence: [
         { label: `${name} ${metric}`, value: formatMetric(metric, value), channel: scope },
-        { label: 'Change vs prior period', value: `${change > 0 ? '+' : ''}${change}%`, channel: scope },
+        { label: 'Change vs prior period', value: Number.isFinite(change) ? `${change > 0 ? '+' : ''}${change}%` : '—', channel: scope },
       ],
     };
   }

@@ -177,7 +177,7 @@ describe('the vocabulary adapts to what is switched on', () => {
   it('an empty account has no metrics rather than throwing', () => {
     expect(blendedMetrics([])).toEqual([]);
     expect(blendedTotal('Spend', [], 30)).toBe(0);
-    expect(blendedDelta('Spend', [], 30)).toBe(0);
+    expect(blendedDelta('Spend', [], 30)).toBeNaN();   // nothing to compare -- a dash, not 0%
   });
 
   it('headline order is the funnel, and ends on the outcome metrics', () => {
