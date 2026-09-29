@@ -244,3 +244,15 @@
    it started at the Spend column, because the row header is a th. */
 .gr-table .gr-table__total td { border-bottom: none; }
 .gr-table__total td:last-child { text-align: right; padding-right: 0; }
+
+/* The LAST NUMERIC column reads to the right, whether or not the hidden
+   Discuss column follows it. :last-child alone right-aligned the Discuss
+   column instead -- so ROAS sat left-aligned beside 96px of nothing on
+   Campaigns, and right-aligned on the Meta page, in the same component. */
+.gr-table td:has(+ .gr-table__ask),
+.gr-table th:has(+ .gr-table__ask) { text-align: right; }
+.gr-table td:has(+ .gr-table__ask) .gr-spark { margin-left: auto; }
+
+/* Figures in columns: every digit the same width, so $61,240 sits directly
+   over $28,110. The Ads table already did this; the others did not. */
+.gr-table td { font-variant-numeric: tabular-nums; }

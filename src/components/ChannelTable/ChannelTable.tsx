@@ -185,7 +185,7 @@ export function ChannelTable({
             {/* An unlabelled column, because the button says what it does and a
                 header reading "Ask" above six Ask buttons is noise. Named for
                 assistive tech instead of visually. */}
-            {onAskAbout && <th scope="col"><span className="gr-sr-only">Discuss</span></th>}
+            {onAskAbout && <th scope="col" className="gr-table__ask"><span className="gr-sr-only">Discuss</span></th>}
           </tr>
         </thead>
         <tbody>

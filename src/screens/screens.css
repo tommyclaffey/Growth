@@ -399,6 +399,7 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 
 /* A narrow, right-aligned ordinal. Tabular so the numbers line up as the list
    passes 9 and the digits change width. */
+.gr-table thead th.gr-ads__rank { text-align: right; }   /* over its right-aligned digits; .gr-table thead th out-specified it */
 .gr-ads__rank {
   width: 2.5rem;
   text-align: right;
