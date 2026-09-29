@@ -1,6 +1,6 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
+import { requester } from './auth.js';
 import { escapeHtml, pathOf, send } from './http.js';
 
 /**
@@ -8,8 +8,7 @@ import { escapeHtml, pathOf, send } from './http.js';
  *
  * The API holds a real Slack user token and a paid Anthropic key, and the dev
  * server is sometimes public through a Cloudflare tunnel -- whose URL is not a
- * secret: "Open in Growth" links post it into Slack. Until this existed, anyone
- * with that URL could read the connected person's DMs and post as them.
+ * secret: "Open in Growth" links post it into Slack.
  *
  * Three rules, in order:
  *
@@ -19,49 +18,24 @@ import { escapeHtml, pathOf, send } from './http.js';
  *      navigations are allowed (that is how OAuth providers send people back).
  *   2. POSTS ARE JSON. A form or text/plain POST is exactly the no-preflight
  *      shape a hostile page uses; the app itself only ever sends JSON.
- *   3. REMOTE NEEDS THE KEY. Requests from this machine are trusted, as before.
- *      Through the tunnel, a request needs the cookie set by visiting
- *      /api/access?key=<GROWTH_ACCESS_KEY> once. No key configured = remote API
- *      access is off, and says so.
+ *   3. SIGNED IN. Every route needs a session -- on this machine too, since
+ *      Sept 29: a login is who you are, and the Slack and model routes act AS
+ *      you. (This replaced a shared tunnel key: one system per job.)
  *
- * Exempt from 3 -- each is verified another way:
+ * Exempt from 3 -- each is verified another way, or is how you sign in:
+ *   /api/auth/*           signing in, and the "is there a server" probe
  *   /api/slack/events     Slack's signature over the raw body
- *   /api/slack/callback   the OAuth state minted on this machine
- *   /api/connect/callback the OAuth state minted on this machine
+ *   /api/slack/callback   the OAuth state minted by a signed-in request
+ *   /api/connect/callback the OAuth state minted by a signed-in request
  */
 
-const COOKIE = 'growth_access';
-const EXEMPT_REMOTE = new Set(['/api/slack/events', '/api/slack/callback', '/api/connect/callback']);
+const EXEMPT_SESSION = ['/api/auth/', '/api/slack/events', '/api/slack/callback', '/api/connect/callback'];
 const EXEMPT_JSON = new Set(['/api/slack/events']);
-
-const LOOPBACK = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])(:\d+)?$/i;
-
-/** Came from this machine, not through a tunnel or proxy. */
-export function isLocal(req: IncomingMessage): boolean {
-  const h = req.headers;
-  if (h['cf-connecting-ip'] || h['x-forwarded-for'] || h['x-forwarded-host']) return false;
-  return LOOPBACK.test(String(h.host ?? ''));
-}
-
-const digest = (key: string) => createHash('sha256').update(`growth-access:${key}`).digest('hex');
-
-function same(a: string, b: string): boolean {
-  const x = Buffer.from(a); const y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
-}
-
-function cookieOf(req: IncomingMessage, name: string): string | undefined {
-  for (const part of String(req.headers.cookie ?? '').split(';')) {
-    const [k, ...v] = part.trim().split('=');
-    if (k === name) return decodeURIComponent(v.join('='));
-  }
-  return undefined;
-}
 
 export type Verdict = { ok: true } | { ok: false; status: number; error: string };
 
 /** Pure decision, so it is tested without a server. */
-export function check(req: IncomingMessage, path: string, accessKey: string | undefined): Verdict {
+export function check(req: IncomingMessage, path: string, signedIn: boolean): Verdict {
   const h = req.headers;
   const method = (req.method ?? 'GET').toUpperCase();
 
@@ -89,16 +63,9 @@ export function check(req: IncomingMessage, path: string, accessKey: string | un
     }
   }
 
-  /* 3. Remote. */
-  if (isLocal(req) || EXEMPT_REMOTE.has(path) || path === '/api/access') return { ok: true };
-  if (!accessKey) {
-    return { ok: false, status: 403, error: 'Remote access to this API is off. Set GROWTH_ACCESS_KEY in .env.local to allow it.' };
-  }
-  const c = cookieOf(req, COOKIE);
-  if (!c || !same(c, digest(accessKey))) {
-    return { ok: false, status: 401, error: 'This API needs the access key. Open /api/access?key=… once in this browser.' };
-  }
-  return { ok: true };
+  /* 3. Signed in. */
+  if (signedIn || EXEMPT_SESSION.some((p) => (p.endsWith('/') ? path.startsWith(p) : path === p))) return { ok: true };
+  return { ok: false, status: 401, error: 'Sign in to Growth first.' };
 }
 
 function page(res: ServerResponse, status: number, title: string, body: string) {
@@ -120,21 +87,7 @@ export function accessGuard(): Plugin {
         const url = pathOf(req);
         if (!url) return send(res, 400, { error: 'Bad request.' });
         const path = `/api${url.pathname.replace(/\/$/, '')}`;
-        const key = process.env.GROWTH_ACCESS_KEY || undefined;
-
-        if (path === '/api/access' && req.method === 'GET') {
-          const given = url.searchParams.get('key') ?? '';
-          if (!key || !same(digest(given), digest(key))) {
-            return page(res, 403, 'That key did not work', 'Check GROWTH_ACCESS_KEY in .env.local.');
-          }
-          const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
-          res.setHeader('Set-Cookie', `${COOKIE}=${digest(key)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${secure}`);
-          res.statusCode = 302;
-          res.setHeader('Location', '/Growth/');
-          return res.end();
-        }
-
-        const v = check(req, path, key);
+        const v = check(req, path, Boolean(requester(req)));
         if (v.ok) return next();
         if (req.headers['sec-fetch-mode'] === 'navigate') return page(res, v.status, 'Not allowed', escapeHtml(v.error));
         return send(res, v.status, { error: v.error });

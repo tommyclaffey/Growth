@@ -25,12 +25,13 @@ let cached: boolean | null = null;
 
 export async function probeBackend(): Promise<boolean> {
   if (cached !== null) return cached;
-  try {
-    const res = await fetch('/api/slack/status', { method: 'GET' });
-    cached = res.ok;
-  } catch {
-    cached = false;
-  }
+  /* The sign-in probe answers this too: /api/auth/me is always 200 when a
+     server exists (signed in or not), and absent on the static build. One
+     request, one answer -- and /api/slack/status now needs a session, so it
+     would have read a signed-out server as "no server". */
+  const { refreshAuth } = await import('./auth');
+  const s = await refreshAuth();
+  cached = s.status !== 'no-server';
   return cached;
 }
 

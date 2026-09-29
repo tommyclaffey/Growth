@@ -1,0 +1,86 @@
+/* Sign in. Tokens only -- every value below is a variable the rest of the
+   product already uses. The page is the app's own page background; the card is
+   the app's own card, so signing in looks like arriving, not like a detour. */
+
+.gr-signin {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-48) var(--space-20);
+  background: linear-gradient(to bottom, var(--surface-page-top), var(--surface-page-bottom));
+}
+
+.gr-signin__card {
+  width: 100%;
+  /* A hair wider and a little shorter than first drawn (Tommy, Sept 29):
+     closer to square, so the card reads as one block, not a tall strip. */
+  max-width: 432px;
+  gap: var(--space-20);
+  padding: var(--space-28) var(--space-30);
+}
+
+.gr-signin__lockup { display: flex; align-items: center; gap: var(--space-8); }
+
+.gr-signin__head { display: flex; flex-direction: column; gap: var(--space-4); }
+.gr-signin__lede { color: var(--text-secondary); margin: 0; }
+.gr-signin__head h1 { margin: 0; }
+
+.gr-signin__providers { display: flex; flex-direction: column; gap: var(--space-8); }
+
+/* The Connect button's shape (Settings), at full width and button height:
+   10 + 20 + 10 = 40, on the 4px grid. */
+.gr-signin__provider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-10);
+  width: 100%;
+  padding: var(--space-10) var(--space-16);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: inherit;
+  position: relative;
+}
+.gr-signin__provider:hover { border-color: var(--border-strong); }
+.gr-signin__provider:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* A fixed box, so four marks of different proportions line up their labels. */
+.gr-signin__mark { width: 20px; height: 20px; display: grid; place-items: center; flex: none; }
+.gr-signin__mark img { display: block; }
+
+.gr-signin__or {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  color: var(--text-muted);
+}
+.gr-signin__or::before,
+.gr-signin__or::after {
+  content: '';
+  flex: 1;
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+}
+
+.gr-signin__form { display: flex; flex-direction: column; gap: var(--space-14); }
+/* The field's reserved message row is for per-field validation. This form
+   reports errors once, above the button -- so an EMPTY row here is only a
+   gap, and two of them read as the boxes drifting apart. A hint (the
+   password rule) still shows. */
+.gr-signin__form .gr-field__msg:empty { display: none; }
+.gr-signin__submit { width: 100%; justify-content: center; margin-top: var(--space-6); }
+.gr-signin__error { color: var(--semantic-bad); margin: 0; }
+
+.gr-signin__switch { color: var(--text-secondary); margin: 0; text-align: center; }
+.gr-signin__link {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--accent-text);
+  cursor: pointer;
+  font-family: inherit;
+}
+.gr-signin__link:hover { text-decoration: underline; }
+.gr-signin__link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-sm); }

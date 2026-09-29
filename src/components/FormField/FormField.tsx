@@ -8,7 +8,9 @@ export interface FormFieldProps {
   placeholder?: string;
   hint?: string;
   error?: string;
-  type?: 'text' | 'email' | 'number';
+  type?: 'text' | 'email' | 'number' | 'password';
+  /** Lets password managers fill it -- "email", "current-password", "new-password". */
+  autoComplete?: string;
   disabled?: boolean;
   /** Hides the label visually but keeps it for screen readers. */
   labelHidden?: boolean;
@@ -27,7 +29,7 @@ export interface FormFieldProps {
  */
 export function FormField({
   label, value, onChange, placeholder, hint, error,
-  type = 'text', disabled = false, labelHidden = false,
+  type = 'text', disabled = false, labelHidden = false, autoComplete,
 }: FormFieldProps) {
   const id = useId();
   const describedBy = error ? `${id}-msg` : hint ? `${id}-msg` : undefined;
@@ -44,6 +46,7 @@ export function FormField({
         value={value}
         placeholder={placeholder}
         disabled={disabled}
+        autoComplete={autoComplete}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         onChange={(e) => onChange(e.target.value)}
