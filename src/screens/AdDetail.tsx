@@ -62,7 +62,7 @@ export function AdDetail({ id, range, onBack, backLabel = 'Campaign' }: AdDetail
   /* Where this ad sits among the campaign's ads on the metric the objective is
      trying to move -- the same ranking the campaign page numbers its cards by,
      so #2 here means #2 there. */
-  const peers = rankCreatives(creativesFor(campaign.id).filter((x) => x.stage === 'Active'), 'Leads');
+  const peers = rankCreatives(creativesFor(campaign.id).filter((x) => x.stage === 'Active'), 'Leads', range);
   const rank = peers.findIndex((x) => x.id === id) + 1;
 
   return (
@@ -88,6 +88,29 @@ export function AdDetail({ id, range, onBack, backLabel = 'Campaign' }: AdDetail
           {rank > 0 && ` · #${rank} of ${peers.length} by leads`}
         </p>
       </header>
+
+      {/* ⭐ The numbers first, as on the campaign and ad set pages. They sat
+          below the artwork and the copy, so on an ad with no asset uploaded the
+          first screen was an empty grey box and the figures were below the fold. */}
+      <div className="gr-kpi-row">
+        {shown.map((m) => {
+          /* Per-metric daily values, so a rate gets a real trend rather than
+             being the only card on the page without one. */
+          const daily = creativeRows(id, range).map((r) => valueOf(m, r));
+          return (
+            <KpiCard
+              key={m}
+              label={m}
+              value={formatDerived(m, valueOf(m, t))}
+              higherIsBetter={betterHigher(m)}
+              channel={campaign.channel}
+              deltaPercent={changeOf(m, creativeRows(id, range), creativeRows(id, range, 1))}
+              sparkline={sampleOf(daily)}
+              sparklineMark={trendMark(m)}
+            />
+          );
+        })}
+      </div>
 
       <div className="gr-ad__split">
         {/* The ad, at a size you can actually assess. This is the page's
@@ -120,7 +143,7 @@ export function AdDetail({ id, range, onBack, backLabel = 'Campaign' }: AdDetail
               <div><dt className="gr-type-overline">Length</dt>
                 <dd className="gr-type-body">{duration(c.seconds)}</dd></div>
             )}
-            <div><dt className="gr-type-overline">Share of campaign</dt>
+            <div><dt className="gr-type-overline">Share of campaign spend</dt>
               <dd className="gr-type-body">{Math.round(creativeShare(id) * 100)}%</dd></div>
           </dl>
         </section>
@@ -144,26 +167,6 @@ export function AdDetail({ id, range, onBack, backLabel = 'Campaign' }: AdDetail
             )}
           </dl>
         </section>
-      </div>
-
-      <div className="gr-kpi-row">
-        {shown.map((m) => {
-          /* Per-metric daily values, so a rate gets a real trend rather than
-             being the only card on the page without one. */
-          const daily = creativeRows(id, range).map((r) => valueOf(m, r));
-          return (
-            <KpiCard
-              key={m}
-              label={m}
-              value={formatDerived(m, valueOf(m, t))}
-              higherIsBetter={betterHigher(m)}
-              channel={campaign.channel}
-              deltaPercent={changeOf(m, creativeRows(id, range), creativeRows(id, range, 1))}
-              sparkline={sampleOf(daily)}
-              sparklineMark={trendMark(m)}
-            />
-          );
-        })}
       </div>
 
       <Chart

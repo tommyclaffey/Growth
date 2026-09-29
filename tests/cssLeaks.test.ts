@@ -88,3 +88,46 @@ describe('cell overrides out-specify the last-child reset', () => {
     }
   });
 });
+
+/**
+ * 🐛 Three times now: a rule set `font: inherit` on a class that the markup ALSO
+ * gives a `gr-type-*` class. The rule wins (component CSS loads after type.css),
+ * the type class silently does nothing, and the element takes whatever font its
+ * parent has -- the Ask button at body size beside caption text, the Assistant's
+ * decision button, and "Flag for attention" at the 17px of the title beside it.
+ *
+ * Nothing is wrong in either file alone, which is why it keeps getting through.
+ */
+describe('a type class is never overridden by font: inherit', () => {
+  it('no class that carries font: inherit is also given a gr-type-* class', () => {
+    /* Its own walk: the file's `walk` returns CSS only, and the first version of
+       this test used it for the markup too -- so it scanned zero .tsx files and
+       passed with the bug put back. Verified failing before it was trusted. */
+    const all = (dir: string): string[] => readdirSync(dir, { withFileTypes: true })
+      .flatMap((e: Dirent) => (e.isDirectory() ? all(join(dir, e.name)) : [join(dir, e.name)]));
+    const css = all(SRC).filter((f) => f.endsWith('.css'));
+    const tsx = all(SRC).filter((f) => f.endsWith('.tsx'));
+    expect(tsx.length).toBeGreaterThan(20);
+    const inheriting = new Set<string>();
+    for (const f of css) {
+      for (const [, sel, body] of readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+        .matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+        if (!/(^|;|\s)font\s*:\s*inherit/.test(body)) continue;
+        for (const part of sel.split(',')) {
+          const last = part.trim().split(/\s+/).pop() ?? '';
+          const cls = last.match(/\.([\w-]+)/g)?.pop()?.slice(1);
+          if (cls && !cls.startsWith('gr-type-')) inheriting.add(cls);
+        }
+      }
+    }
+    const clashes: string[] = [];
+    for (const f of tsx) {
+      for (const [, names] of readFileSync(f, 'utf8').matchAll(/className=\{?[`"]([^`"]*)[`"]/g)) {
+        const list = names.split(/\s+/);
+        if (!list.some((n) => n.startsWith('gr-type-'))) continue;
+        for (const n of list) if (inheriting.has(n)) clashes.push(`${n} in ${f.split('/src/')[1]}`);
+      }
+    }
+    expect(clashes).toEqual([]);
+  });
+});

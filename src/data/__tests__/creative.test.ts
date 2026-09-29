@@ -136,40 +136,42 @@ describe('the advertiser is not the platform', () => {
 });
 
 describe('ranking', () => {
+  /* Fixture ads rank on their own figures; the app ranks on creativeTotals. */
+  const own = (c: { spend: number; leads: number }) => c;
   const mk = (id: string, spend: number, leads: number) =>
     ({ id, spend, leads } as unknown as Parameters<typeof rankCreatives>[0][number]);
 
   it('ranks CAC ASCENDING — cheapest first, not most expensive', () => {
-    const out = rankCreatives([mk('a', 1000, 10), mk('b', 1000, 50)], 'CAC');
+    const out = rankCreatives([mk('a', 1000, 10), mk('b', 1000, 50)], 'CAC', 30, own);
     /* b is $20/lead, a is $100/lead. Sorting CAC like every other metric would
        put the most expensive ad at #1 and call it top. */
     expect(out.map((c) => c.id)).toEqual(['b', 'a']);
   });
 
   it('ranks Leads and Spend descending', () => {
-    expect(rankCreatives([mk('a', 10, 1), mk('b', 10, 9)], 'Leads').map((c) => c.id))
+    expect(rankCreatives([mk('a', 10, 1), mk('b', 10, 9)], 'Leads', 30, own).map((c) => c.id))
       .toEqual(['b', 'a']);
-    expect(rankCreatives([mk('a', 99, 1), mk('b', 10, 1)], 'Spend').map((c) => c.id))
+    expect(rankCreatives([mk('a', 99, 1), mk('b', 10, 1)], 'Spend', 30, own).map((c) => c.id))
       .toEqual(['a', 'b']);
   });
 
   it('sorts a zero-lead ad LAST on CAC instead of dividing by zero', () => {
-    const out = rankCreatives([mk('none', 500, 0), mk('good', 500, 25)], 'CAC');
+    const out = rankCreatives([mk('none', 500, 0), mk('good', 500, 25)], 'CAC', 30, own);
     expect(out[0].id).toBe('good');
     expect(out.map((c) => c.id)).toEqual(['good', 'none']);
   });
 
   it('is a total order, so the list cannot reshuffle between renders', () => {
     const tied = [mk('c', 100, 5), mk('a', 100, 5), mk('b', 100, 5)];
-    const once = rankCreatives(tied, 'Leads').map((c) => c.id);
-    const twice = rankCreatives([...tied].reverse(), 'Leads').map((c) => c.id);
+    const once = rankCreatives(tied, 'Leads', 30, own).map((c) => c.id);
+    const twice = rankCreatives([...tied].reverse(), 'Leads', 30, own).map((c) => c.id);
     expect(once).toEqual(twice);
   });
 
   it('does not mutate the list it was given', () => {
     const list = [mk('a', 1, 1), mk('b', 9, 9)];
     const before = list.map((c) => c.id);
-    rankCreatives(list, 'Spend');
+    rankCreatives(list, 'Spend', 30, own);
     expect(list.map((c) => c.id)).toEqual(before);
   });
 
@@ -251,5 +253,15 @@ describe('one ad', () => {
   it('gives a zero share to an ad that does not exist rather than dividing by zero', () => {
     expect(creativeShare('nope')).toBe(0);
     expect(creativeRows('nope', 30)).toEqual([]);
+  });
+
+  it('⭐ the campaign page ranks and shows the SAME numbers as the ad page', async () => {
+    const { creativeTotals } = await import('../creative');
+    for (const c of CAMPAIGNS) {
+      const ranked = rankCreatives(creativesFor(c.id), 'Leads', 30);
+      const leads = ranked.map((a) => creativeTotals(a.id, 30).leads);
+      /* Descending on the figures every other screen shows -- not the seed. */
+      for (let i = 1; i < leads.length; i++) expect(leads[i - 1]).toBeGreaterThanOrEqual(leads[i]);
+    }
   });
 });

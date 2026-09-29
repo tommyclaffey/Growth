@@ -236,7 +236,9 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 
 /* The ad beside its copy. Falls to one column when the chat panel narrows the
    content column — a container query, because the viewport has not changed. */
-.gr-ad__split { display: grid; gap: var(--space-16); grid-template-columns: 1fr; }
+/* align-items: start -- the copy card was stretched to the artwork's height and
+   ended as a short list above a tall empty card. */
+.gr-ad__split { display: grid; gap: var(--space-16); grid-template-columns: 1fr; align-items: start; }
 @container (min-width: 780px) { .gr-ad__split { grid-template-columns: 1fr 1fr; } }
 
 .gr-ad__preview { display: flex; flex-direction: column; gap: var(--space-16); }
@@ -333,7 +335,10 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
    one: pressing it again takes the campaign back off the list. */
 .gr-flag-btn {
   display: inline-flex; align-items: center; gap: var(--space-4);
-  font: inherit;
+  /* No `font: inherit` -- it beat the gr-type-caption-med class on the element
+     and the button took the 17px title's font it sits beside. Third time this
+     pattern has bitten; the type class owns the font. */
+  font-family: inherit;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-pill);
   background: var(--surface-card);

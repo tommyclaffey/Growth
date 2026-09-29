@@ -199,13 +199,13 @@ export function CampaignDetail({
       <section className="gr-card gr-creative-section">
         {/* Header renders inside CreativeSection, which is what owns the
             filters -- so the count and the filtered list can never disagree. */}
-        <CreativeSection channel={campaign.channel} creatives={creatives} onOpenAd={onOpenAd} />
+        <CreativeSection channel={campaign.channel} creatives={creatives} onOpenAd={onOpenAd} range={range} />
 
         {/* Said once, here, rather than implied by every frame. */}
         <p className="gr-type-caption gr-campaign__note">
           One master asset, cropped to each placement. Video stills render once the
-          ad account is connected. Figures are period totals and do not follow the
-          date range.
+          ad account is connected. Figures follow the date range and match each
+          ad&rsquo;s own page.
         </p>
       </section>
 

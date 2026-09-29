@@ -223,23 +223,39 @@ export const CREATIVE_SORTS: CreativeSort[] = ['Leads', 'Spend', 'CAC'];
 /* Lower is better for CAC, and only for CAC among these three. Same rule the
    KPI cards use -- getting it wrong here ranks the most expensive ad first and
    labels it "top", which is the CAC inversion again in a new costume. */
-function score(c: Creative, sort: CreativeSort): number {
-  if (sort === 'Spend') return c.spend;
-  if (sort === 'Leads') return c.leads;
+/* 🐛 Scored on `creativeTotals`, NOT on the seed's `c.spend` / `c.leads`.
+
+   The seed figures split a campaign's leads by SPEND share; `creativeTotals`
+   splits them by the wobbled LEAD share (G-013), which is what every other
+   screen reads. Ranking and displaying the seed made one ad two different
+   ads: "Join 400,000 people" was 302 leads at $32.85 on the campaign page and
+   196 leads at $50.61 on its own page and the Ads screen -- and #1 here was not
+   #1 there. It also could not follow the date picker. One source now. */
+type TotalsOf = (c: Creative) => { spend: number; leads: number };
+
+function score(c: Creative, sort: CreativeSort, totalsOf: TotalsOf): number {
+  const t = totalsOf(c);
+  if (sort === 'Spend') return t.spend;
+  if (sort === 'Leads') return t.leads;
   /* An ad with no leads has no cost per lead. Infinity sorts it last on CAC
      rather than dividing by zero into NaN, which sorts unpredictably. */
-  return c.leads > 0 ? c.spend / c.leads : Number.POSITIVE_INFINITY;
+  return t.leads > 0 ? t.spend / t.leads : Number.POSITIVE_INFINITY;
 }
 
 /** Ranked best-first for the chosen measure. Pure, so it is testable. */
-export function rankCreatives(list: Creative[], sort: CreativeSort): Creative[] {
+export function rankCreatives(
+  list: Creative[], sort: CreativeSort, range: Range = 30,
+  /* Injectable for unit tests of the ORDERING rules, which use fixture ads
+     that are not in the account. The app always takes the default. */
+  totalsOf: TotalsOf = (c) => creativeTotals(c.id, range),
+): Creative[] {
   const dir = sort === 'CAC' ? 1 : -1;
   return [...list].sort((a, b) => {
-    const d = (score(a, sort) - score(b, sort)) * dir;
+    const d = (score(a, sort, totalsOf) - score(b, sort, totalsOf)) * dir;
     /* A TOTAL order. Without the tie-breaks the same data can render in a
        different sequence between renders, which reads as the list shuffling
        on its own. */
-    return d !== 0 ? d : (b.spend - a.spend) || a.id.localeCompare(b.id);
+    return d !== 0 ? d : (totalsOf(b).spend - totalsOf(a).spend) || a.id.localeCompare(b.id);
   });
 }
 

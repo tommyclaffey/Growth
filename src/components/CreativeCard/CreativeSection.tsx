@@ -7,6 +7,7 @@ import {
   type Creative, type CreativeKind, type CreativeSort,
 } from '../../data/creative';
 import type { ChannelName } from '../../styles/tokens';
+import type { Range } from '../../data/metrics';
 
 const TOP_N = 3;
 
@@ -14,6 +15,8 @@ export interface CreativeSectionProps {
   channel: ChannelName;
   creatives: Creative[];
   onOpenAd?: (id: string) => void;
+  /** Figures and ranking follow the page's date range. */
+  range?: Range;
 }
 
 /**
@@ -29,7 +32,7 @@ export interface CreativeSectionProps {
  * earning; the honest default is to leave it out and say so, rather than
  * silently blending stopped ads into "top performers".
  */
-export function CreativeSection({ channel, creatives, onOpenAd }: CreativeSectionProps) {
+export function CreativeSection({ channel, creatives, onOpenAd, range = 30 }: CreativeSectionProps) {
   const [sort, setSort] = useState<CreativeSort>('Leads');
   const [format, setFormat] = useState<CreativeKind | null>(null);
   /* Hiding paused ads is the right default ONLY when there are running ads to
@@ -52,7 +55,8 @@ export function CreativeSection({ channel, creatives, onOpenAd }: CreativeSectio
     creatives.filter((c) => (showPaused || c.stage !== 'Paused')
       && (format === null || c.kind === format)),
     sort,
-  ), [creatives, showPaused, format, sort]);
+    range,
+  ), [creatives, showPaused, format, sort, range]);
 
   const shown = expanded ? filtered : filtered.slice(0, TOP_N);
   const hidden = filtered.length - shown.length;
@@ -156,6 +160,7 @@ export function CreativeSection({ channel, creatives, onOpenAd }: CreativeSectio
                  turns a shortlist into a leaderboard nobody asked for. */
               rank={!expanded && i < TOP_N ? i + 1 : undefined}
               onOpen={onOpenAd}
+              range={range}
             />
           ))}
         </div>

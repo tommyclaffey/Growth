@@ -1,8 +1,8 @@
 import './CreativeCard.css';
 import { StatusPill } from '../StatusPill/StatusPill';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
-import { formatMetric } from '../../data/metrics';
-import type { Creative } from '../../data/creative';
+import { formatMetric, type Range } from '../../data/metrics';
+import { creativeTotals, type Creative } from '../../data/creative';
 import type { ChannelName } from '../../styles/tokens';
 
 export interface CreativeCardProps {
@@ -12,6 +12,8 @@ export interface CreativeCardProps {
   rank?: number;
   /** Opens this ad's own page. */
   onOpen?: (id: string) => void;
+  /** The window the figures cover -- the same one the rest of the page uses. */
+  range?: Range;
 }
 
 function duration(s: number): string {
@@ -50,9 +52,12 @@ function duration(s: number): string {
  * is what needs renaming: Heading/Strip describes where it was used, not what
  * it is. Logged rather than worked around with a fourth 13px weight.
  */
-export function CreativeCard({ creative: c, channel, rank, onOpen }: CreativeCardProps) {
+export function CreativeCard({ creative: c, channel, rank, onOpen, range = 30 }: CreativeCardProps) {
   const visual = c.kind === 'image' || c.kind === 'video';
-  const cac = c.leads > 0 ? formatMetric('CAC', c.spend / c.leads) : '—';
+  /* The same numbers the ad's own page and the Ads screen show -- see score()
+     in creative.ts for the bug this replaced. */
+  const t = creativeTotals(c.id, range);
+  const cac = t.leads > 0 ? formatMetric('CAC', t.spend / t.leads) : '—';
   const Tag = onOpen ? 'button' : 'article';
 
   return (
@@ -133,9 +138,9 @@ export function CreativeCard({ creative: c, channel, rank, onOpen }: CreativeCar
             column labels for figures, and labelling them differently from the
             tables two sections down would be two answers to one question. */}
         <div><dt className="gr-type-overline">Spend</dt>
-          <dd className="gr-type-body-medium">{formatMetric('Spend', c.spend)}</dd></div>
+          <dd className="gr-type-body-medium">{formatMetric('Spend', t.spend)}</dd></div>
         <div><dt className="gr-type-overline">Leads</dt>
-          <dd className="gr-type-body-medium">{c.leads.toLocaleString()}</dd></div>
+          <dd className="gr-type-body-medium">{Math.round(t.leads).toLocaleString()}</dd></div>
         <div><dt className="gr-type-overline">CAC</dt>
           <dd className="gr-type-body-medium">{cac}</dd></div>
       </dl>

@@ -133,6 +133,7 @@ export function AdSetDetail({
           channel={campaign.channel}
           creatives={creatives}
           onOpenAd={onOpenAd}
+          range={range}
         />
         <p className="gr-type-caption gr-campaign__note">
           One master asset, cropped to each placement. Figures are this {noun.one.toLowerCase()}&rsquo;s

@@ -44,7 +44,10 @@ export function DeltaBadge({
      and a verdict: blended CAC rendered "up 0%" in red while blended ROAS
      rendered "up 0%" in green, on the same screen, both describing nothing
      happening. Flat is its own state and reads as flat. */
-  const tone = deltaTone(percent, higherIsBetter);
+  /* 🐛 Toned on what is SHOWN. A benchmark of -0.3% rendered "0% below" in
+     red: the label rounded to zero, the verdict did not. If the reader sees 0,
+     the badge says level. */
+  const tone = deltaTone(Math.round(percent), higherIsBetter);
   if (tone === 'flat') {
     return (
       <span className={`gr-delta gr-type-caption-med is-flat ${bare ? 'is-bare' : ''}`}>

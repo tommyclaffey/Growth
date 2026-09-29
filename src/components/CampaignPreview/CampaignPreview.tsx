@@ -49,7 +49,7 @@ export function CampaignPreview({ channel, range, onOpen }: CampaignPreviewProps
       {running.map((c) => {
         const t = campaignTotals(c.id, range);
         const hero = rankCreatives(
-          creativesFor(c.id).filter((x) => x.stage === 'Active'), 'Leads',
+          creativesFor(c.id).filter((x) => x.stage === 'Active'), 'Leads', range,
         )[0];
         /* Three KPIs, chosen by the same channel-and-objective rule the campaign
            page uses. A podcast campaign never shows CTR here either. */
