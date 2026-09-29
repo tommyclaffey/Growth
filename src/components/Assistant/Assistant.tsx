@@ -69,11 +69,16 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
      Asked once and then CONSUMED, so reopening the panel later does not re-ask
      it: a seed is an instruction that arrived, not a property of being open. The
      same reasoning the deep-link `t` parameter already uses. */
+  const askedSeed = useRef<string | null>(null);
   useEffect(() => {
     /* 🐛 While an answer is pending, submit() bails -- but the seed was marked
        consumed anyway, so a question handed in during an answer was lost.
        It waits for the answer now, then is asked. */
-    if (!open || !seed || pending) return;
+    if (!seed) { askedSeed.current = null; return; }
+    if (!open || pending || askedSeed.current === seed) return;
+    /* Remembered, so the same seed is not asked AGAIN when `pending` clears --
+       a parent that does not clear it would otherwise loop it once per answer. */
+    askedSeed.current = seed;
     void submit(seed, seedSubject ?? undefined);
     onSeedConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
