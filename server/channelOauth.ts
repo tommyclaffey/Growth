@@ -101,6 +101,32 @@ export const PROVIDERS: Record<string, Provider> = {
        the URL — scopes are fixed on the app itself. */
     extra: {},
   },
+  /* Not an ad platform -- a second chat integration beside Slack. It lives in
+     this table because the handshake is the same shape (redirect, consent,
+     callback) and a second OAuth module would be a second copy of it.
+
+     Microsoft Graph, delegated permissions. ChannelMessage.Read.All needs an
+     org admin to consent -- a Teams tenant decides that, not the person
+     clicking Connect, which is why the steps say so up front. */
+  teams: {
+    id: 'teams',
+    label: 'Microsoft Teams',
+    authorizeUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    scopes: 'offline_access User.Read Team.ReadBasic.All Channel.ReadBasic.All '
+      + 'ChannelMessage.Read.All ChannelMessage.Send',
+    clientIdEnv: 'MS_CLIENT_ID',
+    consoleUrl: 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade',
+    consoleLabel: 'Microsoft Entra admin center → App registrations',
+    steps: [
+      '<b>New registration</b>. Supported account types: <b>any organisational directory</b> (multitenant).',
+      'Platform <b>Web</b>, and add the redirect URI below.',
+      'API permissions → Microsoft Graph → <b>Delegated</b>: User.Read, Team.ReadBasic.All, '
+        + 'Channel.ReadBasic.All, ChannelMessage.Read.All, ChannelMessage.Send.',
+      '<b>ChannelMessage.Read.All needs admin consent</b> in each Teams organisation that connects.',
+      'Copy the <b>Application (client) ID</b>. Later, a client secret for the token exchange.',
+    ],
+    extra: { response_type: 'code', response_mode: 'query' },
+  },
   affiliates: {
     id: 'affiliates',
     label: 'Affiliates',
@@ -199,6 +225,29 @@ export function channelOauth(): Plugin {
           return res.end(JSON.stringify({ providers: out }));
         }
 
+        /* The return trip. It used to fall through to "Unknown channel" --
+           approve on Meta or Microsoft and land on an error. Saying plainly
+           what happened, and what is not built yet, beats that. */
+        if (path === '/callback') {
+          const [id, state] = (url.searchParams.get('state') ?? '').split(':');
+          const known = state && (states.get(state) ?? 0) > Date.now();
+          const p = PROVIDERS[id];
+          if (!p || !known) {
+            return page(res, 'That link has expired',
+              '<p class="lede">The connection request was not recognised or is over ten minutes old. Start again from Settings.</p>');
+          }
+          states.delete(state);
+          if (url.searchParams.get('error')) {
+            return page(res, `${p.label} was not connected`,
+              `<p class="lede">${p.label} said: ${url.searchParams.get('error_description') ?? url.searchParams.get('error')}</p>`);
+          }
+          return page(res, `${p.label} approved the connection`, `
+<p class="lede">The sign-in worked and ${p.label} returned an authorisation code.</p>
+<div class="card"><p class="label">Not built yet</p>
+<p style="margin:0">Exchanging that code for a token and storing the connection is the next
+step (Beta B). Nothing was saved, and Growth cannot read ${p.label} yet.</p></div>`);
+        }
+
         const key = path.replace(/^\//, '');
         const provider = PROVIDERS[key];
         if (!provider) {
@@ -218,7 +267,7 @@ export function channelOauth(): Plugin {
           const redirect = `${origin}/api/connect/callback`;
           const steps = (provider.steps ?? []).map((x) => `<li>${x}</li>`).join('');
           return page(res, `${provider.label} needs an app registration`, `
-<p class="lede">Every ad platform is its own OAuth provider. Growth can\u2019t connect to
+<p class="lede">Every platform is its own OAuth provider. Growth can\u2019t connect to
 ${provider.label} until you register an app there and give it the client id.</p>
 <div class="card">
   <p class="label">Where</p>

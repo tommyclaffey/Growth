@@ -11,6 +11,12 @@ import { CHANNEL_LABEL, type Range } from '../data/metrics';
 import { useChannels } from '../data/channels';
 import type { Target } from '../data/decisions';
 
+/* The format named on the tile when an ad has no artwork uploaded -- the true
+   format, never "Text" on a video. */
+const FORMAT: Record<string, string> = {
+  image: 'Image', video: 'Video', text: 'Text', audio: 'Audio', link: 'Link',
+};
+
 export interface AdsProps {
   range: Range;
   onOpenAd?: (id: string) => void;
@@ -44,13 +50,20 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
      -- the rule the whole app follows: a channel you do not run is gone, not
      greyed out. */
   const channels = useChannels();
-  const rows = rankedAds(metric, mode, range, channels);
+  const all = rankedAds(metric, mode, range, channels);
+  /* ⭐ Live ads only, by default. The top three "best" ads were all PAUSED --
+     ranked on whole-period figures beside ads that are running, so #1 was an
+     ad you could not act on without first switching it back on. Paused ads
+     are one click away, and the Status column comes back with them. */
+  const [showPaused, setShowPaused] = useState(false);
+  const paused = all.filter((r) => r.creative.stage !== 'Active').length;
+  const rows = showPaused ? all : all.filter((r) => r.creative.stage === 'Active');
 
   return (
     <section className="gr-card">
       <header className="gr-card__header">
-        <h3 className="gr-card__title gr-type-card-heading">All ads</h3>
-        <span className="gr-type-caption">{rows.length}</span>
+        <h3 className="gr-card__title gr-type-card-heading">{showPaused ? 'All ads' : 'Live ads'}</h3>
+        <span className="gr-dec__count gr-type-caption-med">{rows.length}</span>
 
         <div className="gr-ads__controls">
           {/* Rank mode. Two words rather than a segmented control, because the
@@ -74,16 +87,21 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
               {RANK_METRICS.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </label>
+
+          {paused > 0 && (
+            <Chip label={`Show paused ${paused}`} pressed={showPaused}
+                  onClick={() => setShowPaused(!showPaused)} />
+          )}
         </div>
       </header>
 
-      {mode === 'relative' && (
-        <p className="gr-type-caption gr-ads__lede">
-          Ranked by how far each ad beats the average ad on its own channel — so a
-          podcast spot can out-rank a Meta ad even though Meta&rsquo;s {metric} is better.
-          Comparing them raw would only repeat what the channel table already says.
-        </p>
-      )}
+      {/* One line, not three. The argument (why relative is the default) lives
+          in adRanking.ts; the reader needs only what the order means. */}
+      <p className="gr-type-caption gr-ads__lede">
+        {mode === 'relative'
+          ? `Ranked against the average ad on its own channel, so every channel gets a fair shot.`
+          : `Ranked by raw ${metric} across every channel.`}
+      </p>
 
       {/* Scrolls sideways only as a last resort. The text columns wrap first;
           this catches a window too narrow even for that, so the last column is
@@ -96,16 +114,16 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
             <th scope="col">Ad</th>
             <th scope="col">Channel</th>
             <th scope="col">Campaign</th>
-            <th scope="col">{metric}</th>
+            <th scope="col" className="gr-ads__num">{metric}</th>
             <th scope="col">vs its channel</th>
-            <th scope="col">Status</th>
+            {showPaused && <th scope="col">Status</th>}
             {onAskAbout && <th scope="col"><span className="gr-sr-only">Discuss</span></th>}
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 && (
             <tr>
-              <td colSpan={onAskAbout ? 8 : 7} className="gr-table__empty gr-type-body">
+              <td colSpan={6 + (showPaused ? 1 : 0) + (onAskAbout ? 1 : 0)} className="gr-table__empty gr-type-body">
                 No channels are switched on. Turn one back on in Settings to see ads here.
               </td>
             </tr>
@@ -115,18 +133,34 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
             <tr key={r.creative.id} className="gr-campaign__adset-row">
               <td className="gr-type-caption gr-ads__rank">{i + 1}</td>
               <td className="gr-type-body-medium gr-ads__wrap">
-                <button
-                  type="button"
-                  className="gr-unbutton gr-campaign__adset-open"
-                  onClick={() => onOpenAd?.(r.creative.id)}
-                >
-                  {r.creative.headline}
-                </button>
-                {/* The platform's own noun for the leaf tier -- a podcast has
-                    Spots, paid search has Text ads. */}
-                <span className="gr-ads__kind gr-type-caption">
-                  {leafNoun(r.channel).one}
-                  {r.creative.ratio ? ` · ${r.creative.ratio}` : ''}
+                <span className="gr-ads__ad">
+                  {/* The ad itself, small. An ads table with no ads in it asked
+                      the reader to remember what "Start free, no card" looked
+                      like. Text, audio and link placements have no picture, so
+                      they get a tile naming the format rather than a stock
+                      image implying one. */}
+                  {r.creative.src
+                    ? <img className="gr-ads__thumb" src={r.creative.src} alt="" loading="lazy" />
+                    : (
+                      <span className="gr-ads__thumb gr-ads__thumb--none gr-type-micro" aria-hidden="true">
+                        {FORMAT[r.creative.kind]}
+                      </span>
+                    )}
+                  <span className="gr-ads__ad-text">
+                    <button
+                      type="button"
+                      className="gr-unbutton gr-campaign__adset-open"
+                      onClick={() => onOpenAd?.(r.creative.id)}
+                    >
+                      {r.creative.headline}
+                    </button>
+                    {/* The platform's own noun for the leaf tier -- a podcast
+                        has Spots, paid search has Text ads. */}
+                    <span className="gr-ads__kind gr-type-caption">
+                      {leafNoun(r.channel).one}
+                      {r.creative.ratio ? ` · ${r.creative.ratio}` : ''}
+                    </span>
+                  </span>
                 </span>
               </td>
               <td>
@@ -141,7 +175,7 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
                   {groupNoun(r.channel).one}: {r.creative.adSetName}
                 </span>
               </td>
-              <td className="gr-type-body">{formatDerived(metric, r.value)}</td>
+              <td className="gr-type-body-medium gr-ads__num">{formatDerived(metric, r.value)}</td>
               <td>
                 {r.benchmark ? (
                   <DeltaBadge
@@ -157,7 +191,7 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
                   </span>
                 )}
               </td>
-              <td><StatusPill stage={r.creative.stage} /></td>
+              {showPaused && <td><StatusPill stage={r.creative.stage} /></td>}
               {onAskAbout && (
                 <td className="gr-table__ask gr-type-caption-med">
                   <button type="button" className="gr-unbutton gr-ask"

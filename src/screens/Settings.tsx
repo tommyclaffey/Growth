@@ -104,6 +104,42 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
           </div>
         </section>
 
+        {/* A second chat integration, for teams that live in Microsoft Teams
+            rather than Slack. Same promise as the Slack card -- mirror one
+            channel into Growth -- and the same honesty as the ad-account
+            Connect buttons: a real redirect to Microsoft's own sign-in, or a
+            page naming exactly what is missing. It never pretends to connect. */}
+        <section className="gr-card">
+          <header className="gr-card__header">
+            <div className="gr-card__heading">
+              <h3 className="gr-card__title gr-type-card-heading">Microsoft Teams</h3>
+              <p className="gr-card__sub gr-type-caption">
+                For teams on Teams instead of Slack. One conversation in Growth can mirror a
+                Teams channel.
+              </p>
+            </div>
+          </header>
+          <div className="gr-setting-row">
+            <span className="gr-setting-row__text">
+              <strong className="gr-type-body-medium">Not connected</strong>
+              <span className="gr-type-caption">
+                Needs a Microsoft Entra app registration, and admin consent in your Teams
+                organisation.
+              </span>
+            </span>
+            {backend === false ? (
+              <span className="gr-setting-row__connect is-unavailable gr-type-caption"
+                    title="Connecting Teams needs a server for OAuth">
+                Connect in local build
+              </span>
+            ) : (
+              <a className="gr-setting-row__connect is-primary gr-type-caption" href="/api/connect/teams">
+                Connect Microsoft Teams
+              </a>
+            )}
+          </div>
+        </section>
+
         <section className="gr-card">
           <header className="gr-card__header">
             <div className="gr-card__heading">

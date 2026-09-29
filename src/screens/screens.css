@@ -390,7 +390,6 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-ads__lede {
   color: var(--text-muted);
   margin: 0 0 var(--space-12);
-  max-width: 62ch;
 }
 
 /* A narrow, right-aligned ordinal. Tabular so the numbers line up as the list
@@ -412,6 +411,24 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 }
 
 .gr-ads__nopeer { color: var(--text-muted); }
+
+/* The ad: thumbnail beside its name. */
+.gr-ads__ad { display: flex; align-items: center; gap: var(--space-12); }
+.gr-ads__ad-text { display: flex; flex-direction: column; min-width: 0; }
+.gr-ads__thumb {
+  flex: none; width: 40px; height: 40px;
+  border-radius: var(--radius-sm);
+  object-fit: cover; display: block;
+  background: var(--surface-page-top);
+}
+.gr-ads__thumb--none {
+  display: grid; place-items: center;
+  color: var(--text-muted);
+  border: var(--border-width-sm) solid var(--border-subtle);
+}
+/* The ranked number, set a step heavier than the text around it and in
+   tabular figures so a column of CACs lines up digit for digit. */
+.gr-ads__num { font-variant-numeric: tabular-nums; color: var(--text-primary); }
 
 /* 🐛 Every table cell is `nowrap` -- right for figures, wrong for a headline and
    a campaign-plus-ad-set name. Seven unbreakable columns made the table wider

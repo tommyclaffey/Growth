@@ -18,7 +18,10 @@ describe('Ads renders the ranking', () => {
   it('renders one row per ad, with matching column counts', () => {
     setActiveChannels([...CHANNEL_KEYS]);
     const { container } = render(<Ads range={30} />);
-    const expected = rankedAds('CAC', 'relative', 30, ALL_CHANNELS).length;
+    /* Live ads by default -- paused ones ranked on whole-period figures were
+       taking the top three places. */
+    const expected = rankedAds('CAC', 'relative', 30, ALL_CHANNELS)
+      .filter((r) => r.creative.stage === 'Active').length;
     expect(rows(container)).toHaveLength(expected);
 
     /* A table whose body has more cells than its head has columns lays out
@@ -33,7 +36,7 @@ describe('Ads renders the ranking', () => {
     setActiveChannels([...CHANNEL_KEYS]);
     render(<Ads range={30} />);
     /* An argument nobody can find is one that was not made. */
-    expect(screen.getByText(/beats the average ad on its own channel/i)).toBeTruthy();
+    expect(screen.getByText(/against the average ad on its own channel/i)).toBeTruthy();
   });
 
   it('switching to Raw value reorders the table and drops the explanation', () => {
@@ -45,7 +48,7 @@ describe('Ads renders the ranking', () => {
 
     const after = [...rows(container)].map((r) => r.textContent);
     expect(after).not.toEqual(before);
-    expect(screen.queryByText(/beats the average ad on its own channel/i)).toBeNull();
+    expect(screen.queryByText(/against the average ad on its own channel/i)).toBeNull();
   });
 
   it('the mode chips announce which is active', () => {
@@ -72,7 +75,8 @@ describe('Ads renders the ranking', () => {
     setActiveChannels([...CHANNEL_KEYS]);
     const onOpenAd = vi.fn();
     const { container } = render(<Ads range={30} onOpenAd={onOpenAd} />);
-    const top = rankedAds('CAC', 'relative', 30, ALL_CHANNELS)[0];
+    const top = rankedAds('CAC', 'relative', 30, ALL_CHANNELS)
+      .filter((r) => r.creative.stage === 'Active')[0];
     const btn = rows(container)[0].querySelector('button')!;
     fireEvent.click(btn);
     expect(onOpenAd).toHaveBeenCalledWith(top.creative.id);
@@ -104,5 +108,33 @@ describe('Ads renders the ranking', () => {
     expect(ask?.className).toMatch(/\bgr-type-/);
     expect(row.querySelectorAll('td.gr-ads__wrap')).toHaveLength(2);
     expect(container.querySelector('.gr-table-scroll > table.gr-table')).not.toBeNull();
+  });
+
+  it('hides paused ads by default; "Show paused" brings them and the Status column back', () => {
+    setActiveChannels([...CHANNEL_KEYS]);
+    const { container } = render(<Ads range={30} />);
+    const all = rankedAds('CAC', 'relative', 30, ALL_CHANNELS);
+    const paused = all.filter((r) => r.creative.stage !== 'Active').length;
+    expect(paused).toBeGreaterThan(0);
+    expect(container.textContent).not.toMatch(/Paused/);
+    expect([...container.querySelectorAll('thead th')].map((t) => t.textContent)).not.toContain('Status');
+
+    fireEvent.click(screen.getByRole('button', { name: `Show paused ${paused}` }));
+    expect(rows(container)).toHaveLength(all.length);
+    expect([...container.querySelectorAll('thead th')].map((t) => t.textContent)).toContain('Status');
+    expect(rows(container)[0].querySelectorAll('td').length)
+      .toBe(container.querySelectorAll('thead th').length);
+  });
+
+  it('an ad with no artwork names its real format, never "Text" on a video', () => {
+    setActiveChannels([...CHANNEL_KEYS]);
+    const { container } = render(<Ads range={30} />);
+    const live = rankedAds('CAC', 'relative', 30, ALL_CHANNELS).filter((r) => r.creative.stage === 'Active');
+    [...rows(container)].forEach((tr, i) => {
+      const tile = tr.querySelector('.gr-ads__thumb--none');
+      if (!tile) return;
+      const kind = live[i].creative.kind;
+      expect(tile.textContent!.toLowerCase()).toBe(kind);
+    });
   });
 });
