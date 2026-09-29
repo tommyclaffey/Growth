@@ -154,6 +154,8 @@ interface Metrics {
   METRICS: string[];
   CHANNEL_KEYS: ChannelName[];
   setActiveChannels: (keys: ChannelName[]) => void;
+  setWindowEnd: (endBack: number) => void;
+  rangeLabel: (range: number) => string;
   hydrate: (d: { rows: unknown; periodEnd: string; currency: string }) => void;
 }
 
@@ -672,6 +674,10 @@ async function applyContext(server: ViteDevServer, m: Metrics, raw: unknown) {
   m.hydrate({ rows: data.rows, periodEnd: data.account.periodEnd, currency: data.account.currency });
   structure.applyStructure(data.campaigns);
 
+  /* 1b. Which days: custom dates end this many days before the last day of
+        data. After hydrate, so it indexes the account that is loaded. */
+  m.setWindowEnd(typeof c.windowEnd === 'number' && Number.isFinite(c.windowEnd) ? c.windowEnd : 0);
+
   /* 2. Which channels this business runs. */
   if (Array.isArray(c.channels)) {
     m.setActiveChannels(m.CHANNEL_KEYS.filter((k) => (c.channels as unknown[]).includes(k)));
@@ -728,10 +734,11 @@ export function assistantApi(): Plugin {
           const question = typeof body.question === 'string' ? body.question.trim() : '';
           if (!question) return send(res, 400, { error: 'Question required.' });
           if (question.length > 2000) return send(res, 413, { error: 'Question too long (2,000 characters max).' });
-          /* Any whole number of days 1-90 (Phase 3), anything else falls back to
-             30 rather than reaching the metric functions unchecked. */
+          /* Any whole number of days 1-365 (two years of history), anything
+             else falls back to 30 rather than reaching the metric functions
+             unchecked. */
           const asked = Number(body.range);
-          const range = Number.isInteger(asked) && asked >= 1 && asked <= 90 ? asked : 30;
+          const range = Number.isInteger(asked) && asked >= 1 && asked <= 365 ? asked : 30;
           const rawSubject = body.subject as Partial<Subject> | undefined;
           const subject = rawSubject && typeof rawSubject.kind === 'string' && typeof rawSubject.id === 'string'
             ? { kind: rawSubject.kind, id: rawSubject.id, label: String(rawSubject.label ?? rawSubject.id).slice(0, 200) }
@@ -772,7 +779,10 @@ export function assistantApi(): Plugin {
             max_iterations: 6,
             max_tokens: 4000,
             output_config: { effort: 'low' },
-            system: systemFor(m.CURRENCY ?? 'USD'),
+            /* Which days, in words -- with custom dates the reader is not
+               looking at "the last 30 days", and every figure must say so. */
+            system: `${systemFor(m.CURRENCY ?? 'USD')}\n\nThe reader is looking at: ${m.rangeLabel(range)} (${range} days). `
+              + 'When you state a figure, it is for these days -- name them the way they are named here.',
             tools: [
               ...buildTools(
                 m, d, b, cm, sc, range, evidence,

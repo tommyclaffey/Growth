@@ -5,7 +5,7 @@ import { commitments } from './commitments';
 import { flags } from './attention';
 import { decisionsFor, decisions as allDecisions } from './decisions';
 import type { Target } from './decisions';
-import { activeChannels, type Range } from './metrics';
+import { activeChannels, windowEnd, type Range } from './metrics';
 import { prefs } from './prefs';
 import { changeThreshold } from './notifications';
 import { channelBudgets, monthlyBudget } from './profile';
@@ -146,6 +146,9 @@ export async function askAssistant(
         context: {
           source: prefs().dataSource,
           channels: activeChannels(),
+          /* Custom dates: where the window ENDS. Without it the model answered
+             for the last N days while the screen showed July. */
+          windowEnd: windowEnd(),
           threshold: changeThreshold(),
           monthlyBudget: monthlyBudget(),
           channelBudgets: channelBudgets(),
