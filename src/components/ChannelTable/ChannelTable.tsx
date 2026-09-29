@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import './ChannelTable.css';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
-import { formatMetric, type Metric, higherIsBetter } from '../../data/metrics';
+import { formatMetric } from '../../data/metrics';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { Sparkline } from '../Sparkline/Sparkline';
-import { MetricToggle } from '../MetricToggle/MetricToggle';
+import { betterHigher, type DerivedMetric } from '../../data/channelMetrics';
+
+const VOLUME: DerivedMetric[] = ['Spend', 'Impressions', 'Clicks', 'Leads', 'Sales'];
+const EFFICIENCY: DerivedMetric[] = ['CTR', 'CPC', 'CPM', 'CVR', 'CAC', 'ROAS'];
 import { channelGradient, type ChannelName } from '../../styles/tokens';
 import type { Target } from '../../data/decisions';
 
@@ -22,7 +25,9 @@ export interface ChannelRow {
   leads: number;
   cac: number;
   roas: number;
-  delta: number;
+  /** Change on the chosen metric; null when this channel cannot report it. */
+  delta: number | null;
+  /** ROAS, always -- see the Trend column. */
   trend: number[];
   /** A second line under the name -- what is inside, e.g. "2 campaigns". */
   sub?: string;
@@ -50,8 +55,8 @@ export interface ChannelTableProps {
   onAskAbout?: (question: string, subject?: Target) => void;
   /** Chat open shrinks the content column, so the table drops its wide columns. */
   wideColumns?: boolean;
-  /** The metric being shown. Decides whether a rising delta is good news. */
-  metric?: Metric;
+  /** The metric the change column measures. Decides whether a rise is good news. */
+  metric?: DerivedMetric;
   /** The window the delta compares, for the header's explanation. */
   range?: number;
   /**
@@ -61,7 +66,7 @@ export interface ChannelTableProps {
    * or change what it was measuring. Not passed on Overview, where the chart's
    * own toggle directly above already does this.
    */
-  onMetricChange?: (m: Metric) => void;
+  onMetricChange?: (m: DerivedMetric) => void;
   /** Adds the "All channels" foot row. */
   total?: ChannelTotal;
 }
@@ -103,7 +108,11 @@ export function ChannelTable({
   const sorted = [...withShare].sort((a, b) => {
     const dir = sort.dir === 'asc' ? 1 : -1;
     if (sort.key === 'name') return a.name.localeCompare(b.name) * dir;
-    return (a[sort.key] - b[sort.key]) * dir;
+    const x = a[sort.key], y = b[sort.key];
+    /* A channel that cannot report the metric sinks to the bottom either way --
+       it has no position in the order, not the lowest one. */
+    if (x === null || y === null) return x === null ? (y === null ? 0 : 1) : -1;
+    return (x - y) * dir;
   });
 
   /* The Δ header NAMES what it measures. "Δ Prev" over a column of "1%" said
@@ -125,8 +134,24 @@ export function ChannelTable({
         {onMetricChange && (
           <>
             <span className="gr-spacer" />
-            <span className="gr-type-caption gr-table__metric-label">Change and trend in</span>
-            <MetricToggle value={metric} onChange={onMetricChange} />
+            {/* A select, not tabs: eleven metrics do not fit as a segmented
+                control, and grouping them says what kind each one is. It
+                drives the CHANGE column only -- the trend is always ROAS. */}
+            <label className="gr-table__metric">
+              <span className="gr-type-caption gr-table__metric-label">Change in</span>
+              <select
+                className="gr-table__select gr-type-label-button"
+                value={metric}
+                onChange={(e) => onMetricChange(e.target.value as DerivedMetric)}
+              >
+                <optgroup label="Volume">
+                  {VOLUME.map((m) => <option key={m} value={m}>{m}</option>)}
+                </optgroup>
+                <optgroup label="Efficiency">
+                  {EFFICIENCY.map((m) => <option key={m} value={m}>{m}</option>)}
+                </optgroup>
+              </select>
+            </label>
           </>
         )}
       </header>
@@ -152,7 +177,11 @@ export function ChannelTable({
                 </th>
               );
             })}
-            <th scope="col">Trend</th>
+            {/* ⭐ Always ROAS, whatever the change column shows. A trend line
+                that re-plotted every time the metric changed made six rows of
+                squiggles mean something different on each click; one fixed
+                trend -- the return on the money -- reads the same every visit. */}
+            <th scope="col" title="Return on ad spend over the selected range">ROAS trend</th>
             {/* An unlabelled column, because the button says what it does and a
                 header reading "Ask" above six Ask buttons is noise. Named for
                 assistive tech instead of visually. */}
@@ -220,7 +249,12 @@ export function ChannelTable({
                   {/* higherIsBetter was never passed here, so it defaulted to true
                       and a rising CAC rendered GREEN in this column while the KPI
                       card above rendered the same number red. */}
-                  <DeltaBadge percent={r.delta} higherIsBetter={higherIsBetter(metric)} bare />
+                  {r.delta === null ? (
+                    <span className="gr-type-caption gr-table__na"
+                          title={`${r.name} does not report ${metric}`}>—</span>
+                  ) : (
+                    <DeltaBadge percent={r.delta} higherIsBetter={betterHigher(metric)} bare />
+                  )}
                 </td>
                 {wideColumns && (
                   <td>
@@ -283,7 +317,7 @@ export function ChannelTable({
                   {formatMetric('ROAS', sum.spend > 0 ? sum.revenue / sum.spend : 0)}
                 </td>
               )}
-              <td><DeltaBadge percent={total.delta} higherIsBetter={higherIsBetter(metric)} bare /></td>
+              <td><DeltaBadge percent={total.delta} higherIsBetter={betterHigher(metric)} bare /></td>
               {wideColumns && <td className="gr-type-body-medium">100%</td>}
               <td><Sparkline values={total.trend} channel="all" variant="line" height={20} /></td>
               {onAskAbout && <td />}

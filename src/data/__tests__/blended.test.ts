@@ -198,3 +198,13 @@ describe('the vocabulary adapts to what is switched on', () => {
     expect(headlineKpis(CHANNEL_METRICS.podcasts)).toContain('Impressions');
   });
 });
+
+describe('channelChange', () => {
+  it('is null for a metric the channel cannot report, a number otherwise', async () => {
+    const { channelChange } = await import('../blended');
+    expect(channelChange('podcasts', 'CTR', 30)).toBeNull();
+    expect(channelChange('affiliates', 'CPM', 30)).toBeNull();
+    expect(typeof channelChange('meta', 'CTR', 30)).toBe('number');
+    expect(channelChange('meta', 'CAC', 7)).toBe(42);
+  });
+});

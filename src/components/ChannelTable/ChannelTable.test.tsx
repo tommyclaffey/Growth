@@ -29,14 +29,30 @@ describe('ChannelTable', () => {
   it('offers its own metric switch only when it can change the metric', () => {
     const onMetric = vi.fn();
     const { rerender } = render(<ChannelTable rows={rows} metric="Spend" />);
-    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.queryByRole('combobox')).toBeNull();
     rerender(<ChannelTable rows={rows} metric="Spend" onMetricChange={onMetric} />);
-    fireEvent.click(screen.getByRole('tab', { name: 'CAC' }));
-    expect(onMetric).toHaveBeenCalledWith('CAC');
+    const select = screen.getByRole('combobox');
+    /* More than the six funnel metrics: rates and costs too. */
+    expect([...select.querySelectorAll('option')].map((o) => o.textContent))
+      .toEqual(['Spend', 'Impressions', 'Clicks', 'Leads', 'Sales', 'CTR', 'CPC', 'CPM', 'CVR', 'CAC', 'ROAS']);
+    fireEvent.change(select, { target: { value: 'CTR' } });
+    expect(onMetric).toHaveBeenCalledWith('CTR');
   });
 
   it('says what is inside each channel', () => {
     render(<ChannelTable rows={rows} />);
     expect(screen.getByText('2 campaigns')).toBeTruthy();
+  });
+
+  it('the trend column is ROAS, whatever the change column shows', () => {
+    const { container } = render(<ChannelTable rows={rows} metric="CTR" />);
+    expect([...container.querySelectorAll('thead th')].map((t) => t.textContent)).toContain('ROAS trend');
+  });
+
+  it('a channel that cannot report the metric shows a dash, not 0%', () => {
+    const podcast: ChannelRow = { key: 'podcasts', name: 'Podcasts', spend: 100, leads: 1, cac: 100, roas: 2, delta: null, trend: [1] };
+    render(<ChannelTable rows={[...rows, podcast]} metric="CTR" />);
+    const dash = screen.getByTitle('Podcasts does not report CTR');
+    expect(dash.textContent).toBe('—');
   });
 });

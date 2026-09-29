@@ -41,7 +41,7 @@ import {
   type DerivedMetric,
 } from './data/channelMetrics';
 import {
-  blendedDelta, blendedMetrics, blendedSparkline, blendedTotal, coverageNote, coverageTitle,
+  blendedDelta, blendedMetrics, blendedSparkline, blendedTotal, channelChange, coverageNote, coverageTitle,
 } from './data/blended';
 import {
   dismissAlert, dismissAll, markAllRead, undismissAlert, usePrefs,
@@ -92,6 +92,11 @@ export default function App() {
   const [metric, setMetric] = useState<Metric>(initialUrl.metric ?? 'Spend');
   const [chatOpen, setChatOpen] = useState(false);
   const [range, setRange] = useState<Range>(initialUrl.range ?? 30);
+  /* What the Channels screen's change column measures. Its own state, not the
+     app-wide metric: that one drives the Overview chart and is limited to six
+     funnel metrics; this column can show any of eleven. CAC by default --
+     "is anything getting more expensive" is the question this table answers. */
+  const [tableMetric, setTableMetric] = useState<DerivedMetric>('CAC');
   const [pendingView, setPendingView] = useState<ViewRef | null>(null);
   const [assistOpen, setAssistOpen] = useState(false);
   /* A question staged for the assistant by another screen. Cleared once asked. */
@@ -362,7 +367,9 @@ export default function App() {
           cac: ct.cac,
           roas: ct.roas,
           delta: delta(key, metric, range),
-          trend: sparkline(key, metric, range),
+          /* Always ROAS -- the one trend that means the same thing on every
+             visit, whatever the change column is set to. */
+          trend: sparkline(key, 'ROAS', range),
           sub: (() => {
             const n = CAMPAIGNS.filter((c) => c.channel === key).length;
             return `${n} campaign${n === 1 ? '' : 's'}`;
@@ -709,7 +716,7 @@ export default function App() {
                   rows={view.rows}
                   metric={metric}
                   range={range}
-                  total={{ delta: delta('all', metric, range), trend: sparkline('all', metric, range) }}
+                  total={{ delta: delta('all', metric, range), trend: sparkline('all', 'ROAS', range) }}
                   wideColumns={!chatOpen}
                   onRowClick={(k) => { setNav('channels'); setChannel(k); }}
                 />
@@ -752,10 +759,11 @@ export default function App() {
           )}
 
           {nav === 'channels' && !onChannelScreen && (
-            <ChannelTable rows={view.rows} metric={metric} wideColumns={!chatOpen}
+            <ChannelTable rows={view.rows.map((r) => ({ ...r, delta: channelChange(r.key, tableMetric, range) }))}
+                          metric={tableMetric} wideColumns={!chatOpen}
                           range={range}
-                          onMetricChange={setMetric}
-                          total={{ delta: delta('all', metric, range), trend: sparkline('all', metric, range) }}
+                          onMetricChange={setTableMetric}
+                          total={{ delta: blendedDelta(tableMetric, enabled, range), trend: sparkline('all', 'ROAS', range) }}
                           onRowClick={(k) => setChannel(k)}
                           onAskAbout={askAbout} />
           )}

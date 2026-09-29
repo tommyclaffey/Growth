@@ -215,7 +215,20 @@
 .gr-table__name { display: flex; flex-direction: column; gap: 1px; }
 .gr-table__sub { color: var(--text-muted); font-weight: 400; }
 
+.gr-table__metric { display: inline-flex; align-items: center; gap: var(--space-8); }
 .gr-table__metric-label { color: var(--text-muted); }
+/* Matched to the header's other 24px controls. */
+.gr-table__select {
+  height: 28px;
+  padding: 0 var(--space-8);
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.gr-table__select:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }
+.gr-table__na { color: var(--text-muted); }
 
 /* The foot row: set apart by a heavier rule and full-strength text, since it
    is the number the rows are shares OF. */

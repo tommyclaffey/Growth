@@ -182,3 +182,15 @@ export function coverageTitle(
 
 /** Every channel, for tests and for the Settings empty case. */
 export const ALL_CHANNELS: ChannelName[] = [...CHANNEL_KEYS];
+
+/**
+ * One channel's change on ANY metric, or null when the channel cannot report it.
+ *
+ * Null, not 0: a podcast has no clicks, so its "change in clicks" is not zero
+ * percent -- it is not a number at all, and a table that printed "0%" would be
+ * asserting that nothing moved in a thing that does not exist.
+ */
+export function channelChange(ch: ChannelName, m: DerivedMetric, range: Range = 30): number | null {
+  if (coverageFor(m, [ch]).length === 0) return null;
+  return changeOf(m, rowsFor(ch, range), rowsFor(ch, range, 1));
+}
