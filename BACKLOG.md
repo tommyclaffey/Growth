@@ -561,6 +561,9 @@ wait on other people: the **Meta app** and the **Google Ads developer token**.
 
 ## ✅ Done
 
+- **Reports, rebuilt** *(Sept 28)* — the thinnest screen, now worth opening. Summary strip (sending / next send / who receives), **Next run** computed from the last day of data, **Preview** shows the figures each report sends (per channel, its own window vs the one before — same functions as the CSV), Pause / Resume / Schedule-a-draft, recipients as faces + external count, a working **New report** builder. Fixed: "TikTok · YouTube" exported TikTok only; every report exported 30 days regardless of cadence; last-run dates after the data ended; a second Export that ignored the range. First screen checked in a real browser (headless Chrome via CDP, `/tmp/shot.mjs`) before handing over.
+- **Every decision goes back to its item** *(Sept 28)* — "Go to ad / campaign / Meta / all channels" on every card; the overdue pill goes there too. Target stored on the flag at decision time.
+
 - **Δ Prev is now the preceding window** *(Sept 28)* — was the back half of the selected window vs its front half (3 vs 4 days on a 7-day range) and a mean of daily ratios. Now this window vs the equal-length one immediately before, both summed then the metric taken once. Needed 90 days of history before the window (`HISTORY`), generated from separate seeds so no recent number moved. Every tier and the assistant read the same `changeOf`. ⚠️ Seeded deltas no longer match the Figma screens' Δ figures — the design numbers were half-splits; real windows differ. Campaigns/ad sets/ads share a constant fraction of their channel, so their Spend Δ equals the channel's by construction (true of seeded data only).
 
 - Campaign detail pages, per-channel metric vocabularies, channel benchmarks

@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { ChannelName } from '../styles/tokens';
 import type { Stage } from '../components/StatusPill/StatusPill';
-import { CHANNEL_KEYS, CHANNEL_LABEL, type Range } from './metrics';
+import { CHANNEL_KEYS, CHANNEL_LABEL, PERIOD_END, type Range } from './metrics';
 
 /**
  * Scheduled reports.
@@ -24,8 +24,12 @@ export interface Report {
   cadence: Cadence;
   /** Human schedule, e.g. "Every Monday, 8:00". */
   when: string;
-  /** Member ids from the roster. Seed reports carry a count instead. */
-  recipients: string[] | number;
+  /** Weekly only: 0 = Sunday … 6 = Saturday. Drives Next run. */
+  weekday?: number;
+  /** Team members, by roster id -- shown as faces. */
+  recipients: string[];
+  /** People outside the workspace (a client, the board). Counted, not named. */
+  external?: number;
   /** "Aug 10". Undefined = never run. Always on or before the last day of data. */
   lastRun?: string;
   stage: Stage;
@@ -49,18 +53,51 @@ export const DEFAULT_WHEN: Record<Cadence, string> = {
    read Aug 22-26, which is a report claiming to have run on data that does not
    exist yet. Aug 12 2026 is a Wednesday: the Monday before is the 10th, the
    Friday the 7th. */
+/* Recipients were bare counts -- 6, 9 -- in a workspace of four people. Now the
+   team are named (and shown as faces) and anyone else is counted as external,
+   so the numbers add up to people who exist. */
 const SEED: Report[] = [
-  { id: 'r1', name: 'Weekly performance summary', channels: [], cadence: 'Weekly',
-    when: 'Every Monday, 8:00', recipients: 6, lastRun: 'Aug 10', stage: 'Active' },
-  { id: 'r2', name: 'Meta deep dive', channels: ['meta'], cadence: 'Weekly',
-    when: 'Every Friday, 16:00', recipients: 3, lastRun: 'Aug 7', stage: 'Active' },
+  { id: 'r1', name: 'Weekly performance summary', channels: [], cadence: 'Weekly', weekday: 1,
+    when: 'Every Monday, 8:00', recipients: ['maya', 'jr', 'dk', 'ap'], external: 2,
+    lastRun: 'Aug 10', stage: 'Active' },
+  { id: 'r2', name: 'Meta deep dive', channels: ['meta'], cadence: 'Weekly', weekday: 5,
+    when: 'Every Friday, 16:00', recipients: ['maya', 'jr'], external: 1,
+    lastRun: 'Aug 7', stage: 'Active' },
   { id: 'r3', name: 'Creator channel blended', channels: ['tiktok', 'youtube'], cadence: 'Monthly',
-    when: 'Monthly, 1st', recipients: 4, lastRun: 'Aug 1', stage: 'Active' },
+    when: 'Monthly, 1st', recipients: ['jr', 'ap'], external: 2, lastRun: 'Aug 1', stage: 'Active' },
   { id: 'r4', name: 'CAC watch', channels: [], cadence: 'Daily',
-    when: 'Daily, 7:00', recipients: 2, lastRun: 'Aug 3', stage: 'Paused' },
+    when: 'Daily, 7:00', recipients: ['maya', 'dk'], lastRun: 'Aug 3', stage: 'Paused' },
   { id: 'r5', name: 'Q3 board pack', channels: [], cadence: 'Quarterly',
-    when: 'Quarterly', recipients: 9, stage: 'Draft' },
+    when: 'Quarterly', recipients: ['maya'], external: 8, stage: 'Draft' },
 ];
+
+/**
+ * When a report next goes out, or undefined if it will not.
+ *
+ * ⚠️ Measured from the LAST DAY OF DATA (Aug 12), not the real clock. The whole
+ * product is frozen on that day -- every chart ends there -- and a Next run of
+ * "Oct 5" beside a Last run of "Aug 10" would be a report that silently skipped
+ * eight weeks. Once real APIs land, `now` becomes today.
+ */
+export function nextRun(r: Report, now: Date = PERIOD_END): Date | undefined {
+  if (r.stage !== 'Active') return undefined;
+  const d = new Date(now);
+  if (r.cadence === 'Daily') { d.setUTCDate(d.getUTCDate() + 1); return d; }
+  if (r.cadence === 'Weekly') {
+    const want = r.weekday ?? 1;
+    const ahead = ((want - d.getUTCDay() + 7) % 7) || 7;   // strictly after today
+    d.setUTCDate(d.getUTCDate() + ahead);
+    return d;
+  }
+  if (r.cadence === 'Monthly') return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
+  const q = Math.floor(d.getUTCMonth() / 3) + 1;          // next quarter's first month
+  return new Date(Date.UTC(d.getUTCFullYear(), q * 3, 1));
+}
+
+/** "Mon Aug 17". */
+export function formatRun(d: Date): string {
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
 
 /** "Meta", "TikTok · YouTube", or "All channels". */
 export function scopeLabel(r: Pick<Report, 'channels'>): string {
@@ -96,19 +133,50 @@ function read(): Report[] {
         && Array.isArray(x.channels) && x.channels.every((c) => CHANNEL_KEYS.includes(c))
         && CADENCES.includes(x.cadence as Cadence) && typeof x.when === 'string'
         && Array.isArray(x.recipients) && x.recipients.every((m) => typeof m === 'string');
-    }).map((r) => ({ ...r, own: true, stage: 'Active' as const, lastRun: undefined }));
+    }).map((r) => ({ ...r, own: true, stage: 'Active' as const, lastRun: undefined, weekday: r.cadence === 'Weekly' ? 1 : undefined }));
   } catch {
     return [];
   }
 }
 
+/* Paused / resumed, by report id -- the seed's own stage is the default. Stored
+   apart from the seed so the seed stays correctable in code. */
+const STAGE_KEY = 'growth.report-stages';
+function readStages(): Record<string, Stage> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STAGE_KEY) ?? 'null');
+    if (!raw || typeof raw !== 'object') return {};
+    return Object.fromEntries(Object.entries(raw).filter(([, v]) => v === 'Active' || v === 'Paused')) as Record<string, Stage>;
+  } catch {
+    return {};
+  }
+}
+
 let mine: Report[] = read();
-let all: Report[] = [...mine, ...SEED];
+let stages: Record<string, Stage> = readStages();
+let all: Report[] = compose();
+
+function compose(): Report[] {
+  return [...mine, ...SEED].map((r) => (stages[r.id] ? { ...r, stage: stages[r.id] } : r));
+}
 
 function save() {
-  all = [...mine, ...SEED];
-  try { localStorage.setItem(KEY, JSON.stringify(mine)); } catch { /* quota */ }
+  all = compose();
+  try {
+    localStorage.setItem(KEY, JSON.stringify(mine));
+    localStorage.setItem(STAGE_KEY, JSON.stringify(stages));
+  } catch { /* quota */ }
   window.dispatchEvent(new Event(CHANGED));
+}
+
+/**
+ * Pause, resume, or schedule a draft. Active <-> Paused only: a draft becomes
+ * Active once and does not go back to being a draft.
+ */
+export function setReportStage(id: string, stage: 'Active' | 'Paused') {
+  if (!all.some((r) => r.id === id)) return;
+  stages = { ...stages, [id]: stage };
+  save();
 }
 
 export function reports(): Report[] {
@@ -120,6 +188,7 @@ export function addReport(r: Pick<Report, 'name' | 'channels' | 'cadence' | 'rec
     ...r,
     id: `own-${Date.now().toString(36)}`,
     when: DEFAULT_WHEN[r.cadence],
+    weekday: r.cadence === 'Weekly' ? 1 : undefined,
     stage: 'Active',
     own: true,
   };
@@ -128,14 +197,25 @@ export function addReport(r: Pick<Report, 'name' | 'channels' | 'cadence' | 'rec
   return made;
 }
 
+/** Back to the seed's own stages. For tests: the module cache outlives localStorage.clear(). */
+export function resetReportStages() {
+  stages = {};
+  save();
+}
+
 export function removeReport(id: string) {
   if (!mine.some((r) => r.id === id)) return;       // the seed cannot be removed
   mine = mine.filter((r) => r.id !== id);
+  const { [id]: _gone, ...rest } = stages;
+  void _gone;
+  stages = rest;
   save();
 }
 
 function subscribe(fn: () => void) {
-  const sync = (e: StorageEvent) => { if (e.key === KEY) { mine = read(); all = [...mine, ...SEED]; fn(); } };
+  const sync = (e: StorageEvent) => {
+    if (e.key === KEY || e.key === STAGE_KEY) { mine = read(); stages = readStages(); all = compose(); fn(); }
+  };
   window.addEventListener(CHANGED, fn);
   window.addEventListener('storage', sync);
   return () => {

@@ -96,7 +96,7 @@ function hash(s: string): number {
 /* One point per day, ending on a fixed date so the labels never shift under
    the reader. A dashboard whose axis moves between two screenshots of the
    same data is one nobody trusts. */
-const PERIOD_END = new Date(Date.UTC(2026, 7, 12)); // 12 Aug 2026
+export const PERIOD_END = new Date(Date.UTC(2026, 7, 12)); // 12 Aug 2026
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 export const DAY_LABELS = Array.from({ length: TOTAL_POINTS }, (_, i) => {

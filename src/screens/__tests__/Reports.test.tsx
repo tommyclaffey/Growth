@@ -3,8 +3,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { Reports } from '../Reports';
 import {
-  WINDOW, exportChannels, removeReport, reports, scopeLabel,
+  WINDOW, exportChannels, formatRun, nextRun, removeReport, reports, resetReportStages, scopeLabel, setReportStage,
 } from '../../data/reports';
+import { formatMetric } from '../../data/metrics';
 import { buildCsv } from '../../data/exportCsv';
 import { CHANNEL_KEYS, DAY_LABELS, setActiveChannels, totals } from '../../data/metrics';
 import { setChannels } from '../../data/channels';
@@ -12,6 +13,7 @@ import { setChannels } from '../../data/channels';
 afterEach(() => {
   cleanup();
   for (const r of reports().filter((x) => x.own)) removeReport(r.id);
+  resetReportStages();
   localStorage.clear();
   setChannels([...CHANNEL_KEYS]);
 });
@@ -94,12 +96,55 @@ describe('the Reports screen', () => {
     expect(row.textContent).toContain('Meta · TikTok');
     expect(row.textContent).toContain('Never run');
     expect(within(row).getByRole('button', { name: 'Export' })).toBeTruthy();
-    fireEvent.click(within(row).getByRole('button', { name: 'Remove Paid social Monday' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'Preview Paid social Monday' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Paid social Monday' }));
     expect(reports().some((r) => r.name === 'Paid social Monday')).toBe(false);
   });
 
   it('the five seeded reports cannot be removed', () => {
     render(<Reports />);
+    for (const b of screen.getAllByRole('button', { name: /^Preview/ })) fireEvent.click(b);
     expect(screen.queryAllByRole('button', { name: /^Remove/ })).toHaveLength(0);
+  });
+
+  it('Preview shows the same total the CSV writes, over the report\'s own window', () => {
+    render(<Reports />);
+    const r = reports().find((x) => x.name === 'Creator channel blended')!;
+    fireEvent.click(screen.getByRole('button', { name: 'Preview Creator channel blended' }));
+    const panel = document.getElementById(`report-preview-${r.id}`)!;
+    const spend = totals('tiktok', 30).spend + totals('youtube', 30).spend;
+    expect(panel.querySelector('.gr-report-preview__total')!.textContent)
+      .toContain(formatMetric('Spend', spend));
+    /* Both windows are named, so "vs prior" says prior to WHAT. */
+    expect(panel.textContent).toMatch(/Jul 14 – Aug 12, compared with Jun 14 – Jul 13/);
+  });
+
+  it('Pause and Resume change the schedule, not just the pill', () => {
+    const { container } = render(<Reports />);
+    const row = () => [...container.querySelectorAll('tbody tr')]
+      .find((tr) => tr.textContent!.includes('Meta deep dive')) as HTMLElement;
+    expect(row().textContent).toContain('Fri, Aug 14');
+    fireEvent.click(screen.getByRole('button', { name: 'Preview Meta deep dive' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(row().textContent).not.toContain('Aug 14');
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    expect(row().textContent).toContain('Fri, Aug 14');
+  });
+});
+
+describe('next run is measured from the last day of data (Wed Aug 12)', () => {
+  const by = (n: string) => reports().find((r) => r.name === n)!;
+  it('weekly lands on its weekday, strictly after today', () => {
+    expect(formatRun(nextRun(by('Weekly performance summary'))!)).toBe('Mon, Aug 17');
+    expect(formatRun(nextRun(by('Meta deep dive'))!)).toBe('Fri, Aug 14');
+  });
+  it('monthly is the 1st of next month; a paused or draft report has none', () => {
+    expect(formatRun(nextRun(by('Creator channel blended'))!)).toBe('Tue, Sep 1');
+    expect(nextRun(by('CAC watch'))).toBeUndefined();
+    expect(nextRun(by('Q3 board pack'))).toBeUndefined();
+  });
+  it('scheduling the draft gives it a next run at the next quarter', () => {
+    setReportStage('r5', 'Active');
+    expect(formatRun(nextRun(by('Q3 board pack'))!)).toBe('Thu, Oct 1');
   });
 });

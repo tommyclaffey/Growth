@@ -7,7 +7,7 @@
 .gr-section-head .gr-spacer { flex: 1; }
 
 /* Reports */
-.gr-report-name { display: flex; flex-direction: column; gap: 2px; }
+.gr-report-name { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .gr-report-name strong { color: var(--text-primary); font-weight: 500; }
 .gr-report-name span   { color: var(--text-muted); }
 
@@ -114,9 +114,9 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-report-actions .gr-button + .gr-button { margin-left: var(--space-8); }
 .gr-report-off { color: var(--text-muted); }
 .gr-report-when { color: var(--text-secondary); }
-/* Overlapped slightly, the way a recipient list reads in every mail client. */
-.gr-report-people { display: inline-flex; }
-.gr-report-people > * + * { margin-left: calc(var(--space-6) * -1); box-shadow: 0 0 0 2px var(--surface-card); }
+/* Side by side, not overlapped. Overlapping 24px monograms hid half of every
+   set of initials but the last -- "JR" read as "J". Faces are the point. */
+.gr-report-people { display: inline-flex; align-items: center; gap: var(--space-4); }
 
 /* The report builder. Inline, above the table it adds to. */
 .gr-report-form {
@@ -141,6 +141,54 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-report-form__chips { display: flex; flex-wrap: wrap; gap: var(--space-8); }
 .gr-report-form__hint { color: var(--text-muted); }
 .gr-report-form__actions { display: flex; align-items: center; gap: var(--space-8); }
+.gr-report-form__title { margin: 0; color: var(--text-primary); }
+
+/* Three facts above the table: how much is running, what goes out next, and
+   who is on the receiving end. The table says the same things row by row; this
+   says them once, so the screen answers "is anything about to go out?" without
+   reading five rows. */
+.gr-report-summary {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-16); margin: 0 0 var(--space-16);
+}
+.gr-report-stat { gap: var(--space-6); }
+.gr-report-stat dt { color: var(--text-muted); }
+.gr-report-stat dd { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); color: var(--text-primary); }
+.gr-report-stat dd.gr-report-people { flex-direction: row; }
+.gr-report-stat__sub { color: var(--text-muted); }
+
+/* "+2" beside the faces -- people outside the workspace, the same size as an
+   avatar so the row reads as one list of recipients. */
+.gr-report-more {
+  display: inline-grid; place-items: center;
+  min-width: 24px; height: 24px; padding: 0 var(--space-6);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary); background: var(--surface-page-top);
+}
+
+/* The open row and its preview read as one unit: no rule between them. */
+.gr-report-row.is-open td { border-bottom: none; }
+/* 0-2-2, to beat `.gr-table td:last-child` (0-2-1), which right-aligns and
+   un-pads the last cell -- and this single spanning cell is the last cell. */
+.gr-table tr.gr-report-preview-row > td {
+  white-space: normal; text-align: left; padding: 0 0 var(--space-16);
+}
+.gr-report-preview {
+  padding: var(--space-16) var(--space-20);
+  border-radius: var(--radius-lg);
+  background: var(--surface-page-top);
+}
+.gr-report-preview__head { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-12); }
+/* `.gr-spacer` only flexes inside .gr-section-head, so Pause sat against the
+   title instead of at the right edge. */
+.gr-report-preview__head .gr-spacer { flex: 1; }
+/* Preview <-> Hide must not change the button's width, or every other button
+   in the row jumps sideways when you open one. */
+.gr-report-toggle { min-width: 5.75rem; justify-content: center; }
+.gr-report-preview__title { margin: 0; color: var(--text-primary); }
+.gr-report-preview__sub { margin: var(--space-2) 0 0; color: var(--text-muted); }
+.gr-report-preview__table td, .gr-report-preview__table th { background: transparent; }
+.gr-report-preview__total td { border-top: var(--border-width-sm) solid var(--border-default); color: var(--text-primary); }
 
 /* Simulate-state control. A radiogroup, not a set of toggles: the states are
    mutually exclusive, and four independent switches would let someone select
