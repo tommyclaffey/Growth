@@ -123,7 +123,18 @@ Assigned flags are **not** gated by the Settings alert switches. Those control
 what the data surfaces; silencing pacing warnings must never silence something a
 person put there by hand.
 
-## 🔨 G-008 — A task builder, with owners *(data layer done Sept 9)*
+## ✅ G-008 — A task builder, with owners *(UI DONE Sept 28)*
+
+> ✅ **Built on the Decided queue, Sept 28.** Every decided card — engine or written — gets an
+> owner picker (the 4 roster members, avatar shown) and a date. Overdue is computed from the
+> LOCAL date (it was UTC — a decision due today went red at 5pm in Arizona), shown in words and
+> a red edge. **An overdue decision returns to Needs attention**, red, owner named, with **no ×**
+> — clicking it opens Decisions. One predicate, `onAttentionStrip`, feeds both the strip and
+> Clear all, so they cannot drift. Tests: `DecisionTasks.test.tsx`.
+> **Deliberately not built:** reminders, a task screen, Slack posting on assign. The Slack post is
+> the natural next demo if wanted.
+> ⚠️ **Open question:** the "done when its campaign Ends" rule covers campaign flags only. A
+> decision about a channel or the whole account never Ends — for now you close it with Remove.
 
 > *"Maybe we should have a task builder in there. Maybe I'm part of this."* — Sept 9
 

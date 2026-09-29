@@ -98,8 +98,28 @@ export function isTask(f: Flag): boolean {
  */
 export function isOverdue(f: Flag, today = new Date()): boolean {
   if (!f.due) return false;
-  const t = today.toISOString().slice(0, 10);
+  /* The LOCAL calendar date. `toISOString()` is UTC, so from 5pm in Arizona it
+     already reads tomorrow -- and a decision due today turned red at dinner. A
+     due date is a day on the reader's calendar, not an instant. */
+  const p = (n: number) => String(n).padStart(2, '0');
+  const t = `${today.getFullYear()}-${p(today.getMonth() + 1)}-${p(today.getDate())}`;
   return f.due < t;
+}
+
+/**
+ * Whether a flag belongs on the Overview "Needs attention" strip.
+ *
+ * ⭐ ONE predicate, read by the strip that SHOWS flags and by the "Clear all"
+ * that REMOVES them. Two filters for one question is the bug class this
+ * codebase keeps finding -- here it would mean Clear all deleting a decision
+ * the strip never showed.
+ *
+ * A taken decision is not attention: attending to it is what taking it meant.
+ * An OVERDUE one is, again -- a commitment past its date is the most urgent
+ * open loop there is.
+ */
+export function onAttentionStrip(f: Flag, today = new Date()): boolean {
+  return f.kind !== 'decision' || isOverdue(f, today);
 }
 
 const KEY = 'growth.attention';

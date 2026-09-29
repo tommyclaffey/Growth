@@ -44,11 +44,11 @@ import {
 import {
   dismissAlert, dismissAll, markAllRead, undismissAlert, usePrefs,
 } from './data/prefs';
-import { removeFlag, restoreFlag, useFlags, type Flag } from './data/attention';
+import { onAttentionStrip, removeFlag, restoreFlag, useFlags, type Flag } from './data/attention';
 import { readUrlState, writeUrlState } from './data/urlState';
 import type { ChannelName } from './styles/tokens';
 import type { ViewRef } from './data/chat';
-import { readDeepLink } from './data/chat';
+import { MEMBERS, readDeepLink } from './data/chat';
 
 /* The alerts, with the view each one points at.
    Kept beside the labels so a pill can never name one channel and navigate to
@@ -410,20 +410,28 @@ export default function App() {
    * conclusion attached; "you decided to pause this ad" is a closed one. G-001
    * separated those two kinds for this reason and the distinction still holds.
    *
-   * ▶️ The case that should bring one back: a decision with a due date that has
-   * passed. An overdue commitment genuinely does need attention again.
-   * `isOverdue` already exists for it — but nothing sets `due` on a decision yet
-   * (G-008's task UI is unbuilt), so writing that branch now would be a condition
-   * that can never be true. Wire it when dates land, not before.
+   * ✅ The case that brings one back: a decision past its due date. An overdue
+   * commitment genuinely does need attention again. The rule lives in
+   * `onAttentionStrip`, read here AND by Clear all, so the two cannot drift.
    */
   const assignedAlerts = attentionFlags
-    .filter((f) => f.kind !== 'decision')
-    .map((f) => ({
-      id: `flag:${f.id}`,
-      label: f.label,
-      tone: 'warn' as const,
-      source: 'assigned' as const,
-    }));
+    .filter((f) => onAttentionStrip(f))
+    .map((f) => (f.kind === 'decision'
+      /* ✅ G-008 wired it. Only reachable because dates now exist. Red, named,
+         and without a × -- see Alert.dismissable. */
+      ? {
+          id: `flag:${f.id}`,
+          label: `Overdue${f.owner && MEMBERS[f.owner] ? ` · ${MEMBERS[f.owner].name.split(' ')[0]}` : ''}: ${f.label}`,
+          tone: 'bad' as const,
+          source: 'overdue' as const,
+          dismissable: false,
+        }
+      : {
+          id: `flag:${f.id}`,
+          label: f.label,
+          tone: 'warn' as const,
+          source: 'assigned' as const,
+        }));
 
   const shownAlerts = [
     ...assignedAlerts,
@@ -634,12 +642,21 @@ export default function App() {
 
                      The filter has to match the one that built `assignedAlerts`
                      or the two drift, which is how this bug would come back. */
+                  /* ...and of those, only the ones with a ×. Clear all is the
+                     × on every pill at once; it cannot do what no single pill
+                     is allowed to, which is delete an overdue decision. */
                   attentionFlags
-                    .filter((f) => f.kind !== 'decision')
+                    .filter((f) => onAttentionStrip(f) && f.kind !== 'decision')
                     .forEach((f) => removeFlag(f.kind, f.refId));
                   setLastCleared(null);   // one undo, not a stack
                 }}
                 onAlertClick={(id) => {
+                  /* An overdue decision opens the queue it lives in, where the
+                     date can be moved or the decision removed. */
+                  if (attentionFlags.some((f) => f.kind === 'decision' && `flag:${f.id}` === id)) {
+                    setNav('decisions');
+                    return;
+                  }
                   const a = ALERTS.find((x) => x.id === id);
                   if (a) applyView({ channel: a.channel, metric: a.metric, range });
                 }}

@@ -127,6 +127,14 @@ describe('tasks are flags with fields', () => {
     expect(isOverdue(f, new Date('2025-01-01'))).toBe(false);
   });
 
+  it('reads today as the LOCAL date, not UTC', () => {
+    /* 11:30pm local. West of UTC, toISOString() already says tomorrow, which
+       turned a decision due today red in the evening. */
+    setTask('campaign', 'c1', 'x', { due: '2026-09-09' });
+    expect(isOverdue(flags()[0], new Date(2026, 8, 9, 23, 30))).toBe(false);
+    expect(isOverdue(flags()[0], new Date(2026, 8, 10, 0, 30))).toBe(true);
+  });
+
   it('is not overdue on the due date itself', () => {
     setTask('campaign', 'c1', 'x', { due: '2026-09-09' });
     expect(isOverdue(flags()[0], new Date('2026-09-09'))).toBe(false);

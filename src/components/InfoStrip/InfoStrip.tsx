@@ -12,7 +12,14 @@ export interface Alert {
    * on Tuesday" are not the same claim, and a strip that renders them
    * identically is asserting that they are. The assigned ones carry a mark and
    * say who put them there. */
-  source?: 'derived' | 'assigned';
+  source?: 'derived' | 'assigned' | 'overdue';
+  /**
+   * False hides the ×. An OVERDUE decision is resolved where it lives -- give it
+   * a new date, or remove it -- not by clearing a pill. A × here would either
+   * delete the commitment or hide it until tomorrow, and both are wrong answers
+   * to "this is late".
+   */
+  dismissable?: boolean;
 }
 
 export interface InfoStripProps {
@@ -67,7 +74,9 @@ export function InfoStrip({
           <span
             key={a.id}
             className={`gr-strip__pill-wrap gr-type-caption-med tone-${a.tone ?? 'warn'} ${a.source === 'assigned' ? 'is-assigned' : ''}`}
-            title={a.source === 'assigned' ? 'Flagged by you' : 'Raised by the data'}
+            title={a.source === 'assigned' ? 'Flagged by you'
+              : a.source === 'overdue' ? 'A decision past its due date'
+              : 'Raised by the data'}
           >
             <button
               type="button"
@@ -80,7 +89,7 @@ export function InfoStrip({
               )}
               {a.label}
             </button>
-            {onDismiss && (
+            {onDismiss && a.dismissable !== false && (
               <button
                 type="button"
                 className="gr-strip__dismiss"

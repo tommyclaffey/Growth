@@ -5,7 +5,8 @@ import { Badge } from '../components/Badge/Badge';
 import { ChannelMark } from '../components/ChannelMark/ChannelMark';
 import type { ChannelName } from '../styles/tokens';
 import { decisions, TIER_LABEL, type Candidate, type Tier } from '../data/decisions';
-import { addFlag, isFlagged, isOwnDecision, removeFlag, useFlags } from '../data/attention';
+import { addFlag, isFlagged, isOverdue, isOwnDecision, removeFlag, useFlags, type Flag } from '../data/attention';
+import { TaskFields } from '../components/TaskFields/TaskFields';
 import { dismiss, isDismissed, restore, useDismissals } from '../data/dismissedDecisions';
 import { useChannels } from '../data/channels';
 import { formatMetric, type Range } from '../data/metrics';
@@ -123,9 +124,9 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
           </p>
           <div className="gr-dec__list">
             {queue.map(({ flag: f, candidate }) => (candidate ? (
-              <DecisionCard key={f.id} candidate={candidate} onDiscuss={onDiscuss} />
+              <DecisionCard key={f.id} candidate={candidate} flag={f} onDiscuss={onDiscuss} />
             ) : (
-              <article key={f.id} className="gr-card gr-dec__card is-own">
+              <article key={f.id} className={`gr-card gr-dec__card is-own ${isOverdue(f) ? 'is-overdue' : ''}`}>
                 {/* ⭐ The SAME shape as an engine card: breadcrumb with the
                     channel mark, the action, then the figures.
 
@@ -172,6 +173,8 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
                     ))}
                   </dl>
                 )}
+
+                <TaskFields flag={f} />
 
                 <footer className="gr-dec__actions">
                   <Button variant="ghost" onClick={() => removeFlag('decision', f.refId)}>
@@ -261,8 +264,10 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
   );
 }
 
-function DecisionCard({ candidate: c, onDiscuss }: {
+function DecisionCard({ candidate: c, flag, onDiscuss }: {
   candidate: Candidate;
+  /** Present on the Decided queue -- the record owner and due date live on. */
+  flag?: Flag;
   onDiscuss?: (question: string) => void;
 }) {
   const [dismissing, setDismissing] = useState(false);
@@ -270,7 +275,7 @@ function DecisionCard({ candidate: c, onDiscuss }: {
   const accepted = isFlagged('decision', c.id);
 
   return (
-    <article className={`gr-card gr-dec__card is-tier-${c.tier}`}>
+    <article className={`gr-card gr-dec__card is-tier-${c.tier} ${flag && isOverdue(flag) ? 'is-overdue' : ''}`}>
       {/* ⭐ Where this decision lives, before what it says.
 
           A decision without its scope is an instruction with no address.
@@ -334,6 +339,9 @@ function DecisionCard({ candidate: c, onDiscuss }: {
           </p>
         </div>
       )}
+
+      {/* Only once decided. A proposal has no owner -- nobody has agreed to it. */}
+      {accepted && flag && <TaskFields flag={flag} />}
 
       <footer className="gr-dec__actions">
         {/* ⚠️ Tier 3 gets no Accept button. There is nothing to accept — it is a

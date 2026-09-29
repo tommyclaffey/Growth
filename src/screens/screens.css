@@ -304,7 +304,7 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-ads__select {
   height: 24px;
   padding: 0 var(--space-8);
-  color: var(--text-default);
+  color: var(--text-primary);  /* was --text-default, which does not exist */
   background: var(--surface-card);
   border: var(--border-width-sm) solid var(--border-default);
   border-radius: var(--radius-sm);
@@ -437,6 +437,9 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
    edge, the same way the tiers are -- accent rather than a tier colour, because
    it is not a confidence level, it is a different SOURCE. */
 .gr-dec__card.is-own { border-left: 3px solid var(--accent-base); }
+/* Overdue outranks every other edge colour -- tier and source say what KIND of
+   decision this is; overdue says it needs you now. Declared after both. */
+.gr-dec__card.is-overdue { border-left-color: var(--semantic-bad); }
 
 /* The decision's address. Above the action and quieter than it — the action is
    what you agree to, the scope is where it lands. */

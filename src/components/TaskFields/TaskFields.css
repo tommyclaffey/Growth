@@ -1,0 +1,43 @@
+/* Owner + due date, one row, under the decision it belongs to. */
+.gr-task {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--space-12);
+  margin: 0 0 var(--space-12);
+}
+.gr-task__field { display: inline-flex; align-items: center; gap: var(--space-6); }
+.gr-task__label { color: var(--text-muted); }
+
+/* Same 24px box as the Ads select and the Chips, so the row reads as one set of
+   controls rather than three sizes of thing. */
+.gr-task__control {
+  height: 24px;
+  padding: 0 var(--space-8);
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.gr-task__control:focus-visible {
+  outline: var(--border-width-md) solid var(--accent-base);
+  outline-offset: 1px;
+}
+
+/* The empty seat. A dashed ring the size of an avatar, so an unassigned decision
+   has a visible gap where a person should be rather than just shifting left. */
+.gr-task__nobody {
+  width: 24px; height: 24px; flex: none;
+  border: var(--border-width-sm) dashed var(--border-default);
+  border-radius: var(--radius-pill);
+}
+
+.gr-task.is-overdue .gr-task__control[type='date'] {
+  border-color: var(--semantic-bad);
+  color: var(--semantic-bad);
+}
+.gr-task__late {
+  padding: var(--space-2) var(--space-8);
+  color: var(--semantic-bad);
+  background: var(--semantic-bad-bg);
+  border-radius: var(--radius-sm);
+}
