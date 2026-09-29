@@ -10,6 +10,9 @@
 .gr-report-name { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .gr-report-name strong { color: var(--text-primary); font-weight: 500; }
 .gr-report-name span   { color: var(--text-muted); }
+/* "Never run" sits where other rows have a 16px line of small text; a full
+   24px badge made that one row 7px taller than the rest. */
+.gr-report-name .gr-badge { height: 16px; padding: 0 var(--space-6); }
 
 /* Notifications */
 
@@ -54,7 +57,9 @@
 
 .gr-setting-row__connect {
   flex: none;
-  padding: var(--space-6) var(--space-12);
+  /* 32, like every other Settings control (was 30). */
+  height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 var(--space-12);
   border: var(--border-width-sm) solid var(--border-default);
   border-radius: var(--radius-md);
   background: var(--surface-card);

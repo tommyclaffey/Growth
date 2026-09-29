@@ -44,15 +44,18 @@
 .gr-strip__pill {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  height: 26px;
-  padding: var(--space-4) 11px;
+  /* On the grid, and the 24 of every other chip. Type from the wrapper
+     (caption-med) via font: inherit -- font-family alone left the browser's
+     13.33px button size, beside a 12px "Clear all". */
+  gap: var(--space-6);
+  height: 24px;
+  padding: 0 var(--space-12);
+  font: inherit;
   border-radius: var(--radius-pill);
   border: var(--border-width-sm) solid var(--border-default);
   background: var(--surface-card);
   color: var(--text-secondary);
   cursor: pointer;
-  font-family: inherit;
   white-space: nowrap;
   transition: border-color 120ms ease, color 120ms ease;
 }

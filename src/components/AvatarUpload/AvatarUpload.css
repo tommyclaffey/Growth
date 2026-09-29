@@ -38,11 +38,13 @@
 .gr-upload__hint { color: var(--text-muted); margin-top: var(--space-4) !important; }
 
 .gr-upload__remove {
+  /* 32, the Settings control height (was 34 from padding + line). */
+  height: 32px; display: inline-flex; align-items: center; justify-content: center;
   border: var(--border-width-sm) solid var(--border-default);
   border-radius: var(--radius-md);
   background: var(--surface-card);
   color: var(--text-secondary);
-  padding: var(--space-8) var(--space-12);
+  padding: 0 var(--space-12);
   cursor: pointer;
   font-family: inherit;
 }
@@ -110,11 +112,13 @@
 .gr-upload__actions { display: flex; flex-direction: column; gap: var(--space-8); flex: none; }
 
 .gr-upload__adjust {
+  /* 32, the Settings control height (was 34 from padding + line). */
+  height: 32px; display: inline-flex; align-items: center; justify-content: center;
   border: var(--border-width-sm) solid var(--accent-soft);
   border-radius: var(--radius-md);
   background: var(--surface-card);
   color: var(--accent-text);
-  padding: var(--space-8) var(--space-12);
+  padding: 0 var(--space-12);
   cursor: pointer;
   font-family: inherit;
 }

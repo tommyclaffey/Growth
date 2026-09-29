@@ -219,7 +219,7 @@
 .gr-table__metric-label { color: var(--text-muted); }
 /* Matched to the header's other 24px controls. */
 .gr-table__select {
-  height: 28px;
+  height: 24px;   /* the 24 of the other in-table controls (chips, pills, the Ads select) */
   padding: 0 var(--space-8);
   color: var(--text-primary);
   background: var(--surface-card);

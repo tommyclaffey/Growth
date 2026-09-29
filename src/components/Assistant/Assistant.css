@@ -232,7 +232,7 @@
 /* A real button, not a link — it changes state rather than navigating. */
 .gr-assist__take {
   flex: none;
-  height: 26px;
+  height: 28px;   /* on the grid (was 26) */
   /* ⚠️ Both states share a width. "Make the decision" and "✓ On your queue" are
      different lengths, so without this the button resized on click and the
      action text beside it jumped sideways -- a control that moves the thing it

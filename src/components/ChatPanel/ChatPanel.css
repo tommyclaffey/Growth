@@ -69,7 +69,7 @@
   border-top: var(--border-width-sm) solid var(--border-subtle);
 }
 .gr-chat__input {
-  flex: 1; height: 40px;
+  flex: 1; height: 36px;   /* the Send button's height, beside it */
   padding: 0 var(--space-12);
   border-radius: var(--radius-md);
   border: var(--border-width-sm) solid var(--border-default);
@@ -156,8 +156,8 @@
 .gr-msg__slack {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 18px;
+  gap: var(--space-4);
+  height: 16px;   /* the name line's height -- at 18 it pushed every later message onto a half pixel */
   padding: 0 var(--space-8);
   border-radius: var(--radius-sm);
   background: var(--surface-page-top);
