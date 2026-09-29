@@ -32,7 +32,7 @@ import { AdSetDetail } from './screens/AdSetDetail';
 import { CAMPAIGNS } from './data/campaigns';
 import { useMonthlyBudget } from './data/profile';
 import {
-  CHANNEL_LABEL, activeChannels, delta, formatMetric, isActive, series, sparkline, totals,
+  CHANNEL_LABEL, activeChannels, dataVersion, delta, formatMetric, isActive, series, sparkline, totals,
   rangeLabel, METRICS,
   type Metric, type Range, type Scope,
 } from './data/metrics';
@@ -365,6 +365,11 @@ export default function App() {
      the chart series and its axis. Before this, the metric toggle changed a
      heading and nothing else, which is the single most common way a portfolio
      prototype gives itself away. */
+  /* Which load of the data this render sees. The memos below read module
+     state (the rows hydrate() installs), so they must also key on WHEN it was
+     installed -- otherwise an account that loads with the same channel list as
+     the one before would keep showing the previous account's totals. */
+  const version = dataVersion();
   const view = useMemo(() => {
     const t = totals(scope, range);
     const data = series(scope, metric, range);
@@ -401,14 +406,14 @@ export default function App() {
        row for a channel Settings said was removed, and an Export that wrote 5
        channels next to a table showing 6. Nothing recovered it but a reload or
        a range change. */
-  }, [scope, metric, range, enabled]);
+  }, [scope, metric, range, enabled, version]);
 
   /* The channels a KPI card is computed over: one on a channel screen, every
      active one on Overview. Deriving the list here rather than inside the row
      keeps the two screens on one code path. */
   const kpiScope = useMemo(
     () => (channel ? [channel] : activeChannels()),
-    [channel, enabled],
+    [channel, enabled, version],
   );
   /* What a channel can report, or what the blend can. `headlineKpis` filters a
      fixed funnel order by availability, so Paid Search drops Impressions and
