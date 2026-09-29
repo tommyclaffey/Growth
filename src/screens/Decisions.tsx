@@ -166,7 +166,7 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
                 )}
 
                 <header className="gr-dec__card-head">
-                  <h4 className="gr-type-strip gr-dec__action">{f.label}</h4>
+                  <h4 className="gr-type-card-heading gr-dec__action">{f.label}</h4>
                   <span className="gr-type-caption gr-dec__stake">Your decision</span>
                 </header>
 
@@ -335,7 +335,7 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen }: {
       </p>
 
       <header className="gr-dec__card-head">
-        <h4 className="gr-type-strip gr-dec__action">{c.action}</h4>
+        <h4 className="gr-type-card-heading gr-dec__action">{c.action}</h4>
         {c.atStake !== undefined && (
           <span className="gr-type-caption gr-dec__stake">
             {formatMetric('Spend', c.atStake)} in play
