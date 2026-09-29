@@ -29,6 +29,8 @@ export interface User {
   /** scrypt$<salt hex>$<hash hex>. Absent for people who only use a provider. */
   password?: string;
   identities: Partial<Record<Provider, string>>;
+  /** The built-in demo account: Maya at Northbank. No password -- local only. */
+  demo?: boolean;
   createdAt: string;
 }
 
@@ -92,6 +94,30 @@ export function createUser(u: { email: string; name: string; avatar?: string; pa
     password: u.password ? hashPassword(u.password) : undefined,
     identities: u.identity ? { [u.identity[0]]: u.identity[1] } : {},
     createdAt: new Date().toISOString(),
+  };
+  saveUsers([...list, made]);
+  return made;
+}
+
+/**
+ * The demo account -- Maya Okonkwo, Growth lead at Northbank, in the "maya"
+ * seat, so everything already in this instance (threads, decisions, the
+ * Slack link) is hers. Created the first time it is used.
+ *
+ * No password, so it cannot be signed into from anywhere but this machine:
+ * the route that uses it refuses remote requests.
+ */
+export function demoUser(): User {
+  const list = users();
+  const found = list.find((u) => u.demo);
+  if (found) return found;
+  const taken = list.some((u) => u.seat === OWNER_SEAT);
+  const made: User = {
+    id: taken ? `u_demo_${randomBytes(4).toString('hex')}` : OWNER_SEAT,
+    seat: OWNER_SEAT,
+    email: 'maya@northbank.demo', name: 'Maya Okonkwo',
+    role: list.length === 0 ? 'owner' : 'member',
+    identities: {}, demo: true, createdAt: new Date().toISOString(),
   };
   saveUsers([...list, made]);
   return made;

@@ -3,7 +3,7 @@ import './SignIn.css';
 import { Button } from '../components/Button/Button';
 import { FormField } from '../components/FormField/FormField';
 import { SlackMark } from '../components/SlackMark/SlackMark';
-import { signIn, signUp, startProvider, type Provider } from '../data/auth';
+import { signIn, signUp, startProvider, useDemo, type Provider } from '../data/auth';
 import googleG from '../assets/brand/google-g.svg';
 import microsoftMark from '../assets/brand/microsoft.svg';
 import teamsMark from '../assets/brand/microsoft-teams.svg';
@@ -40,9 +40,11 @@ export interface SignInProps {
   firstRun: boolean;
   /** First run AND on this machine -- the only place the owner can be created. */
   canCreateOwner: boolean;
+  /** On this machine: the one-click demo account. */
+  canUseDemo?: boolean;
 }
 
-export function SignIn({ providers, firstRun, canCreateOwner }: SignInProps) {
+export function SignIn({ providers, firstRun, canCreateOwner, canUseDemo = false }: SignInProps) {
   const [mode, setMode] = useState<'in' | 'up'>(firstRun ? 'up' : 'in');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -124,6 +126,25 @@ export function SignIn({ providers, firstRun, canCreateOwner }: SignInProps) {
             {busy ? 'One moment…' : mode === 'in' ? 'Sign in' : firstRun ? 'Create owner account' : 'Create account'}
           </Button>
         </form>
+
+        {/* Straight into the full demo -- the way Growth is mostly used on this
+            machine (Tommy, Sept 29: "I just need a full demo account"). Local
+            only, so it is only offered locally. */}
+        {canUseDemo && (
+          <div className="gr-signin__demo">
+            <div className="gr-signin__or gr-type-caption" role="separator">or</div>
+            <Button variant="ghost" className="gr-signin__submit" disabled={busy}
+                    onClick={async () => {
+                      setBusy(true); setError(null);
+                      const r = await useDemo();
+                      setBusy(false);
+                      if (!r.ok) setError(r.error ?? 'The demo account did not open.');
+                    }}>
+              Use the demo account
+            </Button>
+            <p className="gr-type-caption gr-signin__notice">Maya at Northbank — sample data, every feature.</p>
+          </div>
+        )}
 
         {!firstRun && (
           <p className="gr-type-caption gr-signin__switch">

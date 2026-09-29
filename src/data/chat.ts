@@ -47,7 +47,10 @@ export const MEMBERS: Record<string, Member> = {
  * stays in the directory as a separate person, so a demo thread with her is
  * still a thread with someone else.
  */
-export function adoptMe(u: { seat: string; name: string; avatar?: string; role: 'owner' | 'member' }) {
+export function adoptMe(u: { seat: string; name: string; avatar?: string; role: 'owner' | 'member'; demo?: boolean }) {
+  /* The demo account IS the demo persona -- Maya, her photo, "Growth lead".
+     Nothing to adopt. */
+  if (u.demo) return;
   if (u.seat !== ME.id) {
     MEMBERS[ME.id] = { ...ME };        // the demo's Maya, as herself
     ME.id = u.seat;

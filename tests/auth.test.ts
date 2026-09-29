@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  checkPassword, createSession, createUser, endSession, failed, hashPassword, mayJoin, sessionUser, tooMany, users,
+  checkPassword, createSession, createUser, demoUser, endSession, failed, hashPassword, mayJoin, sessionUser, tooMany, users,
 } from '../server/authStore.js';
 import { decodeIdToken, identityOf } from '../server/auth.js';
 import { tokenFor, type Workspace } from '../server/slackStore.js';
@@ -31,6 +31,16 @@ describe('who may create an account', () => {
     expect(mayJoin('dan@acme.com', false, 'jess@x.com, @acme.com')).toBe(true);
     expect(mayJoin('dan@notacme.com', false, '@acme.com')).toBe(false);
     expect(mayJoin('JESS@x.com', false, 'jess@x.com')).toBe(true);
+  });
+});
+
+describe('the demo account', () => {
+  it('is Maya in the maya seat, with no password, created once', () => {
+    const d = demoUser();
+    expect(d).toMatchObject({ seat: 'maya', name: 'Maya Okonkwo', demo: true, role: 'owner' });
+    expect(d.password).toBeUndefined();
+    expect(demoUser().id).toBe(d.id);
+    expect(users()).toHaveLength(1);
   });
 });
 

@@ -70,7 +70,9 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
             <div className="gr-card__heading">
               <h3 className="gr-card__title gr-type-card-heading">Account</h3>
               <p className="gr-card__sub gr-type-caption">
-                {ME.name} · {auth.status === 'signed-in' ? `${auth.user.email} · ${ME_ROLE}` : ME_ROLE}
+                {ME.name} · {auth.status === 'signed-in'
+                  ? (auth.user.demo ? `${ME_ROLE} · Demo account` : `${auth.user.email} · ${ME_ROLE}`)
+                  : ME_ROLE}
               </p>
             </div>
             {/* Only when there is someone signed in -- the public demo has no

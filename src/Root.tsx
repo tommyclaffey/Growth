@@ -21,7 +21,7 @@ export function Root() {
      either would be a guess, and the answer takes one local request. */
   if (auth.status === 'checking') return null;
   if (auth.status === 'signed-out') {
-    return <SignIn providers={auth.providers} firstRun={auth.firstRun} canCreateOwner={auth.canCreateOwner} />;
+    return <SignIn providers={auth.providers} firstRun={auth.firstRun} canCreateOwner={auth.canCreateOwner} canUseDemo={auth.canUseDemo} />;
   }
   return <App />;
 }

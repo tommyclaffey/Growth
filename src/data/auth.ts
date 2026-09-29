@@ -25,12 +25,14 @@ export interface AuthUser {
   email: string;
   avatar?: string;
   role: 'owner' | 'member';
+  /** The built-in demo account (Maya at Northbank). */
+  demo?: boolean;
 }
 
 export type AuthState =
   | { status: 'checking' }
   | { status: 'no-server' }
-  | { status: 'signed-out'; providers: Record<Provider, boolean>; firstRun: boolean; canCreateOwner: boolean }
+  | { status: 'signed-out'; providers: Record<Provider, boolean>; firstRun: boolean; canCreateOwner: boolean; canUseDemo: boolean }
   | { status: 'signed-in'; user: AuthUser; providers: Record<Provider, boolean> };
 
 let state: AuthState = { status: 'checking' };
@@ -46,6 +48,7 @@ interface MeResponse {
   providers: Record<Provider, boolean>;
   firstRun: boolean;
   canCreateOwner: boolean;
+  canUseDemo?: boolean;
 }
 
 let inflight: Promise<AuthState> | null = null;
@@ -60,7 +63,7 @@ export function refreshAuth(force = false): Promise<AuthState> {
       const me = await r.json() as MeResponse;
       set(me.user
         ? { status: 'signed-in', user: me.user, providers: me.providers }
-        : { status: 'signed-out', providers: me.providers, firstRun: me.firstRun, canCreateOwner: me.canCreateOwner });
+        : { status: 'signed-out', providers: me.providers, firstRun: me.firstRun, canCreateOwner: me.canCreateOwner, canUseDemo: Boolean(me.canUseDemo) });
     } catch {
       set({ status: 'no-server' });
     }
@@ -99,6 +102,13 @@ export async function signIn(email: string, password: string) {
 
 export async function signUp(name: string, email: string, password: string) {
   const r = await post('/api/auth/signup', { name, email, password });
+  if (r.ok) await refreshAuth(true);
+  return r;
+}
+
+/** Straight into the full demo as Maya. This machine only. */
+export async function useDemo() {
+  const r = await post('/api/auth/demo', {});
   if (r.ok) await refreshAuth(true);
   return r;
 }

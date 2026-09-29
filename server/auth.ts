@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
 import {
-  MIN_PASSWORD, checkPassword, createSession, createUser, endSession, failed, mayJoin, normEmail,
+  MIN_PASSWORD, checkPassword, createSession, createUser, demoUser, endSession, failed, mayJoin, normEmail,
   sessionUser, succeeded, tooMany, updateUser, userByEmail, userByIdentity, userById,
   type Provider, type User,
 } from './authStore.js';
@@ -139,7 +139,7 @@ function setSession(req: IncomingMessage, res: ServerResponse, user: User) {
   res.setHeader('Set-Cookie', `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
 }
 
-const publicUser = (u: User) => ({ id: u.id, seat: u.seat, name: u.name, email: u.email, avatar: u.avatar, role: u.role });
+const publicUser = (u: User) => ({ id: u.id, seat: u.seat, name: u.name, email: u.email, avatar: u.avatar, role: u.role, demo: Boolean(u.demo) });
 
 /* ------------------------------------------------------------------ OAuth */
 
@@ -222,6 +222,8 @@ export function authApi(): Plugin {
               firstRun,
               /* The first account can only be made from this machine. */
               canCreateOwner: firstRun && isLocal(req),
+              /* The demo account, likewise: this machine only. */
+              canUseDemo: isLocal(req),
             });
           }
 
@@ -255,6 +257,16 @@ export function authApi(): Plugin {
               return send(res, 401, { error: 'That email and password do not match.' });
             }
             succeeded(key);
+            setSession(req, res, user);
+            return send(res, 200, { user: publicUser(user) });
+          }
+
+          /* 🛑 THIS MACHINE ONLY. The demo account has no password and sits in
+             the seat that holds the owner's Slack link -- through the tunnel it
+             would be an open door to their Slack and the Claude key. */
+          if (req.method === 'POST' && path === '/demo') {
+            if (!isLocal(req)) return send(res, 403, { error: 'The demo account only opens on the computer running Growth.' });
+            const user = demoUser();
             setSession(req, res, user);
             return send(res, 200, { user: publicUser(user) });
           }

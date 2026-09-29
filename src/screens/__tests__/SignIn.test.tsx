@@ -53,7 +53,23 @@ describe('the sign-in screen', () => {
   });
 });
 
+describe('the demo account', () => {
+  it('is offered on this machine only', () => {
+    render(<SignIn providers={none} firstRun={false} canCreateOwner={false} canUseDemo />);
+    expect(screen.getByRole('button', { name: 'Use the demo account' })).toBeTruthy();
+    cleanup();
+    render(<SignIn providers={none} firstRun={false} canCreateOwner={false} />);
+    expect(screen.queryByRole('button', { name: 'Use the demo account' })).toBeNull();
+  });
+});
+
 describe('the signed-in person takes the "me" seat', () => {
+  it('the demo account keeps the demo persona -- Maya, her photo, Growth lead', () => {
+    const before = { ...ME };
+    adoptMe({ seat: 'maya', name: 'Maya Okonkwo', role: 'owner', demo: true });
+    expect(ME).toMatchObject({ id: before.id, name: before.name, avatar: before.avatar });
+  });
+
   it('a member gets their own seat; the demo’s Maya stays a separate person, with her own face', () => {
     const photo = ME.avatar;
     adoptMe({ seat: 'u_jess', name: 'Jess Ramírez-Real', role: 'member' });
