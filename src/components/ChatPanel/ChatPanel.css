@@ -184,6 +184,7 @@
   border: var(--border-width-sm) dashed var(--border-default);
   background: var(--surface-page-top);
 }
+.gr-slack p { margin: 0; }   /* the box's own gap does the spacing; browser margins doubled it */
 .gr-slack__hint { color: var(--text-muted); }
 .gr-slack__hint code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

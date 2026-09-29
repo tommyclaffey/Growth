@@ -84,6 +84,10 @@
   border: var(--border-width-sm) solid var(--border-default);
   background: var(--surface-page-top);
 }
+/* Scoped under .gr-assist__a so it outranks `.gr-assist__a p { margin: 0 }`,
+   which silently cancelled this spacing -- paragraphs touched, and "Figures
+   used" sat on its first row. */
+.gr-assist__a .gr-assist__evidence-head,
 .gr-assist__evidence-head { color: var(--text-muted); margin: 0 0 var(--space-8); }
 .gr-assist__row {
   display: flex; align-items: center; gap: var(--space-8);
@@ -125,6 +129,7 @@
 .gr-assist__send:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
 
 .gr-assist__foot {
+  margin: 0;
   padding: 0 var(--space-20) var(--space-14);
   color: var(--text-muted);
 }
@@ -204,8 +209,8 @@
 
 /* Single-newline breaks inside a paragraph are meaningful here -- an expectation
    and the assumption under it are separate lines of one thought. */
-.gr-assist__para { white-space: pre-line; margin: 0 0 var(--space-8); }
-.gr-assist__para:last-of-type { margin-bottom: 0; }
+.gr-assist__a .gr-assist__para { white-space: pre-line; margin: 0 0 var(--space-8); }
+.gr-assist__a .gr-assist__para:last-of-type { margin-bottom: 0; }
 
 /* Take a decision, straight from the answer.
 

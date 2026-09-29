@@ -374,11 +374,18 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
             permanently to show something occasionally, and it misrepresents
             where the states come from. */}
         <section className="gr-card">
-          <h2 className="gr-type-section">Component states</h2>
-          <p className="gr-type-caption gr-settings__hint">
-            The dashboard&rsquo;s data is generated locally, so it never loads or fails on its own.
-            Switch states here to see how the KPI cards and chart behave. Resets on reload.
-          </p>
+          {/* The same header every other Settings card has. It was a bare h2 in
+              the section style: 17px where its siblings are 15, with browser
+              margins that put the title 33px down instead of 19. */}
+          <header className="gr-card__header">
+            <div className="gr-card__heading">
+              <h3 className="gr-card__title gr-type-card-heading">Component states</h3>
+              <p className="gr-card__sub gr-type-caption">
+                The dashboard&rsquo;s data is generated locally, so it never loads or fails on its own.
+                Switch states here to see how the KPI cards and chart behave. Resets on reload.
+              </p>
+            </div>
+          </header>
 
           <div className="gr-setting-row">
             <span className="gr-setting-row__text">
