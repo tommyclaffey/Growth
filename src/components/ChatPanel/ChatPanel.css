@@ -355,3 +355,22 @@
   outline: var(--border-width-md) solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+/* A decision shared into the thread. Same card shell as a shared view, with an
+   accent edge: it is a commitment, not a chart. */
+.gr-chat__decision {
+  margin-top: var(--space-6); padding: var(--space-10) var(--space-12);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-left: 3px solid var(--accent-base);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+.gr-chat__decision-kind { margin: 0 0 var(--space-2); color: var(--text-muted); }
+.gr-chat__decision-label { margin: 0; color: var(--text-primary); }
+.gr-chat__decision-meta { margin: var(--space-4) 0 0; color: var(--text-muted); }
+.gr-chat__decision-open {
+  margin-top: var(--space-8); padding: 0; border: none; background: none;
+  color: var(--accent-text); cursor: pointer;
+}
+.gr-chat__decision-open:hover { text-decoration: underline; }
+.gr-chat__decision-open:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-sm); }

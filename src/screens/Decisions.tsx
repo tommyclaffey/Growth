@@ -7,6 +7,7 @@ import type { ChannelName } from '../styles/tokens';
 import { decisions, targetOfDecision, TIER_LABEL, type Candidate, type Target, type Tier } from '../data/decisions';
 import { addFlag, isFlagged, isOverdue, isOwnDecision, removeFlag, useFlags, type Flag } from '../data/attention';
 import { TaskFields, formatDue } from '../components/TaskFields/TaskFields';
+import type { DecisionRef } from '../data/chat';
 import { Scorecard } from '../components/Scorecard/Scorecard';
 import { baselineFor, grade, tally } from '../data/grading';
 import { CHANNEL_DEPTH, groupNoun, leafNoun } from '../data/channelDepth';
@@ -23,6 +24,8 @@ export interface DecisionsProps {
    * cannot get back to the subject of is an instruction with no address.
    */
   onOpen?: (target: Target) => void;
+  /** Stages this decision in team chat -- pick a conversation, then Send. */
+  onShare?: (d: DecisionRef) => void;
 }
 
 /**
@@ -44,7 +47,7 @@ export interface DecisionsProps {
  * does not understand why a cheap-looking recommendation is filed under "cannot
  * answer" will override it, and the refusal will have cost nothing.
  */
-export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
+export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps) {
   const channels = useChannels();
   /* Subscribed to both stores, so accepting or dismissing repaints immediately
      and a second tab stays in step. */
@@ -148,7 +151,7 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
           <div className="gr-dec__list">
             {queue.map(({ flag: f, candidate }) => (candidate ? (
               <DecisionCard key={f.id} candidate={candidate} flag={f} range={range}
-                            onDiscuss={onDiscuss} onOpen={onOpen} />
+                            onDiscuss={onDiscuss} onOpen={onOpen} onShare={onShare} />
             ) : (
               <article key={f.id} className={`gr-card gr-dec__card is-own ${isOverdue(f) ? 'is-overdue' : ''}`}>
                 {/* ⭐ The SAME shape as an engine card: breadcrumb with the
@@ -205,6 +208,11 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
 
                 <footer className="gr-dec__actions">
                   <GoTo target={targetOfDecision(f, all)} channel={f.channel} onOpen={onOpen} />
+                  {onShare && (
+                    <Button variant="ghost" onClick={() => onShare({
+                      refId: f.refId, label: f.label, scope: f.scope?.join(' › '), owner: f.owner, due: f.due,
+                    })}>Share</Button>
+                  )}
                   <Button variant="ghost" onClick={() => removeFlag('decision', f.refId)}>
                     Remove
                   </Button>
@@ -261,7 +269,7 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
 
             <div className="gr-dec__list">
               {mine.map((c) => (
-                <DecisionCard key={c.id} candidate={c} onDiscuss={onDiscuss} onOpen={onOpen} range={range} />
+                <DecisionCard key={c.id} candidate={c} onDiscuss={onDiscuss} onOpen={onOpen} range={range} onShare={onShare} />
               ))}
             </div>
           </section>
@@ -323,8 +331,9 @@ function GoTo({ target, channel, onOpen }: {
   );
 }
 
-function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range }: {
+function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range, onShare }: {
   range: Range;
+  onShare?: (d: DecisionRef) => void;
   candidate: Candidate;
   /** Present on the Decided queue -- the record owner and due date live on. */
   flag?: Flag;
@@ -424,6 +433,15 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range }: {
         )}
 
         <GoTo target={flag?.target ?? c.target} channel={c.channel} onOpen={onOpen} />
+
+        {/* ⭐ Into the conversation the team is having -- the decision staged in
+            chat, like "Discuss" stages a chart. A decision that stays on one
+            person's screen does not reach the people who act on it. */}
+        {onShare && (
+          <Button variant="ghost" onClick={() => onShare({
+            refId: c.id, label: c.action, scope: c.scope.join(' › '), owner: flag?.owner, due: flag?.due,
+          })}>Share</Button>
+        )}
 
         {/* ⭐ The route from the queue into the conversation. A card states a
             finding; this is how you argue with it. Tier 3 gets it too -- in fact

@@ -2,6 +2,7 @@ import './TaskFields.css';
 import { Avatar } from '../Avatar/Avatar';
 import { MEMBERS } from '../../data/chat';
 import { isOverdue, setTask, type Flag } from '../../data/attention';
+import { notifyAssignment } from '../../data/teamMessages';
 
 export interface TaskFieldsProps {
   flag: Flag;
@@ -46,7 +47,17 @@ export function TaskFields({ flag, today = new Date() }: TaskFieldsProps) {
         <select
           className="gr-task__control gr-type-caption-med"
           value={flag.owner ?? ''}
-          onChange={(e) => set({ owner: e.target.value || null })}
+          onChange={(e) => {
+            const next = e.target.value || null;
+            set({ owner: next });
+            /* The owner hears about it -- in their DMs, with the decision
+               attached. Only on a change of owner, never on a re-render. */
+            if (next && next !== flag.owner) {
+              notifyAssignment(next, {
+                refId: flag.refId, label: flag.label, scope: flag.scope?.join(' › '), due: flag.due,
+              });
+            }
+          }}
         >
           <option value="">Unassigned</option>
           {Object.values(MEMBERS).map((m) => (

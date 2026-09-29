@@ -21,7 +21,7 @@ import { Button } from '../Button/Button';
 import { getDraft, setDraft as saveDraft } from '../../data/drafts';
 import {
   ME, groupMessages, nowLabel,
-  type Member, type Message, type ViewRef,
+  type DecisionRef, type Member, type Message, type ViewRef,
 } from '../../data/chat';
 import {
   CHANNEL_LABEL, METRICS, rangeLabel, delta, totals,
@@ -53,6 +53,11 @@ export interface ChatPanelProps {
   initialConversationId?: string | null;
   /** Clicking a card in the thread navigates the dashboard to that view. */
   onOpenView?: (view: ViewRef) => void;
+  /** A decision staged for sending -- "Share" on a decision card. */
+  pendingDecision?: DecisionRef | null;
+  onClearPendingDecision?: () => void;
+  /** "Open in Decisions" on a decision in the thread. */
+  onOpenDecision?: () => void;
 }
 
 /**
@@ -64,7 +69,10 @@ export interface ChatPanelProps {
  * "Meta CAC is up" and a screenshot of Meta CAC are different artifacts —
  * one goes stale the moment the data moves, the other does not.
  */
-export function ChatPanel({ onClose, pending, onClearPending, initialConversationId, onOpenView }: ChatPanelProps) {
+export function ChatPanel({
+  onClose, pending, onClearPending, initialConversationId, onOpenView,
+  pendingDecision = null, onClearPendingDecision, onOpenDecision,
+}: ChatPanelProps) {
   const [pendingFail, setPendingFail] = useState<string | null>(null);
   const [source, setSource] = useState<ChatSource>('seed');
   const [origin, setOrigin] = useState<{ team?: string; channel?: string }>({});
@@ -333,8 +341,12 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
   async function send() {
     if (!openId || !open) return;
     const body = draft.trim();
-    if (!body && !pending) return;
-    const text = body || 'Sharing this view.';
+    if (!body && !pending && !pendingDecision) return;
+    const text = body || (pendingDecision ? 'Sharing this decision.' : 'Sharing this view.');
+    /* Slack sees the decision as a line of text -- it has no card for it. The
+       card is Growth's; the words are for everyone. */
+    const slackText = pendingDecision ? `${text}\n📌 Decision: ${pendingDecision.label}` : text;
+    const sharedDecision = pendingDecision ?? undefined;
 
     appendMessage(openId, {
       id: `local-${Date.now()}`,
@@ -343,6 +355,7 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
       time: nowLabel(),
       minutesAgo: 0,
       view: pending ?? undefined,
+      decision: sharedDecision,
       /* Pending until Slack echoes it back. This is what stops the 3s sync
          from treating a message Slack never received as one it deleted. */
       pending: true,
@@ -350,6 +363,7 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
     setDraft('');
     setTick((n) => n + 1);
     onClearPending();
+    onClearPendingDecision?.();
 
     if (source !== 'slack') return;
 
@@ -364,7 +378,7 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
     if (!mirrored) {
       const recipients = open.memberIds.filter((id) => id !== ME.id);
       const { delivered, unreachable, message } = await postDirectToSlack(
-        recipients, toSlackMentions(text, slackPeople), pending, openId);
+        recipients, toSlackMentions(slackText, slackPeople), pending, openId);
       /* Partial delivery is still a failure to be honest about: naming who did
          not receive it beats a silent success, which is what "message sent"
          would be for someone who never linked an account. */
@@ -381,7 +395,7 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
       return;
     }
 
-    const sent = await postToSlack(toSlackMentions(text, slackPeople), pending, openId);
+    const sent = await postToSlack(toSlackMentions(slackText, slackPeople), pending, openId);
     /* A message that exists only in this browser but looks identical to one
        that reached the channel is worse than an error -- the user believes
        their team saw it. */
@@ -491,6 +505,7 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
                   <div key={m.id} className={`gr-msg__line ${mentionsMe(m.body) ? 'is-flagged' : ''}`}>
                     <p className="gr-type-body">{renderBody(m.body)}</p>
                     {m.view && <ViewCard view={m.view} onOpen={onOpenView} />}
+                    {m.decision && <DecisionAttachment decision={m.decision} onOpen={onOpenDecision} />}
                   </div>
                 ))}
               </div>
@@ -501,6 +516,13 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
       </div>
 
       <div className="gr-chat__composer">
+        {pendingDecision && (
+          <div className="gr-chat__attachment">
+            <DecisionAttachment decision={pendingDecision} />
+            <button type="button" className="gr-chat__unattach" onClick={onClearPendingDecision}
+                    aria-label="Remove attached decision">✕</button>
+          </div>
+        )}
         {pending && (
           <div className="gr-chat__attachment">
             <ViewCard view={pending} compact />
@@ -571,6 +593,34 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
  * period it is "as of" — because a number in a thread without a date is the
  * thing people argue about three weeks later.
  */
+/**
+ * A decision in the thread: what, where, who and by when -- and a way back to
+ * the queue it lives in. Rendered from what was shared, not looked up.
+ */
+function DecisionAttachment({ decision: d, onOpen }: { decision: DecisionRef; onOpen?: () => void }) {
+  const owner = d.owner ? memberOf(d.owner) : undefined;
+  const due = d.due ? (() => {
+    const [y, m, day] = d.due!.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, day)).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  })() : undefined;
+  return (
+    <div className="gr-chat__decision">
+      <p className="gr-type-overline gr-chat__decision-kind">📌 Decision</p>
+      <p className="gr-type-body-medium gr-chat__decision-label">{d.label}</p>
+      {(d.scope || owner || due) && (
+        <p className="gr-type-caption gr-chat__decision-meta">
+          {[d.scope, owner ? `Owner: ${owner.name}` : null, due ? `Due ${due}` : null].filter(Boolean).join(' · ')}
+        </p>
+      )}
+      {onOpen && (
+        <button type="button" className="gr-chat__decision-open gr-type-caption-med" onClick={onOpen}>
+          Open in Decisions →
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ViewCard({ view, compact = false, onOpen }:
   { view: ViewRef; compact?: boolean; onOpen?: (view: ViewRef) => void }) {
   const scope = view.channel as Scope;

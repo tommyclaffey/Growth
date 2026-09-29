@@ -51,7 +51,7 @@ import {
 import { onAttentionStrip, removeFlag, restoreFlag, useFlags, type Flag } from './data/attention';
 import { readUrlState, writeUrlState } from './data/urlState';
 import type { ChannelName } from './styles/tokens';
-import type { ViewRef } from './data/chat';
+import type { DecisionRef, ViewRef } from './data/chat';
 import { MEMBERS, readDeepLink } from './data/chat';
 
 /* The alerts, with the view each one points at.
@@ -100,6 +100,9 @@ export default function App() {
      "is anything getting more expensive" is the question this table answers. */
   const [tableMetric, setTableMetric] = useState<DerivedMetric>('CAC');
   const [pendingView, setPendingView] = useState<ViewRef | null>(null);
+  /* A decision staged in team chat by "Share" -- the same pattern as a view
+     staged by "Discuss": chat opens, you pick the conversation, you send. */
+  const [pendingDecision, setPendingDecision] = useState<DecisionRef | null>(null);
   const [assistOpen, setAssistOpen] = useState(false);
   /* A question staged for the assistant by another screen. Cleared once asked. */
   const [assistSeed, setAssistSeed] = useState<string | null>(null);
@@ -839,6 +842,7 @@ export default function App() {
               range={range}
               onDiscuss={askAbout}
               onOpen={openTarget}
+              onShare={(d) => { setPendingDecision(d); setChatOpen(true); }}
             />
           )}
 
@@ -887,6 +891,9 @@ export default function App() {
           onClose={() => setChatOpen(false)}
           pending={pendingView}
           onClearPending={() => setPendingView(null)}
+          pendingDecision={pendingDecision}
+          onClearPendingDecision={() => setPendingDecision(null)}
+          onOpenDecision={() => { setCampaignId(null); setAdSetId(null); setAdId(null); setNav('decisions'); }}
           initialConversationId={deepLink?.conversationId ?? null}
           onOpenView={applyView}
         />

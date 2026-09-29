@@ -78,6 +78,27 @@ export interface Message {
    */
   pending?: boolean;
   view?: ViewRef;
+  /** A decision shared into the conversation -- see DecisionRef. */
+  decision?: DecisionRef;
+}
+
+/**
+ * A decision, carried into chat.
+ *
+ * ⭐ The team-hub half of the decision maker. A decision nobody else hears
+ * about is a private note; sharing it -- or assigning it -- puts it where the
+ * team talks, with a way back to the queue it lives in. Captured when shared:
+ * the message records what was said then, not what the queue says now.
+ */
+export interface DecisionRef {
+  refId: string;
+  label: string;
+  /** "Meta › Advantage+ — Evergreen Signups" */
+  scope?: string;
+  /** Member id. */
+  owner?: string;
+  /** ISO date. */
+  due?: string;
 }
 
 export const SEED: Message[] = [
