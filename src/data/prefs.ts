@@ -38,7 +38,7 @@ export interface Prefs {
    */
   changeThreshold: number;
   /** Which data source the product runs on. */
-  dataSource: 'seeded' | 'meta';
+  dataSource: 'seeded' | 'meta' | 'google';
 }
 
 export const THRESHOLDS = [10, 15, 20, 25, 30];
@@ -80,7 +80,7 @@ function read(): Prefs {
         ? raw.dismissedAlerts.filter((x: unknown): x is string => typeof x === 'string')
         : [],
       changeThreshold: THRESHOLDS.includes(raw.changeThreshold) ? raw.changeThreshold : DEFAULT_PREFS.changeThreshold,
-      dataSource: raw.dataSource === 'meta' ? 'meta' : 'seeded',
+      dataSource: raw.dataSource === 'meta' || raw.dataSource === 'google' ? raw.dataSource : 'seeded',
     };
   } catch {
     return { ...DEFAULT_PREFS };

@@ -1,47 +1,152 @@
 import { useEffect, useState } from 'react';
 import { Button } from '../Button/Button';
-import { setPref, usePrefs } from '../../data/prefs';
+import { setPref, usePrefs, type Prefs } from '../../data/prefs';
 import { useBackend } from '../../data/backend';
+import { chooseMetaAccount, metaAccounts, metaStatus } from '../../data/sources/meta';
 import {
-  chooseMetaAccount, metaAccounts, metaStatus, type MetaStatus,
-} from '../../data/sources/meta';
+  chooseGoogleAccount, formatCustomerId, googleAccounts, googleStatus,
+} from '../../data/sources/google';
 
 /**
- * Which data the whole product runs on -- the demo account, or a real Meta ad
- * account.
+ * Which data the whole product runs on -- the demo account, or a real Meta or
+ * Google Ads account.
  *
- * Every state says what is true and what to do next, in order: no Meta app
- * yet → connect → choose an ad account → switch the product to it. Nothing here
+ * Every state says what is true and what to do next, in order: no app yet →
+ * connect → choose an account → switch the product to it. Nothing here
  * pretends a step happened that did not.
  */
-export function DataSourceCard() {
+
+interface Status {
+  configured: boolean;
+  /** Google only: its developer token. Meta has no equivalent. */
+  developerToken?: boolean;
+  connected: boolean;
+  expired: boolean;
+  accountId: string | null;
+}
+interface Choice { id: string; name: string; currency: string }
+
+interface Platform<A extends Choice> {
+  pref: Exclude<Prefs['dataSource'], 'seeded'>;
+  name: string;           // "Meta ad account"
+  short: string;          // "Meta"
+  connectHref: string;
+  missingApp: string;
+  missingToken?: string;
+  status: () => Promise<Status | null>;
+  accounts: () => Promise<A[]>;
+  choose: (a: A) => Promise<void>;
+  show: (a: A) => string;
+}
+
+const META: Platform<Choice> = {
+  pref: 'meta',
+  name: 'Meta ad account',
+  short: 'Meta',
+  connectHref: '/api/connect/meta',
+  missingApp: 'Needs a Meta app: add META_CLIENT_ID and META_CLIENT_SECRET to .env.local, then restart.',
+  status: metaStatus,
+  accounts: metaAccounts,
+  choose: (a) => chooseMetaAccount(a.id),
+  show: (a) => `${a.name} (${a.currency})`,
+};
+
+const GOOGLE: Platform<Awaited<ReturnType<typeof googleAccounts>>[number]> = {
+  pref: 'google',
+  name: 'Google Ads account',
+  short: 'Google Ads',
+  connectHref: '/api/connect/paidSearch',
+  missingApp: 'Needs a Google OAuth client: add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env.local, then restart.',
+  missingToken: 'Needs a developer token from a Google Ads manager account (API Center): add GOOGLE_ADS_DEVELOPER_TOKEN to .env.local, then restart.',
+  status: googleStatus,
+  accounts: googleAccounts,
+  choose: chooseGoogleAccount,
+  show: (a) => `${a.name} · ${formatCustomerId(a.id)} (${a.currency})`,
+};
+
+function PlatformRow<A extends Choice>({ p }: { p: Platform<A> }) {
   const { dataSource } = usePrefs();
   const backend = useBackend();
-  const [status, setStatus] = useState<MetaStatus | null>(null);
-  const [accounts, setAccounts] = useState<{ id: string; name: string; currency: string }[] | null>(null);
+  const [status, setStatus] = useState<Status | null>(null);
+  const [accounts, setAccounts] = useState<A[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (backend === false) return;
     let live = true;
-    void metaStatus().then((s) => { if (live) setStatus(s); });
+    void p.status().then((s) => { if (live) setStatus(s); });
     return () => { live = false; };
-  }, [backend]);
+  }, [backend, p]);
 
+  const canList = Boolean(status?.connected && status.developerToken !== false);
   useEffect(() => {
-    if (!status?.connected) return;
+    if (!canList) return;
     let live = true;
-    metaAccounts().then((a) => { if (live) setAccounts(a); }).catch((e) => { if (live) setError(String(e.message ?? e)); });
+    p.accounts().then((a) => { if (live) setAccounts(a); }).catch((e) => { if (live) setError(String(e.message ?? e)); });
     return () => { live = false; };
-  }, [status?.connected]);
+  }, [canList, p]);
 
   const step = backend === false ? 'static'
     : !status ? 'checking'
     : !status.configured ? 'no-app'
+    : status.developerToken === false ? 'no-token'
     : !status.connected || status.expired ? 'connect'
     : !status.accountId ? 'choose'
     : 'ready';
 
+  const current = accounts?.find((a) => a.id === status?.accountId);
+  const label = p.name;
+
+  return (
+    <div className="gr-setting-row">
+      <span className="gr-setting-row__text">
+        <strong className="gr-type-body-medium">{p.name}</strong>
+        <span className="gr-type-caption">
+          {step === 'static' && 'Real accounts need the local build — this public demo has no server.'}
+          {step === 'checking' && 'Checking…'}
+          {step === 'no-app' && p.missingApp}
+          {step === 'no-token' && p.missingToken}
+          {step === 'connect' && (status?.expired ? `Your ${p.short} sign-in expired. Connect again.` : `Connect ${p.short} to read the accounts you have access to.`)}
+          {step === 'choose' && 'Connected. Choose the account to read.'}
+          {step === 'ready' && `Connected to ${current?.name ?? status?.accountId}.`}
+        </span>
+        {error && <span className="gr-type-caption gr-source__error" role="alert">{error}</span>}
+      </span>
+
+      {step === 'connect' && (
+        <a className="gr-setting-row__connect is-primary gr-type-caption" href={p.connectHref}>Connect {p.short}</a>
+      )}
+      {(step === 'choose' || step === 'ready') && accounts && accounts.length > 0 && (
+        <select
+          className="gr-table__select gr-type-label-button"
+          aria-label={label}
+          value={status?.accountId ?? ''}
+          onChange={async (e) => {
+            const a = accounts.find((x) => x.id === e.target.value);
+            if (!a) return;
+            try {
+              await p.choose(a);
+              setStatus((s) => (s ? { ...s, accountId: a.id } : s));
+              setError(null);
+            } catch (err) { setError(err instanceof Error ? err.message : String(err)); }
+          }}
+        >
+          {!status?.accountId && <option value="">Choose…</option>}
+          {accounts.map((a) => <option key={a.id} value={a.id}>{p.show(a)}</option>)}
+        </select>
+      )}
+      {(step === 'choose' || step === 'ready') && accounts && accounts.length === 0 && (
+        <span className="gr-type-caption">No accounts found for this sign-in.</span>
+      )}
+      {step === 'ready' && (dataSource === p.pref
+        ? <span className="gr-type-caption-med gr-source__on">In use</span>
+        : <Button variant="primary" onClick={() => setPref('dataSource', p.pref)}>Use {p.short}</Button>)}
+    </div>
+  );
+}
+
+export function DataSourceCard() {
+  const { dataSource } = usePrefs();
   return (
     <section className="gr-card">
       <header className="gr-card__header">
@@ -63,44 +168,8 @@ export function DataSourceCard() {
           : <Button variant="ghost" onClick={() => setPref('dataSource', 'seeded')}>Use demo</Button>}
       </div>
 
-      <div className="gr-setting-row">
-        <span className="gr-setting-row__text">
-          <strong className="gr-type-body-medium">Meta ad account</strong>
-          <span className="gr-type-caption">
-            {step === 'static' && 'Real accounts need the local build — this public demo has no server.'}
-            {step === 'checking' && 'Checking…'}
-            {step === 'no-app' && 'Needs a Meta app: add META_CLIENT_ID and META_CLIENT_SECRET to .env.local, then restart.'}
-            {step === 'connect' && (status?.expired ? 'Your Meta sign-in expired. Connect again.' : 'Connect Meta to read the ad accounts you have a role on.')}
-            {step === 'choose' && 'Connected. Choose the ad account to read.'}
-            {step === 'ready' && `Connected to ${accounts?.find((a) => a.id === status?.accountId)?.name ?? status?.accountId}.`}
-          </span>
-          {error && <span className="gr-type-caption gr-source__error" role="alert">{error}</span>}
-        </span>
-
-        {step === 'connect' && (
-          <a className="gr-setting-row__connect is-primary gr-type-caption" href="/api/connect/meta">Connect Meta</a>
-        )}
-        {(step === 'choose' || step === 'ready') && accounts && accounts.length > 0 && (
-          <select
-            className="gr-table__select gr-type-label-button"
-            aria-label="Meta ad account"
-            value={status?.accountId ?? ''}
-            onChange={async (e) => {
-              try {
-                await chooseMetaAccount(e.target.value);
-                setStatus((s) => (s ? { ...s, accountId: e.target.value } : s));
-                setError(null);
-              } catch (err) { setError(err instanceof Error ? err.message : String(err)); }
-            }}
-          >
-            {!status?.accountId && <option value="">Choose…</option>}
-            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
-          </select>
-        )}
-        {step === 'ready' && (dataSource === 'meta'
-          ? <span className="gr-type-caption-med gr-source__on">In use</span>
-          : <Button variant="primary" onClick={() => setPref('dataSource', 'meta')}>Use Meta</Button>)}
-      </div>
+      <PlatformRow p={META} />
+      <PlatformRow p={GOOGLE} />
     </section>
   );
 }

@@ -16,6 +16,7 @@ import { setDemoState, useDemoState } from './data/demoState';
 import { useDataSource } from './data/useDataSource';
 import { seededSource } from './data/sources/seeded';
 import { metaSource } from './data/sources/meta';
+import { googleSource } from './data/sources/google';
 import { RangePicker } from './components/RangePicker/RangePicker';
 import { ChatPanel } from './components/ChatPanel/ChatPanel';
 import { Assistant } from './components/Assistant/Assistant';
@@ -125,7 +126,7 @@ export default function App() {
      The Settings simulator still overrides it, so the states can be looked at
      on the demo account -- but it is now the second way in, not the only one. */
   const { dataSource } = usePrefs();
-  const source = useDataSource(dataSource === 'meta' ? metaSource : seededSource);
+  const source = useDataSource(dataSource === 'meta' ? metaSource : dataSource === 'google' ? googleSource : seededSource);
   const demo = simulated !== 'ready' ? simulated : source.status;
 
   /* Which campaign's page is open, if any. Null means the Campaigns list.
@@ -622,7 +623,7 @@ export default function App() {
           {source.status === 'error' && (
             <div className="gr-source-banner" role="alert">
               <p className="gr-type-body">
-                <strong>Couldn&rsquo;t load your Meta data.</strong> {source.error}
+                <strong>Couldn&rsquo;t load your {dataSource === 'google' ? 'Google Ads' : 'Meta'} data.</strong> {source.error}
               </p>
               <Button variant="ghost" onClick={() => setPref('dataSource', 'seeded')}>Use the demo account</Button>
             </div>

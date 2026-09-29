@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
+import { exchangeGoogleCode } from './googleAdsApi.js';
 import { exchangeMetaCode } from './metaApi.js';
 
 /**
@@ -78,9 +79,11 @@ export const PROVIDERS: Record<string, Provider> = {
     consoleUrl: 'https://console.cloud.google.com/apis/credentials',
     consoleLabel: 'Google Cloud Console',
     steps: [
-      'Same OAuth client as YouTube — one <code>GOOGLE_CLIENT_ID</code> covers both.',
+      'Same OAuth client as YouTube — one <code>GOOGLE_CLIENT_ID</code> covers both. It also needs <code>GOOGLE_CLIENT_SECRET</code>.',
       'Enable the <b>Google Ads API</b> for the project.',
-      'Google Ads also needs a <b>developer token</b>, requested separately at ads.google.com/aw/apicenter.',
+      'Add the redirect URI below to Authorised redirect URIs.',
+      'Google Ads also needs a <b>developer token</b>: a manager account → Admin → <b>API Center</b>. Put it in <code>.env.local</code> as <code>GOOGLE_ADS_DEVELOPER_TOKEN</code>.',
+      'A new token has <b>test access</b> — it reads test accounts only. Apply for <b>Basic access</b> there to read real ones.',
     ],
     extra: { response_type: 'code', access_type: 'offline', prompt: 'consent' },
   },
@@ -254,6 +257,18 @@ export function channelOauth(): Plugin {
 product to it.</p></div>`);
             } catch (e) {
               return page(res, 'Meta did not finish connecting', `<p class="lede">${e instanceof Error ? e.message : String(e)}</p>`);
+            }
+          }
+          if (p.id === 'paidSearch') {
+            try {
+              await exchangeGoogleCode(url.searchParams.get('code') ?? '', `${origin}/api/connect/callback`);
+              return page(res, 'Google Ads is connected', `
+<p class="lede">Growth can now read the Google Ads accounts you have access to.</p>
+<div class="card"><p class="label">Next</p>
+<p style="margin:0">In Settings → <b>Data source</b>, choose the account, then switch the
+product to it.</p></div>`);
+            } catch (e) {
+              return page(res, 'Google Ads did not finish connecting', `<p class="lede">${e instanceof Error ? e.message : String(e)}</p>`);
             }
           }
           return page(res, `${p.label} approved the connection`, `
