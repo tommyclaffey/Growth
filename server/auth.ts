@@ -43,6 +43,8 @@ interface ProviderConfig {
   secretEnv: string;
   issuer: (iss: string) => boolean;
   extra?: Record<string, string>;
+  /** Where the owner registers the app, and what to do there. */
+  console: { url: string; label: string; steps: string[] };
 }
 
 const MS = (tenant: string) => `https://login.microsoftonline.com/${tenant}/oauth2/v2.0`;
@@ -57,6 +59,15 @@ export const PROVIDERS: Record<Provider, ProviderConfig> = {
     idEnv: 'GOOGLE_CLIENT_ID', secretEnv: 'GOOGLE_CLIENT_SECRET',
     issuer: (i) => i === 'https://accounts.google.com' || i === 'accounts.google.com',
     extra: { prompt: 'select_account' },
+    console: {
+      url: 'https://console.cloud.google.com/apis/credentials', label: 'Google Cloud Console → Credentials',
+      steps: [
+        'Create Credentials → <b>OAuth client ID</b> → Web application. (The same client the Google Ads and YouTube connections use.)',
+        'Under Authorised redirect URIs, add the address below.',
+        'OAuth consent screen: add the <b>openid</b>, <b>email</b> and <b>profile</b> scopes.',
+        'Copy the Client ID and Client secret into <code>.env.local</code> as <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code>.',
+      ],
+    },
   },
   slack: {
     label: 'Slack',
@@ -65,6 +76,14 @@ export const PROVIDERS: Record<Provider, ProviderConfig> = {
     scope: 'openid email profile',
     idEnv: 'SLACK_CLIENT_ID', secretEnv: 'SLACK_CLIENT_SECRET',
     issuer: (i) => i === 'https://slack.com',
+    console: {
+      url: 'https://api.slack.com/apps', label: 'Slack API → Your Apps → Growth',
+      steps: [
+        'OAuth &amp; Permissions → Redirect URLs: add the address below. Slack requires <b>https</b>, so use the tunnel address.',
+        'User Token Scopes: add <b>openid</b>, <b>email</b> and <b>profile</b>.',
+        'Reinstall the app so the new scopes apply.',
+      ],
+    },
   },
   microsoft: {
     label: 'Microsoft',
@@ -74,6 +93,15 @@ export const PROVIDERS: Record<Provider, ProviderConfig> = {
     idEnv: 'MS_CLIENT_ID', secretEnv: 'MS_CLIENT_SECRET',
     issuer: msIssuer,
     extra: { prompt: 'select_account', response_mode: 'query' },
+    console: {
+      url: 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade', label: 'Microsoft Entra admin center → App registrations',
+      steps: [
+        'Use the Growth app registration (the one the Teams connection uses), or create one: supported accounts <b>any organisational directory and personal Microsoft accounts</b>.',
+        'Authentication → Web → Redirect URIs: add the address below.',
+        'Certificates &amp; secrets → New client secret.',
+        'Put <code>MS_CLIENT_ID</code> (the Application ID) and <code>MS_CLIENT_SECRET</code> in <code>.env.local</code>. One registration covers both Microsoft and Teams sign-in.',
+      ],
+    },
   },
   teams: {
     label: 'Microsoft Teams',
@@ -83,6 +111,15 @@ export const PROVIDERS: Record<Provider, ProviderConfig> = {
     idEnv: 'MS_CLIENT_ID', secretEnv: 'MS_CLIENT_SECRET',
     issuer: msIssuer,
     extra: { prompt: 'select_account', response_mode: 'query' },
+    console: {
+      url: 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade', label: 'Microsoft Entra admin center → App registrations',
+      steps: [
+        'Use the Growth app registration (the one the Teams connection uses), or create one: supported accounts <b>any organisational directory and personal Microsoft accounts</b>.',
+        'Authentication → Web → Redirect URIs: add the address below.',
+        'Certificates &amp; secrets → New client secret.',
+        'Put <code>MS_CLIENT_ID</code> (the Application ID) and <code>MS_CLIENT_SECRET</code> in <code>.env.local</code>. One registration covers both Microsoft and Teams sign-in.',
+      ],
+    },
   },
 };
 
@@ -233,8 +270,26 @@ export function authApi(): Plugin {
           if (req.method === 'GET' && start) {
             const p = start[1] as Provider;
             if (!configured(p)) {
-              return page(res, 200, `${PROVIDERS[p].label} sign-in is not set up`,
-                `Add ${PROVIDERS[p].idEnv} and ${PROVIDERS[p].secretEnv} to .env.local and restart, and register ${originOf(req)}/api/auth/callback as a redirect URI.`);
+              /* The owner pressed a button that is not switched on: the exact
+                 steps, not a shrug. Static strings, except the escaped origin. */
+              const c = PROVIDERS[p].console;
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'text/html');
+              return res.end(`<!doctype html><meta charset="utf-8"><title>Turn on ${escapeHtml(PROVIDERS[p].label)} sign-in · Growth</title>
+<body style="font:15px/1.65 -apple-system,system-ui,sans-serif;padding:64px 32px;max-width:36rem;margin:auto;color:#16161C;background:#F7F7FB">
+<h1 style="font-size:21px;margin:0 0 4px">Turn on ${escapeHtml(PROVIDERS[p].label)} sign-in</h1>
+<p style="color:#5A5A68;margin:0 0 24px">About 10 minutes. Nobody can use this button until it is done.</p>
+<div style="background:#fff;border:1px solid #EAEAF1;border-radius:14px;padding:20px 24px;margin:0 0 16px">
+<p style="font-size:12px;color:#9A9AA6;text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px">Where</p>
+<a href="${c.url}" target="_blank" rel="noreferrer" style="color:#635BFF">${c.label}</a></div>
+<div style="background:#fff;border:1px solid #EAEAF1;border-radius:14px;padding:20px 24px;margin:0 0 16px">
+<p style="font-size:12px;color:#9A9AA6;text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px">Steps</p>
+<ol style="margin:0;padding-left:20px">${c.steps.map((x) => `<li style="margin:0 0 8px">${x}</li>`).join('')}
+<li>Restart the dev server.</li></ol></div>
+<div style="background:#fff;border:1px solid #EAEAF1;border-radius:14px;padding:20px 24px;margin:0 0 24px">
+<p style="font-size:12px;color:#9A9AA6;text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px">Redirect address to register</p>
+<code style="display:block;word-break:break-all;padding:10px 12px;background:#F1F1FA;border-radius:8px;font:13px ui-monospace,Menlo,monospace">${escapeHtml(originOf(req))}/api/auth/callback</code></div>
+<a href="/Growth/" style="display:inline-block;background:#635BFF;color:#fff;padding:8px 16px;border-radius:10px;text-decoration:none;font-size:13px">Back to Growth</a>`);
             }
             const state = randomBytes(16).toString('hex');
             const nonce = randomBytes(16).toString('hex');

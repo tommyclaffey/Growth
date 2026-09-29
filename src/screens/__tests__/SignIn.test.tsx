@@ -17,13 +17,21 @@ describe('the sign-in screen', () => {
     expect(screen.getByLabelText('Email')).toBeTruthy();
   });
 
-  it('a provider that is not set up is not shown -- no dead buttons; email always is', () => {
+  it('all four always show; one not switched on says so when pressed -- never a silent dead button', () => {
     render(<SignIn providers={{ ...none, slack: true }} firstRun={false} canCreateOwner={false} />);
-    expect(screen.queryByRole('button', { name: /Google/ })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Continue with Slack' })).toBeTruthy();
-    cleanup();
-    render(<SignIn providers={none} firstRun={false} canCreateOwner={false} />);
-    expect(screen.queryByText('or use email')).toBeNull();
+    for (const l of ['Continue with Google', 'Continue with Slack', 'Continue with Microsoft', 'Continue with Microsoft Teams']) {
+      expect(screen.getByRole('button', { name: l })).toBeTruthy();
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    expect(screen.getByRole('status').textContent).toMatch(/Google sign-in isn’t switched on.*Ask the owner/);
+  });
+
+  it('the owner setting up is sent to the setup steps for that provider', () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { ...window.location, assign });
+    render(<SignIn providers={none} firstRun canCreateOwner />);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Microsoft Teams' }));
+    expect(assign).toHaveBeenCalledWith('/api/auth/start/teams');
   });
 
   it('first run on this machine: creates the OWNER; through the tunnel: says it cannot', () => {

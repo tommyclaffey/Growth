@@ -72,6 +72,7 @@
 .gr-signin__form .gr-field__msg:empty { display: none; }
 .gr-signin__submit { width: 100%; justify-content: center; margin-top: var(--space-6); }
 .gr-signin__error { color: var(--semantic-bad); margin: 0; }
+.gr-signin__notice { color: var(--text-secondary); margin: 0; text-align: center; }
 
 .gr-signin__switch { color: var(--text-secondary); margin: 0; text-align: center; }
 .gr-signin__link {

@@ -14,9 +14,13 @@ import teamsMark from '../assets/brand/microsoft-teams.svg';
  * Five ways in, one account. Providers first, because most teams already live
  * in one of them; email underneath for everyone else.
  *
- * ⚠️ A provider that is not set up on this server is NOT shown. A button that
- * leads to "not configured" is the dead-control mistake this product has
- * removed everywhere else -- and on a sign-in screen it reads as broken.
+ * All four providers always show (Tommy, Sept 29: the choice of ways in is
+ * part of the product, not an accident of which keys this server has). One not
+ * switched on yet still has to DO something honest when pressed:
+ *   - the owner setting up, on this machine -> the setup page with the exact
+ *     steps for that provider
+ *   - anyone else -> says the owner has not switched it on yet
+ * Never a silent dead button.
  *
  * 🛑 Logos are the providers' own files, used as shipped: Google's hosted "G",
  * Microsoft's symbol, Microsoft's Teams icon, Slack's mark. Scaled, never
@@ -46,7 +50,12 @@ export function SignIn({ providers, firstRun, canCreateOwner }: SignInProps) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const shown = PROVIDERS.filter((p) => providers[p.key]);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  function choose(p: (typeof PROVIDERS)[number]) {
+    if (providers[p.key] || canCreateOwner) { startProvider(p.key); return; }
+    setNotice(`${p.label.replace('Continue with ', '')} sign-in isn’t switched on for this Growth yet. Ask the owner to turn it on, or use email.`);
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -88,20 +97,17 @@ export function SignIn({ providers, firstRun, canCreateOwner }: SignInProps) {
           </p>
         </div>
 
-        {shown.length > 0 && (
-          <>
-            <div className="gr-signin__providers">
-              {shown.map((p) => (
-                <button key={p.key} type="button" className="gr-signin__provider gr-type-label-button"
-                        onClick={() => startProvider(p.key)}>
-                  <span className="gr-signin__mark" aria-hidden="true">{p.mark}</span>
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            <div className="gr-signin__or gr-type-caption" role="separator">or use email</div>
-          </>
-        )}
+        <div className="gr-signin__providers">
+          {PROVIDERS.map((p) => (
+            <button key={p.key} type="button" className="gr-signin__provider gr-type-label-button"
+                    onClick={() => choose(p)}>
+              <span className="gr-signin__mark" aria-hidden="true">{p.mark}</span>
+              {p.label}
+            </button>
+          ))}
+          {notice && <p className="gr-type-caption gr-signin__notice" role="status">{notice}</p>}
+        </div>
+        <div className="gr-signin__or gr-type-caption" role="separator">or use email</div>
 
         <form className="gr-signin__form" onSubmit={submit} noValidate>
           {mode === 'up' && (
