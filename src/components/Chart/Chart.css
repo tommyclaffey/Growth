@@ -344,7 +344,10 @@
    Takes the plot's place at the plot's height (plus the axis row), so switching
    views never moves anything below the card. */
 .gr-chart__table-wrap {
-  height: calc(230px + var(--space-24));
+  /* Room for ~8 days at once. Holding the plot's exact height left four rows
+     visible under the column picker and grouped headers -- the table became a
+     scroll exercise. Readability wins over the card keeping one height. */
+  height: 340px;
   overflow: auto;
   border-top: var(--border-width-sm) solid var(--border-subtle);
 }
@@ -379,3 +382,30 @@
 .gr-chart__table-muted { color: var(--text-muted) !important; }
 .gr-chart__table .is-good { color: var(--semantic-good); }
 .gr-chart__table .is-bad { color: var(--semantic-bad); }
+
+/* ---- Table columns: tick what sits side by side ---------------------------- */
+.gr-chart__cols {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6);
+  margin: 0; padding: 0 0 var(--space-12); border: 0; min-width: 0;
+  height: 36px;
+}
+.gr-chart__cols-label { float: left; color: var(--text-muted); margin-right: var(--space-4); padding: 0; }
+.gr-chart__col {
+  display: inline-flex; align-items: center; gap: var(--space-6);
+  height: 24px; padding: 0 var(--space-10) 0 var(--space-8);
+  border: var(--border-width-sm) solid var(--border-default); border-radius: var(--radius-pill);
+  background: var(--surface-card); color: var(--text-secondary);
+  cursor: pointer; user-select: none;
+}
+.gr-chart__col:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-chart__col.is-on { border-color: var(--accent-soft); background: var(--accent-tint); color: var(--accent-text); }
+.gr-chart__col.is-main { cursor: default; }
+.gr-chart__col input { margin: 0; width: 13px; height: 13px; accent-color: var(--accent-fill); cursor: inherit; }
+.gr-chart__col:has(input:focus-visible) { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+
+/* Grouped headers when comparing: the metric's name over Now | Then | Change,
+   and a rule at the start of each group so the eye finds where a metric begins. */
+.gr-chart__table-group th { text-align: center !important; color: var(--text-primary) !important; padding-bottom: 0 !important; }
+.gr-chart__table-group th[colspan="2"] { border-bottom: 0; }
+.gr-chart__table .gr-chart__table-start { border-left: var(--border-width-sm) solid var(--border-subtle); }
+.gr-chart__table-group + tr th { top: 22px; }

@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Chart } from './Chart';
-import { series, setWindowEnd } from '../../data/metrics';
+import { formatMetric, series, setWindowEnd, totals } from '../../data/metrics';
 
 afterEach(() => { cleanup(); setWindowEnd(0); });
 
@@ -38,15 +38,47 @@ describe('the chart: table view and earlier periods', () => {
     pick('year');
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     const table = screen.getByRole('table');
-    expect(table.querySelector('thead')!.textContent).toMatch(/Last year.*Spend.*Change/);
+    expect(table.querySelector('thead')!.textContent).toMatch(/Spend.*Date.*Last year.*Now.*Then.*Change/);
     expect(table.querySelector('tbody tr')!.textContent).toMatch(/Jul 14.*Jul 14, 2025/);
     expect(table.querySelector('tfoot')!.textContent).toMatch(/2025/);
   });
 
-  it('a ratio gets no total -- a sum of daily CACs is not the period’s CAC', () => {
+  it('⭐ a ratio’s total is REBUILT from its parts -- total spend over total leads, never a sum of daily CACs', () => {
     renderChart(30, 'CAC');
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
-    expect(screen.getByRole('table').querySelector('tfoot')).toBeNull();
+    expect(screen.getByRole('table').querySelector('tfoot')!.textContent).toContain(formatMetric('CAC', totals('all', 30).cac));
+  });
+
+  it('⭐ tick metrics to show them side by side; the choice is remembered; every total is the dashboard’s', () => {
+    localStorage.clear();
+    const { unmount } = renderChart(30);
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Leads' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'ROAS' }));
+    const head = screen.getByRole('table').querySelector('thead')!.textContent!;
+    expect(head).toMatch(/Date.*Spend.*Leads.*ROAS/);
+    const foot = screen.getByRole('table').querySelector('tfoot')!.textContent!;
+    const t = totals('all', 30);
+    expect(foot).toContain(formatMetric('Spend', t.spend));
+    expect(foot).toContain(formatMetric('Leads', t.leads));
+    expect(foot).toContain(formatMetric('ROAS', t.roas));
+    expect((screen.getByRole('checkbox', { name: 'Spend' }) as HTMLInputElement).disabled).toBe(true);   // the main metric stays
+    unmount();
+    renderChart(30);
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    expect((screen.getByRole('checkbox', { name: 'Leads' }) as HTMLInputElement).checked).toBe(true);
+    localStorage.clear();
+  });
+
+  it('comparing: each ticked metric gets Now | Then | Change under its own name', () => {
+    localStorage.setItem('growth.tableColumns', JSON.stringify(['Leads']));
+    renderChart(30);
+    pick('week');
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    const groups = [...screen.getByRole('table').querySelectorAll('th[scope="colgroup"]')].map((th) => th.textContent);
+    expect(groups).toEqual(['Spend', 'Leads']);
+    expect(screen.getByRole('table').querySelectorAll('tbody tr')[0].querySelectorAll('td')).toHaveLength(1 + 2 * 3);
+    localStorage.clear();
   });
 
   it('when the data does not reach back that far, it SAYS so -- never draws zeros', () => {

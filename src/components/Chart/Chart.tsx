@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { CSS_CHANNEL } from '../../styles/tokens';
 import './Chart.css';
 import { channelGradient, type ChannelName } from '../../styles/tokens';
@@ -48,6 +48,14 @@ const PERIODS: { key: ComparePeriod; label: string; noun: string }[] = [
   { key: 'month', label: 'Last month', noun: 'last month' },
   { key: 'year', label: 'Last year', noun: 'last year' },
 ];
+/* Which extra metrics the table shows, remembered in this browser. */
+const COLS_KEY = 'growth.tableColumns';
+function savedCols(): Metric[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(COLS_KEY) ?? '[]');
+    return Array.isArray(raw) ? METRICS.filter((m) => raw.includes(m)) : [];
+  } catch { return []; }
+}
 const isPeriod = (v: unknown): v is ComparePeriod => v === 'week' || v === 'month' || v === 'year';
 const pct = (now: number, then: number) => (then === 0 ? null : Math.round(((now - then) / Math.abs(then)) * 100));
 const signed = (n: number | null) => (n === null ? '—' : `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n)}%`);
@@ -108,6 +116,7 @@ export function Chart({
      back to the right default for that metric instead of pinning bars onto a
      ratio the rule would never have drawn as bars. */
   const [chosen, setChosen] = useState<'bar' | 'line' | 'table' | null>(null);
+  const [tableCols, setTableCols] = useState<Metric[]>(savedCols);
 
   const auto = resolveMark(metric, data.length, mark);
   /* A ratio is never drawn as bars, whatever is clicked. A bar encodes
@@ -186,7 +195,6 @@ export function Chart({
   /* A total only where one is honest: a sum of daily Spend is the period's
      spend; a sum (or average) of daily CAC is not the period's CAC. */
   const sum = (d: { value: number }[]) => d.reduce((a, x) => a + x.value, 0);
-  const showTotal = !isRatio(metric);
 
   function onMove(e: React.MouseEvent<HTMLDivElement>) {
     const box = e.currentTarget.getBoundingClientRect();
@@ -238,63 +246,128 @@ export function Chart({
   );
 
   /* ⭐ THE TABLE VIEW -- the chart's own numbers, every day, readable and
-     copyable. Built from the same arrays as the plot, so it cannot disagree
-     with it. With a period comparison on, each day sits beside the same day
-     earlier and the change between them. */
+     copyable. Built from the same series as the plot, so it cannot disagree
+     with it.
+
+     Columns are CHOSEN (Tommy, Sept 29: "check off any boxes that I want to
+     display side by side"). The main metric is always first; ticked ones sit
+     beside it. With a period comparison on, each metric gets Now | Earlier |
+     Change under its own name. */
+  const tableMetrics: Metric[] = [metric, ...METRICS.filter((m) =>
+    m !== metric && (tableCols.includes(m) || m === compare) && (compareSeries || m === metric))];
+  const seriesOf = (m: Metric) => (m === metric ? data : compareSeries!(m));
+  const earlierOf = (m: Metric) => (m === metric ? pData : pData.length ? periodSeries!(m, shiftDays) : []);
+  const cols = tableMetrics.map((m) => ({ m, now: seriesOf(m), then: earlierOf(m) }));
+
+  /* Totals that mean something for EVERY metric. A quantity sums. A ratio is
+     rebuilt from its parts -- CAC is total spend over total leads, ROAS is
+     total revenue over total spend (each day's revenue is its ROAS times its
+     spend) -- never a sum or an average of daily ratios. */
+  const totalOf = (m: Metric, which: 'now' | 'then'): number | null => {
+    const get = (x: Metric) => (which === 'now' ? seriesOf(x) : earlierOf(x));
+    const s = get(m);
+    if (!s.length) return null;
+    if (!isRatio(m)) return sum(s);
+    if (!compareSeries) return null;
+    const spend = get('Spend');
+    if (m === 'CAC') {
+      const leads = sum(get('Leads'));
+      return leads > 0 ? sum(spend) / leads : null;
+    }
+    const sp = sum(spend);
+    const revenue = s.reduce((a, x, i) => a + x.value * (spend[i]?.value ?? 0), 0);
+    return sp > 0 ? revenue / sp : null;
+  };
+  const cell = (m: Metric, v: number | null | undefined) => (v === null || v === undefined ? '—' : formatMetric(m, v));
+  const tone = (m: Metric, ch: number | null) => (ch === null ? '' : `is-${deltaTone(ch, betterHigher(m))}`);
+  const comparing = pData.length > 0;
+
   const visibleTable = (
-    <div className="gr-chart__table-wrap" tabIndex={0} aria-label={`${title ?? metric} as a table`}>
-      <table className="gr-chart__table">
-        <thead>
-          <tr className="gr-type-overline">
-            <th scope="col">Date</th>
-            <th scope="col">{metric}</th>
-            {compare && <th scope="col">{compare}</th>}
-            {pData.length > 0 && (
-              <>
-                <th scope="col">{periodInfo!.label}</th>
-                <th scope="col">{metric}</th>
-                <th scope="col">Change</th>
-              </>
-            )}
-          </tr>
-        </thead>
-        <tbody className="gr-type-body">
-          {data.map((d, i) => {
-            const ch = pData[i] ? pct(d.value, pData[i].value) : null;
+    <>
+      {compareSeries && (
+        <fieldset className="gr-chart__cols">
+          <legend className="gr-chart__cols-label gr-type-caption-med">Columns</legend>
+          {METRICS.map((m) => {
+            const main = m === metric;
+            const on = main || tableCols.includes(m) || m === compare;
             return (
-              <tr key={i}>
-                <th scope="row">{d.label}</th>
-                <td>{formatMetric(metric, d.value)}</td>
-                {compare && <td>{cData[i] ? formatMetric(compare, cData[i].value) : '—'}</td>}
-                {pData.length > 0 && (
-                  <>
-                    <td className="gr-chart__table-muted">{pLabel(i)}</td>
-                    <td>{formatMetric(metric, pData[i].value)}</td>
-                    <td className={ch === null ? '' : `is-${deltaTone(ch, betterHigher(metric))}`}>{signed(ch)}</td>
-                  </>
-                )}
-              </tr>
+              <label key={m} className={`gr-chart__col gr-type-caption-med ${on ? 'is-on' : ''} ${main ? 'is-main' : ''}`}>
+                <input type="checkbox" checked={on} disabled={main || m === compare}
+                       onChange={(e) => setTableCols((prev) => {
+                         const next = e.target.checked ? [...prev, m] : prev.filter((x) => x !== m);
+                         try { localStorage.setItem(COLS_KEY, JSON.stringify(next)); } catch { /* quota */ }
+                         return next;
+                       })} />
+                {m}
+              </label>
             );
           })}
-        </tbody>
-        {showTotal && (
+        </fieldset>
+      )}
+      <div className="gr-chart__table-wrap" tabIndex={0} aria-label={`${title ?? metric} as a table`}>
+        <table className="gr-chart__table">
+          <thead>
+            {comparing && (
+              <tr className="gr-type-overline gr-chart__table-group">
+                <th scope="col" colSpan={2} />
+                {cols.map((c) => <th key={c.m} scope="colgroup" colSpan={3}>{c.m}</th>)}
+              </tr>
+            )}
+            <tr className="gr-type-overline">
+              <th scope="col">Date</th>
+              {comparing && <th scope="col">{periodInfo!.label}</th>}
+              {cols.map((c) => (comparing ? (
+                <Fragment key={c.m}>
+                  <th scope="col" className="gr-chart__table-start">Now</th>
+                  <th scope="col">Then</th>
+                  <th scope="col">Change</th>
+                </Fragment>
+              ) : <th key={c.m} scope="col">{c.m}</th>))}
+            </tr>
+          </thead>
+          <tbody className="gr-type-body">
+            {data.map((d, i) => (
+              <tr key={i}>
+                <th scope="row">{d.label}</th>
+                {comparing && <td className="gr-chart__table-muted">{pLabel(i)}</td>}
+                {cols.map((c) => {
+                  const now = c.now[i]?.value;
+                  const then = c.then[i]?.value;
+                  if (!comparing) return <td key={c.m}>{cell(c.m, now)}</td>;
+                  const ch = now !== undefined && then !== undefined ? pct(now, then) : null;
+                  return (
+                    <Fragment key={c.m}>
+                      <td className="gr-chart__table-start">{cell(c.m, now)}</td>
+                      <td className="gr-chart__table-muted">{cell(c.m, then)}</td>
+                      <td className={tone(c.m, ch)}>{signed(ch)}</td>
+                    </Fragment>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
           <tfoot className="gr-type-body-medium">
             <tr>
               <th scope="row">Total</th>
-              <td>{formatMetric(metric, sum(data))}</td>
-              {compare && <td>{isRatio(compare) ? '—' : formatMetric(compare, sum(cData))}</td>}
-              {pData.length > 0 && (
-                <>
-                  <td className="gr-chart__table-muted">{pSpan()}</td>
-                  <td>{formatMetric(metric, sum(pData))}</td>
-                  <td>{signed(pct(sum(data), sum(pData)))}</td>
-                </>
-              )}
+              {comparing && <td className="gr-chart__table-muted">{pSpan()}</td>}
+              {cols.map((c) => {
+                const now = totalOf(c.m, 'now');
+                if (!comparing) return <td key={c.m}>{cell(c.m, now)}</td>;
+                const then = totalOf(c.m, 'then');
+                const ch = now !== null && then !== null ? pct(now, then) : null;
+                return (
+                  <Fragment key={c.m}>
+                    <td className="gr-chart__table-start">{cell(c.m, now)}</td>
+                    <td className="gr-chart__table-muted">{cell(c.m, then)}</td>
+                    <td className={tone(c.m, ch)}>{signed(ch)}</td>
+                  </Fragment>
+                );
+              })}
             </tr>
           </tfoot>
-        )}
-      </table>
-    </div>
+        </table>
+      </div>
+    </>
   );
 
   return (
