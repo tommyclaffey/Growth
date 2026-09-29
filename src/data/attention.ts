@@ -229,9 +229,16 @@ let cache: Flag[] = read();
    filters on every call returns a new array each time, React sees a changed
    snapshot on every render, and it re-renders forever. Recomputed only when
    the underlying list actually changes. */
+/* 🐛 Also keyed on the campaign LIST. Computed once at import it filtered
+   against the seed forever: on a real account the person's own campaign flags
+   were hidden on every reload and the demo's stayed. A new CAMPAIGNS array
+   (a source loaded) recomputes; otherwise the reference stays stable, which
+   is what useSyncExternalStore needs. */
+let liveFor = CAMPAIGNS;
 let live: Flag[] = compute();
 
 function compute(): Flag[] {
+  liveFor = CAMPAIGNS;
   return cache.filter((f) =>
     f.kind !== 'campaign' || CAMPAIGNS.some((c) => c.id === f.refId));
 }
@@ -332,6 +339,7 @@ export function restoreFlag(f: Flag) {
    rather than deleted, so a campaign temporarily missing from the seed data
    does not permanently destroy someone's queue. */
 export function liveFlags(): Flag[] {
+  if (liveFor !== CAMPAIGNS) live = compute();
   return live;
 }
 

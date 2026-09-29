@@ -8,7 +8,7 @@ import { Toggle } from '../components/Toggle/Toggle';
 import { Badge } from '../components/Badge/Badge';
 import { FormField } from '../components/FormField/FormField';
 import { CHANNEL_KEYS, CHANNEL_LABEL } from '../data/metrics';
-import { useChannels, toggleChannel } from '../data/channels';
+import { useSavedChannels, toggleChannel } from '../data/channels';
 import { ChannelWordmark } from '../components/ChannelWordmark/ChannelWordmark';
 import { SlackConnect } from '../components/ChatPanel/SlackConnect';
 import { useBackend } from '../data/backend';
@@ -34,7 +34,8 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
   const demo = useDemoState();
   const [budgetText, setBudgetText] = useState(String(monthlyBudget()));
   const backend = useBackend();
-  const enabled = useChannels();
+  /* The saved choice: a toggle must not look stuck off because this account lacks the channel. */
+  const enabled = useSavedChannels();
   const [connected, setConnected] = useState<Set<ChannelName>>(
     new Set(CHANNEL_KEYS.filter((k) => k !== 'podcasts')),
   );

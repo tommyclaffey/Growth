@@ -74,6 +74,14 @@ function sumTotals(channels: ChannelName[], range: Range) {
   return { ...s, cac: s.leads > 0 ? s.spend / s.leads : 0, roas: s.spend > 0 ? s.revenue / s.spend : 0 };
 }
 
+/**
+ * Leads and sales as the file writes them. Google reports FRACTIONAL
+ * conversions (data-driven attribution); rounding each day made 0.4 a day read
+ * as 0 in every row while the total said 12 -- a file that does not sum to its
+ * own total. Whole numbers stay whole; fractions keep two places.
+ */
+const count = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2));
+
 export function buildCsv(scope: ExportScope, range: Range): string {
   const scopes: (ChannelName | 'all')[] = Array.isArray(scope)
     ? scope : scope === 'all' ? activeChannels() : [scope];
@@ -87,8 +95,8 @@ export function buildCsv(scope: ExportScope, range: Range): string {
         label,
         r.spend.toFixed(2),
         fieldOrBlank(s, 'clicks', r.clicks),
-        Math.round(r.leads),
-        Math.round(r.sales),
+        count(r.leads),
+        count(r.sales),
         r.revenue.toFixed(2),
         r.leads > 0 ? (r.spend / r.leads).toFixed(2) : '',
         r.spend > 0 ? (r.revenue / r.spend).toFixed(2) : '',
@@ -112,11 +120,13 @@ export function buildCsv(scope: ExportScope, range: Range): string {
     totalLabel,
     t.spend.toFixed(2),
     clicksCell,
-    Math.round(t.leads),
-    Math.round(t.sales),
+    count(t.leads),
+    count(t.sales),
     t.revenue.toFixed(2),
-    t.cac.toFixed(2),
-    t.roas.toFixed(2),
+    /* Blank, like the day rows -- not "0.00". No leads means no CAC, and one
+       file must not give two answers to the same question. */
+    t.leads > 0 ? t.cac.toFixed(2) : '',
+    t.spend > 0 ? t.roas.toFixed(2) : '',
   ]));
 
   return out.join('\n');

@@ -64,10 +64,16 @@ export function useCampaignStatus(): (id: string) => Stage {
   const [, bump] = useState(0);
   useEffect(() => {
     const sync = () => bump((n) => n + 1);
+    /* Cross-tab too: this is a value a second tab can legitimately change.
+       🐛 Was an anonymous listener that was never removed -- every mount added
+       one more, each bumping a component that might be gone. */
+    const fromOtherTab = () => { cache = read(); sync(); };
     window.addEventListener(CHANGED, sync);
-    /* Cross-tab too: this is a value a second tab can legitimately change. */
-    window.addEventListener('storage', () => { cache = read(); sync(); });
-    return () => window.removeEventListener(CHANGED, sync);
+    window.addEventListener('storage', fromOtherTab);
+    return () => {
+      window.removeEventListener(CHANGED, sync);
+      window.removeEventListener('storage', fromOtherTab);
+    };
   }, []);
   return stageOf;
 }

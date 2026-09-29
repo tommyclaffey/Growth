@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { hydrate } from './metrics';
 import { applyStructure } from './structure';
+import { syncChannels } from './channels';
 import type { Account, DataSource } from './source';
 
 export type SourceStatus = 'loading' | 'ready' | 'error' | 'empty';
@@ -29,6 +30,7 @@ export function useDataSource(source: DataSource): SourceState {
     if (!source.initial) return { status: 'loading' };
     hydrate({ rows: source.initial.rows, periodEnd: source.initial.account.periodEnd, currency: source.initial.account.currency });
     applyStructure(source.initial.campaigns);
+    syncChannels(false);
     return {
       status: isEmpty(source.initial.rows) ? 'empty' : 'ready',
       account: source.initial.account,
@@ -41,6 +43,7 @@ export function useDataSource(source: DataSource): SourceState {
     if (source.initial) {
       hydrate({ rows: source.initial.rows, periodEnd: source.initial.account.periodEnd, currency: source.initial.account.currency });
       applyStructure(source.initial.campaigns);
+    syncChannels();
       setState({ status: isEmpty(source.initial.rows) ? 'empty' : 'ready', account: source.initial.account });
       return;
     }
@@ -51,6 +54,7 @@ export function useDataSource(source: DataSource): SourceState {
         if (ctrl.signal.aborted) return;
         hydrate({ rows: d.rows, periodEnd: d.account.periodEnd, currency: d.account.currency });
         applyStructure(d.campaigns);
+        syncChannels();
         setState({ status: isEmpty(d.rows) ? 'empty' : 'ready', account: d.account });
       })
       .catch((e: unknown) => {

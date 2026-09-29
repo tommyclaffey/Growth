@@ -129,6 +129,22 @@ export function valueOf(m: DerivedMetric, r: {
   }
 }
 
+/**
+ * Whether a ratio has anything to divide by. valueOf answers 0 when it does not
+ * -- fine for a chart axis, WRONG for a ranking: a CAC of "0" for an ad with no
+ * leads sorted first as the cheapest ad in the account. Rankings and verdicts
+ * ask this first; a metric that cannot be reported is a dash, and sorts last.
+ */
+export function reportable(m: DerivedMetric, r: { spend: number; impressions: number; clicks: number; leads: number }): boolean {
+  switch (m) {
+    case 'CAC':                return r.leads > 0;
+    case 'ROAS':               return r.spend > 0;
+    case 'CTR': case 'CPM':    return r.impressions > 0;
+    case 'CPC': case 'CVR':    return r.clicks > 0;
+    default:                   return true;
+  }
+}
+
 /** Lower is better for the cost metrics. Getting this wrong paints a falling CAC red. */
 export function betterHigher(m: DerivedMetric): boolean {
   return !(m === 'CAC' || m === 'CPC' || m === 'CPM');

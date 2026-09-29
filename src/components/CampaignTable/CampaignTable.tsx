@@ -6,14 +6,17 @@ import { StatusPill } from '../StatusPill/StatusPill';
 import { Chip } from '../Chip/Chip';
 import { CAMPAIGNS, type Campaign } from '../../data/campaigns';
 import { setStage, useCampaignStatus } from '../../data/campaignStatus';
-import { CHANNEL_LABEL } from '../../data/metrics';
+import { CHANNEL_LABEL, formatMoney } from '../../data/metrics';
 import type { ChannelName } from '../../styles/tokens';
 import type { Target } from '../../data/decisions';
 
 
-const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
+/* The account's currency -- a EUR account was shown dollars. Leads rounded:
+   Google's conversions are fractional and "123.457 leads" is not a count. */
+const money = (n: number) => formatMoney(n, 0);
 const cacOf = (c: { spend: number; leads: number }) =>
-  c.leads > 0 ? `$${(c.spend / c.leads).toFixed(2)}` : '—';
+  c.leads > 0 ? formatMoney(c.spend / c.leads, 2) : '—';
+const count = (n: number) => Math.round(n).toLocaleString();
 
 export interface CampaignTableProps {
   /** Optional channel filter, set when drilling in from Channels. */
@@ -123,7 +126,7 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
                     <StatusMenu value={stageOf(c.id)} onChange={(next) => setStage(c.id, next)} />
                   </td>
                   <td className="gr-type-body">{money(c.spend)}</td>
-                  <td className="gr-type-body">{c.leads.toLocaleString()}</td>
+                  <td className="gr-type-body">{count(c.leads)}</td>
                   {wideColumns && <td className="gr-type-body">{cacOf(c)}</td>}
                   <td className="gr-type-body">{c.roas.toFixed(1)}x</td>
                   {onAskAbout && (
@@ -162,7 +165,7 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
                       {wideColumns && <td />}
                       <td><StatusPill stage={a.stage} /></td>
                       <td className="gr-type-body">{money(a.spend)}</td>
-                      <td className="gr-type-body">{a.leads.toLocaleString()}</td>
+                      <td className="gr-type-body">{count(a.leads)}</td>
                       {wideColumns && <td className="gr-type-body">{cacOf(a)}</td>}
                       <td />
                     </tr>

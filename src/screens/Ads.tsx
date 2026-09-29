@@ -175,7 +175,7 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
                   {groupNoun(r.channel).one}: {r.creative.adSetName}
                 </span>
               </td>
-              <td className="gr-type-body-medium gr-ads__num">{formatDerived(metric, r.value)}</td>
+              <td className="gr-type-body-medium gr-ads__num">{r.value === null ? '—' : formatDerived(metric, r.value)}</td>
               <td>
                 {r.benchmark ? (
                   <DeltaBadge

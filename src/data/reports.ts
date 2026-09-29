@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { ChannelName } from '../styles/tokens';
 import type { Stage } from '../components/StatusPill/StatusPill';
-import { CHANNEL_KEYS, CHANNEL_LABEL, DAY_LABELS, PERIOD_END, delta, formatMetric, totals, type Range } from './metrics';
+import { CHANNEL_KEYS, CHANNEL_LABEL, DAY_LABELS, PERIOD_END, SEEDED_PERIOD_END, delta, formatMetric, totals, type Range } from './metrics';
 import type { ReportRef } from './chat';
 
 /**
@@ -155,10 +155,21 @@ function readStages(): Record<string, Stage> {
 
 let mine: Report[] = read();
 let stages: Record<string, Stage> = readStages();
+/* 🐛 The seed's "Last sent Aug 10" is a fact about the DEMO account. On a real
+   account ending Sept 28 it sat beside "Next Mon Oct 5" -- a report that
+   appeared to have skipped seven weeks. Off the demo, nothing has been sent. */
+const period = () => PERIOD_END.toISOString().slice(0, 10);
+
+let composedFor = '';
 let all: Report[] = compose();
 
 function compose(): Report[] {
-  return [...mine, ...SEED].map((r) => (stages[r.id] ? { ...r, stage: stages[r.id] } : r));
+  composedFor = period();
+  const demo = composedFor === SEEDED_PERIOD_END;
+  return [...mine, ...SEED].map((r) => {
+    const x = demo ? r : { ...r, lastRun: undefined };
+    return stages[r.id] ? { ...x, stage: stages[r.id] } : x;
+  });
 }
 
 function save() {
@@ -181,6 +192,7 @@ export function setReportStage(id: string, stage: 'Active' | 'Paused') {
 }
 
 export function reports(): Report[] {
+  if (composedFor !== period()) all = compose();
   return all;
 }
 
@@ -244,8 +256,9 @@ export function snapshot(r: Report, channels: ChannelName[]): ReportRef {
       channel: CHANNEL_LABEL[c],
       spend: formatMetric('Spend', t.spend),
       leads: Math.round(t.leads).toLocaleString(),
-      cac: formatMetric('CAC', t.cac),
-      change: `${d > 0 ? '+' : ''}${d}% CAC`,
+      /* No leads: no CAC, and no change in it -- a dash, never "$0.00" or "−100%". */
+      cac: t.leads > 0 ? formatMetric('CAC', t.cac) : '—',
+      change: t.leads > 0 ? `${d > 0 ? '+' : ''}${d}% CAC` : '—',
     };
   });
   const sum = channels.reduce((a, c) => {

@@ -387,6 +387,25 @@ export function creativeTotals(id: string, range: Range = 30) {
 
 /** Series for the ad chart, in the shape Chart expects. */
 export function creativeSeries(id: string, metric: Metric, range: Range = 30) {
-  return campaignSeries(creativeById(id)?.campaignId ?? '', metric, range)
-    .map((p) => ({ ...p, value: p.value * creativeShare(id) }));
+  /* 🐛 This scaled the CAMPAIGN's series by the ad's SPEND share -- wrong three
+     ways: a ratio (CAC, ROAS) does not scale by a share; leads follow the LEAD
+     share, not spend; and a real account's ad has its own rows, which were
+     ignored. The chart's 30-day leads summed to 291 while the ad's own total
+     said 196, and a real ad with zero leads was drawn at one a day.
+     Built from the ad's own rows now -- the same rows its totals sum. */
+  const owner = creativeById(id);
+  if (!owner) return [];
+  const labels = campaignSeries(owner.campaignId, metric, range).map((p) => p.label);
+  return creativeRows(id, range).map((r, i) => {
+    let value: number;
+    switch (metric) {
+      case 'Spend':  value = r.spend; break;
+      case 'Clicks': value = r.clicks; break;
+      case 'Leads':  value = r.leads; break;
+      case 'Sales':  value = r.sales; break;
+      case 'CAC':    value = r.leads > 0 ? r.spend / r.leads : 0; break;
+      case 'ROAS':   value = r.spend > 0 ? r.revenue / r.spend : 0; break;
+    }
+    return { label: labels[i] ?? '', value };
+  });
 }

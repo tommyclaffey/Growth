@@ -12,7 +12,7 @@
    ============================================================ */
 
 import type { ChannelName } from '../styles/tokens';
-import { valueOf, type DerivedMetric } from './channelMetrics';
+import { reportable, valueOf, type DerivedMetric } from './channelMetrics';
 
 export type Metric = 'Spend' | 'Clicks' | 'Leads' | 'Sales' | 'CAC' | 'ROAS';
 export const METRICS: Metric[] = ['Spend', 'Clicks', 'Leads', 'Sales', 'CAC', 'ROAS'];
@@ -357,6 +357,10 @@ export function hydrate(data: {
   PERIOD_END = new Date(`${data.periodEnd}T00:00:00Z`);
   DAY_LABELS = labelsEnding(PERIOD_END);
   CURRENCY = data.currency;
+  /* Which channels the source actually reported. A Meta-only account has no
+     TikTok; filling it with zeros for the arithmetic is fine, SHOWING it as a
+     $0 channel with a $0.00 CAC is not. */
+  SUPPLIED = CHANNEL_KEYS.filter((k) => data.rows[k] !== undefined);
   blendCache = null;
   VERSION += 1;
 }
@@ -375,6 +379,12 @@ export function hydrate(data: {
  * reporting a different total from everything beside it.
  */
 let ACTIVE: ChannelName[] = [...CHANNEL_KEYS];
+let SUPPLIED: ChannelName[] = [...CHANNEL_KEYS];
+
+/** The channels the loaded source reports -- all six on the demo. */
+export function suppliedChannels(): ChannelName[] {
+  return SUPPLIED;
+}
 
 export function activeChannels(): ChannelName[] {
   return ACTIVE;
@@ -535,9 +545,15 @@ export function changeOf(metric: DerivedMetric, current: DayRow[], prior: DayRow
     clicks: a.clicks + r.clicks, leads: a.leads + r.leads,
     sales: a.sales + r.sales, revenue: a.revenue + r.revenue,
   }), { spend: 0, impressions: 0, clicks: 0, leads: 0, sales: 0, revenue: 0 });
-  const before = valueOf(metric, sum(prior));
+  /* 🐛 A window with spend and NO leads has no CAC; valueOf says 0, and 0
+     against last period's $40 read as "CAC −100%" -- coloured good. Either
+     window unable to report the metric means there is no change to state.
+     (The collapse itself is still reported -- by Leads, at −100%.) */
+  const a = sum(prior); const b = sum(current);
+  if (!reportable(metric, a) || !reportable(metric, b)) return 0;
+  const before = valueOf(metric, a);
   if (before === 0) return 0;
-  const now = valueOf(metric, sum(current));
+  const now = valueOf(metric, b);
   return Math.round(((now - before) / before) * 100);
 }
 

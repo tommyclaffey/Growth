@@ -2,7 +2,7 @@ import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS, type Campaign } from './campaigns';
 import { campaignRows } from './campaignSeries';
 import { creativeLeadShare, creativeRows, creativesFor, hasRealRows, type Creative } from './creative';
-import { betterHigher, valueOf, type DerivedMetric } from './channelMetrics';
+import { betterHigher, reportable, valueOf, type DerivedMetric } from './channelMetrics';
 import {
   EMPTY_FUNNEL, addFunnel, benchmarkAgainst, type Benchmark, type Funnel,
 } from './benchmark';
@@ -49,7 +49,8 @@ export interface RankedAd {
   channel: ChannelName;
   /** Ranged totals — this screen follows the date picker. */
   totals: Funnel;
-  value: number;
+  /** Null when the ad cannot report the metric (a CAC with no leads). Shown as a dash; sorts last. */
+  value: number | null;
   /** Against the average ad on its own channel. Null when the channel runs one ad. */
   benchmark: Benchmark | null;
 }
@@ -140,11 +141,17 @@ export function rankedAds(
 
   const ranked: RankedAd[] = gathered.map((a) => {
     const pop = byChannel.get(a.channel)!;
+    /* 🐛 An ad with spend and no leads has no CAC. valueOf said 0, which sorted
+       FIRST in absolute mode and became "−100%, better" against its channel in
+       relative mode -- while rankCreatives put the same ad last. A real Meta
+       account returns every paused ad with zero rows, and each ranked #1. */
+    const ok = reportable(metric, a.totals);
     return {
       ...a,
-      value: valueOf(metric, a.totals),
-      benchmark: benchmarkAgainst(metric, pop.sum, pop.n, valueOf(metric, a.totals),
-        { count: 'ad-average', rate: 'channel-ad-rate' }),
+      value: ok ? valueOf(metric, a.totals) : null,
+      benchmark: ok
+        ? benchmarkAgainst(metric, pop.sum, pop.n, valueOf(metric, a.totals), { count: 'ad-average', rate: 'channel-ad-rate' })
+        : null,
     };
   });
 
@@ -162,6 +169,7 @@ export function rankedAds(
  */
 function sortRanked(list: RankedAd[], metric: DerivedMetric, mode: RankMode): RankedAd[] {
   const signed = (a: RankedAd): number => {
+    if (a.value === null) return Number.NaN;
     if (mode === 'absolute') return a.value;
     const b = a.benchmark;
     /* No benchmark means a channel with one ad. It cannot be ranked against
@@ -177,7 +185,10 @@ function sortRanked(list: RankedAd[], metric: DerivedMetric, mode: RankMode): Ra
   const dir = mode === 'absolute' && !betterHigher(metric) ? 1 : -1;
 
   return [...list].sort((x, y) => {
-    const d = (signed(x) - signed(y)) * dir;
+    /* Unreportable last, in either mode and either direction. */
+    const nx = x.value === null; const ny = y.value === null;
+    if (nx !== ny) return nx ? 1 : -1;
+    const d = nx ? 0 : (signed(x) - signed(y)) * dir;
     /* A TOTAL order. Without tie-breaks the same data can render in a different
        sequence between renders, which reads as the list shuffling on its own. */
     return d !== 0 ? d

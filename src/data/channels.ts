@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CHANNEL_KEYS, setActiveChannels } from './metrics';
+import { CHANNEL_KEYS, setActiveChannels, suppliedChannels } from './metrics';
 import type { ChannelName } from '../styles/tokens';
 
 /**
@@ -14,6 +14,7 @@ import type { ChannelName } from '../styles/tokens';
 const KEY = 'growth.channels';
 const CHANGED = 'growth:channels-changed';
 
+/* What the person chose. Settings shows this; everything else shows effective(). */
 function read(): ChannelName[] {
   try {
     const raw = localStorage.getItem(KEY);
@@ -29,9 +30,28 @@ function read(): ChannelName[] {
   }
 }
 
+/**
+ * What the product shows: the person's choice, limited to the channels the
+ * loaded account actually has. 🐛 Without the second half, a Meta-only account
+ * listed TikTok, YouTube, Affiliates, Paid Search and Podcasts at $0 in every
+ * table, report and export, with coverage notes counting them.
+ */
+function effective(): ChannelName[] {
+  const have = suppliedChannels();
+  return read().filter((k) => have.includes(k));
+}
+
 /* Applied before React renders, so the first paint already reflects it — an
    effect would show the full set for one frame and then remove channels. */
-setActiveChannels(read());
+setActiveChannels(effective());
+
+/** Re-apply after a source loads -- the account decides which channels exist. */
+export function syncChannels(notify = true) {
+  setActiveChannels(effective());
+  /* Not during render (the useState initialiser): telling other components to
+     update mid-render is a React error. They read the new list on mount. */
+  if (notify) { try { window.dispatchEvent(new Event(CHANGED)); } catch { /* no window */ } }
+}
 
 export function setChannels(keys: ChannelName[]) {
   /* Turning the last channel off used to turn all six back ON.
@@ -46,21 +66,37 @@ export function setChannels(keys: ChannelName[]) {
      overrides a deliberate choice is worse than one that shows nothing. */
   const next = keys;
   try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* quota */ }
-  setActiveChannels(next);
+  setActiveChannels(effective());
   window.dispatchEvent(new Event(CHANGED));
 }
 
 export function useChannels(): ChannelName[] {
-  const [keys, setKeys] = useState<ChannelName[]>(() => read());
+  return useChannelList(effective);
+}
+
+/** The saved choice, including channels this account does not have -- for Settings' toggles. */
+export function useSavedChannels(): ChannelName[] {
+  return useChannelList(read);
+}
+
+function useChannelList(get: () => ChannelName[]): ChannelName[] {
+  const [keys, setKeys] = useState<ChannelName[]>(get);
   useEffect(() => {
-    const sync = () => setKeys(read());
+    const sync = () => setKeys(get());
+    /* Another tab changed the choice: the data layer's list must follow too,
+       not only this component's copy -- or the blend and the table disagree. */
+    const fromOtherTab = (e: StorageEvent) => {
+      if (e.key !== KEY) return;
+      setActiveChannels(effective());
+      sync();
+    };
     window.addEventListener(CHANGED, sync);
-    window.addEventListener('storage', sync);
+    window.addEventListener('storage', fromOtherTab);
     return () => {
       window.removeEventListener(CHANGED, sync);
-      window.removeEventListener('storage', sync);
+      window.removeEventListener('storage', fromOtherTab);
     };
-  }, []);
+  }, [get]);
   return keys;
 }
 

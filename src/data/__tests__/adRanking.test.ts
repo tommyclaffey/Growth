@@ -146,11 +146,11 @@ describe('direction is never re-decided', () => {
     reset();
     const cac = rankedAds('CAC', 'absolute', 30, ALL_CHANNELS);
     for (let i = 1; i < cac.length; i += 1) {
-      expect(cac[i].value).toBeGreaterThanOrEqual(cac[i - 1].value - 1e-9);
+      expect(cac[i].value!).toBeGreaterThanOrEqual(cac[i - 1].value! - 1e-9);
     }
     const leads = rankedAds('Leads', 'absolute', 30, ALL_CHANNELS);
     for (let i = 1; i < leads.length; i += 1) {
-      expect(leads[i].value).toBeLessThanOrEqual(leads[i - 1].value + 1e-9);
+      expect(leads[i].value!).toBeLessThanOrEqual(leads[i - 1].value! + 1e-9);
     }
   });
 
