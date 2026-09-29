@@ -30,7 +30,7 @@ export interface Campaign {
  * shape it always wanted to be. Worth saying plainly in the case study: the
  * prototype variables were a workaround for a missing data model, not a design.
  */
-export const CAMPAIGNS: Campaign[] = [
+const SEED_CAMPAIGNS: Campaign[] = [
   {
     id: 'c1', name: 'Advantage+ — Evergreen Signups', channel: 'meta', stage: 'Active',
     objective: 'Conversions', spend: 34120, leads: 998, roas: 5.1,
@@ -96,3 +96,18 @@ export const CAMPAIGNS: Campaign[] = [
     adSets: [{ id: 'c9a', name: 'Business & finance shows', spend: 12240, leads: 95, stage: 'Ended' }],
   },
 ];
+
+/**
+ * The campaigns the product shows -- the seed's, or a real account's.
+ *
+ * ⭐ Phase 4 seam. A connected ad account brings its OWN campaigns; showing its
+ * real numbers under the demo's campaign names would be a lie on every
+ * campaign screen. `export let` is a live binding, so every module reading
+ * CAMPAIGNS sees the current list. Set through `applyStructure()` only.
+ */
+export let CAMPAIGNS: Campaign[] = SEED_CAMPAIGNS;
+
+/** Replace the list (a source's campaigns), or null to restore the seed. */
+export function setCampaigns(list: Campaign[] | null): void {
+  CAMPAIGNS = list ?? SEED_CAMPAIGNS;
+}

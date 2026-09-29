@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { hydrate } from './metrics';
+import { applyStructure } from './structure';
 import type { Account, DataSource } from './source';
 
 export type SourceStatus = 'loading' | 'ready' | 'error' | 'empty';
@@ -26,7 +27,8 @@ function isEmpty(rows: Record<string, { spend: number }[] | undefined>): boolean
 export function useDataSource(source: DataSource): SourceState {
   const [state, setState] = useState<SourceState>(() => {
     if (!source.initial) return { status: 'loading' };
-    hydrate({ ...source.initial, ...source.initial.account });
+    hydrate({ rows: source.initial.rows, periodEnd: source.initial.account.periodEnd, currency: source.initial.account.currency });
+    applyStructure(source.initial.campaigns);
     return {
       status: isEmpty(source.initial.rows) ? 'empty' : 'ready',
       account: source.initial.account,
@@ -40,6 +42,7 @@ export function useDataSource(source: DataSource): SourceState {
       .then((d) => {
         if (ctrl.signal.aborted) return;
         hydrate({ rows: d.rows, periodEnd: d.account.periodEnd, currency: d.account.currency });
+        applyStructure(d.campaigns);
         setState({ status: isEmpty(d.rows) ? 'empty' : 'ready', account: d.account });
       })
       .catch((e: unknown) => {

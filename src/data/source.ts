@@ -37,6 +37,23 @@ export interface SourceData {
   account: Account;
   /** One row per day for the full history, oldest first, ending on periodEnd. */
   rows: Partial<Record<ChannelName, DayRow[]>>;
+  /**
+   * The account's own campaigns, each with its own days (same length and end
+   * as `rows`). Omitted by the seeded source, whose campaigns live in
+   * campaigns.ts. A real account MUST send these -- otherwise its numbers
+   * would render under the demo's campaign names.
+   */
+  campaigns?: SourceCampaign[];
+}
+
+export interface SourceCampaign {
+  id: string;
+  name: string;
+  channel: ChannelName;
+  stage: 'Active' | 'Paused' | 'Draft' | 'Ended' | 'Review';
+  /** 'Conversions' | 'Sales' | 'Traffic' | 'Awareness' -- drives which KPIs show. */
+  objective: string;
+  rows: DayRow[];
 }
 
 export interface DataSource {

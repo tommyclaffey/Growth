@@ -29,7 +29,28 @@ import { DAY_LABELS, formatMetric, isRatio, rowsFor, type DayRow, type Metric, t
  * table and the chart cannot disagree.
  */
 
-const byId = new Map<string, Campaign>(CAMPAIGNS.map((c) => [c.id, c]));
+/* Rebuilt when the campaign list changes (a source can bring its own), keyed
+   on the array itself -- a map built once at import would keep answering for
+   the seed after a real account loaded. */
+let byIdFor: Campaign[] | null = null;
+let byIdMap = new Map<string, Campaign>();
+const byId = {
+  get(id: string): Campaign | undefined {
+    if (byIdFor !== CAMPAIGNS) { byIdMap = new Map(CAMPAIGNS.map((c) => [c.id, c])); byIdFor = CAMPAIGNS; }
+    return byIdMap.get(id);
+  },
+};
+
+/**
+ * Daily rows a SOURCE supplied per campaign -- a real account reports each
+ * campaign's own days. When present they are used as-is; the share-of-channel
+ * derivation below is how the SEED fakes them, and it must not be applied to
+ * numbers that are already real.
+ */
+let SOURCE_ROWS: Map<string, DayRow[]> | null = null;
+export function setCampaignRows(rows: Map<string, DayRow[]> | null): void {
+  SOURCE_ROWS = rows;
+}
 
 /** Every campaign belonging to a channel — the set the shares are taken over. */
 function siblings(c: Campaign): Campaign[] {
@@ -46,6 +67,11 @@ function wobble(id: string, d: number): number {
 
 /** The campaign's funnel, one row per day, over the full history. */
 export function campaignRows(id: string, range: Range = 30, back = 0): DayRow[] {
+  const real = SOURCE_ROWS?.get(id);
+  if (real) {
+    const end = real.length - back * range;
+    return end - range < 0 ? [] : real.slice(end - range, end);
+  }
   const c = byId.get(id);
   if (!c) return [];
 
