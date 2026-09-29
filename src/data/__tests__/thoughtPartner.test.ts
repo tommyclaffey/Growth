@@ -220,3 +220,29 @@ describe('decision events in the feed', () => {
     }
   });
 });
+
+describe('per-channel budgets', () => {
+  it('a channel off its own budget is a Standing alert; one without a budget has none', async () => {
+    const { setChannelBudget } = await import('../profile');
+    const { notifications: notes } = await import('../notifications');
+    /* TikTok spent ~$6.4k in 7 days. A $40k/month budget is $9.3k/week -> ~31% under. */
+    setChannelBudget('tiktok', 40000);
+    try {
+      const n = notes([...CHANNEL_KEYS]).find((x) => x.id === 'pacing:tiktok')!;
+      expect(n.message).toMatch(/^TikTok is spending \d+% under its budget/);
+      expect(notes([...CHANNEL_KEYS]).some((x) => x.id === 'pacing:youtube')).toBe(false);
+    } finally {
+      setChannelBudget('tiktok', null);
+    }
+  });
+
+  it('"where should more budget go?" says how much of each budget is unspent', async () => {
+    const { setChannelBudget } = await import('../profile');
+    setChannelBudget('tiktok', 40000);
+    try {
+      expect(ask('Where should more budget go?', 30).text).toMatch(/TikTok — .* of its budget unspent/);
+    } finally {
+      setChannelBudget('tiktok', null);
+    }
+  });
+});

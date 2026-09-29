@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ME, type Member } from './chat';
+import type { ChannelName } from '../styles/tokens';
 
 /**
  * The signed-in person's own photo, when they have set one.
@@ -293,4 +294,49 @@ export function useMonthlyBudget(): number {
  */
 export function budgetForRange(days: number): number {
   return (monthlyBudget() / 30) * days;
+}
+
+
+/* ---------- per-channel budgets ----------
+
+   One account budget answers "are we on plan"; it cannot answer "is TikTok
+   under-spending its share" -- and that is the question behind every
+   reallocation. Optional per channel: a channel without one simply has no
+   pacing of its own. The demo sets none, because inventing a plan for the
+   reader would be fiction; they appear when a person enters them. */
+const CH_BUDGET_KEY = 'growth.channel-budgets';
+const CH_BUDGET_CHANGED = 'growth:channel-budgets';
+
+export function channelBudgets(): Partial<Record<ChannelName, number>> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CH_BUDGET_KEY) ?? '{}');
+    if (!raw || typeof raw !== 'object') return {};
+    return Object.fromEntries(Object.entries(raw)
+      .filter(([, v]) => typeof v === 'number' && Number.isFinite(v) && v > 0)) as Partial<Record<ChannelName, number>>;
+  } catch { return {}; }
+}
+
+/** Set one channel's monthly budget, or null to clear it. */
+export function setChannelBudget(ch: ChannelName, v: number | null) {
+  const next = { ...channelBudgets() };
+  if (v === null || !Number.isFinite(v) || v <= 0) delete next[ch];
+  else next[ch] = Math.round(v);
+  try { localStorage.setItem(CH_BUDGET_KEY, JSON.stringify(next)); } catch { /* quota */ }
+  window.dispatchEvent(new Event(CH_BUDGET_CHANGED));
+}
+
+/** A channel's budget for the selected window, prorated -- or undefined if it has none. */
+export function channelBudgetForRange(ch: ChannelName, days: number): number | undefined {
+  const m = channelBudgets()[ch];
+  return m ? (m / 30) * days : undefined;
+}
+
+export function useChannelBudgets(): Partial<Record<ChannelName, number>> {
+  const [b, setB] = useState(channelBudgets);
+  useEffect(() => {
+    const sync = () => setB(channelBudgets());
+    window.addEventListener(CH_BUDGET_CHANGED, sync);
+    return () => window.removeEventListener(CH_BUDGET_CHANGED, sync);
+  }, []);
+  return b;
 }

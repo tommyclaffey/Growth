@@ -2,7 +2,7 @@ import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS } from './campaigns';
 import { campaignDelta, campaignTotals } from './campaignSeries';
 import { stageOf } from './campaignStatus';
-import { budgetForRange } from './profile';
+import { budgetForRange, channelBudgetForRange } from './profile';
 import { prefs } from './prefs';
 import type { Target } from './decisions';
 import {
@@ -179,6 +179,25 @@ export function notifications(channels: ChannelName[] = activeChannels()): Note[
         target: { kind: 'account', id: 'account', label: 'All channels' },
       });
     }
+  }
+
+  /* ---- 2b. A CHANNEL off its own budget -- only where a person set one. */
+  for (const ch of channels) {
+    const planned = channelBudgetForRange(ch, LAST_WEEK);
+    if (!planned) continue;
+    const spent = totals(ch, LAST_WEEK).spend;
+    const ratio = spent / planned;
+    if (Math.abs(1 - ratio) < PACE_BAND) continue;
+    const under = ratio < 1;
+    const gap = Math.round(Math.abs(1 - ratio) * 100);
+    out.push({
+      id: `pacing:${ch}`, kind: 'pacing', group: 'Standing', tone: 'warn',
+      message: `${CHANNEL_LABEL[ch]} is spending ${gap}% ${under ? 'under' : 'over'} its budget — `
+        + `${formatMetric('Spend', spent)} of ${formatMetric('Spend', planned)} this week.`,
+      short: `${CHANNEL_LABEL[ch]} ${gap}% ${under ? 'under' : 'over'} budget`,
+      target: { kind: 'channel', id: ch, label: CHANNEL_LABEL[ch] },
+      channel: ch,
+    });
   }
 
   /* ---- 3. A channel costing a multiple of blended, over the month. Standing,

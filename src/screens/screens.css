@@ -591,3 +591,16 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
   border-radius: var(--radius-lg); background: var(--semantic-bad-bg); color: var(--text-primary);
 }
 .gr-source-banner p { margin: 0; flex: 1; }
+
+/* Channel budgets. */
+.gr-budget__field { display: inline-flex; align-items: center; gap: var(--space-6); flex: none; }
+.gr-budget__input {
+  width: 8rem; height: 32px; padding: 0 var(--space-10); text-align: right;
+  color: var(--text-primary); background: var(--surface-card-tint);
+  border: var(--border-width-sm) solid var(--border-default); border-radius: var(--radius-md);
+}
+.gr-budget__input[aria-invalid='true'] { border-color: var(--semantic-bad); }
+.gr-budget__input:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }
+.gr-budget__per { color: var(--text-muted); }
+.gr-budget__foot { margin: var(--space-10) 0 0; color: var(--text-muted); }
+.gr-budget__foot.is-over { color: var(--semantic-bad); }

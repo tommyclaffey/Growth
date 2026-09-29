@@ -3,6 +3,7 @@ import { CAMPAIGNS } from './campaigns';
 import { campaignTotals } from './campaignSeries';
 import { stageOf } from './campaignStatus';
 import { changeThreshold } from './notifications';
+import { channelBudgetForRange } from './profile';
 import {
   CHANNEL_LABEL, LAST_WEEK, activeChannels, delta, totals, type Range,
 } from './metrics';
@@ -42,6 +43,8 @@ export interface ChannelOption {
   leads: number;
   /** Why this channel is held back, if it is. */
   hold?: string;
+  /** Unspent budget for the range, when the channel has a budget. Negative = over. */
+  room?: number;
 }
 
 export interface ScaleAnswer {
@@ -71,7 +74,9 @@ export function whereToScale(extra: number, range: Range, channels = activeChann
   const options = channels
     .map((ch) => {
       const cac = totals(ch, range).cac;
-      return { channel: ch, cac, leads: cac > 0 ? extra / cac : 0, hold: holdFor(ch) };
+      const planned = channelBudgetForRange(ch, range);
+      const room = planned === undefined ? undefined : planned - totals(ch, range).spend;
+      return { channel: ch, cac, leads: cac > 0 ? extra / cac : 0, hold: holdFor(ch), room };
     })
     .filter((o) => o.cac > 0)
     .sort((a, b) => (Number(!!a.hold) - Number(!!b.hold)) || (a.cac - b.cac));

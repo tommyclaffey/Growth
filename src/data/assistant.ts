@@ -882,7 +882,10 @@ function whatIf(q: string, range: Range, subject?: Target): Answer | undefined {
     text: [
       `An extra ${money(extra)} over the ${rangeLabel(range).toLowerCase()} buys the most leads here:`,
       ...go.slice(0, 3).map((o, i) =>
-        `${i + 1}. ${CHANNEL_LABEL[o.channel]} — ${cacOf(o.cac)} a lead ≈ ${leads(o.leads)} leads.`),
+        `${i + 1}. ${CHANNEL_LABEL[o.channel]} — ${cacOf(o.cac)} a lead ≈ ${leads(o.leads)} leads`
+        + (o.room === undefined ? '.'
+          : o.room > 0 ? `, and it has ${money(o.room)} of its budget unspent.`
+          : `, but it is already ${money(-o.room)} over its budget.`)),
       ...held.map((o) => `⚠️ Not ${CHANNEL_LABEL[o.channel]} yet: ${o.hold}.`),
       `Splitting it across the top two is safer than one — each gets dearer as it grows.`,
       `Assuming ${ASSUME_CAC_HOLDS}`,

@@ -16,6 +16,7 @@ import type { ChannelName } from '../styles/tokens';
 import { AvatarUpload } from '../components/AvatarUpload/AvatarUpload';
 import { AccountLinks } from '../components/AccountLinks/AccountLinks';
 import { DataSourceCard } from '../components/DataSourceCard/DataSourceCard';
+import { ChannelBudgets } from '../components/ChannelBudgets/ChannelBudgets';
 import { ME, ME_ROLE } from '../data/chat';
 
 
@@ -218,6 +219,8 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
             );
           })}
         </section>
+
+        <ChannelBudgets />
 
         <section className="gr-card">
           <header className="gr-card__header">
