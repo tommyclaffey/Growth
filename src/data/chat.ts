@@ -27,8 +27,8 @@ export interface Member {
  */
 export const ME: Member = { id: 'maya', name: 'Maya Okonkwo', initials: 'MO', hue: 0, avatar: mayaPhoto };
 
-/** What the account row shows under her name. */
-export const ME_ROLE = 'Growth lead';
+/** What the account row shows under her name. A live binding: sign-in changes it. */
+export let ME_ROLE = 'Growth lead';
 
 export const MEMBERS: Record<string, Member> = {
   maya: ME,
@@ -36,6 +36,29 @@ export const MEMBERS: Record<string, Member> = {
   dk: { id: 'dk', name: 'Dan Kwon',     initials: 'DK', hue: 2 },
   ap: { id: 'ap', name: 'Amara Price',  initials: 'AP', hue: 3 },
 };
+
+/**
+ * The signed-in person takes the "me" seat.
+ *
+ * ME is one object shared by reference everywhere (MEMBERS, the chat, the
+ * sidebar), so it is updated IN PLACE rather than replaced. The owner keeps
+ * the "maya" seat -- their existing threads, decisions and Slack link are
+ * already keyed to it. Anyone else gets their own seat, and the demo's Maya
+ * stays in the directory as a separate person, so a demo thread with her is
+ * still a thread with someone else.
+ */
+export function adoptMe(u: { seat: string; name: string; avatar?: string; role: 'owner' | 'member' }) {
+  if (u.seat !== ME.id) {
+    MEMBERS[ME.id] = { ...ME };        // the demo's Maya, as herself
+    ME.id = u.seat;
+  }
+  ME.name = u.name;
+  ME.initials = u.name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
+  /* No photo from the provider = initials, never Maya's face on someone else. */
+  ME.avatar = u.avatar;
+  MEMBERS[ME.id] = ME;
+  ME_ROLE = u.role === 'owner' ? 'Owner' : 'Member';
+}
 
 /** A view someone shared, unfurled inline like a link preview. */
 export interface ViewRef {

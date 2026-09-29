@@ -9,6 +9,7 @@ import { Badge } from '../components/Badge/Badge';
 import { FormField } from '../components/FormField/FormField';
 import { CHANNEL_KEYS, CHANNEL_LABEL } from '../data/metrics';
 import { useSavedChannels, toggleChannel } from '../data/channels';
+import { signOut, useAuth } from '../data/auth';
 import { ChannelWordmark } from '../components/ChannelWordmark/ChannelWordmark';
 import { SlackConnect } from '../components/ChatPanel/SlackConnect';
 import { useBackend } from '../data/backend';
@@ -31,6 +32,7 @@ export interface SettingsProps {
 }
 
 export function Settings({ theme, onThemeChange }: SettingsProps) {
+  const auth = useAuth();
   const demo = useDemoState();
   const [budgetText, setBudgetText] = useState(String(monthlyBudget()));
   const backend = useBackend();
@@ -67,8 +69,15 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
           <header className="gr-card__header">
             <div className="gr-card__heading">
               <h3 className="gr-card__title gr-type-card-heading">Account</h3>
-              <p className="gr-card__sub gr-type-caption">{ME.name} · {ME_ROLE}</p>
+              <p className="gr-card__sub gr-type-caption">
+                {ME.name} · {auth.status === 'signed-in' ? `${auth.user.email} · ${ME_ROLE}` : ME_ROLE}
+              </p>
             </div>
+            {/* Only when there is someone signed in -- the public demo has no
+                account to leave. */}
+            {auth.status === 'signed-in' && (
+              <Button variant="ghost" className="gr-settings__signout" onClick={() => void signOut()}>Sign out</Button>
+            )}
           </header>
           <div className="gr-card__body">
             <AvatarUpload />

@@ -49,6 +49,15 @@ export interface Workspace {
    * from the other.
    */
   links?: Record<string, string>;
+  /**
+   * Seat -> that person's OWN Slack user token.
+   *
+   * 🛑 Since sign-in (Sept 29). One token per workspace meant everyone signed
+   * in to Growth read Slack AS whoever installed it -- their DMs included --
+   * and a second person connecting replaced the first person's token. Each
+   * person now acts with their own grant, or not at all.
+   */
+  tokens?: Record<string, string>;
   connectedAt: string;
 }
 
@@ -106,6 +115,35 @@ export function setLink(teamId: string, personId: string, slackUserId: string | 
   if (slackUserId) w.links[personId] = slackUserId;
   else delete w.links[personId];
   write(s);
+}
+
+/** Store one person's own token, and their link, from their own consent. */
+export function saveSeatToken(teamId: string, seat: string, token: string, slackUserId: string) {
+  const s = read();
+  const w = s.workspaces[teamId];
+  if (!w) return;
+  w.tokens = { ...(w.tokens ?? {}), [seat]: token };
+  w.links = { ...(w.links ?? {}), [seat]: slackUserId };
+  write(s);
+}
+
+export function clearSeat(teamId: string, seat: string) {
+  const s = read();
+  const w = s.workspaces[teamId];
+  if (!w) return;
+  if (w.tokens) delete w.tokens[seat];
+  if (w.links) delete w.links[seat];
+  write(s);
+}
+
+/**
+ * The token a seat acts with. Its own; or, for installs made before per-person
+ * tokens existed, the workspace token -- but ONLY for the seat linked to the
+ * account that installed it, because that token is that person's.
+ */
+export function tokenFor(w: Workspace, seat: string): string | undefined {
+  if (w.tokens?.[seat]) return w.tokens[seat];
+  return w.installedBy && w.links?.[seat] === w.installedBy ? w.accessToken : undefined;
 }
 
 export function setActive(teamId: string) {

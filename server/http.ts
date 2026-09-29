@@ -70,3 +70,43 @@ export function pathOf(req: IncomingMessage): URL | null {
 /** Every outbound call gets a deadline -- a hung upstream must not hold a request open forever. */
 export const TIMEOUT_MS = 20_000;
 export const deadline = () => AbortSignal.timeout(TIMEOUT_MS);
+
+/**
+ * `new URL(req.url, 'http://localhost')` needs a base to parse a path-only URL,
+ * but that base is a placeholder — it is not where the request came from. Using
+ * its origin drops the port locally and the whole hostname behind the tunnel,
+ * and the redirect_uri has to match the registered one byte for byte, so every
+ * provider would reject the handshake.
+ */
+export function originOf(req: { headers: Record<string, unknown> }): string {
+  /* 🛑 The Host / X-Forwarded-Host headers are caller-controlled. A fixed
+     PUBLIC_ORIGIN wins when set; otherwise the host must at least LOOK like a
+     host, or it falls back to localhost -- it is reflected into a page. */
+  if (process.env.PUBLIC_ORIGIN) return process.env.PUBLIC_ORIGIN.replace(/\/$/, '');
+  const raw = String(req.headers['x-forwarded-host'] ?? req.headers.host ?? '');
+  const host = /^[a-z0-9.-]+(:\d+)?$/i.test(raw) ? raw : undefined;
+  const fwd = req.headers['x-forwarded-proto'];
+  const proto = (fwd === 'https' || fwd === 'http' ? fwd : undefined)
+    ?? (host && !/^localhost|^127\./.test(host) ? 'https' : 'http');
+  return `${proto}://${host ?? 'localhost:5173'}`;
+}
+
+
+const LOOPBACK = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])(:\d+)?$/i;
+
+/** Came from this machine, not through a tunnel or proxy. */
+export function isLocal(req: IncomingMessage): boolean {
+  const h = req.headers;
+  if (h['cf-connecting-ip'] || h['x-forwarded-for'] || h['x-forwarded-host']) return false;
+  return LOOPBACK.test(String(h.host ?? ''));
+}
+
+export function cookieOf(req: IncomingMessage, name: string): string | undefined {
+  for (const part of String(req.headers.cookie ?? '').split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k === name) {
+      try { return decodeURIComponent(v.join('=')); } catch { return undefined; }
+    }
+  }
+  return undefined;
+}

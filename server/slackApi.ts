@@ -3,8 +3,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { deadline, escapeHtml, pathOf, readJson } from './http.js';
 import type { Plugin, ViteDevServer } from 'vite';
 import {
-  activeWorkspace, publicView, removeWorkspace, saveWorkspace, setActive, setAppId, setChannel, setLink,
+  activeWorkspace, clearSeat, listWorkspaces, publicView, removeWorkspace, saveSeatToken, saveWorkspace,
+  setActive, setAppId, setChannel, tokenFor,
 } from './slackStore.js';
+import { requester } from './auth.js';
 import { addSubscriber, eventStats, noteEvent, rawBody, subscriberCount, verifySlack } from './slackEvents.js';
 import { handleEvent, socketConnected, startSocketMode } from './slackSocket.js';
 
@@ -506,7 +508,14 @@ export function slackApi(): Plugin {
             /* `person` is who is connecting. It is theirs to connect and
                nobody else's, which is the whole point of doing this through
                Slack's own consent screen rather than a dropdown. */
-            auth.searchParams.set('state', newState(url.searchParams.get('person') ?? undefined));
+            /* 🛑 WHO is connecting comes from the SESSION, never the URL.
+               `?person=maya` used to be trusted, so anyone could complete the
+               consent with their own Slack account and be linked as Maya --
+               their messages shown under her name, DMs "to Maya" sent to
+               them. The query parameter is ignored now. */
+            const who = requester(req);
+            if (!who) return page(res, 'Sign in first', 'Sign in to Growth, then connect Slack from Settings.');
+            auth.searchParams.set('state', newState(who.seat));
             return redirect(res, auth.toString());
           }
 
@@ -549,20 +558,26 @@ export function slackApi(): Plugin {
               return page(res, 'Slack refused the connection', data.error ?? 'unknown_error');
             }
 
-            saveWorkspace({
-              teamId: data.team.id,
-              teamName: data.team.name,
-              accessToken: userToken,
-              installedBy: data.authed_user?.id,
-              appId: data.app_id,
-              connectedAt: new Date().toISOString(),
-            });
+            /* The FIRST install creates the workspace. A later person connecting
+               the same workspace adds THEIR token for THEIR seat -- it no longer
+               replaces the installer's token for everyone. */
+            const known = listWorkspaces().some((w) => w.teamId === data.team!.id);
+            if (!known) {
+              saveWorkspace({
+                teamId: data.team.id,
+                teamName: data.team.name,
+                accessToken: userToken,
+                installedBy: data.authed_user?.id,
+                appId: data.app_id,
+                connectedAt: new Date().toISOString(),
+              });
+            }
 
-            /* Slack tells us which account approved this. That account belongs
-               to whoever clicked Connect, so the link is made from the consent
-               itself rather than asserted afterwards by someone else. */
+            /* Slack tells us which account approved this, and the state says
+               which signed-in person started it -- so the token and the link
+               are that person's own. */
             if (state.personId && data.authed_user?.id) {
-              setLink(data.team.id, state.personId, data.authed_user.id);
+              saveSeatToken(data.team.id, state.personId, userToken, data.authed_user.id);
             }
             return redirect(res, '/Growth/?slack=connected');
           }
@@ -571,15 +586,28 @@ export function slackApi(): Plugin {
           const ws = activeWorkspace();
           if (!ws) return send(res, 503, { error: 'not_connected', message: 'No Slack workspace connected.' });
 
+          /* ...and acts AS the signed-in person, with their own token. */
+          const me = requester(req);
+          if (!me) return send(res, 401, { error: 'signed_out', message: 'Sign in to Growth first.' });
+          const seatToken = tokenFor(ws, me.seat);
+          const ADMIN = ['/active', '/disconnect'];
+          if (ADMIN.includes(path) && me.role !== 'owner') {
+            return send(res, 403, { error: 'owner_only', message: 'Only the owner can change or disconnect the workspace.' });
+          }
+          if (!seatToken && path !== '/unlink' && !ADMIN.includes(path)) {
+            return send(res, 403, { error: 'connect_slack', message: 'Connect your own Slack account in Settings — Growth reads and posts as you.' });
+          }
+          const token = seatToken!;
+
           /* ---- every conversation the bot can see ---- */
           if (req.method === 'GET' && path === '/conversations') {
-            const self = await selfIdentity(ws.accessToken);
+            const self = await selfIdentity(token);
             const r = await slack<{
               channels: {
                 id: string; name?: string; is_member?: boolean; is_im?: boolean;
                 is_mpim?: boolean; is_private?: boolean; user?: string;
               }[];
-            }>('conversations.list', ws.accessToken, {
+            }>('conversations.list', token, {
               types: 'public_channel,private_channel,mpim,im',
               limit: 200, exclude_archived: true,
             });
@@ -590,7 +618,7 @@ export function slackApi(): Plugin {
                 /* A DM has no name — it is identified by the person on the
                    other end, so it has to be resolved to one. */
                 if (!c.user || c.user === self.userId) continue;
-                const u = await resolveUser(c.user, ws.accessToken);
+                const u = await resolveUser(c.user, token);
                 out.push({ id: c.id, kind: 'dm', name: u.name, userId: u.id, avatar: u.avatar, joined: true });
               } else if (c.is_mpim) {
                 out.push({ id: c.id, kind: 'group', name: (c.name ?? '').replace(/^mpdm-|-1$/g, '').replace(/--/g, ', '), joined: true });
@@ -609,13 +637,13 @@ export function slackApi(): Plugin {
 
           /* ---- the people directory, for starting a DM and for @-mentions ---- */
           if (req.method === 'GET' && path === '/people') {
-            const self = await selfIdentity(ws.accessToken);
+            const self = await selfIdentity(token);
             const r = await slack<{
               members: {
                 id: string; deleted?: boolean; is_bot?: boolean; real_name?: string;
                 profile?: { display_name?: string; real_name?: string; image_192?: string; image_72?: string };
               }[];
-            }>('users.list', ws.accessToken, { limit: 400 });
+            }>('users.list', token, { limit: 400 });
             const people = r.members
               /* Deactivated accounts and Slackbot are not people you can talk to. */
               .filter((m) => !m.deleted && !m.is_bot && m.id !== 'USLACKBOT' && m.id !== self.userId)
@@ -639,7 +667,7 @@ export function slackApi(): Plugin {
             }
             /* conversations.open is idempotent — the same set of people always
                returns the same conversation, so this both creates and finds. */
-            const r = await slack<{ channel: { id: string } }>('conversations.open', ws.accessToken, {
+            const r = await slack<{ channel: { id: string } }>('conversations.open', token, {
               users: userIds.join(','),
             });
             return send(res, 200, { id: r.channel.id });
@@ -648,7 +676,7 @@ export function slackApi(): Plugin {
           /* ---- channels the bot can actually read ---- */
           if (req.method === 'GET' && path === '/channels') {
             const r = await slack<{ channels: { id: string; name: string; is_member: boolean }[] }>(
-              'conversations.list', ws.accessToken,
+              'conversations.list', token,
               { types: 'public_channel', limit: 200, exclude_archived: true });
             return send(res, 200, {
               channels: r.channels
@@ -674,7 +702,7 @@ export function slackApi(): Plugin {
                it can read it. */
             const joinable = false;
             try {
-              if (joinable) await slack('conversations.join', ws.accessToken, { channel: channelId });
+              if (joinable) await slack('conversations.join', token, { channel: channelId });
             } catch (e) {
               const msg = e instanceof Error ? e.message : String(e);
               if (!msg.includes('already_in_channel')) {
@@ -694,9 +722,8 @@ export function slackApi(): Plugin {
              for their own account. Being able to assert "that account is Dan"
              from a dropdown would let one person put words in another's mouth. */
           if (req.method === 'POST' && path === '/unlink') {
-            const { personId } = await readBody(req);
-            if (typeof personId !== 'string') return send(res, 400, { error: 'personId required' });
-            setLink(ws.teamId, personId, null);
+            /* Your own seat only -- the body's personId is not trusted. */
+            clearSeat(ws.teamId, me.seat);
             return send(res, 200, { ok: true });
           }
 
@@ -717,8 +744,8 @@ export function slackApi(): Plugin {
 
           if (req.method === 'GET' && path === '/messages') {
             const r = await slack<{ messages: { subtype?: string; user?: string; bot_id?: string; app_id?: string; text?: string; ts: string; attachments?: unknown }[] }>(
-              'conversations.history', ws.accessToken, { channel: ws.channelId, limit: 40 });
-            const self = await selfIdentity(ws.accessToken);
+              'conversations.history', token, { channel: ws.channelId, limit: 40 });
+            const self = await selfIdentity(token);
             /* Reverse the person -> Slack map so a Slack author can be resolved
                back to the local person they are. Without it the same human is
                two directory entries with two names and two photos, and a
@@ -730,7 +757,7 @@ export function slackApi(): Plugin {
             const messages = [];
             for (const m of [...r.messages].reverse()) {
               if (m.subtype === 'channel_join' || m.subtype === 'channel_leave' || !m.text) continue;
-              const u = await resolveUser(m.user ?? m.bot_id ?? 'unknown', ws.accessToken);
+              const u = await resolveUser(m.user ?? m.bot_id ?? 'unknown', token);
               members[u.id] = u;
               /* The badge means "this was written in Slack, not here". A message
                  Growth posted came from here, so it does not get one — even
@@ -777,7 +804,7 @@ export function slackApi(): Plugin {
               const recovered = linkFromAttachments(m.attachments);
               const withLink = recovered ? `${m.text} ${recovered}` : m.text;
               messages.push({
-                id: m.ts, authorId, body: await render(withLink, ws.accessToken),
+                id: m.ts, authorId, body: await render(withLink, token),
                 time: clock(m.ts), minutesAgo: minutesAgo(m.ts),
                 fromSlack: !isOwn,
               });
@@ -825,7 +852,7 @@ export function slackApi(): Plugin {
             let opened: { channel: { id: string } };
             try {
               opened = await slack<{ channel: { id: string } }>(
-                'conversations.open', ws.accessToken, { users: userIds.join(',') });
+                'conversations.open', token, { users: userIds.join(',') });
             } catch (err) {
               const msg = err instanceof Error ? err.message : String(err);
               if (msg.includes('missing_scope')) return send(res, 200, { messages: [], members: {}, channel: null });
@@ -833,8 +860,8 @@ export function slackApi(): Plugin {
             }
 
             const r = await slack<{ messages: { subtype?: string; user?: string; bot_id?: string; text?: string; ts: string; attachments?: unknown }[] }>(
-              'conversations.history', ws.accessToken, { channel: opened.channel.id, limit: 40 });
-            const self = await selfIdentity(ws.accessToken);
+              'conversations.history', token, { channel: opened.channel.id, limit: 40 });
+            const self = await selfIdentity(token);
             const bySlackId: Record<string, string> = {};
             for (const [personId, slackId] of Object.entries(ws.links ?? {})) bySlackId[slackId] = personId;
 
@@ -842,14 +869,14 @@ export function slackApi(): Plugin {
             const messages = [];
             for (const m of [...r.messages].reverse()) {
               if (m.subtype || !m.text) continue;
-              const u = await resolveUser(m.user ?? m.bot_id ?? 'unknown', ws.accessToken);
+              const u = await resolveUser(m.user ?? m.bot_id ?? 'unknown', token);
               members[u.id] = u;
               const isOwn = (self.userId && m.user === self.userId) || (self.botId && m.bot_id === self.botId);
               const recovered = linkFromAttachments(m.attachments);
               const withLink = recovered ? `${m.text} ${recovered}` : m.text;
               messages.push({
                 id: m.ts, authorId: bySlackId[u.id] ?? u.id,
-                body: await render(withLink, ws.accessToken),
+                body: await render(withLink, token),
                 time: clock(m.ts), minutesAgo: minutesAgo(m.ts),
                 fromSlack: !isOwn,
               });
@@ -891,7 +918,7 @@ export function slackApi(): Plugin {
             let opened: { channel: { id: string } };
             try {
               opened = await slack<{ channel: { id: string } }>(
-                'conversations.open', ws.accessToken, { users: userIds.join(',') });
+                'conversations.open', token, { users: userIds.join(',') });
             } catch (err) {
               /* missing_scope means the token predates im:write / mpim:write --
                  the workspace was connected before DMs existed in this app, and
@@ -920,7 +947,7 @@ export function slackApi(): Plugin {
               dmPayload.text = text.replace(link, '').trim() || `${v.metric} · ${v.channel}`;
               dmPayload.attachments = JSON.stringify(buildMetricBlocks(m, v, '', link));
             }
-            await slack<{ ts: string }>('chat.postMessage', ws.accessToken, dmPayload);
+            await slack<{ ts: string }>('chat.postMessage', token, dmPayload);
             return send(res, 200, { delivered: true, unreachable, channel: opened.channel.id });
           }
 
@@ -940,7 +967,7 @@ export function slackApi(): Plugin {
               payload.attachments = JSON.stringify(buildMetricBlocks(m, v, '', link));
             }
 
-            const r = await slack<{ ts: string }>('chat.postMessage', ws.accessToken, payload);
+            const r = await slack<{ ts: string }>('chat.postMessage', token, payload);
             return send(res, 200, { ok: true, ts: r.ts });
           }
 

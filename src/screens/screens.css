@@ -604,3 +604,6 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-budget__per { color: var(--text-muted); }
 .gr-budget__foot { margin: var(--space-10) 0 0; color: var(--text-muted); }
 .gr-budget__foot.is-over { color: var(--semantic-bad); }
+
+/* Sign out sits at the header's far edge, opposite the account it leaves. */
+.gr-settings__signout { margin-left: auto; align-self: center; }

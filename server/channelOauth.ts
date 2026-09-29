@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
-import { escapeHtml, pathOf } from './http.js';
+import { escapeHtml, originOf, pathOf } from './http.js';
 import { exchangeGoogleCode } from './googleAdsApi.js';
 import { exchangeMetaCode } from './metaApi.js';
 
@@ -149,27 +149,6 @@ export const PROVIDERS: Record<string, Provider> = {
     note: 'Podcast attribution comes from a host or a tracker — Megaphone, Podscribe, Chartable — not from one platform.',
   },
 };
-
-/**
- * `new URL(req.url, 'http://localhost')` needs a base to parse a path-only URL,
- * but that base is a placeholder — it is not where the request came from. Using
- * its origin drops the port locally and the whole hostname behind the tunnel,
- * and the redirect_uri has to match the registered one byte for byte, so every
- * provider would reject the handshake.
- */
-function originOf(req: { headers: Record<string, unknown> }): string {
-  /* 🛑 The Host / X-Forwarded-Host headers are caller-controlled. A fixed
-     PUBLIC_ORIGIN wins when set; otherwise the host must at least LOOK like a
-     host, or it falls back to localhost -- it is reflected into a page. */
-  if (process.env.PUBLIC_ORIGIN) return process.env.PUBLIC_ORIGIN.replace(/\/$/, '');
-  const raw = String(req.headers['x-forwarded-host'] ?? req.headers.host ?? '');
-  const host0 = /^[a-z0-9.-]+(:\d+)?$/i.test(raw) ? raw : undefined;
-  const host = host0;
-  const fwd = req.headers['x-forwarded-proto'];
-  const proto = (fwd === 'https' || fwd === 'http' ? fwd : undefined)
-    ?? (host && !/^localhost|^127\./.test(host) ? 'https' : 'http');
-  return `${proto}://${host ?? 'localhost:5173'}`;
-}
 
 /* state → which provider it was minted for, and when it expires. A state is
    only good for the provider that started it. */
