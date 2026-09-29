@@ -53,8 +53,30 @@ function line(cells: (string | number)[]): string {
   return cells.map(escape).join(',');
 }
 
-export function buildCsv(scope: Scope, range: Range): string {
-  const scopes: (ChannelName | 'all')[] = scope === 'all' ? activeChannels() : [scope];
+/**
+ * A scope, or an explicit SET of channels.
+ *
+ * 🐛 The set exists because Reports had a row reading "TikTok · YouTube" whose
+ * Export ran `'tiktok'` -- a Scope can name one channel or all of them, and
+ * nothing in between. The label described two channels and the file held one.
+ */
+export type ExportScope = Scope | ChannelName[];
+
+function sumTotals(channels: ChannelName[], range: Range) {
+  const s = channels.map((c) => totals(c, range)).reduce(
+    (a, t) => ({
+      spend: a.spend + t.spend, clicks: a.clicks + t.clicks, leads: a.leads + t.leads,
+      sales: a.sales + t.sales, revenue: a.revenue + t.revenue,
+    }),
+    { spend: 0, clicks: 0, leads: 0, sales: 0, revenue: 0 },
+  );
+  /* Summed first, divided once -- the rule every total in this product follows. */
+  return { ...s, cac: s.leads > 0 ? s.spend / s.leads : 0, roas: s.spend > 0 ? s.revenue / s.spend : 0 };
+}
+
+export function buildCsv(scope: ExportScope, range: Range): string {
+  const scopes: (ChannelName | 'all')[] = Array.isArray(scope)
+    ? scope : scope === 'all' ? activeChannels() : [scope];
   const out: string[] = [line(HEADERS)];
 
   for (const s of scopes) {
@@ -75,12 +97,21 @@ export function buildCsv(scope: Scope, range: Range): string {
   }
 
   // A totals row, because the first thing anyone does with this file is sum it.
-  const t = totals(scope, range);
+  const t = Array.isArray(scope) ? sumTotals(scope, range) : totals(scope, range);
+  const totalLabel = Array.isArray(scope)
+    ? scope.map((c) => CHANNEL_LABEL[c]).join(' + ')
+    : scope === 'all' ? 'All channels' : CHANNEL_LABEL[scope as ChannelName];
+  /* A set sums like the blend does -- a channel with no clicks contributes 0 to
+     a total that is still real for the others. Blank only for a lone channel
+     that cannot produce the field at all. */
+  const clicksCell = Array.isArray(scope)
+    ? (scope.length === 1 ? fieldOrBlank(scope[0], 'clicks', t.clicks) : Math.round(t.clicks))
+    : fieldOrBlank(scope, 'clicks', t.clicks);
   out.push(line([
     `Total (${range} days)`,
-    scope === 'all' ? 'All channels' : CHANNEL_LABEL[scope as ChannelName],
+    totalLabel,
     t.spend.toFixed(2),
-    fieldOrBlank(scope, 'clicks', t.clicks),
+    clicksCell,
     Math.round(t.leads),
     Math.round(t.sales),
     t.revenue.toFixed(2),
@@ -91,10 +122,13 @@ export function buildCsv(scope: Scope, range: Range): string {
   return out.join('\n');
 }
 
-export function downloadCsv(scope: Scope, range: Range): void {
+export function downloadCsv(scope: ExportScope, range: Range, fileLabel?: string): void {
   const csv = buildCsv(scope, range);
-  const workspace = workspaceName().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const name = scope === 'all' ? 'all-channels' : scope.toLowerCase();
+  const slug = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const workspace = slug(workspaceName());
+  const name = fileLabel ? slug(fileLabel)
+    : Array.isArray(scope) ? scope.map((c) => c.toLowerCase()).join('-')
+    : scope === 'all' ? 'all-channels' : scope.toLowerCase();
   const stamp = new Date().toISOString().slice(0, 10);
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

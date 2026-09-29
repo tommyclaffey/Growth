@@ -111,6 +111,36 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
    activated, and these rows cannot. */
 .gr-report-row { height: 44px; }
 .gr-report-actions { text-align: right; }
+.gr-report-actions .gr-button + .gr-button { margin-left: var(--space-8); }
+.gr-report-off { color: var(--text-muted); }
+.gr-report-when { color: var(--text-secondary); }
+/* Overlapped slightly, the way a recipient list reads in every mail client. */
+.gr-report-people { display: inline-flex; }
+.gr-report-people > * + * { margin-left: calc(var(--space-6) * -1); box-shadow: 0 0 0 2px var(--surface-card); }
+
+/* The report builder. Inline, above the table it adds to. */
+.gr-report-form {
+  display: flex; flex-direction: column; gap: var(--space-16);
+  margin-bottom: var(--space-16);
+}
+.gr-report-form__row {
+  display: flex; flex-direction: column; gap: var(--space-6);
+  margin: 0; padding: 0; border: none; min-width: 0;
+}
+.gr-report-form__row > span:first-child,
+.gr-report-form__row > legend { color: var(--text-secondary); padding: 0; margin-bottom: var(--space-6); }
+.gr-report-form__input {
+  max-width: 28rem; height: 32px; padding: 0 var(--space-12);
+  color: var(--text-primary); background: var(--surface-card-tint);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+.gr-report-form__input:focus-visible {
+  outline: var(--border-width-md) solid var(--accent-base); outline-offset: 1px;
+}
+.gr-report-form__chips { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+.gr-report-form__hint { color: var(--text-muted); }
+.gr-report-form__actions { display: flex; align-items: center; gap: var(--space-8); }
 
 /* Simulate-state control. A radiogroup, not a set of toggles: the states are
    mutually exclusive, and four independent switches would let someone select
