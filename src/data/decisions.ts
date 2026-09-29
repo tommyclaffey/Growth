@@ -931,11 +931,18 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
         kind: 'weekly-move' as DecisionKind,
         action,
         because,
-        evidence: [
+        /* The figures of the metric that MOVED come first -- a leads story
+           opened on two CAC figures, and the reader had to hunt for the jump. */
+        evidence: isCac ? [
           { label: 'This week CAC', value: formatDerived('CAC', now.cac) },
           { label: 'Last week CAC', value: formatDerived('CAC', prevCac) },
           { label: 'Leads this week', value: Math.round(now.leads).toLocaleString() },
-          { label: 'Change', value: `${n.change! > 0 ? '+' : ''}${n.change}% ${n.metric}` },
+          { label: 'Change', value: `${n.change! > 0 ? '+' : ''}${n.change}% CAC` },
+        ] : [
+          { label: 'Leads this week', value: Math.round(now.leads).toLocaleString() },
+          { label: 'Leads last week', value: Math.round(prevLeads).toLocaleString() },
+          { label: 'CAC this week', value: formatDerived('CAC', now.cac) },
+          { label: 'Change', value: `${n.change! > 0 ? '+' : ''}${n.change}% leads` },
         ],
         expectation: {
           outcome: bad
