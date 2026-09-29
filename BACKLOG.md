@@ -84,10 +84,9 @@ entries rendered differently — **a third source, *proposed*, slots straight in
 1. [x] ~~**`decisions.ts`** — pure candidate engine, typed, unit tested. No UI, no model.~~
    ✅ **DONE `09eedaa`** — 8 detectors, `validate()` enforcing the tier contract, 24 tests.
    ⚠️ **Three detectors are silent and right to be — see G-013.**
-2. **Decisions surface** — queue ranked by confidence. Accept → task. Dismiss → reason.
-3. **Tier 3 as questions** — ship early; it is what makes the feature trustworthy.
-4. **Model as narrator** — behind the existing `/api/assistant` fallback. **Never given raw numbers
-   to do maths on.**
+2. [x] ~~**Decisions surface**~~ ✅ Sept 27–28 — sectioned by confidence, Accept/Dismiss-with-reason, Decided queue with owner + due date (G-008), Go to.
+3. [x] ~~**Tier 3 as questions**~~ ✅ — "Worth investigating", no Accept, names what would answer it.
+4. [x] ~~**Model as narrator**~~ ✅ — `/api/assistant` renders `get_decisions`; local engine fallback.
 5. **Grading** — expected vs actual once the check date passes. ⭐ Nobody else's portfolio dashboard
    keeps score of its own recommendations.
 
@@ -303,7 +302,7 @@ extracting rather than copying.
 
 ---
 
-## 🔍 G-010 — The macro view is thinner than the tier under it *(captured Sept 27)*
+## ✅ G-010 — The macro view is thinner than the tier under it *(DONE Sept 27 — option 2 built: blended across the channels that can report it, coverage named on the card, "4 of 6")*
 
 Overview shows **4 blended KPIs.** A channel page shows up to **9.** The product gets
 *narrower* as you zoom out, and "see all the channel traffic" is the headline promise.
@@ -513,7 +512,7 @@ than an accident.
 
 ---
 
-## 🟢 G-004 — A base class for buttons that reset their own box
+## ✅ G-004 — A base class for buttons that reset their own box *(DONE — `.gr-unbutton` in index.css, used in 13 files. A few older rules still restate `font: inherit`; harmless, remove when touched.)*
 
 Three times now, turning an element into a `<button>` has silently eaten
 `font` and `text-align`, and each site restated them separately. That is a
@@ -542,9 +541,8 @@ assumed** — an unannounced 1300px floor is a broken product; an announced one 
 
 ## ❄️ G-006 — P5: product gaps *(features, not defects)*
 
-Arbitrary date range · real prior-period comparison *("Δ Prev" is currently the
-selected window split in half)* · alert thresholds · multi-channel selection ·
-a proper budget model.
+Arbitrary date range *(→ Phase 3)* · ~~real prior-period comparison~~ ✅ Sept 28 ·
+alert thresholds · multi-channel selection · a proper budget model.
 
 ---
 
