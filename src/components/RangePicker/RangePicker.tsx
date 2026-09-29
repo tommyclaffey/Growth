@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { RangeCalendar } from '../RangeCalendar/RangeCalendar';
 import { useMenu } from '../../data/useMenu';
 import '../ChannelSwitcher/ChannelSwitcher.css';
 import {
@@ -35,35 +36,13 @@ export function RangePicker({ value, onChange }: RangePickerProps) {
      All three menus declared role="listbox" and implemented none of it. */
   useMenu(open, setOpen, wrap);
 
-  if (dates !== null) {
-    const w = windowFromDates(dates.start, dates.end);
-    const [min, max] = dataSpan();
-    const done = () => setDates(null);
-    return (
-      <form
-        className="gr-switcher gr-range-custom gr-range-dates gr-type-label-button"
-        onSubmit={(e) => { e.preventDefault(); if (w) { onChange(w.range, w.endBack); done(); } }}
-        onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); done(); } }}
-      >
-        <label className="gr-sr-only" htmlFor="gr-range-start">Start date</label>
-        <input id="gr-range-start" className="gr-range-custom__input gr-range-dates__input gr-type-label-button"
-               type="date" min={min} max={max} value={dates.start} autoFocus
-               aria-invalid={!w} aria-describedby="gr-range-dates-hint"
-               onChange={(e) => setDates({ ...dates, start: e.target.value })} />
-        <span aria-hidden="true">–</span>
-        <label className="gr-sr-only" htmlFor="gr-range-end">End date</label>
-        <input id="gr-range-end" className="gr-range-custom__input gr-range-dates__input gr-type-label-button"
-               type="date" min={min} max={max} value={dates.end}
-               aria-invalid={!w} aria-describedby="gr-range-dates-hint"
-               onChange={(e) => setDates({ ...dates, end: e.target.value })} />
-        <button type="submit" className="gr-range-dates__apply gr-type-label-button" disabled={!w}>Apply</button>
-        <button type="button" className="gr-range-dates__cancel gr-type-label-button" onClick={done}>Cancel</button>
-        <span id="gr-range-dates-hint" className="gr-sr-only">
-          Between {min} and {max}, up to {MAX_RANGE} days. Enter to apply, Escape to cancel.
-        </span>
-      </form>
-    );
-  }
+  /* The calendar closes on a click outside it, like the menus. */
+  useEffect(() => {
+    if (!dates) return;
+    const out = (e: MouseEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setDates(null); };
+    document.addEventListener('mousedown', out);
+    return () => document.removeEventListener('mousedown', out);
+  }, [dates]);
 
   if (custom !== null) {
     const n = Number(custom);
@@ -98,7 +77,7 @@ export function RangePicker({ value, onChange }: RangePickerProps) {
         className="gr-switcher__trigger gr-type-label-button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
-        aria-expanded={open}
+        aria-expanded={open || Boolean(dates)}
       >
         {rangeLabel(value)}
         <svg width="8" height="5" viewBox="0 0 8 5" aria-hidden="true" className="gr-switcher__caret">
@@ -146,6 +125,19 @@ export function RangePicker({ value, onChange }: RangePickerProps) {
             {custDates && <span className="gr-switcher__check" aria-hidden="true">✓</span>}
           </button>
         </div>
+      )}
+
+      {dates && (
+        <RangeCalendar
+          start={dates.start} end={dates.end}
+          min={dataSpan()[0]} max={dataSpan()[1]} maxDays={MAX_RANGE}
+          onCancel={() => setDates(null)}
+          onApply={(a, b) => {
+            const w = windowFromDates(a, b);
+            if (w) onChange(w.range, w.endBack);
+            setDates(null);
+          }}
+        />
       )}
     </div>
   );

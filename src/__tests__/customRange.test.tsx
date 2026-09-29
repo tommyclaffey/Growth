@@ -94,14 +94,49 @@ describe('custom DATES -- a start and an end, anywhere in two years', () => {
     expect(hasWindow(90, 0, 365)).toBe(true);  // two years: last year exists
   });
 
-  it('the picker: Custom dates… → pick → Apply', () => {
+  it('⭐ the picker: Custom dates… → click the start day, click the end day → Apply', () => {
     let got: [number, number | undefined] | null = null;
     render(<RangePicker value={30} onChange={(r, e) => { got = [r, e]; }} />);
     fireEvent.click(screen.getByRole('button', { name: /Last 30 days/ }));
     fireEvent.click(screen.getByRole('option', { name: 'Custom dates…' }));
-    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-07-01' } });
-    fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2026-07-31' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Jul 1, 2026' }));
+    expect(screen.getByRole('status').textContent).toMatch(/pick the end day/);
+    fireEvent.click(screen.getByRole('button', { name: 'Jul 31, 2026' }));
+    expect(screen.getByRole('status').textContent).toMatch(/Jul 1, 2026 – Jul 31, 2026 · 31 days/);
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     expect(got).toEqual([31, 12]);
+  });
+
+  it('clicking the end first works too; days after the data are disabled', () => {
+    let got: [number, number | undefined] | null = null;
+    render(<RangePicker value={30} onChange={(r, e) => { got = [r, e]; }} />);
+    fireEvent.click(screen.getByRole('button', { name: /Last 30 days/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Custom dates…' }));
+    expect((screen.getByRole('button', { name: 'Aug 13, 2026' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Aug 10, 2026' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aug 4, 2026' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(got).toEqual([7, 2]);
+  });
+
+  it('presets: Last month is the whole previous calendar month', () => {
+    let got: [number, number | undefined] | null = null;
+    render(<RangePicker value={30} onChange={(r, e) => { got = [r, e]; }} />);
+    fireEvent.click(screen.getByRole('button', { name: /Last 30 days/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Custom dates…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Last month' }));
+    expect(screen.getByRole('status').textContent).toMatch(/Jul 1, 2026 – Jul 31, 2026/);
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(got).toEqual([31, 12]);
+  });
+
+  it('Escape closes the calendar without applying', () => {
+    let got: unknown = null;
+    render(<RangePicker value={30} onChange={(r) => { got = r; }} />);
+    fireEvent.click(screen.getByRole('button', { name: /Last 30 days/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Custom dates…' }));
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Choose dates' }), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(got).toBeNull();
   });
 });
