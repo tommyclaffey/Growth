@@ -492,7 +492,7 @@ its own limitation on the card: a paused ad's figures cover the whole window, no
 
 ---
 
-## 🔍 G-002 — Paused ads in the creative section
+## ⏸ G-002 — Paused ads in the creative section *(unchanged Sept 29 — now consistent: hidden by default on the campaign page AND the Ads screen, count on the toggle. Revisit with real data.)*
 
 Currently hidden by default with the count on the toggle. Options when this gets
 picked up: leave as is · give them a muted section of their own · let them rank
@@ -503,7 +503,13 @@ judged against real data.*
 
 ---
 
-## 🔍 G-003 — Campaign preview band: fixed height or ratio?
+## ✅ G-003 — Campaign preview band: fixed height or ratio? *(DECIDED Sept 29: keep the fixed band)*
+
+> **Decision:** the campaign preview keeps its fixed 128px band; ad cards keep 4:5. They are
+> different jobs — an ad card SHOWS the artwork (so its true shape matters), a campaign preview
+> SUMMARISES a campaign (the image is a thumbnail of its best ad, and a row of previews must
+> line up regardless of which ad wins). Same product, two correct answers, now a decision.
+
 
 Ad cards use a 4:5 ratio so heights match at every breakpoint. The campaign
 preview cards on channel screens still use a fixed 128px band. Different card,
