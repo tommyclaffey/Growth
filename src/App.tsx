@@ -15,6 +15,7 @@ import { notifications, type NoteKind } from './data/notifications';
 import { setDemoState, useDemoState } from './data/demoState';
 import { useDataSource } from './data/useDataSource';
 import { seededSource } from './data/sources/seeded';
+import { metaSource } from './data/sources/meta';
 import { RangePicker } from './components/RangePicker/RangePicker';
 import { ChatPanel } from './components/ChatPanel/ChatPanel';
 import { Assistant } from './components/Assistant/Assistant';
@@ -46,7 +47,7 @@ import {
   blendedDelta, blendedMetrics, blendedSparkline, blendedTotal, channelChange, coverageNote, coverageTitle,
 } from './data/blended';
 import {
-  dismissAlert, dismissAll, markAllRead, undismissAlert, usePrefs,
+  dismissAlert, dismissAll, markAllRead, setPref, undismissAlert, usePrefs,
 } from './data/prefs';
 import { onAttentionStrip, removeFlag, restoreFlag, useFlags, type Flag } from './data/attention';
 import { readUrlState, writeUrlState } from './data/urlState';
@@ -122,7 +123,8 @@ export default function App() {
   /* ⭐ Phase 3: the data comes from a SOURCE, loaded with real request state.
      The Settings simulator still overrides it, so the states can be looked at
      on the demo account -- but it is now the second way in, not the only one. */
-  const source = useDataSource(seededSource);
+  const { dataSource } = usePrefs();
+  const source = useDataSource(dataSource === 'meta' ? metaSource : seededSource);
   const demo = simulated !== 'ready' ? simulated : source.status;
 
   /* Which campaign's page is open, if any. Null means the Campaigns list.
@@ -615,6 +617,15 @@ export default function App() {
 
         {/* tabIndex -1: focusable by the skip link, not a Tab stop of its own. */}
         <main className="gr-content" id="main" tabIndex={-1}>
+          {/* A real source that failed: the reason, and the way back. */}
+          {source.status === 'error' && (
+            <div className="gr-source-banner" role="alert">
+              <p className="gr-type-body">
+                <strong>Couldn&rsquo;t load your Meta data.</strong> {source.error}
+              </p>
+              <Button variant="ghost" onClick={() => setPref('dataSource', 'seeded')}>Use the demo account</Button>
+            </div>
+          )}
           {showDashboard && (
             <>
               <div className="gr-kpi-row">

@@ -579,6 +579,14 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 
 ## ✅ Done
 
+- **Phase 4 — Meta, built and waiting on the app** *(Sept 29)* — everything except a real account to test against.
+  - `metaNormalize.ts` (pure, tested against Graph v21 shapes): strings → numbers, leads/purchases from `actions` with NO double-counting across overlapping action types, zero-filled 180 days ending on **yesterday in the account's timezone**, stage/objective mapped, deleted-since campaigns kept.
+  - `server/metaApi.ts`: code → long-lived token (stored in `.meta-tokens.local`), `/status`, `/accounts`, `/account`, `/data` (paged insights, level=campaign, daily).
+  - Real campaigns replace the demo's everywhere (`applyStructure`); each keeps its own days.
+  - Settings → **Data source**: demo / Meta, every step stated; a failed load shows Meta's own error with the way back.
+  - 🐛 `vite.config.ts` only loaded 5 named keys from `.env.local` — `META_CLIENT_ID` would never have been seen. Fixed for all ad-platform keys.
+  - ▶️ **Needs Tommy:** the Meta app (Todoist). Then: `META_CLIENT_ID` + `META_CLIENT_SECRET` in `.env.local`, restart, Settings → Data source → Connect → choose account → Use Meta. Ad sets / ads for real accounts are the next load (level=adset / level=ad).
+
 - **Phase 3 — the API seam** *(Sept 29)*
   - `src/data/source.ts`: the `DataSource` interface (account: name, **currency**, **timezone**, **periodEnd**; daily funnel rows per channel). `sources/seeded.ts` is ONE implementation of it.
   - `hydrate()` in metrics.ts loads any source; `PERIOD_END`, `DAY_LABELS`, `CURRENCY` are live bindings — **the clock is no longer frozen in code**, it is the source's last day. All money formats through `formatMoney` (was a hard-coded "$" in 3 places).

@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
+import { exchangeMetaCode } from './metaApi.js';
 
 /**
  * Connecting an ad account.
@@ -240,6 +241,20 @@ export function channelOauth(): Plugin {
           if (url.searchParams.get('error')) {
             return page(res, `${p.label} was not connected`,
               `<p class="lede">${p.label} said: ${url.searchParams.get('error_description') ?? url.searchParams.get('error')}</p>`);
+          }
+          /* Meta: finish the handshake for real -- code for a long-lived token,
+             stored server-side. The other platforms still stop here. */
+          if (p.id === 'meta') {
+            try {
+              await exchangeMetaCode(url.searchParams.get('code') ?? '', `${origin}/api/connect/callback`);
+              return page(res, 'Meta is connected', `
+<p class="lede">Growth can now read the ad accounts you have a role on.</p>
+<div class="card"><p class="label">Next</p>
+<p style="margin:0">In Settings → <b>Data source</b>, choose the ad account, then switch the
+product to it.</p></div>`);
+            } catch (e) {
+              return page(res, 'Meta did not finish connecting', `<p class="lede">${e instanceof Error ? e.message : String(e)}</p>`);
+            }
           }
           return page(res, `${p.label} approved the connection`, `
 <p class="lede">The sign-in worked and ${p.label} returned an authorisation code.</p>

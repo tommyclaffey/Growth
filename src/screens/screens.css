@@ -577,3 +577,17 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-dec__crumb { color: var(--text-muted); }
 .gr-dec__record { color: var(--text-muted); margin-left: auto; }
 .gr-dec__record strong { color: var(--semantic-good); font-weight: 500; }
+
+/* Data source card. "In use" is state, not a control -- a quiet pill. */
+.gr-source__on { color: var(--semantic-good); padding: var(--space-2) var(--space-8); border-radius: var(--radius-pill); background: var(--semantic-good-bg); }
+.gr-source__error { color: var(--semantic-bad); }
+
+/* A source that failed to load: said at the top of the page, with the reason
+   and the way back -- not a generic empty chart. */
+.gr-source-banner {
+  display: flex; align-items: center; gap: var(--space-12); flex-wrap: wrap;
+  padding: var(--space-12) var(--space-16); margin: 0 0 var(--space-16);
+  border: var(--border-width-sm) solid var(--semantic-bad);
+  border-radius: var(--radius-lg); background: var(--semantic-bad-bg); color: var(--text-primary);
+}
+.gr-source-banner p { margin: 0; flex: 1; }

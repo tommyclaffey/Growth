@@ -36,7 +36,15 @@ export function useDataSource(source: DataSource): SourceState {
   });
 
   useEffect(() => {
-    if (source.initial) return;
+    /* A source with data in hand applies it straight away -- switching back to
+       the demo is instant, not a round trip. */
+    if (source.initial) {
+      hydrate({ rows: source.initial.rows, periodEnd: source.initial.account.periodEnd, currency: source.initial.account.currency });
+      applyStructure(source.initial.campaigns);
+      setState({ status: isEmpty(source.initial.rows) ? 'empty' : 'ready', account: source.initial.account });
+      return;
+    }
+    setState({ status: 'loading' });
     const ctrl = new AbortController();
     source.load(ctrl.signal)
       .then((d) => {

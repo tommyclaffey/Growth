@@ -37,6 +37,8 @@ export interface Prefs {
    * $500k do not agree on what is noise.
    */
   changeThreshold: number;
+  /** Which data source the product runs on. */
+  dataSource: 'seeded' | 'meta';
 }
 
 export const THRESHOLDS = [10, 15, 20, 25, 30];
@@ -52,6 +54,7 @@ export const DEFAULT_PREFS: Prefs = {
   readAlerts: [],
   dismissedAlerts: [],
   changeThreshold: 15,
+  dataSource: 'seeded',
 };
 
 /* Validated field by field rather than trusting the shape.
@@ -77,6 +80,7 @@ function read(): Prefs {
         ? raw.dismissedAlerts.filter((x: unknown): x is string => typeof x === 'string')
         : [],
       changeThreshold: THRESHOLDS.includes(raw.changeThreshold) ? raw.changeThreshold : DEFAULT_PREFS.changeThreshold,
+      dataSource: raw.dataSource === 'meta' ? 'meta' : 'seeded',
     };
   } catch {
     return { ...DEFAULT_PREFS };
