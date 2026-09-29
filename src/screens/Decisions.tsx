@@ -4,7 +4,7 @@ import { Button } from '../components/Button/Button';
 import { Badge } from '../components/Badge/Badge';
 import { ChannelMark } from '../components/ChannelMark/ChannelMark';
 import type { ChannelName } from '../styles/tokens';
-import { decisions, TIER_LABEL, type Candidate, type Tier } from '../data/decisions';
+import { decisions, targetOfDecision, TIER_LABEL, type Candidate, type Target, type Tier } from '../data/decisions';
 import { addFlag, isFlagged, isOverdue, isOwnDecision, removeFlag, useFlags, type Flag } from '../data/attention';
 import { TaskFields } from '../components/TaskFields/TaskFields';
 import { dismiss, isDismissed, restore, useDismissals } from '../data/dismissedDecisions';
@@ -15,6 +15,11 @@ export interface DecisionsProps {
   range: Range;
   /** Opens the assistant on this finding, so the card can be argued with. */
   onDiscuss?: (question: string) => void;
+  /**
+   * Opens the item a decision is about. Every card has one -- a decision you
+   * cannot get back to the subject of is an instruction with no address.
+   */
+  onOpen?: (target: Target) => void;
 }
 
 /**
@@ -36,7 +41,7 @@ export interface DecisionsProps {
  * does not understand why a cheap-looking recommendation is filed under "cannot
  * answer" will override it, and the refusal will have cost nothing.
  */
-export function Decisions({ range, onDiscuss }: DecisionsProps) {
+export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
   const channels = useChannels();
   /* Subscribed to both stores, so accepting or dismissing repaints immediately
      and a second tab stays in step. */
@@ -124,7 +129,8 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
           </p>
           <div className="gr-dec__list">
             {queue.map(({ flag: f, candidate }) => (candidate ? (
-              <DecisionCard key={f.id} candidate={candidate} flag={f} onDiscuss={onDiscuss} />
+              <DecisionCard key={f.id} candidate={candidate} flag={f}
+                            onDiscuss={onDiscuss} onOpen={onOpen} />
             ) : (
               <article key={f.id} className={`gr-card gr-dec__card is-own ${isOverdue(f) ? 'is-overdue' : ''}`}>
                 {/* ⭐ The SAME shape as an engine card: breadcrumb with the
@@ -177,6 +183,7 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
                 <TaskFields flag={f} />
 
                 <footer className="gr-dec__actions">
+                  <GoTo target={targetOfDecision(f, all)} onOpen={onOpen} />
                   <Button variant="ghost" onClick={() => removeFlag('decision', f.refId)}>
                     Remove
                   </Button>
@@ -233,7 +240,7 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
 
             <div className="gr-dec__list">
               {mine.map((c) => (
-                <DecisionCard key={c.id} candidate={c} onDiscuss={onDiscuss} />
+                <DecisionCard key={c.id} candidate={c} onDiscuss={onDiscuss} onOpen={onOpen} />
               ))}
             </div>
           </section>
@@ -264,11 +271,26 @@ export function Decisions({ range, onDiscuss }: DecisionsProps) {
   );
 }
 
-function DecisionCard({ candidate: c, flag, onDiscuss }: {
+/**
+ * "Go to <the thing>". A BUTTON, not a linked breadcrumb -- Tommy asked for
+ * buttons over link text on the Ask control, and the reason holds here: this is
+ * the action, and it should look like one.
+ */
+function GoTo({ target, onOpen }: { target?: Target; onOpen?: (t: Target) => void }) {
+  if (!target || !onOpen) return null;
+  return (
+    <Button variant="ghost" onClick={() => onOpen(target)}>
+      {target.kind === 'account' ? 'Go to all channels' : `Go to ${target.label}`} →
+    </Button>
+  );
+}
+
+function DecisionCard({ candidate: c, flag, onDiscuss, onOpen }: {
   candidate: Candidate;
   /** Present on the Decided queue -- the record owner and due date live on. */
   flag?: Flag;
   onDiscuss?: (question: string) => void;
+  onOpen?: (target: Target) => void;
 }) {
   const [dismissing, setDismissing] = useState(false);
   const [reason, setReason] = useState('');
@@ -358,11 +380,14 @@ function DecisionCard({ candidate: c, flag, onDiscuss }: {
               </Button>
             </>
           ) : (
-            <Button variant="primary" onClick={() => addFlag('decision', c.id, c.action)}>
+            <Button variant="primary"
+                    onClick={() => addFlag('decision', c.id, c.action, { target: c.target })}>
               Accept
             </Button>
           )
         )}
+
+        <GoTo target={flag?.target ?? c.target} onOpen={onOpen} />
 
         {/* ⭐ The route from the queue into the conversation. A card states a
             finding; this is how you argue with it. Tier 3 gets it too -- in fact

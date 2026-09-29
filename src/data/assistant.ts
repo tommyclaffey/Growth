@@ -104,6 +104,8 @@ export interface Takeable {
    * mark; this view-model does not need it, so it does not carry it.
    */
   context?: string;
+  /** What it is about, so taking it records where to go back to. */
+  target?: Target;
 }
 
 /**
@@ -133,6 +135,7 @@ export function takeable(candidates: Candidate[]): Takeable[] {
       action: c.action,
       tier: c.tier,
       channel: c.channel,
+      target: c.target,
       /* ⭐ The SAME path the card shows, not a second derivation of it. The panel
          row previously used target.label alone, so an ad-level decision read
          "Retargeting — 30d" here and "Meta › Advantage+ — Evergreen Signups ›

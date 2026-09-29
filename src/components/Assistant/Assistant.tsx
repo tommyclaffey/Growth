@@ -236,7 +236,7 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                             className={`gr-assist__take gr-type-caption ${taken ? 'is-taken' : ''}`}
                             onClick={() => (taken
                               ? removeFlag('decision', d.id)
-                              : addFlag('decision', d.id, d.action))}
+                              : addFlag('decision', d.id, d.action, { target: d.target }))}
                           >
                             {taken ? '✓ On your queue' : 'Make the decision'}
                           </button>
@@ -409,6 +409,8 @@ function OwnDecision({ offered, subject, range }: {
       subject ?? { kind: 'account', id: 'account' }, range,
     );
     addFlag('decision', id, v, {
+      /* What it was written about, so the card can take you back there. */
+      target: subject ?? { kind: 'account', id: 'account', label: 'All channels' },
       scope: ctx.scope,
       channel: ctx.channel,
       evidence: ctx.evidence,

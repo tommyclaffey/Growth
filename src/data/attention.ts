@@ -81,6 +81,16 @@ export interface Flag {
   channel?: string;
   /** The figures on screen when the decision was made. */
   evidence?: { label: string; value: string }[];
+  /**
+   * WHAT was decided on -- the campaign, ad set, ad, channel or all channels.
+   *
+   * ⭐ So a decision can always take you back to the thing it is about. Stored
+   * on the flag rather than looked up from the engine, because an engine finding
+   * can stop existing (the numbers move, the range changes) while the decision
+   * you made about it has not. Same shape as `decisions.Target`, declared here
+   * so this module does not import the engine.
+   */
+  target?: { kind: 'campaign' | 'adSet' | 'ad' | 'channel' | 'account'; id: string; label: string };
 }
 
 /** True once any task field is set. A flag with an owner or a date is a task. */
@@ -187,7 +197,11 @@ function read(): Flag[] {
           e && typeof e === 'object'
           && typeof (e as { label?: unknown }).label === 'string'
           && typeof (e as { value?: unknown }).value === 'string'));
-      return base && okOwner && okDue && okScope && okEvidence;
+      const t = x.target as { kind?: unknown; id?: unknown; label?: unknown } | undefined;
+      const okTarget = t === undefined || (typeof t === 'object' && t !== null
+        && ['campaign', 'adSet', 'ad', 'channel', 'account'].includes(String(t.kind))
+        && typeof t.id === 'string' && typeof t.label === 'string');
+      return base && okOwner && okDue && okScope && okEvidence && okTarget;
     });
   } catch {
     return [];
@@ -225,7 +239,7 @@ export function isFlagged(kind: Flag['kind'], refId: string): boolean {
 
 export function addFlag(
   kind: Flag['kind'], refId: string, label: string,
-  context?: Pick<Flag, 'scope' | 'channel' | 'evidence'>,
+  context?: Pick<Flag, 'scope' | 'channel' | 'evidence' | 'target'>,
 ) {
   const id = flagId(kind, refId);
   if (cache.some((f) => f.id === id)) return;      // idempotent

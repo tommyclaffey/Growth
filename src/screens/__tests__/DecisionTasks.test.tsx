@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import { Decisions } from '../Decisions';
-import { decisions } from '../../data/decisions';
+import { decisions, targetOfDecision } from '../../data/decisions';
 import { ALL_CHANNELS } from '../../data/blended';
 import { CHANNEL_KEYS } from '../../data/metrics';
 import { setChannels } from '../../data/channels';
@@ -110,5 +110,63 @@ describe('an overdue decision returns to Needs attention', () => {
       />,
     );
     expect(container.querySelectorAll('.gr-strip__dismiss')).toHaveLength(1);
+  });
+});
+
+describe('every decision goes back to the item it was decided on', () => {
+  it('every card offers "Go to", and it opens THAT card\'s target', () => {
+    setChannels([...CHANNEL_KEYS]);
+    const opened: unknown[] = [];
+    const { container } = render(<Decisions range={30} onOpen={(t) => opened.push(t)} />);
+    const cards = [...container.querySelectorAll('.gr-dec__card')] as HTMLElement[];
+    const all = decisions(30, ALL_CHANNELS);
+    expect(cards).toHaveLength(all.length);
+    cards.forEach((card, i) => {
+      fireEvent.click(within(card).getByRole('button', { name: /^Go to/ }));
+      expect(opened[i]).toEqual(all.find((c) => card.textContent!.includes(c.action))!.target);
+    });
+  });
+
+  it('an account-wide decision says "Go to all channels"', () => {
+    setChannels([...CHANNEL_KEYS]);
+    const acct = decisions(30, ALL_CHANNELS).find((c) => c.target.kind === 'account');
+    if (!acct) return;
+    const { container } = render(<Decisions range={30} onOpen={() => {}} />);
+    expect(container.textContent).toMatch(/Go to all channels/);
+  });
+
+  it('accepting stores the target ON the flag, so it survives the finding going away', () => {
+    setChannels([...CHANNEL_KEYS]);
+    const c = takeable();
+    const { container } = render(<Decisions range={30} onOpen={() => {}} />);
+    const card = [...container.querySelectorAll('.gr-dec__card')]
+      .find((el) => el.textContent!.includes(c.action)) as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: /^accept$/i }));
+    expect(flags().find((f) => f.refId === c.id)?.target).toEqual(c.target);
+  });
+
+  it('a WRITTEN decision goes back to what it was written about', () => {
+    setChannels([...CHANNEL_KEYS]);
+    const target = { kind: 'channel' as const, id: 'meta', label: 'Meta' };
+    addFlag('decision', ownDecisionId('Cut Meta'), 'Cut Meta', { target });
+    const opened: unknown[] = [];
+    const { container } = render(<Decisions range={30} onOpen={(t) => opened.push(t)} />);
+    const own = container.querySelector('.is-own') as HTMLElement;
+    fireEvent.click(within(own).getByRole('button', { name: 'Go to Meta →' }));
+    expect(opened).toEqual([target]);
+  });
+});
+
+describe('targetOfDecision', () => {
+  const cands = () => decisions(30, ALL_CHANNELS);
+  it('prefers the stored target, then the live finding, then the captured channel', () => {
+    const c = cands()[0];
+    const stored = { kind: 'campaign' as const, id: 'c1', label: 'X' };
+    expect(targetOfDecision({ refId: c.id, target: stored }, cands())).toEqual(stored);
+    expect(targetOfDecision({ refId: c.id }, cands())).toEqual(c.target);
+    expect(targetOfDecision({ refId: 'gone', channel: 'tiktok' }, cands()))
+      .toEqual({ kind: 'channel', id: 'tiktok', label: 'TikTok' });
+    /* Nothing recoverable: no link, rather than a link to the wrong place. */
+    expect(targetOfDecision({ refId: 'gone' }, cands())).toBeUndefined();
   });
 });

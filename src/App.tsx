@@ -33,7 +33,8 @@ import {
 } from './data/metrics';
 import { campaignById } from './data/campaignSeries';
 import { adSetById } from './data/adSets';
-import type { Target } from './data/decisions';
+import { decisions, targetOfDecision, type Target } from './data/decisions';
+import { creativeById } from './data/creative';
 import {
   CHANNEL_METRICS, betterHigher, formatDerived, headlineKpis, trendMark,
   type DerivedMetric,
@@ -178,6 +179,32 @@ export default function App() {
     setAdId(null);
     if (cameFrom) { setChannel(cameFrom); setNav('channels'); setCameFrom(null); }
   }, [cameFrom]);
+
+  /* ⭐ ONE definition of "go to the thing a decision is about", used by every
+     decision card and by the overdue pill on Overview. Each tier lands on its
+     own page with the chain above it set, so Back walks up normally: an ad
+     opens inside its ad set inside its campaign. */
+  const openTarget = useCallback((t: Target) => {
+    setCameFrom(null);
+    if (t.kind === 'campaign') { openCampaign(t.id); return; }
+    if (t.kind === 'adSet') {
+      const ref = adSetById(t.id);
+      if (!ref) return;
+      setCampaignId(ref.campaign.id); setAdSetId(t.id); setAdId(null);
+      setNav('campaigns');
+      return;
+    }
+    if (t.kind === 'ad') {
+      const owner = creativeById(t.id);
+      if (!owner) return;
+      setCampaignId(owner.campaignId); setAdSetId(owner.creative.adSetId); setAdId(t.id);
+      setNav('campaigns');
+      return;
+    }
+    setCampaignId(null); setAdSetId(null); setAdId(null);
+    if (t.kind === 'channel') { setChannel(t.id as ChannelName); setNav('channels'); }
+    else { setChannel(null); setNav('overview'); }
+  }, [openCampaign]);
 
   const applyView = useCallback((v: ViewRef) => {
     setRange(v.range);
@@ -651,10 +678,13 @@ export default function App() {
                   setLastCleared(null);   // one undo, not a stack
                 }}
                 onAlertClick={(id) => {
-                  /* An overdue decision opens the queue it lives in, where the
-                     date can be moved or the decision removed. */
-                  if (attentionFlags.some((f) => f.kind === 'decision' && `flag:${f.id}` === id)) {
-                    setNav('decisions');
+                  /* An overdue decision goes back to the ITEM it was decided
+                     on -- the same place its card's "Go to" button goes. With
+                     no recoverable target, the queue is the next best place. */
+                  const late = attentionFlags.find((f) => f.kind === 'decision' && `flag:${f.id}` === id);
+                  if (late) {
+                    const t = targetOfDecision(late, decisions(range, enabled));
+                    if (t) openTarget(t); else setNav('decisions');
                     return;
                   }
                   const a = ALERTS.find((x) => x.id === id);
@@ -777,6 +807,7 @@ export default function App() {
             <Decisions
               range={range}
               onDiscuss={askAbout}
+              onOpen={openTarget}
             />
           )}
 

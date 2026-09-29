@@ -1054,3 +1054,28 @@ export function decisionsByTier(
     3: all.filter((c) => c.tier === 3),
   };
 }
+
+/**
+ * What a decision on the queue is ABOUT -- where "Go to" takes you.
+ *
+ * ⭐ Three sources, in order of trust:
+ *   1. The target stored on the flag when it was decided. Survives the engine
+ *      no longer proposing it.
+ *   2. The live candidate with that id -- for decisions taken before targets
+ *      were stored.
+ *   3. The captured channel, for an old written decision that has only that.
+ * Undefined only when none of them exist; the card then offers no link rather
+ * than one to the wrong place.
+ */
+export function targetOfDecision(
+  flag: { refId: string; target?: Target; channel?: string },
+  candidates: Candidate[],
+): Target | undefined {
+  if (flag.target) return flag.target;
+  const live = candidates.find((c) => c.id === flag.refId);
+  if (live) return live.target;
+  if (flag.channel && flag.channel in CHANNEL_LABEL) {
+    return { kind: 'channel', id: flag.channel, label: CHANNEL_LABEL[flag.channel as ChannelName] };
+  }
+  return undefined;
+}
