@@ -70,11 +70,14 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
      it: a seed is an instruction that arrived, not a property of being open. The
      same reasoning the deep-link `t` parameter already uses. */
   useEffect(() => {
-    if (!open || !seed) return;
+    /* 🐛 While an answer is pending, submit() bails -- but the seed was marked
+       consumed anyway, so a question handed in during an answer was lost.
+       It waits for the answer now, then is asked. */
+    if (!open || !seed || pending) return;
     void submit(seed, seedSubject ?? undefined);
     onSeedConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, seed]);
+  }, [open, seed, pending]);
 
   useEffect(() => {
     if (open && hasModel === null) void probeModel().then(setHasModel);

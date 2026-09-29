@@ -162,7 +162,13 @@ export default function App() {
      Read from the initialiser rather than an effect, so the first paint is
      already the linked view. Applying it in an effect would render the
      default dashboard for a frame and then jump. */
-  const [deepLink] = useState(() => readDeepLink(window.location.search));
+  /* 🐛 The app's OWN urls carry c/m/r too (urlState writes them), so every
+     reload of Settings, Decisions, an ad page... was read as a Slack link and
+     sent to Overview. A Slack share link never has `v`; the app's own url
+     always does. */
+  const [deepLink] = useState(() => (
+    new URLSearchParams(window.location.search).has('v') ? null : readDeepLink(window.location.search)
+  ));
 
   /* Go to a view. ONE definition, used by the deep link and by clicking a card
      in the chat -- they are the same action arriving from two directions, and
@@ -179,6 +185,9 @@ export default function App() {
     setAdId(null);
     setAdSetId(null);
     setCampaignId(id);
+    /* 🐛 Left set, the header kept the channel's logo and a "‹ Channels" crumb
+       that only changed the title. closeCampaign restores it from cameFrom. */
+    setChannel(null);
     setNav('campaigns');
   }, []);
 
@@ -776,7 +785,11 @@ export default function App() {
                     />
                   </section>
 
+                  {/* key: the table copies `channel` into its filter state once,
+                      so switching channel must give it a fresh mount -- or the
+                      Paid Search page lists Meta's campaigns. */}
                   <CampaignTable
+                    key={channel ?? 'all'}
                     channel={channel}
                     wideColumns={!chatOpen}
                     onOpenCampaign={(id) => openCampaign(id, channel)}

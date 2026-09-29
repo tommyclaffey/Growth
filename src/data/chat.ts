@@ -235,7 +235,10 @@ function asCampaign(v: string | null): string | undefined {
   /* An id that no longer exists is not a campaign. Returning it anyway would
      navigate to the "that campaign no longer exists" screen from a link that
      could have shown the channel instead. */
-  return v && CAMPAIGNS.some((c) => c.id === v) ? v : undefined;
+  /* A real account's ids (meta-…, google-…) cannot be checked here -- this
+     runs before the account loads. The campaign page says "loading", then
+     "no longer exists" only if it truly does not. */
+  return v && (/^(meta|google|tiktok)-/.test(v) || CAMPAIGNS.some((c) => c.id === v)) ? v : undefined;
 }
 function asRange(v: string | null): Range | null {
   const n = Number(v);
@@ -263,7 +266,7 @@ export function readDeepLink(search: string): DeepLink | null {
    body as "&t=c-U0BCFJ0CKQV-maya". I verified the regex still MATCHED and
    never verified it still consumed the whole URL -- a passing check on a
    partial assertion, again. */
-const VIEW_RE = /https?:\/\/[^\s]*\/Growth\/\?(?:[^\s]*&)?c=([a-zA-Z]+)&m=([A-Za-z]+)&r=(7|30|90)(?:&[^\s]*)?/;
+const VIEW_RE = /https?:\/\/[^\s]*\/Growth\/\?(?:[^\s]*&)?c=([a-zA-Z]+)&m=([A-Za-z]+)&r=(\d{1,3})(?=&|\s|$)(?:&[^\s]*)?/;
 
 /** Pulls a view back out of message text. Returns null when there isn't one. */
 export function decodeView(text: string): { view: ViewRef; text: string } | null {

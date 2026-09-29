@@ -110,10 +110,27 @@ function seeds(): Conversation[] {
 
 let cache: Conversation[] | null = null;
 
-/** A record is usable if we can read its messages. Nothing else is load-bearing. */
+/**
+ * A record is usable if every screen can read it.
+ *
+ * 🐛 This checked only `id` and that `messages` was an array -- and there is no
+ * error boundary, so a record without memberIds, a null message, or a message
+ * without a body blanked the WHOLE app the moment Chat opened. A missing
+ * readCount made the unread total NaN ("All caught up" with unread messages).
+ */
 function usable(c: unknown): c is Conversation {
-  return Boolean(c) && Array.isArray((c as Conversation).messages)
-    && typeof (c as Conversation).id === 'string';
+  const x = c as Partial<Conversation> | null;
+  return Boolean(x) && typeof x!.id === 'string' && Array.isArray(x!.messages)
+    && Array.isArray(x!.memberIds) && x!.memberIds.every((m) => typeof m === 'string');
+}
+
+/** Keeps the record, drops only the messages that cannot be rendered. */
+function clean(c: Conversation): Conversation {
+  const messages = c.messages.filter((m): m is Message => Boolean(m) && typeof m === 'object'
+    && typeof m.id === 'string' && typeof m.authorId === 'string' && typeof m.body === 'string');
+  const readCount = typeof c.readCount === 'number' && Number.isFinite(c.readCount)
+    ? Math.min(c.readCount, messages.length) : messages.length;
+  return { ...c, messages, readCount };
 }
 
 /**
@@ -140,7 +157,7 @@ export function allConversations(): Conversation[] {
     raw = localStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as unknown;
-      if (Array.isArray(parsed)) stored = parsed.filter(usable);
+      if (Array.isArray(parsed)) stored = parsed.filter(usable).map(clean);
     }
   } catch {
     /* Private mode, quota, corrupt JSON. Keep the raw copy rather than

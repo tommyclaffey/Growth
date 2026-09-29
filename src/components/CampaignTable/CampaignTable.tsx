@@ -6,7 +6,7 @@ import { StatusPill } from '../StatusPill/StatusPill';
 import { Chip } from '../Chip/Chip';
 import { CAMPAIGNS, type Campaign } from '../../data/campaigns';
 import { setStage, useCampaignStatus } from '../../data/campaignStatus';
-import { CHANNEL_LABEL, formatMoney } from '../../data/metrics';
+import { CHANNEL_LABEL, activeChannels, formatMoney } from '../../data/metrics';
 import type { ChannelName } from '../../styles/tokens';
 import type { Target } from '../../data/decisions';
 
@@ -35,7 +35,10 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
   /* Stage overrides live here rather than mutating CAMPAIGNS, so the seed
      data stays the seed data and a reload is a clean slate. */
 
-  const rows = filter ? CAMPAIGNS.filter((c) => c.channel === filter) : CAMPAIGNS;
+  /* Only channels this account runs -- a switched-off channel is gone
+     everywhere else, and was still listed here ("9 of 9"). */
+  const live = activeChannels();
+  const rows = CAMPAIGNS.filter((c) => live.includes(c.channel) && (!filter || c.channel === filter));
 
   function toggle(id: string) {
     setOpen((prev) => {

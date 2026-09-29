@@ -445,7 +445,8 @@ export function ChatPanel({
                   onBlur={(e) => { renameConversation(open.id, e.target.value); setRenaming(false); setTick((n) => n + 1); }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') e.currentTarget.blur();
-                    if (e.key === 'Escape') { setRenaming(false); }
+                    /* Escape cancels the rename -- not the whole panel. */
+                    if (e.key === 'Escape') { e.stopPropagation(); setRenaming(false); }
                   }}
                 />
               ) : (

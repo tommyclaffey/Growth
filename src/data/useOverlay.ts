@@ -68,7 +68,14 @@ export function useOverlay(
     if (!open) return;
 
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && closeRef.current) { e.stopPropagation(); closeRef.current(); return; }
+      if (e.key === 'Escape' && closeRef.current) {
+        /* 🐛 Every overlay listens on document, and stopPropagation does not
+           stop OTHER listeners on the same node -- so one Escape closed Chat
+           and Ask together, or a menu and the chat under it. A modal (trap)
+           owns Escape; a non-modal panel only answers when focus is inside it. */
+        if (!trap && !ref.current?.contains(e.target as Node)) return;
+        e.stopPropagation(); closeRef.current(); return;
+      }
       if (!trap || e.key !== 'Tab') return;
 
       const root = ref.current;
