@@ -180,6 +180,25 @@ body {
    dropping an unreferenced import, would have turned every screen-reader-only
    string in the product into visible text. A utility owned by a component is
    a utility one refactor away from vanishing. */
+/* Skip link: off-screen until it takes focus, then a real, visible button in
+   the top-left corner -- a skip link only a screen reader can see does nothing
+   for a sighted keyboard user, who is who it is mostly for. */
+.gr-skip {
+  position: fixed; left: var(--space-12); top: var(--space-12); z-index: 1000;
+  padding: var(--space-8) var(--space-16);
+  border-radius: var(--radius-md);
+  color: var(--brand-on-accent); background: var(--accent-fill);
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+.gr-skip:focus-visible {
+  transform: none;
+  outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px;
+}
+/* The main region takes focus from the skip link; it is not a control, so it
+   shows no ring of its own. */
+#main:focus { outline: none; }
+
 .gr-sr-only {
   position: absolute;
   width: 1px; height: 1px;

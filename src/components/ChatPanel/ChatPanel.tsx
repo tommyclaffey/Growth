@@ -115,6 +115,16 @@ export function ChatPanel({ onClose, pending, onClearPending, initialConversatio
   }, [onClose]);
   useOverlay(true, panelRef, escape, false);
 
+  /* Focus INTO the panel when it opens. Pressing Chat left focus on the Chat
+     button, so the next Tab went to Export and a keyboard user never reached
+     the panel they had just opened. The composer if a thread is open, else the
+     panel's first control. Once, on mount -- not on every re-render. */
+  useEffect(() => {
+    const target = composerRef.current
+      ?? panelRef.current?.querySelector<HTMLElement>('button, input, textarea, [tabindex="0"]');
+    target?.focus();
+  }, []);
+
   /* Derived above the effects because one of them depends on messages.length.
      `tick` is read here so a mutation to the conversation store -- which lives
      outside React -- re-derives this. */

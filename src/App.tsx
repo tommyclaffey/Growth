@@ -510,6 +510,14 @@ export default function App() {
 
   return (
     <div className="gr-app">
+      {/* Skip link. The first Tab stop on every screen; invisible until focused.
+          Without it a keyboard user tabs through 8 nav items, the account
+          button and 6 header controls -- 15 stops -- before the first number on
+          any page, every time they change screen. */}
+      <a href="#main" className="gr-skip gr-type-label-button"
+         onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus(); }}>
+        Skip to content
+      </a>
       {/* Clearing campaignId here is what makes the Campaigns nav item work
           while a campaign page is open. Without it, clicking Campaigns from a
           detail page sets nav to the value it already has and nothing moves --
@@ -584,7 +592,8 @@ export default function App() {
           </div>
         </header>
 
-        <main className="gr-content">
+        {/* tabIndex -1: focusable by the skip link, not a Tab stop of its own. */}
+        <main className="gr-content" id="main" tabIndex={-1}>
           {showDashboard && (
             <>
               <div className="gr-kpi-row">

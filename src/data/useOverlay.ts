@@ -38,13 +38,37 @@ export function useOverlay(
 ) {
   const restoreTo = useRef<HTMLElement | null>(null);
 
+  /* 🐛 onClose lives in a ref, NOT in the effect's dependencies.
+
+     Callers pass it inline -- `onClose={() => setAssistOpen(false)}` -- so it
+     is a new function every render, and as a dependency it re-ran this effect
+     on EVERY render. Each re-run re-captured `restoreTo` from
+     document.activeElement, which by then was the textarea INSIDE the panel.
+     On close, focus was "restored" to an element that had just been
+     unmounted, and landed on <body>. The restore guarantee existed in the
+     code and never once worked. Measured Sept 28 by tabbing through the real
+     page: Escape from the assistant dropped focus to the top of the document. */
+  const closeRef = useRef(onClose);
+  useEffect(() => { closeRef.current = onClose; }, [onClose]);
+
+  /* 🐛 Captured during the RENDER in which `open` flips false -> true -- the
+     last moment before anything inside the overlay exists. Every later point
+     was too late for some caller: a useEffect ran after the Assistant had
+     already focused its textarea; a layout effect runs after `autoFocus`,
+     which React applies while committing the children. Only the render that
+     opens it still sees the opener as document.activeElement. Reading focus
+     is side-effect-free, and the ref is written once per opening. */
+  const wasOpen = useRef(false);
+  // eslint-disable-next-line react-hooks/refs
+  if (open && !wasOpen.current) restoreTo.current = document.activeElement as HTMLElement | null;
+  // eslint-disable-next-line react-hooks/refs
+  wasOpen.current = open;
+
   useEffect(() => {
     if (!open) return;
-    /* Captured on open, before focus moves anywhere inside. */
-    restoreTo.current = document.activeElement as HTMLElement | null;
 
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && onClose) { e.stopPropagation(); onClose(); return; }
+      if (e.key === 'Escape' && closeRef.current) { e.stopPropagation(); closeRef.current(); return; }
       if (!trap || e.key !== 'Tab') return;
 
       const root = ref.current;
@@ -67,16 +91,17 @@ export function useOverlay(
     }
 
     document.addEventListener('keydown', onKey);
+    const panel = ref;
     return () => {
       document.removeEventListener('keydown', onKey);
       /* Only if focus is still inside or already lost. If the user has
          deliberately clicked something else on the way out, yanking them back
          is its own bug. */
       const active = document.activeElement;
-      const inside = ref.current?.contains(active as Node);
+      const inside = panel.current?.contains(active as Node);
       if (inside || active === document.body || active === null) {
         restoreTo.current?.focus?.();
       }
     };
-  }, [open, ref, onClose, trap]);
+  }, [open, ref, trap]);
 }

@@ -81,9 +81,23 @@ export function useMenu(
 
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
+    const menu = wrap;
     return () => {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
+      /* 🐛 SELECTION restores focus too -- the comment above always said so,
+         and only Escape did it. Picking an option calls the caller's own
+         setOpen(false), which unmounts the focused option, and focus fell to
+         <body>: choose "Meta" from the keyboard and you were sent back to the
+         top of the document. Measured by driving the real page.
+
+         Restored here, on the way out, whichever path closed the menu -- but
+         only if focus is lost or still inside. A click elsewhere has put focus
+         somewhere deliberate, and that is left alone. */
+      const active = document.activeElement;
+      if (active === null || active === document.body || menu.current?.contains(active)) {
+        trigger.current?.focus();
+      }
     };
   }, [open, setOpen, wrap]);
 }

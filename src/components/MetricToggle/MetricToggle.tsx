@@ -19,14 +19,36 @@ export interface MetricToggleProps {
  * view rather than submit a value.
  */
 export function MetricToggle({ value, onChange, options = METRICS }: MetricToggleProps) {
+  /* ⌨️ The ARIA tabs pattern: ONE Tab stop for the whole set, arrows to move.
+     role="tab" promises that to a screen reader, and every segment was its own
+     Tab stop with no arrow keys -- six stops to get past a toggle, and the
+     announced keyboard model did not work. Arrow selects as it moves (automatic
+     activation): switching metric is instant and cheap, so there is nothing to
+     confirm. Home/End jump to the ends. */
+  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const i = options.indexOf(value);
+    const next = e.key === 'ArrowRight' ? (i + 1) % options.length
+      : e.key === 'ArrowLeft' ? (i - 1 + options.length) % options.length
+      : e.key === 'Home' ? 0
+      : e.key === 'End' ? options.length - 1
+      : -1;
+    if (next < 0) return;
+    e.preventDefault();
+    onChange(options[next]);
+    const tabs = e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    /* Focus follows after React commits the new selection. */
+    requestAnimationFrame(() => tabs[next]?.focus());
+  }
+
   return (
-    <div className="gr-metrictoggle" role="tablist" aria-label="Metric">
+    <div className="gr-metrictoggle" role="tablist" aria-label="Metric" onKeyDown={onKeyDown}>
       {options.map((m) => (
         <button
           key={m}
           role="tab"
           type="button"
           aria-selected={m === value}
+          tabIndex={m === value ? 0 : -1}
           className={`gr-metrictoggle__seg gr-type-label-button ${m === value ? 'is-active' : ''}`}
           onClick={() => onChange(m)}
         >
