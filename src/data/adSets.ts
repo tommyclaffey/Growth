@@ -143,7 +143,19 @@ export function adSetLeadShare(id: string): number {
 }
 
 /** Daily funnel for one ad set, scaled out of its campaign's. Follows the range. */
+/* A real account's ad-set days -- used as-is when present; the share
+   derivation below is only how the seed fakes them. */
+let SOURCE_ADSET_ROWS: Map<string, DayRow[]> | null = null;
+export function setAdSetRows(rows: Map<string, DayRow[]> | null): void {
+  SOURCE_ADSET_ROWS = rows;
+}
+
 export function adSetRows(id: string, range: Range = 30, back = 0): DayRow[] {
+  const real = SOURCE_ADSET_ROWS?.get(id);
+  if (real) {
+    const end = real.length - back * range;
+    return end - range < 0 ? [] : real.slice(end - range, end);
+  }
   const ref = adSetById(id);
   if (!ref) return [];
   /* Spend, impressions and clicks follow SPEND share -- what you bought.

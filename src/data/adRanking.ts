@@ -1,7 +1,7 @@
 import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS, type Campaign } from './campaigns';
 import { campaignRows } from './campaignSeries';
-import { creativeLeadShare, creativesFor, type Creative } from './creative';
+import { creativeLeadShare, creativeRows, creativesFor, hasRealRows, type Creative } from './creative';
 import { betterHigher, valueOf, type DerivedMetric } from './channelMetrics';
 import {
   EMPTY_FUNNEL, addFunnel, benchmarkAgainst, type Benchmark, type Funnel,
@@ -89,6 +89,12 @@ function gather(range: Range, channels: ChannelName[]): Omit<RankedAd, 'value' |
          leads would drift, and the Ads ranking would disagree with the ad's own
          page while both looked authoritative. The loop is local; the share is
          shared. */
+      /* A real account's ad has its own days -- read them, never re-derive. */
+      if (hasRealRows(creative.id)) {
+        out.push({ creative, campaign, channel: campaign.channel,
+          totals: creativeRows(creative.id, range).reduce(addFunnel, EMPTY_FUNNEL) });
+        continue;
+      }
       const leadShare = creativeLeadShare(creative.id);
       out.push({
         creative,

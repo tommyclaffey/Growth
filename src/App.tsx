@@ -793,7 +793,12 @@ export default function App() {
           {/* Deepest tier first. The chain is campaign → ad set → ad, and Back
               walks it one step at a time: an ad opened from an ad set returns to
               that ad set, not past it to the campaign. */}
-          {nav === 'campaigns' && (adId
+          {/* A real account still loading: say so, rather than letting a
+              detail page announce that the campaign "no longer exists". */}
+          {nav === 'campaigns' && source.status === 'loading' && (campaignId || adSetId || adId) && (
+            <div className="gr-card"><p className="gr-type-body" role="status">Loading your account…</p></div>
+          )}
+          {nav === 'campaigns' && !(source.status === 'loading' && (campaignId || adSetId || adId)) && (adId
             ? (
               <AdDetail
                 id={adId}

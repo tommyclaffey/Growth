@@ -585,7 +585,8 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
   - Real campaigns replace the demo's everywhere (`applyStructure`); each keeps its own days.
   - Settings → **Data source**: demo / Meta, every step stated; a failed load shows Meta's own error with the way back.
   - 🐛 `vite.config.ts` only loaded 5 named keys from `.env.local` — `META_CLIENT_ID` would never have been seen. Fixed for all ad-platform keys.
-  - ▶️ **Needs Tommy:** the Meta app (Todoist). Then: `META_CLIENT_ID` + `META_CLIENT_SECRET` in `.env.local`, restart, Settings → Data source → Connect → choose account → Use Meta. Ad sets / ads for real accounts are the next load (level=adset / level=ad).
+  - ▶️ **Needs Tommy:** the Meta app (Todoist). Then: `META_CLIENT_ID` + `META_CLIENT_SECRET` in `.env.local`, restart, Settings → Data source → Connect → choose account → Use Meta. Ad sets and ads load with it — see below.
+- **Real ad sets and ads from Meta** *(Sept 29)* — insights at `level=ad`, plus `/adsets` and `/ads` (with creative title, body, thumbnail). **Ads are the unit; ad sets and campaigns are sums of their ads**, so all three tiers reconcile by construction — the demo's rule. The campaign page, ad set page, Ads screen, ad ranking and grading all read the real rows. Deep links to real ids survive a reload (they used to be dropped because the URL was checked before the account loaded); the page says "Loading your account…" instead of "no longer exists".
 
 - **Phase 3 — the API seam** *(Sept 29)*
   - `src/data/source.ts`: the `DataSource` interface (account: name, **currency**, **timezone**, **periodEnd**; daily funnel rows per channel). `sources/seeded.ts` is ONE implementation of it.

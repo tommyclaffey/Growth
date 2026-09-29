@@ -11,7 +11,8 @@ interface MetaCampaign { id: string; name: string; objective?: string; effective
 interface MetaInsight { campaign_id: string; date_start: string; [k: string]: unknown }
 interface Normalizer {
   normalizeMeta: (input: {
-    account: MetaAccount; campaigns: MetaCampaign[]; insights: MetaInsight[]; now: Date; days: number;
+    account: MetaAccount; campaigns: MetaCampaign[]; insights: MetaInsight[];
+    adsets?: unknown[]; ads?: unknown[]; now: Date; days: number;
   }) => unknown;
 }
 
@@ -141,13 +142,21 @@ export function metaApi(): Plugin {
                the normaliser keeps exactly DAYS ending on the last full day. */
             const until = new Date(); const since = new Date(); since.setDate(since.getDate() - DAYS - 2);
             const iso = (d: Date) => d.toISOString().slice(0, 10);
-            const insights = await all<MetaInsight>(`${s.accountId}/insights`, s.accessToken, {
-              level: 'campaign', time_increment: '1',
-              fields: 'campaign_id,campaign_name,spend,impressions,clicks,actions,action_values',
-              time_range: JSON.stringify({ since: iso(since), until: iso(until) }),
-            });
+            /* AD level: ad sets and campaigns are built as sums of their ads, so
+               the three tiers reconcile by construction. */
+            const [adsets, ads, insights] = await Promise.all([
+              all<Record<string, unknown>>(`${s.accountId}/adsets`, s.accessToken,
+                { fields: 'id,name,campaign_id,effective_status' }),
+              all<Record<string, unknown>>(`${s.accountId}/ads`, s.accessToken,
+                { fields: 'id,name,adset_id,campaign_id,effective_status,creative{title,body,thumbnail_url,object_type}' }),
+              all<MetaInsight>(`${s.accountId}/insights`, s.accessToken, {
+                level: 'ad', time_increment: '1',
+                fields: 'campaign_id,campaign_name,adset_id,ad_id,spend,impressions,clicks,actions,action_values',
+                time_range: JSON.stringify({ since: iso(since), until: iso(until) }),
+              }),
+            ]);
             const { normalizeMeta } = (await server.ssrLoadModule('/src/data/sources/metaNormalize.ts')) as unknown as Normalizer;
-            return send(res, 200, normalizeMeta({ account, campaigns, insights, now: new Date(), days: DAYS }));
+            return send(res, 200, normalizeMeta({ account, campaigns, insights, adsets, ads, now: new Date(), days: DAYS }));
           }
           return send(res, 404, { error: 'Unknown Meta endpoint.' });
         } catch (e) {

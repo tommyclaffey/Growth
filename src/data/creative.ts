@@ -198,8 +198,28 @@ function bodyFor(c: Campaign, kind: CreativeKind, i: number): string {
   return 'Cold audience cut. App on screen within the first two seconds.';
 }
 
+/* ---- A real account's ads (Phase 4) ----------------------------------
+
+   When a source supplies ads, they REPLACE the generator entirely. Without
+   this switch the generator would fill a real account's ad sets with the
+   demo's invented headlines -- fake ads inside real ad sets, the worst kind of
+   wrong because it looks exactly like data. */
+let SOURCE_ADS: Map<string, Creative[]> | null = null;
+let SOURCE_AD_ROWS: Map<string, DayRow[]> | null = null;
+
+export function setSourceAds(ads: Map<string, Creative[]> | null, rows: Map<string, DayRow[]> | null): void {
+  SOURCE_ADS = ads;
+  SOURCE_AD_ROWS = rows;
+}
+
+/** True when this ad's days came from a real account, not the seed's shares. */
+export function hasRealRows(id: string): boolean {
+  return Boolean(SOURCE_AD_ROWS?.has(id));
+}
+
 /** Every ad running in a campaign, grouped under the ad set that owns it. */
 export function creativesFor(campaignId: string): Creative[] {
+  if (SOURCE_ADS) return SOURCE_ADS.get(campaignId) ?? [];
   const c = CAMPAIGNS.find((x) => x.id === campaignId);
   if (!c) return [];
   return c.adSets.flatMap((a) => forAdSet(c, a));
@@ -326,6 +346,11 @@ export function creativeLeadShare(id: string): number {
 
 /** Daily rows for one ad, scaled out of its campaign's. Follows the range. */
 export function creativeRows(id: string, range: Range = 30, back = 0): DayRow[] {
+  const real = SOURCE_AD_ROWS?.get(id);
+  if (real) {
+    const end = real.length - back * range;
+    return end - range < 0 ? [] : real.slice(end - range, end);
+  }
   const owner = creativeById(id);
   if (!owner) return [];
   /* Bought on spend, returns on leads. The gap between the two shares IS the

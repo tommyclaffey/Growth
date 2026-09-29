@@ -63,3 +63,36 @@ describe('the product on a real Meta account', () => {
     await waitFor(() => expect(screen.queryByText(/session has expired/)).toBeNull());
   });
 });
+
+describe('real ad sets and ads -- never the demo’s invented ones', () => {
+  const adPayload = normalizeMeta({
+    account: { name: 'Acme Ads', currency: 'USD', timezone_name: 'America/Detroit' },
+    campaigns: [{ id: '1', name: 'Spring Leads — Broad', objective: 'OUTCOME_LEADS', effective_status: 'ACTIVE' }],
+    adsets: [{ id: 's1', name: 'Broad — Detroit 25-54', campaign_id: '1', effective_status: 'ACTIVE' }],
+    ads: [{ id: 'a1', name: 'Ad 1', adset_id: 's1', campaign_id: '1', effective_status: 'ACTIVE',
+      creative: { title: 'Real headline from Meta', body: 'Real body copy.' } }],
+    insights: Array.from({ length: 30 }, (_, i) => ({
+      campaign_id: '1', adset_id: 's1', ad_id: 'a1',
+      date_start: new Date(Date.UTC(2026, 8, 28 - i)).toISOString().slice(0, 10),
+      spend: '150', impressions: '15000', clicks: '300', actions: [{ action_type: 'lead', value: '6' }],
+    })),
+    now: new Date('2026-09-29T15:00:00Z'), days: 180,
+  });
+
+  it('⭐ the campaign page and the Ads screen show the account’s real ad sets and ads', async () => {
+    vi.stubGlobal('fetch', respond('/api/meta/data', adPayload));
+    setPref('dataSource', 'meta');
+    window.history.replaceState(null, '', '/?v=campaigns&p=meta-1');
+    const { container, unmount } = render(<App />);
+    await waitFor(() => expect(container.textContent).toContain('Real headline from Meta'));
+    expect(container.textContent).toContain('Broad — Detroit 25-54');
+    /* The generator's copy must be nowhere. */
+    expect(container.textContent).not.toMatch(/Join 400,000 people|Start free, no card|Set up in under three minutes/);
+    unmount();
+
+    window.history.replaceState(null, '', '/?v=ads');
+    const ads = render(<App />);
+    await waitFor(() => expect(ads.container.textContent).toContain('Real headline from Meta'));
+    expect(ads.container.textContent).not.toMatch(/Join 400,000 people/);
+  });
+});

@@ -1,5 +1,5 @@
 import type { DayRow } from '../metrics';
-import type { SourceCampaign, SourceData } from '../source';
+import type { SourceAd, SourceAdSet, SourceCampaign, SourceData } from '../source';
 
 /**
  * Meta Marketing API responses → the product's rows.
@@ -20,6 +20,9 @@ import type { SourceCampaign, SourceData } from '../source';
 export interface MetaAction { action_type: string; value: string }
 export interface MetaInsight {
   campaign_id: string;
+  /** Present when the insights were requested at level=ad. */
+  adset_id?: string;
+  ad_id?: string;
   campaign_name?: string;
   date_start: string;          // "2026-09-01"
   spend?: string;
@@ -30,6 +33,11 @@ export interface MetaInsight {
 }
 export interface MetaCampaign { id: string; name: string; objective?: string; effective_status?: string }
 export interface MetaAccount { name: string; currency: string; timezone_name: string }
+export interface MetaAdSet { id: string; name: string; campaign_id: string; effective_status?: string }
+export interface MetaAd {
+  id: string; name: string; adset_id: string; campaign_id: string; effective_status?: string;
+  creative?: { title?: string; body?: string; thumbnail_url?: string; object_type?: string };
+}
 
 /*
  * ⚠️ Meta reports ONE conversion under several overlapping action types --
@@ -102,6 +110,9 @@ export function normalizeMeta(input: {
   account: MetaAccount;
   campaigns: MetaCampaign[];
   insights: MetaInsight[];
+  /** Optional: with these and ad-level insights, the ad set and ad tiers are real too. */
+  adsets?: MetaAdSet[];
+  ads?: MetaAd[];
   now: Date;
   days: number;
 }): SourceData {
@@ -118,9 +129,29 @@ export function normalizeMeta(input: {
     rowsBy.set(c.id, dates.map(zero));
   }
 
+  /* ---- Ad level, when the insights carry ad ids. Ads are the unit; ad sets
+     and campaigns are SUMS of their ads, so all three tiers reconcile by
+     construction -- the same rule the demo's tiers follow. */
+  const adRows = new Map<string, DayRow[]>();
+  const adMeta = new Map((input.ads ?? []).map((a) => [a.id, a]));
+  for (const a of input.ads ?? []) adRows.set(a.id, dates.map(zero));
+
   for (const r of input.insights) {
     const i = index.get(r.date_start);
     if (i === undefined) continue;   // outside the window
+    if (r.ad_id) {
+      if (!adRows.has(r.ad_id)) {
+        adRows.set(r.ad_id, dates.map(zero));
+        adMeta.set(r.ad_id, { id: r.ad_id, name: r.ad_id, adset_id: r.adset_id ?? '', campaign_id: r.campaign_id, effective_status: 'DELETED' });
+      }
+      const ar = adRows.get(r.ad_id)![i];
+      ar.spend += Number(r.spend) || 0;
+      ar.impressions += Number(r.impressions) || 0;
+      ar.clicks += Number(r.clicks) || 0;
+      ar.leads += pick(r.actions, LEAD_TYPES);
+      ar.sales += pick(r.actions, PURCHASE_TYPES);
+      ar.revenue += pick(r.action_values, PURCHASE_TYPES);
+    }
     if (!rowsBy.has(r.campaign_id)) {
       /* Delivered in the window but missing from the campaigns call (deleted
          since) -- keep its numbers, name it from the insight. */
@@ -136,12 +167,43 @@ export function normalizeMeta(input: {
     row.revenue += pick(r.action_values, PURCHASE_TYPES);
   }
 
+  const add = (into: DayRow[], from: DayRow[]) => from.forEach((r, i) => {
+    into[i].spend += r.spend; into[i].impressions += r.impressions; into[i].clicks += r.clicks;
+    into[i].leads += r.leads; into[i].sales += r.sales; into[i].revenue += r.revenue;
+  });
+  const adLevel = input.insights.some((r) => r.ad_id);
+
   const campaigns: SourceCampaign[] = [...rowsBy.entries()].map(([id, rows]) => {
     const c = meta.get(id)!;
-    return {
+    const out: SourceCampaign = {
       id: `meta-${id}`, name: c.name, channel: 'meta',
       stage: stageOfMeta(c.effective_status), objective: objectiveOfMeta(c.objective), rows,
     };
+    if (!adLevel) return out;
+
+    const myAds = [...adMeta.values()].filter((a) => a.campaign_id === id);
+    const sets = new Map<string, SourceAdSet>();
+    for (const s of (input.adsets ?? []).filter((x) => x.campaign_id === id)) {
+      sets.set(s.id, { id: `meta-${s.id}`, name: s.name, stage: stageOfMeta(s.effective_status), rows: dates.map(zero) });
+    }
+    const ads: SourceAd[] = myAds.map((a) => {
+      if (!sets.has(a.adset_id)) {
+        sets.set(a.adset_id, { id: `meta-${a.adset_id}`, name: a.adset_id, stage: 'Ended', rows: dates.map(zero) });
+      }
+      const r = adRows.get(a.id)!;
+      add(sets.get(a.adset_id)!.rows, r);
+      const cr = a.creative ?? {};
+      return {
+        id: `meta-${a.id}`, adSetId: `meta-${a.adset_id}`, name: a.name,
+        headline: cr.title || a.name, body: cr.body ?? '',
+        kind: cr.object_type === 'VIDEO' ? 'video' : 'image',
+        src: cr.thumbnail_url, stage: stageOfMeta(a.effective_status), rows: r,
+      };
+    });
+    /* The campaign is the sum of its ads at this level. */
+    const sum = dates.map(zero);
+    for (const a of ads) add(sum, a.rows);
+    return { ...out, rows: sum, adSets: [...sets.values()], ads };
   });
 
   /* The channel is the sum of its campaigns -- by construction, so they cannot

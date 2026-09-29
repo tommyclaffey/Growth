@@ -52,19 +52,26 @@ export function readUrlState(search: string): Partial<UrlState> {
   const r = Number(q.get('r'));
   if (isRange(r)) out.range = r;
 
+  /* 🐛 A real account's ids (source-prefixed, e.g. "meta-123") cannot be
+     checked here: this runs on first paint, BEFORE the account has loaded, so
+     every link to a real campaign was discarded on reload. They pass through;
+     the page shows "loading" until the account arrives, and "no longer exists"
+     only if it truly does not. Seed ids are still validated as before. */
+  const real = (id: string) => /^(meta|google|tiktok)-/.test(id);
+
   const p = q.get('p');
-  if (p && CAMPAIGNS.some((x) => x.id === p)) out.campaign = p;
+  if (p && (real(p) || CAMPAIGNS.some((x) => x.id === p))) out.campaign = p;
 
   /* Same validation as the campaign and the ad: an id that no longer resolves
      falls back to absent rather than reaching the render. */
   const g = q.get('s');
-  if (g && adSetById(g)) out.adSet = g;
+  if (g && (real(g) || adSetById(g))) out.adSet = g;
 
   /* Validated against the real ad list, so a stale link cannot navigate to a
      page that renders "that ad no longer exists" when the campaign it names is
      perfectly fine. */
   const a = q.get('a');
-  if (a && creativeById(a)) out.ad = a;
+  if (a && (real(a) || creativeById(a))) out.ad = a;
 
   return out;
 }

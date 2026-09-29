@@ -82,3 +82,38 @@ describe('Meta → product rows', () => {
     expect(d.rows.meta!.every((r) => r.spend === 0)).toBe(true);
   });
 });
+
+describe('Meta ad level -- ad sets and ads are real too', () => {
+  const adInsight = (ad: string, set: string, date: string, spend: string, leads: string): MetaInsight => ({
+    campaign_id: '1', adset_id: set, ad_id: ad, date_start: date, spend, impressions: '1000', clicks: '20',
+    actions: [{ action_type: 'lead', value: leads }],
+  });
+  const d = normalizeMeta({
+    ...base,
+    adsets: [{ id: 's1', name: 'Broad — US', campaign_id: '1', effective_status: 'ACTIVE' },
+             { id: 's2', name: 'Lookalike 1%', campaign_id: '1', effective_status: 'PAUSED' }],
+    ads: [
+      { id: 'a1', name: 'Ad 1', adset_id: 's1', campaign_id: '1', effective_status: 'ACTIVE',
+        creative: { title: 'Start free today', body: 'No card needed.', thumbnail_url: 'https://x/t.jpg', object_type: 'VIDEO' } },
+      { id: 'a2', name: 'Ad 2', adset_id: 's2', campaign_id: '1', effective_status: 'PAUSED', creative: {} },
+    ],
+    insights: [adInsight('a1', 's1', '2026-09-28', '60', '3'), adInsight('a2', 's2', '2026-09-28', '40', '1')],
+  });
+  const c = d.campaigns!.find((x) => x.id === 'meta-1')!;
+
+  it('ads carry their real copy, thumbnail and format', () => {
+    const a1 = c.ads!.find((a) => a.id === 'meta-a1')!;
+    expect([a1.headline, a1.body, a1.src, a1.kind, a1.stage]).toEqual(['Start free today', 'No card needed.', 'https://x/t.jpg', 'video', 'Active']);
+    /* No title -> the ad's name, never an invented headline. */
+    expect(c.ads!.find((a) => a.id === 'meta-a2')!.headline).toBe('Ad 2');
+  });
+
+  it('⭐ ads sum to ad sets sum to the campaign sum to the channel -- by construction', () => {
+    const day = (rows: { spend: number }[]) => rows.at(-1)!.spend;
+    expect(day(c.adSets!.find((s) => s.id === 'meta-s1')!.rows)).toBe(60);
+    expect(day(c.adSets!.find((s) => s.id === 'meta-s2')!.rows)).toBe(40);
+    expect(day(c.rows)).toBe(100);
+    expect(day(d.rows.meta!)).toBe(100);
+    expect(c.rows.at(-1)!.leads).toBe(4);
+  });
+});

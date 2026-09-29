@@ -54,6 +54,30 @@ export interface SourceCampaign {
   /** 'Conversions' | 'Sales' | 'Traffic' | 'Awareness' -- drives which KPIs show. */
   objective: string;
   rows: DayRow[];
+  /** The campaign's ad sets, each with its own days. */
+  adSets?: SourceAdSet[];
+  /** Its ads. Omitted = the level has not been loaded, and none are shown. */
+  ads?: SourceAd[];
+}
+
+export interface SourceAdSet {
+  id: string;
+  name: string;
+  stage: SourceCampaign['stage'];
+  rows: DayRow[];
+}
+
+export interface SourceAd {
+  id: string;
+  adSetId: string;
+  name: string;
+  headline: string;
+  body: string;
+  kind: 'image' | 'video' | 'text' | 'link';
+  /** Thumbnail URL from the platform, when it has one. */
+  src?: string;
+  stage: SourceCampaign['stage'];
+  rows: DayRow[];
 }
 
 export interface DataSource {
