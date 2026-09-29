@@ -105,6 +105,18 @@ export function setPref<K extends keyof Prefs>(key: K, value: Prefs[K]) {
   window.dispatchEvent(new Event(CHANGED));
 }
 
+/**
+ * SERVER ONLY: take on the browser's settings for one assistant request.
+ * The dev server has no localStorage, so without this the model's tools ran on
+ * the defaults -- a 15% threshold when the person had chosen 25%, and the
+ * "hold" on a channel the screens were not holding. No storage, no event.
+ */
+export function adoptPrefs(p: Partial<Pick<Prefs, 'changeThreshold'>>) {
+  if (p.changeThreshold !== undefined && THRESHOLDS.includes(p.changeThreshold)) {
+    cache = { ...cache, changeThreshold: p.changeThreshold };
+  }
+}
+
 export function markAllRead(ids: string[]) {
   setPref('readAlerts', [...new Set([...cache.readAlerts, ...ids])]);
 }

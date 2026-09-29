@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
+import { escapeHtml, pathOf } from './http.js';
 import { exchangeGoogleCode } from './googleAdsApi.js';
 import { exchangeMetaCode } from './metaApi.js';
 
@@ -157,13 +158,22 @@ export const PROVIDERS: Record<string, Provider> = {
  * provider would reject the handshake.
  */
 function originOf(req: { headers: Record<string, unknown> }): string {
-  const host = (req.headers['x-forwarded-host'] ?? req.headers.host) as string | undefined;
-  const proto = (req.headers['x-forwarded-proto'] as string | undefined)
+  /* 🛑 The Host / X-Forwarded-Host headers are caller-controlled. A fixed
+     PUBLIC_ORIGIN wins when set; otherwise the host must at least LOOK like a
+     host, or it falls back to localhost -- it is reflected into a page. */
+  if (process.env.PUBLIC_ORIGIN) return process.env.PUBLIC_ORIGIN.replace(/\/$/, '');
+  const raw = String(req.headers['x-forwarded-host'] ?? req.headers.host ?? '');
+  const host0 = /^[a-z0-9.-]+(:\d+)?$/i.test(raw) ? raw : undefined;
+  const host = host0;
+  const fwd = req.headers['x-forwarded-proto'];
+  const proto = (fwd === 'https' || fwd === 'http' ? fwd : undefined)
     ?? (host && !/^localhost|^127\./.test(host) ? 'https' : 'http');
   return `${proto}://${host ?? 'localhost:5173'}`;
 }
 
-const states = new Map<string, number>();
+/* state → which provider it was minted for, and when it expires. A state is
+   only good for the provider that started it. */
+const states = new Map<string, { exp: number; id: string }>();
 const TTL = 10 * 60 * 1000;
 
 /**
@@ -176,7 +186,7 @@ const TTL = 10 * 60 * 1000;
 function page(res: ServerResponse, title: string, body: string) {
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/html');
-  res.end(`<!doctype html><meta charset="utf-8"><title>${title} · Growth</title>
+  res.end(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(title)} · Growth</title>
 <style>
   :root { color-scheme: light }
   body { font: 15px/1.65 -apple-system, system-ui, "Segoe UI", sans-serif;
@@ -199,7 +209,7 @@ function page(res: ServerResponse, title: string, body: string) {
          padding: 8px 16px; border-radius: 10px; font-weight: 500; font-size: 13px; line-height: 20px }
 </style>
 <main>
-<h1>${title}</h1>
+<h1>${escapeHtml(title)}</h1>
 ${body}
 <p style="margin-top:28px"><a class="btn" href="/Growth/">Back to Growth</a></p>
 </main>`);
@@ -211,7 +221,8 @@ export function channelOauth(): Plugin {
     apply: 'serve',
     configureServer(server: ViteDevServer) {
       server.middlewares.use('/api/connect', async (req, res) => {
-        const url = new URL(req.url ?? '/', 'http://placeholder');
+        const url = pathOf(req);
+        if (!url) { res.statusCode = 400; return res.end(); }
         const path = url.pathname.replace(/\/$/, '');
         const origin = originOf(req as never);
 
@@ -234,8 +245,9 @@ export function channelOauth(): Plugin {
            what happened, and what is not built yet, beats that. */
         if (path === '/callback') {
           const [id, state] = (url.searchParams.get('state') ?? '').split(':');
-          const known = state && (states.get(state) ?? 0) > Date.now();
-          const p = PROVIDERS[id];
+          const minted = state ? states.get(state) : undefined;
+          const known = Boolean(minted && minted.exp > Date.now() && minted.id === id);
+          const p = Object.hasOwn(PROVIDERS, id) ? PROVIDERS[id] : undefined;
           if (!p || !known) {
             return page(res, 'That link has expired',
               '<p class="lede">The connection request was not recognised or is over ten minutes old. Start again from Settings.</p>');
@@ -243,7 +255,7 @@ export function channelOauth(): Plugin {
           states.delete(state);
           if (url.searchParams.get('error')) {
             return page(res, `${p.label} was not connected`,
-              `<p class="lede">${p.label} said: ${url.searchParams.get('error_description') ?? url.searchParams.get('error')}</p>`);
+              `<p class="lede">${p.label} said: ${escapeHtml(url.searchParams.get('error_description') ?? url.searchParams.get('error'))}</p>`);
           }
           /* Meta: finish the handshake for real -- code for a long-lived token,
              stored server-side. The other platforms still stop here. */
@@ -256,7 +268,7 @@ export function channelOauth(): Plugin {
 <p style="margin:0">In Settings → <b>Data source</b>, choose the ad account, then switch the
 product to it.</p></div>`);
             } catch (e) {
-              return page(res, 'Meta did not finish connecting', `<p class="lede">${e instanceof Error ? e.message : String(e)}</p>`);
+              return page(res, 'Meta did not finish connecting', `<p class="lede">${escapeHtml(e instanceof Error ? e.message : String(e))}</p>`);
             }
           }
           if (p.id === 'paidSearch') {
@@ -268,7 +280,7 @@ product to it.</p></div>`);
 <p style="margin:0">In Settings → <b>Data source</b>, choose the account, then switch the
 product to it.</p></div>`);
             } catch (e) {
-              return page(res, 'Google Ads did not finish connecting', `<p class="lede">${e instanceof Error ? e.message : String(e)}</p>`);
+              return page(res, 'Google Ads did not finish connecting', `<p class="lede">${escapeHtml(e instanceof Error ? e.message : String(e))}</p>`);
             }
           }
           return page(res, `${p.label} approved the connection`, `
@@ -279,10 +291,10 @@ step (Beta B). Nothing was saved, and Growth cannot read ${p.label} yet.</p></di
         }
 
         const key = path.replace(/^\//, '');
-        const provider = PROVIDERS[key];
+        const provider = Object.hasOwn(PROVIDERS, key) ? PROVIDERS[key] : undefined;
         if (!provider) {
           return page(res, 'Unknown channel',
-            `<p class="lede">No provider is configured for “${key}”.</p>`);
+            `<p class="lede">No provider is configured for “${escapeHtml(key)}”.</p>`);
         }
 
         if (provider.note) {
@@ -306,7 +318,7 @@ ${provider.label} until you register an app there and give it the client id.</p>
 ${steps ? `<div class="card"><p class="label">What to do there</p><ol>${steps}</ol></div>` : ''}
 <div class="card">
   <p class="label">Redirect URI to register</p>
-  <code class="uri">${redirect}</code>
+  <code class="uri">${escapeHtml(redirect)}</code>
 </div>
 <div class="card">
   <p class="label">Then, locally</p>
@@ -316,8 +328,8 @@ ${steps ? `<div class="card"><p class="label">What to do there</p><ol>${steps}</
         }
 
         const state = randomBytes(16).toString('hex');
-        states.set(state, Date.now() + TTL);
-        for (const [k, exp] of states) if (exp < Date.now()) states.delete(k);
+        states.set(state, { exp: Date.now() + TTL, id: provider.id });
+        for (const [k, v] of states) if (v.exp < Date.now()) states.delete(k);
 
         const auth = new URL(provider.authorizeUrl);
         auth.searchParams.set('client_id', clientId);

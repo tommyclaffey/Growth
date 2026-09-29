@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { deadline, pathOf, readJson, send } from './http.js';
 import { resolve } from 'node:path';
 import type { Plugin, ViteDevServer } from 'vite';
 /* The normaliser is app code (src/data/sources/metaNormalize.ts), loaded
@@ -45,14 +45,25 @@ interface Stored { accessToken: string; expiresAt?: number; accountId?: string }
 function load(): Stored | null {
   try { return existsSync(FILE) ? (JSON.parse(readFileSync(FILE, 'utf8')) as Stored) : null; } catch { return null; }
 }
-function store(s: Stored) { writeFileSync(FILE, JSON.stringify(s, null, 2)); }
+/* Merge into what is on disk NOW, not into a copy read before an await -- an
+   OAuth callback can land in between, and a stale write would erase its
+   token. Written privately (0600) and atomically (temp file, then rename). */
+function store(patch: Partial<Stored>) {
+  const next = { ...(load() ?? {}), ...patch };
+  writeFileSync(`${FILE}.tmp`, JSON.stringify(next, null, 2), { mode: 0o600 });
+  renameSync(`${FILE}.tmp`, FILE);
+}
 
 async function graph<T>(path: string, token: string, params: Record<string, string> = {}): Promise<T> {
   const url = new URL(`${GRAPH}/${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   url.searchParams.set('access_token', token);
-  const r = await fetch(url);
-  const body = await r.json() as T & { error?: { message: string } };
+  const r = await fetch(url, { signal: deadline() });
+  return check<T>(r);
+}
+
+async function check<T>(r: Response): Promise<T> {
+  const body = await r.json().catch(() => ({})) as T & { error?: { message: string } };
   if (!r.ok || body.error) throw new Error(body.error?.message ?? `Meta returned ${r.status}`);
   return body;
 }
@@ -63,9 +74,12 @@ async function all<T>(path: string, token: string, params: Record<string, string
   const out: T[] = [];
   let page = await graph<{ data: T[]; paging?: { next?: string } }>(path, token, { ...params, limit: '500' });
   out.push(...page.data);
-  while (page.paging?.next) {
-    const r = await fetch(page.paging.next);
-    page = await r.json() as typeof page;
+  /* 🐛 A page that came back as an error (rate limit, expired token) has no
+     `paging`, so the loop used to END -- and return partial data as success,
+     i.e. undercounted spend. Errors now throw; a runaway cursor is capped. */
+  for (let pages = 1; page.paging?.next; pages++) {
+    if (pages >= 200) throw new Error('Meta returned more than 200 pages — stopped rather than guess.');
+    page = await check<typeof page>(await fetch(page.paging.next, { signal: deadline() }));
     out.push(...(page.data ?? []));
   }
   return out;
@@ -85,22 +99,44 @@ export async function exchangeMetaCode(code: string, redirectUri: string): Promi
   const long = await graph<{ access_token: string; expires_in?: number }>('oauth/access_token', '', {
     grant_type: 'fb_exchange_token', client_id: id, client_secret: secret, fb_exchange_token: short.access_token,
   });
+  /* The chosen ad account survives reconnecting. */
   store({
     accessToken: long.access_token,
     expiresAt: long.expires_in ? Date.now() + long.expires_in * 1000 : undefined,
   });
 }
 
-function send(res: ServerResponse, status: number, body: unknown) {
-  res.statusCode = status;
-  res.setHeader('Content-Type', 'application/json');
-  res.end(JSON.stringify(body));
-}
-
-async function json(req: IncomingMessage): Promise<Record<string, unknown>> {
-  const chunks: Buffer[] = [];
-  for await (const c of req) chunks.push(c as Buffer);
-  try { return JSON.parse(Buffer.concat(chunks).toString() || '{}'); } catch { return {}; }
+/**
+ * 180 days of the chosen account, normalised to SourceData. Shared by
+ * /api/meta/data (the browser) and the assistant (so the model's tools read
+ * the SAME account the screens do, not the demo).
+ */
+export async function loadMeta(server: ViteDevServer): Promise<unknown> {
+  const s = load();
+  if (!s?.accessToken) throw new Error('Meta is not connected. Connect it in Settings.');
+  if (!s.accountId) throw new Error('Choose a Meta ad account in Settings.');
+  const account = await graph<MetaAccount>(s.accountId, s.accessToken, { fields: 'name,currency,timezone_name' });
+  const campaigns = await all<MetaCampaign>(`${s.accountId}/campaigns`, s.accessToken,
+    { fields: 'id,name,objective,effective_status' });
+  /* A window slightly wider than needed, in the account's own days;
+     the normaliser keeps exactly DAYS ending on the last full day. */
+  const until = new Date(); const since = new Date(); since.setDate(since.getDate() - DAYS - 2);
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  /* AD level: ad sets and campaigns are built as sums of their ads, so
+     the three tiers reconcile by construction. */
+  const [adsets, ads, insights] = await Promise.all([
+    all<Record<string, unknown>>(`${s.accountId}/adsets`, s.accessToken,
+      { fields: 'id,name,campaign_id,effective_status' }),
+    all<Record<string, unknown>>(`${s.accountId}/ads`, s.accessToken,
+      { fields: 'id,name,adset_id,campaign_id,effective_status,creative{title,body,thumbnail_url,object_type}' }),
+    all<MetaInsight>(`${s.accountId}/insights`, s.accessToken, {
+      level: 'ad', time_increment: '1',
+      fields: 'campaign_id,campaign_name,adset_id,ad_id,spend,impressions,clicks,actions,action_values',
+      time_range: JSON.stringify({ since: iso(since), until: iso(until) }),
+    }),
+  ]);
+  const { normalizeMeta } = (await server.ssrLoadModule('/src/data/sources/metaNormalize.ts')) as unknown as Normalizer;
+  return normalizeMeta({ account, campaigns, insights, adsets, ads, now: new Date(), days: DAYS });
 }
 
 export function metaApi(): Plugin {
@@ -109,9 +145,11 @@ export function metaApi(): Plugin {
     apply: 'serve',
     configureServer(server: ViteDevServer) {
       server.middlewares.use('/api/meta', async (req, res) => {
-        const path = new URL(req.url ?? '/', 'http://x').pathname.replace(/\/$/, '');
-        const s = load();
         try {
+          const url = pathOf(req);
+          if (!url) return send(res, 400, { error: 'Bad request.' });
+          const path = url.pathname.replace(/\/$/, '');
+          const s = load();
           if (req.method === 'GET' && path === '/status') {
             return send(res, 200, {
               configured: Boolean(process.env.META_CLIENT_ID && process.env.META_CLIENT_SECRET),
@@ -128,35 +166,14 @@ export function metaApi(): Plugin {
             return send(res, 200, { accounts });
           }
           if (req.method === 'POST' && path === '/account') {
-            const { id } = await json(req);
+            const { id } = await readJson(req);
             if (typeof id !== 'string' || !id.startsWith('act_')) return send(res, 400, { error: 'An ad account id (act_…) is required.' });
-            store({ ...s, accountId: id });
+            store({ accountId: id });
             return send(res, 200, { accountId: id });
           }
           if (req.method === 'GET' && path === '/data') {
             if (!s.accountId) return send(res, 409, { error: 'Choose a Meta ad account in Settings.' });
-            const account = await graph<MetaAccount>(s.accountId, s.accessToken, { fields: 'name,currency,timezone_name' });
-            const campaigns = await all<MetaCampaign>(`${s.accountId}/campaigns`, s.accessToken,
-              { fields: 'id,name,objective,effective_status' });
-            /* A window slightly wider than needed, in the account's own days;
-               the normaliser keeps exactly DAYS ending on the last full day. */
-            const until = new Date(); const since = new Date(); since.setDate(since.getDate() - DAYS - 2);
-            const iso = (d: Date) => d.toISOString().slice(0, 10);
-            /* AD level: ad sets and campaigns are built as sums of their ads, so
-               the three tiers reconcile by construction. */
-            const [adsets, ads, insights] = await Promise.all([
-              all<Record<string, unknown>>(`${s.accountId}/adsets`, s.accessToken,
-                { fields: 'id,name,campaign_id,effective_status' }),
-              all<Record<string, unknown>>(`${s.accountId}/ads`, s.accessToken,
-                { fields: 'id,name,adset_id,campaign_id,effective_status,creative{title,body,thumbnail_url,object_type}' }),
-              all<MetaInsight>(`${s.accountId}/insights`, s.accessToken, {
-                level: 'ad', time_increment: '1',
-                fields: 'campaign_id,campaign_name,adset_id,ad_id,spend,impressions,clicks,actions,action_values',
-                time_range: JSON.stringify({ since: iso(since), until: iso(until) }),
-              }),
-            ]);
-            const { normalizeMeta } = (await server.ssrLoadModule('/src/data/sources/metaNormalize.ts')) as unknown as Normalizer;
-            return send(res, 200, normalizeMeta({ account, campaigns, insights, adsets, ads, now: new Date(), days: DAYS }));
+            return send(res, 200, await loadMeta(server));
           }
           return send(res, 404, { error: 'Unknown Meta endpoint.' });
         } catch (e) {

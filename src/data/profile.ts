@@ -258,7 +258,20 @@ const BUDGET_KEY = 'growth.budget';
 const BUDGET_CHANGED = 'growth:budget-changed';
 export const DEFAULT_BUDGET = 250_000;
 
+/* SERVER ONLY -- the browser's budgets, adopted for one assistant request.
+   See adoptPrefs in prefs.ts for why. */
+let ADOPTED: { monthly?: number; channels?: Partial<Record<ChannelName, number>> } | null = null;
+export function adoptBudgets(b: { monthly?: unknown; channels?: unknown } | null) {
+  if (!b) { ADOPTED = null; return; }
+  const ok = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0;
+  const channels = b.channels && typeof b.channels === 'object'
+    ? Object.fromEntries(Object.entries(b.channels as Record<string, unknown>).filter(([, v]) => ok(v))) as Partial<Record<ChannelName, number>>
+    : {};
+  ADOPTED = { monthly: ok(b.monthly) ? b.monthly : undefined, channels };
+}
+
 export function monthlyBudget(): number {
+  if (ADOPTED?.monthly) return ADOPTED.monthly;
   try {
     const n = Number(localStorage.getItem(BUDGET_KEY));
     return Number.isFinite(n) && n > 0 ? n : DEFAULT_BUDGET;
@@ -308,6 +321,7 @@ const CH_BUDGET_KEY = 'growth.channel-budgets';
 const CH_BUDGET_CHANGED = 'growth:channel-budgets';
 
 export function channelBudgets(): Partial<Record<ChannelName, number>> {
+  if (ADOPTED) return { ...ADOPTED.channels };
   try {
     const raw = JSON.parse(localStorage.getItem(CH_BUDGET_KEY) ?? '{}');
     if (!raw || typeof raw !== 'object') return {};

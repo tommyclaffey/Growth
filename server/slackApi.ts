@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { deadline, escapeHtml, pathOf, readJson } from './http.js';
 import type { Plugin, ViteDevServer } from 'vite';
 import {
   activeWorkspace, publicView, removeWorkspace, saveWorkspace, setActive, setAppId, setChannel, setLink,
@@ -91,6 +92,7 @@ async function slack<T>(method: string, token: string, body: Record<string, unkn
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/x-www-form-urlencoded' },
     body: form,
+    signal: deadline(),
   });
   const json = (await res.json()) as { ok: boolean; error?: string };
   /* Slack answers HTTP 200 for a bad token, a missing scope, and a channel the
@@ -325,11 +327,7 @@ function linkFromAttachments(atts: unknown): string | null {
   return m ? m[0].replace(/\\\//g, '/') : null;
 }
 
-async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
-  const c: Buffer[] = [];
-  for await (const x of req) c.push(x as Buffer);
-  try { return JSON.parse(Buffer.concat(c).toString('utf8')); } catch { return {}; }
-}
+const readBody = (req: IncomingMessage) => readJson(req);
 function send(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json');
@@ -343,6 +341,7 @@ function redirect(res: ServerResponse, to: string) {
 function page(res: ServerResponse, title: string, msg: string) {
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/html');
+  title = escapeHtml(title); msg = escapeHtml(msg);
   res.end(`<!doctype html><meta charset="utf-8"><title>${title}</title>
 <body style="font:15px/1.5 -apple-system,system-ui,sans-serif;padding:48px;max-width:34em;color:#16161c">
 <h1 style="font-size:19px">${title}</h1><p style="color:#5a5a68">${msg}</p>
@@ -380,7 +379,8 @@ export function slackApi(): Plugin {
       }
 
       server.middlewares.use('/api/slack', async (req, res) => {
-        const url = new URL(req.url ?? '/', 'http://localhost');
+        const url = pathOf(req);
+        if (!url) return send(res, 400, { error: 'bad_request' });
         const path = url.pathname.replace(/\/$/, '');
         const clientId = process.env.SLACK_CLIENT_ID;
         const clientSecret = process.env.SLACK_CLIENT_SECRET;
@@ -534,6 +534,7 @@ export function slackApi(): Plugin {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
               body: new URLSearchParams({ code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri }),
+              signal: deadline(),
             });
             const data = (await r.json()) as {
               ok: boolean; error?: string;

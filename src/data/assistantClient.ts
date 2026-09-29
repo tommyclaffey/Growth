@@ -5,7 +5,10 @@ import { commitments } from './commitments';
 import { flags } from './attention';
 import { decisionsFor, decisions as allDecisions } from './decisions';
 import type { Target } from './decisions';
-import type { Range } from './metrics';
+import { activeChannels, type Range } from './metrics';
+import { prefs } from './prefs';
+import { changeThreshold } from './notifications';
+import { channelBudgets, monthlyBudget } from './profile';
 
 /**
  * Routes a question to the model if one is reachable, and to the deterministic
@@ -135,6 +138,18 @@ export async function askAssistant(
         /* The decisions queue lives in this browser; the server cannot see it.
            Sent, so "what did we decide / is it working" has an answer there. */
         commitments: commitments(),
+        /* 🐛 The server's tools ran on the DEMO data with DEFAULT settings --
+           whatever account and choices this browser had. Two answers to one
+           question, depending on which path answered it. The settings travel
+           with the question; the account is loaded server-side from the same
+           source this browser is on. */
+        context: {
+          source: prefs().dataSource,
+          channels: activeChannels(),
+          threshold: changeThreshold(),
+          monthlyBudget: monthlyBudget(),
+          channelBudgets: channelBudgets(),
+        },
       }),
     });
 

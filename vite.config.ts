@@ -6,6 +6,7 @@ import { channelOauth } from './server/channelOauth.js'
 import { slackApi } from './server/slackApi.js'
 import { metaApi } from './server/metaApi.js'
 import { googleApi } from './server/googleAdsApi.js'
+import { accessGuard } from './server/guard.js'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -17,7 +18,8 @@ export default defineConfig(({ mode }) => {
      not -- so putting META_CLIENT_ID in .env.local, exactly as the setup steps
      say, did nothing, and Connect kept reporting "needs an app registration". */
   for (const k of [
-    'ANTHROPIC_API_KEY', 'SLACK_CLIENT_ID', 'SLACK_CLIENT_SECRET', 'SLACK_REDIRECT_URI', 'SLACK_SIGNING_SECRET',
+    'ANTHROPIC_API_KEY', 'GROWTH_ACCESS_KEY', 'PUBLIC_ORIGIN',
+    'SLACK_APP_TOKEN', 'SLACK_CLIENT_ID', 'SLACK_CLIENT_SECRET', 'SLACK_REDIRECT_URI', 'SLACK_SIGNING_SECRET',
     'META_CLIENT_ID', 'META_CLIENT_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET',
     'GOOGLE_ADS_DEVELOPER_TOKEN', 'GOOGLE_ADS_API_VERSION',
     'TIKTOK_APP_ID', 'MS_CLIENT_ID', 'MS_CLIENT_SECRET',
@@ -26,7 +28,7 @@ export default defineConfig(({ mode }) => {
     }
 
   return {
-    plugins: [react(), assistantApi(), slackApi(), channelOauth(), metaApi(), googleApi()],
+    plugins: [react(), accessGuard(), assistantApi(), slackApi(), channelOauth(), metaApi(), googleApi()],
     /* Served from https://tommyclaffey.github.io/Growth/, so assets need the
        repo name as their base path. Without this, the built index.html asks for
        /assets/... at the domain root, gets GitHub's 404 page back, and renders

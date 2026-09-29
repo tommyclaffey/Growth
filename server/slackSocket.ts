@@ -64,6 +64,7 @@ async function connect(appToken: string, log: Log): Promise<void> {
     const res = await fetch('https://slack.com/api/apps.connections.open', {
       method: 'POST',
       headers: { Authorization: `Bearer ${appToken}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      signal: AbortSignal.timeout(20_000),
     });
     const body = (await res.json()) as { ok: boolean; url?: string; error?: string };
     if (!body.ok || !body.url) {

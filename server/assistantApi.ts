@@ -1,6 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { betaTool } from '@anthropic-ai/sdk/helpers/beta/json-schema';
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import { readJson, send } from './http.js';
+import { loadGoogle } from './googleAdsApi.js';
+import { loadMeta } from './metaApi.js';
 import type { Plugin, ViteDevServer } from 'vite';
 
 type ChannelName = string;
@@ -150,6 +152,9 @@ interface Metrics {
   /** The account's currency, from the loaded source (Phase 3). */
   CURRENCY?: string;
   METRICS: string[];
+  CHANNEL_KEYS: ChannelName[];
+  setActiveChannels: (keys: ChannelName[]) => void;
+  hydrate: (d: { rows: unknown; periodEnd: string; currency: string }) => void;
 }
 
 /** The decision engine, loaded through Vite like the data layer. */
@@ -216,6 +221,8 @@ interface DecisionCandidate {
 /** Formatting for the derived vocabulary — percentages, and money to 2dp. */
 interface ChannelMetrics {
   formatDerived: (m: string, v: number) => string;
+  valueOf: (m: string, r: Record<string, number>) => number;
+  betterHigher: (m: string) => boolean;
 }
 
 interface Scenario {
@@ -487,6 +494,19 @@ function buildTools(
       }) => {
         const r = (n: number) => Math.round(n);
         const assumptions = [sc.ASSUME_CAC_HOLDS, sc.ASSUME_LAST_TOUCH];
+        /* 🐛 Nothing was checked: "move" without `to` silently ran "add" (a
+           different question), from === to returned "+0 leads", a negative
+           amount projected negative leads, and an unknown channel threw.
+           An error the model can read back beats an answer to the wrong question. */
+        const live = m.activeChannels() as string[];
+        const bad = (e: string) => JSON.stringify({ error: e });
+        if (amount !== undefined && !(Number.isFinite(amount) && amount > 0)) return bad('amount must be a positive number.');
+        if (mode === 'move') {
+          if (!from || !to) return bad('mode "move" needs both from and to.');
+          if (!live.includes(from) || !live.includes(to)) return bad('from and to must be channels this account runs.');
+          if (from === to) return bad('from and to are the same channel -- nothing moves.');
+        }
+        if (mode === 'within' && (!channel || !live.includes(channel))) return bad('mode "within" needs a channel this account runs.');
         if (mode === 'move' && from && to) {
           const amt = amount ?? r(sc.defaultExtra(range) / 2);
           const x = sc.moveBudget(amt, from, to, range);
@@ -560,31 +580,48 @@ function buildTools(
         additionalProperties: false,
       },
       run: ({ metric }: { metric: string }) => {
-        const key = metric.toLowerCase();
+        /* 🐛 This read `t[metric.toLowerCase()]` -- and totals() has no `ctr`,
+           `cpc`, `cpm` or `cvr`, so every channel ranked 0 on those and "0" went
+           into the evidence panel. It also ranked CPC and CPM highest-first.
+           Now: the same valueOf the cards use, the same direction rule, and a
+           channel that cannot report the metric (no leads for a CAC, no clicks
+           for a CPC) is listed as unreportable, LAST -- never as a winning 0. */
+        const denom: Record<string, string> = {
+          CAC: 'leads', ROAS: 'spend', CTR: 'impressions', CPM: 'impressions', CPC: 'clicks', CVR: 'clicks',
+        };
         const list = m.activeChannels().map((c) => {
           const t = m.totals(c, range);
-          const value = key === 'sales' ? t.sales : (t[key] ?? 0);
-          return { channel: m.CHANNEL_LABEL[c] ?? c, value, formatted: m.formatMetric(metric, value) };
+          const ok = !denom[metric] || (t[denom[metric]] ?? 0) > 0;
+          const value = ok ? cm.valueOf(metric, t) : null;
+          return { channel: m.CHANNEL_LABEL[c] ?? c, key: c, value, formatted: value === null ? '—' : fmt(metric, value) };
         });
-        /* Lower is better for CAC only. Everything else, higher wins. */
-        list.sort((a, b) => (metric === 'CAC' ? a.value - b.value : b.value - a.value));
-        list.forEach((r) => evidence.push({ label: `${r.channel} · ${metric}`, value: r.formatted }));
-        return JSON.stringify({ metric, rangeDays: range, bestFirst: list });
+        const up = cm.betterHigher(metric);
+        list.sort((a, b) => (a.value === null ? 1 : b.value === null ? -1 : up ? b.value - a.value : a.value - b.value));
+        list.forEach((r) => evidence.push({ label: `${r.channel} · ${metric}`, value: r.formatted, channel: r.key }));
+        return JSON.stringify({
+          metric, rangeDays: range,
+          bestFirst: list.map(({ channel, value, formatted }) => ({ channel, value, formatted })),
+          note: list.some((r) => r.value === null) ? 'Channels with value null cannot report this metric (nothing to divide by) -- say so, do not rank them.' : undefined,
+        });
       },
     }),
 
     betaTool({
       name: 'get_series',
       description:
-        'The day-by-day values behind a metric. Use only when the shape over time matters — a spike, a trend, a specific day. For a single figure use get_totals; this returns a lot of points.',
+        'The day-by-day values behind a metric. Use only when the shape over time matters — a spike, a trend, a specific day. For a single figure use get_totals; this returns a lot of points. Funnel metrics only (Spend, Clicks, Leads, Sales, CAC, ROAS).',
       inputSchema: {
         type: 'object',
-        properties: { scope: scopeProp, metric: metricProp },
+        /* 🐛 The shared enum offered Impressions/CTR/CPC/CPM/CVR, which series()
+           has no case for: every value undefined, peak = s[-1], and the tool
+           threw. Offered only what it can answer. */
+        properties: { scope: scopeProp, metric: { ...metricProp, enum: [...m.METRICS] } },
         required: ['scope', 'metric'],
         additionalProperties: false,
       },
       run: ({ scope, metric }: { scope: string; metric: string }) => {
-        const s = m.series(scope, metric, range);
+        const s = m.series(scope, metric, range).filter((d) => Number.isFinite(d.value));
+        if (!s.length) return JSON.stringify({ scope: label(scope), metric, points: [], note: 'No daily values for this metric.' });
         const values = s.map((d) => d.value);
         const peak = s[values.indexOf(Math.max(...values))];
         const low = s[values.indexOf(Math.min(...values))];
@@ -598,26 +635,55 @@ function buildTools(
   ];
 }
 
-async function readBody(
-  req: IncomingMessage,
-): Promise<{
-  question?: string; range?: number; subject?: Subject;
-  findings?: DecisionCandidate[];
-  commitments?: unknown[];
-}> {
-  const chunks: Buffer[] = [];
-  for await (const c of req) chunks.push(c as Buffer);
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  } catch {
-    return {};
-  }
-}
+/* ------------------------------------------------------------ context */
 
-function send(res: ServerResponse, status: number, body: unknown) {
-  res.statusCode = status;
-  res.setHeader('Content-Type', 'application/json');
-  res.end(JSON.stringify(body));
+const SOURCE_TTL = 10 * 60 * 1000;
+const sourceCache = new Map<string, { at: number; data: SourceShape }>();
+interface SourceShape { account: { periodEnd: string; currency: string }; rows: unknown; campaigns?: unknown[] }
+
+/**
+ * Make the server's copy of the data layer match the browser that asked.
+ *
+ * ⚠️ The SSR module graph is ONE shared copy. Two people asking at the same
+ * instant from different accounts would race -- acceptable for a single-user
+ * dev server, and the reason this is not how a deployed backend should work.
+ */
+async function applyContext(server: ViteDevServer, m: Metrics, raw: unknown) {
+  const c = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const structure = (await server.ssrLoadModule('/src/data/structure.ts')) as unknown as { applyStructure: (x: unknown) => void };
+
+  /* 1. The account. Real sources are fetched with the server's own tokens
+        (never sent from the browser), cached briefly -- 180 days of an ad
+        account is several API calls, and a follow-up question should not
+        repeat them. */
+  const source = c.source === 'meta' || c.source === 'google' ? c.source : 'seeded';
+  let data: SourceShape;
+  if (source === 'seeded') {
+    const { seededSource } = (await server.ssrLoadModule('/src/data/sources/seeded.ts')) as unknown as { seededSource: { initial: SourceShape } };
+    data = seededSource.initial;
+  } else {
+    const hit = sourceCache.get(source);
+    if (hit && Date.now() - hit.at < SOURCE_TTL) data = hit.data;
+    else {
+      data = (source === 'meta' ? await loadMeta(server) : await loadGoogle(server)) as SourceShape;
+      sourceCache.set(source, { at: Date.now(), data });
+    }
+  }
+  m.hydrate({ rows: data.rows, periodEnd: data.account.periodEnd, currency: data.account.currency });
+  structure.applyStructure(data.campaigns);
+
+  /* 2. Which channels this business runs. */
+  if (Array.isArray(c.channels)) {
+    m.setActiveChannels(m.CHANNEL_KEYS.filter((k) => (c.channels as unknown[]).includes(k)));
+  } else {
+    m.setActiveChannels([...m.CHANNEL_KEYS]);
+  }
+
+  /* 3. The threshold every rule shares, and the budgets pacing reads. */
+  const prefs = (await server.ssrLoadModule('/src/data/prefs.ts')) as unknown as { adoptPrefs: (p: { changeThreshold?: number }) => void };
+  prefs.adoptPrefs({ changeThreshold: typeof c.threshold === 'number' ? c.threshold : 15 });
+  const profile = (await server.ssrLoadModule('/src/data/profile.ts')) as unknown as { adoptBudgets: (b: unknown) => void };
+  profile.adoptBudgets({ monthly: c.monthlyBudget, channels: c.channelBudgets });
 }
 
 /**
@@ -652,15 +718,27 @@ export function assistantApi(): Plugin {
           });
         }
 
-        const body = await readBody(req);
-        const { question, subject, findings, commitments } = body;
-        /* Any whole number of days 1-90 (Phase 3), anything else falls back to
-           30 rather than reaching the metric functions unchecked. */
-        const asked = Number(body.range);
-        const range = Number.isInteger(asked) && asked >= 1 && asked <= 90 ? asked : 30;
-        if (!question?.trim()) return send(res, 400, { error: 'Question required.' });
-
         try {
+          /* 🐛 This read the body and called question.trim() OUTSIDE the try:
+             {"question": 1} threw, the rejection went unhandled, and the whole
+             dev server exited. Everything is inside the try now, and every
+             field is checked before use. Sizes are capped because every byte
+             here is re-sent to a paid model on every tool round. */
+          const body = await readJson(req, 300_000);
+          const question = typeof body.question === 'string' ? body.question.trim() : '';
+          if (!question) return send(res, 400, { error: 'Question required.' });
+          if (question.length > 2000) return send(res, 413, { error: 'Question too long (2,000 characters max).' });
+          /* Any whole number of days 1-90 (Phase 3), anything else falls back to
+             30 rather than reaching the metric functions unchecked. */
+          const asked = Number(body.range);
+          const range = Number.isInteger(asked) && asked >= 1 && asked <= 90 ? asked : 30;
+          const rawSubject = body.subject as Partial<Subject> | undefined;
+          const subject = rawSubject && typeof rawSubject.kind === 'string' && typeof rawSubject.id === 'string'
+            ? { kind: rawSubject.kind, id: rawSubject.id, label: String(rawSubject.label ?? rawSubject.id).slice(0, 200) }
+            : undefined;
+          const findings = Array.isArray(body.findings) ? (body.findings as DecisionCandidate[]).slice(0, 40) : undefined;
+          const commitments = Array.isArray(body.commitments) ? body.commitments.slice(0, 50) : [];
+
           /* Load the dashboard's own data layer through Vite so the tools call
              the exact functions the charts call — one source of truth. */
           const m = (await server.ssrLoadModule('/src/data/metrics.ts')) as unknown as Metrics;
@@ -672,7 +750,14 @@ export function assistantApi(): Plugin {
           const b = (await server.ssrLoadModule('/src/data/blended.ts')) as unknown as Blended;
           const cm = (await server.ssrLoadModule('/src/data/channelMetrics.ts')) as unknown as ChannelMetrics;
           const sc = (await server.ssrLoadModule('/src/data/scenario.ts')) as unknown as Scenario;
-          /* Pure data, no React — safe to load here. */
+
+          /* ⭐ The browser's account and settings, applied to the server's copy
+             of the data layer before any tool runs -- so the model and the
+             screens answer from the same numbers. */
+          await applyContext(server, m, body.context);
+
+          /* Pure data, no React — safe to load here. Read AFTER the context, so
+             a real account's campaigns are the ones names are matched against. */
           const { CAMPAIGNS } = (await server.ssrLoadModule('/src/data/campaigns.ts')) as
             unknown as { CAMPAIGNS: CampaignRec[] };
 
@@ -681,6 +766,10 @@ export function assistantApi(): Plugin {
 
           const runner = client.beta.messages.toolRunner({
             model: MODEL,
+            /* A hard ceiling on tool rounds. The SDK has no default, so a model
+               that kept calling tools would keep spending. Six covers every real
+               question (the longest seen used four). */
+            max_iterations: 6,
             max_tokens: 4000,
             output_config: { effort: 'low' },
             system: systemFor(m.CURRENCY ?? 'USD'),
@@ -688,10 +777,9 @@ export function assistantApi(): Plugin {
               ...buildTools(
                 m, d, b, cm, sc, range, evidence,
                 /* What the caller said, or failing that what the question names. */
-                (subject as Subject | undefined)
-                  ?? inferSubject(String(question), CAMPAIGNS, m.CHANNEL_LABEL),
-                Array.isArray(findings) ? findings : undefined,
-                Array.isArray(commitments) ? commitments : [],
+                subject ?? inferSubject(question, CAMPAIGNS, m.CHANNEL_LABEL),
+                findings,
+                commitments,
               ),
               /* Server-side: runs on Anthropic's infrastructure, so there is no
                  run() to write and no search account to hold. Capped at 3 so a

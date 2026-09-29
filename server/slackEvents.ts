@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { readRaw } from './http.js';
 
 /**
  * Slack Events — the push half of real-time.
@@ -118,10 +119,9 @@ export function subscriberCount(): number {
 /* ---------- raw body ---------- */
 
 /** Read the body as bytes. The signature is computed over exactly this. */
-export function rawBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve) => {
-    const chunks: Buffer[] = [];
-    req.on('data', (c: Buffer) => chunks.push(c));
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-  });
+/* Capped BEFORE the signature is checked: this route is public (Slack has to
+   reach it), so an unsigned multi-gigabyte POST must not be buffered whole.
+   Slack's own payloads are a few KB. */
+export async function rawBody(req: IncomingMessage): Promise<string> {
+  return (await readRaw(req, 256_000)).toString('utf8');
 }
