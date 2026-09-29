@@ -30,7 +30,7 @@ describe('the engine knows what moved this week', () => {
 
   it('a good move asks what WORKED, so it can be repeated', () => {
     const aff = decisions(30, ALL_CHANNELS).find((c) => c.id === 'weekly:leads:affiliates')!;
-    expect(aff.action).toMatch(/what drove Affiliates' 31% jump in leads — and repeat it/);
+    expect(aff.action).toMatch(/what drove Affiliates’ 31% jump in leads — and repeat it/);
   });
 
   it('it asks why -- it never tells you to cut the channel that spiked', () => {

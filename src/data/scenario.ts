@@ -124,14 +124,37 @@ export function scaleWithin(ch: ChannelName, range: Range): { options: CampaignO
   return { options, hold: holdFor(ch) };
 }
 
-/** "$5k", "$5,000", "5000 dollars", "5.5k" -> 5000 / 5500. Undefined if none. */
+/**
+ * The money in a question. "$5k", "$5,000", "5,000", "5000 dollars", "1.5k",
+ * "$1.5 million" -> 5000 / 1500 / 1500000. "$0" -> 0 (said, so answered, never
+ * swapped for a default). Undefined when no amount is named.
+ *
+ * 🐛 Fixed Sept 29: "5,000" (no $) was not read, so "move 5,000 from Meta"
+ * silently moved the $8,000 default; "$500 kept" read the k of "kept" and
+ * became $500,000; "$1.5 million" was $1.50.
+ *
+ * NOT money: "30 days", "7 weeks", "25%", "3x", a bare year, and any bare
+ * number under 100 -- "the last 30 days" must never become a $30 budget.
+ */
 export function parseAmount(q: string): number | undefined {
-  const m = q.match(/\$\s?([\d,]+(?:\.\d+)?)\s*(k|thousand)?|([\d,]+(?:\.\d+)?)\s*(k|thousand|dollars)\b/i);
-  if (!m) return undefined;
-  const n = Number((m[1] ?? m[3]).replace(/,/g, ''));
-  const k = /k|thousand/i.test(m[2] ?? m[4] ?? '');
-  const v = k ? n * 1000 : n;
-  return Number.isFinite(v) && v > 0 ? v : undefined;
+  const re = /(\$\s?)?(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*(k|thousand|mm|m|million)?\b(\s*dollars|\s*bucks)?/gi;
+  for (const m of q.matchAll(re)) {
+    const [whole, dollar, int, frac, unit, word] = m;
+    const n = Number(int.replace(/,/g, '') + (frac ?? ''));
+    const after = q.slice((m.index ?? 0) + whole.length);
+    const mult = !unit ? 1 : /^(k|thousand)$/i.test(unit) ? 1_000 : 1_000_000;
+    /* "m" alone is minutes as often as millions -- only with a $. */
+    if (unit && /^m$/i.test(unit) && !dollar) continue;
+    const money = Boolean(dollar || word || (unit && mult > 1));
+    if (!money) {
+      if (/^\s*(days?|weeks?|months?|years?|%|percent|x\b|times|leads?|clicks?|ads?|campaigns?)/i.test(after)) continue;
+      if (n < 100) continue;
+      if (!int.includes(',') && n >= 1900 && n <= 2100 && !frac) continue;   // a year
+    }
+    const v = n * mult;
+    if (Number.isFinite(v) && v >= 0) return v;
+  }
+  return undefined;
 }
 
 export const label = (ch: ChannelName) => CHANNEL_LABEL[ch];

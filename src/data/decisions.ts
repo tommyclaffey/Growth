@@ -156,8 +156,15 @@ export interface Candidate {
 function checkDate(range: Range, from = new Date()): string {
   const d = new Date(from);
   d.setDate(d.getDate() + range);
-  return d.toISOString().slice(0, 10);
+  /* 🐛 Was toISOString() -- a UTC date. In a US evening that is already
+     tomorrow, so every check date landed a day late, and grading (which
+     compares LOCAL dates) said "Check in 1 day" on the day itself. */
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+
+/** "Meta’s", "Affiliates’" -- never "Affiliates’s". Curly, like all copy. */
+const poss = (name: string) => (name.endsWith('s') ? `${name}’` : `${name}’s`);
 
 function pct(n: number): string {
   return `${Math.round(n * 100)}%`;
@@ -222,7 +229,7 @@ function spendReturnMismatch(range: Range, channels: ChannelName[]): Candidate[]
         tier: 1,
         kind: 'spend-return-mismatch',
         action: `Pause ${adName(a.creative.headline, a.creative.adSetName)}`,
-        because: `It gets ${pct(sShare)} of ${c.name}’s spend but brings in only ${pct(lShare)} of its leads.`,
+        because: `It gets ${pct(sShare)} of ${poss(c.name)} spend but brings in only ${pct(lShare)} of its leads.`,
         evidence: [
           { label: 'Share of campaign spend', value: pct(sShare) },
           { label: 'Share of campaign leads', value: pct(lShare) },
@@ -290,7 +297,7 @@ function scaleWinner(range: Range, channels: ChannelName[]): Candidate[] {
         tier: 2,
         kind: 'scale-winner',
         action: `Increase budget on ${adName(a.creative.headline, a.creative.adSetName)}`,
-        because: `It brings in ${pct(lShare)} of ${c.name}’s leads on just ${pct(sShare)} of its spend.`,
+        because: `It brings in ${pct(lShare)} of ${poss(c.name)} leads on just ${pct(sShare)} of its spend.`,
         evidence: [
           { label: 'Share of campaign leads', value: pct(lShare) },
           { label: 'Share of campaign spend', value: pct(sShare) },
@@ -370,7 +377,7 @@ function pausedWinner(range: Range, channels: ChannelName[]): Candidate[] {
         tier: 1,
         kind: 'paused-winner',
         action: `Review why ${adName(a.creative.headline, a.creative.adSetName)} is paused`,
-        because: `When it ran, it brought in ${pct(lShare)} of ${c.name}’s leads on `
+        because: `When it ran, it brought in ${pct(lShare)} of ${poss(c.name)} leads on `
           + `${pct(sShare)} of its spend. It paid ${formatDerived('CAC', cac)} a lead; the `
           + `campaign pays ${formatDerived('CAC', spend / leads)}. The campaign is still running.`,
         evidence: [
@@ -538,7 +545,7 @@ function concentrationRisk(range: Range, channels: ChannelName[]): Candidate[] {
       kind: 'concentration-risk',
       action: `Build a second ${noun} for ${CHANNEL_LABEL[channel]}`,
       because: `One ${noun}, “${top.creative.headline}”, brings in ${pct(share)} of `
-        + `${CHANNEL_LABEL[channel]}’s leads. There are ${mine.length} live assets.`,
+        + `${poss(CHANNEL_LABEL[channel])} leads. There are ${mine.length} live assets.`,
       evidence: [
         { label: `Top ${noun}’s share of channel leads`, value: pct(share) },
         { label: `${CHANNEL_LABEL[channel]} assets`, value: String(mine.length) },
@@ -547,7 +554,7 @@ function concentrationRisk(range: Range, channels: ChannelName[]): Candidate[] {
       ],
       expectation: {
         outcome: `If this ${noun} stops working, ${pct(share)} of `
-          + `${CHANNEL_LABEL[channel]}’s leads go with it. A second one spreads the risk.`,
+          + `${poss(CHANNEL_LABEL[channel])} leads go with it. A second one spreads the risk.`,
         checkOn: checkDate(range),
       },
       target: { kind: 'channel', id: channel, label: CHANNEL_LABEL[channel] },
@@ -895,8 +902,6 @@ export function validate(c: Candidate): string | null {
  * stop. A cost move asks what broke; a leads move asks what worked, so it can
  * be repeated.
  */
-/** "Meta's", "Affiliates'" -- not "Affiliates's". */
-const poss = (name: string) => (name.endsWith('s') ? `${name}'` : `${name}'s`);
 
 function weeklyMove(channels: ChannelName[]): Candidate[] {
   return notifications(channels)

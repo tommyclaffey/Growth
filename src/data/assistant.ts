@@ -13,7 +13,7 @@ import {
   ASSUME_CAC_HOLDS, ASSUME_LAST_TOUCH, defaultExtra, moveBudget, parseAmount, scaleWithin, whereToScale,
 } from './scenario';
 import { CAMPAIGNS } from './campaigns';
-import { creativeById, creativesFor } from './creative';
+import { creativeById, creativeTotals, creativesFor } from './creative';
 
 /**
  * The assistant.
@@ -339,8 +339,13 @@ function tierWord(c: Candidate): string {
 }
 
 function asEvidence(c: Candidate): Evidence[] {
+  /* 🐛 Every row carried the FINDING's channel, so a Podcasts finding's
+     comparison row "TikTok CAC $33.38" wore the Podcasts mark. A row that names
+     a channel is that channel's. */
+  const named = (label: string) => (Object.entries(CHANNEL_LABEL) as [ChannelName, string][])
+    .find(([, l]) => label.startsWith(l))?.[0];
   return c.evidence.slice(0, 4).map((e) => ({
-    label: e.label, value: e.value, channel: c.channel,
+    label: e.label, value: e.value, channel: named(e.label) ?? c.channel,
   }));
 }
 
@@ -405,7 +410,10 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
      Placed BEFORE the "what's going on" branch because "what would you do about
      Meta" contains no "what's going on" but does name a subject; routed the
      other way it would answer the wrong question. */
-  if (/what would you do|what.s the (call|move|decision)|your recommendation/i.test(q)) {
+  /* 🐛 "What should I do about Meta?" -- the brief's own suggested question --
+     fell through to the account-wide agenda below and answered about
+     everything. With "about <something>" it is this question, scoped. */
+  if (/what would you do|what.s the (call|move|decision)|your recommendation|what (should|do|can) i do (about|with|on)\b/i.test(q)) {
     const campaignFor = subject?.kind === 'campaign'
       ? CAMPAIGNS.find((c) => c.id === subject.id)
       : CAMPAIGNS.find((c) => q.toLowerCase().includes(c.name.toLowerCase().slice(0, 14)));
@@ -417,7 +425,11 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
       : chFor ? { kind: 'channel', id: chFor, label: CHANNEL_LABEL[chFor] }
       : { kind: 'account', id: 'account', label: 'this account' };
 
-    const mine = decisionsFor(tgt, range);
+    /* 🐛 With no subject the target is the account, and decisionsFor(account)
+       returns only ACCOUNT-level findings -- so "What would you do?" answered
+       "One call: review pacing" while "What should I do next?" listed twelve.
+       Nothing named = everything. */
+    const mine = tgt.kind === 'account' ? found : decisionsFor(tgt, range);
     /* ⚠️ Taken decisions leave the NARRATION, not just the buttons.
        
        The prose used `act` and the buttons used takeable(act), which filters what
@@ -514,25 +526,36 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
           : { kind: 'account', id: 'account', label: 'this account' };
 
     const mine = decisionsFor(target, range);
-    const actionable = mine.filter((c) => c.tier !== 3);
+    /* Taken decisions are on the queue, not suggestions -- the same rule the
+       "what would you do" branch follows. */
+    const actionable = mine.filter((c) => c.tier !== 3 && !isFlagged('decision', c.id));
     const questions = mine.filter((c) => c.tier === 3);
     const limits = limitsFor(target.kind);
 
-    /* The numbers first, because that is what they are looking at. */
-    const scope: Scope = target.kind === 'channel' ? (target.id as ChannelName) : 'all';
-    const t = totals(scope, range);
+    /* The numbers first, because that is what they are looking at.
+       🐛 A campaign or ad used to be given the ACCOUNT's totals under its own
+       name ("App Walkthrough Series spend $160,780") -- the whole account's
+       spend, labelled as one campaign's. Each subject gets its own figures. */
+    const scope: Scope = target.kind === 'channel' ? (target.id as ChannelName)
+      : campaign ? campaign.channel : 'all';
+    const t = target.kind === 'ad' ? creativeTotals(target.id, range)
+      : target.kind === 'campaign' ? campaignTotals(target.id, range)
+      : totals(scope, range);
+    const figures = `${formatMetric('Spend', t.spend)} spend, ${formatMetric('Leads', t.leads)} leads, `
+      + (t.leads > 0 ? `${formatMetric('CAC', t.cac)} CAC.` : 'no leads yet, so no CAC.');
     const head = target.kind === 'ad'
-      ? `“${target.label}” — an ad in ${campaign?.name ?? 'this account'}, over the ${period}.`
-      : target.kind === 'campaign'
-      ? `${target.label} over the ${period}.`
-      : `${target.label} over the ${period}: ${formatMetric('Spend', t.spend)} spend, `
-        + `${formatMetric('Leads', t.leads)} leads, ${formatMetric('CAC', t.cac)} CAC.`;
+      ? `“${target.label}” — an ad in ${campaign?.name ?? 'this account'}, over the ${period}: ${figures}`
+      : `${target.label} over the ${period}: ${figures}`;
 
     const body: string[] = [head];
 
     if (actionable.length > 0) {
-      body.push(actionable.length === 1 ? 'One thing I can act on:' : `${actionable.length} things I can act on:`);
-      body.push(...actionable.slice(0, 3).map((c) => speak(c)));
+      /* 🐛 Said "5 things I can act on:" above three of them. Counts what it shows. */
+      const shown = actionable.slice(0, 3);
+      body.push(shown.length === 1 ? 'One thing I can act on:'
+        : actionable.length > shown.length ? `${actionable.length} things I can act on — the ${shown.length} strongest:`
+        : `${shown.length} things I can act on:`);
+      body.push(...shown.map((c) => speak(c)));
     } else {
       body.push('Nothing here that this data supports acting on. Not a problem -- just not a finding.');
     }
@@ -551,7 +574,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
       text: body.join('\n\n'),
       evidence: actionable[0] ? asEvidence(actionable[0]) : [
         { label: `${target.label} spend`, value: formatMetric('Spend', t.spend), channel: scope },
-        { label: `${target.label} CAC`, value: formatMetric('CAC', t.cac), channel: scope },
+        { label: `${target.label} CAC`, value: t.leads > 0 ? formatMetric('CAC', t.cac) : '—', channel: scope },
       ],
       /* ⚠️ NO takeable decisions here, deliberately. This is a status answer --
          it reports, it does not argue. The first follow-up routes to "What would
@@ -608,7 +631,10 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
      Now it reports what the engine found — pauses it can actually justify at ad
      level — and hands the channel-level version to the tier-3 refusal, which
      says plainly that this data cannot settle it. */
-  if (/\bcut\b|\bpause\b|\bstop\b|\bkill\b|worst|underperform/i.test(q)) {
+  /* 🐛 "Which channel has the worst ROAS?" landed here on "worst" and answered
+     "At the ad level, yes. Pause…". With a metric named it is a RANKING
+     question, and the ranking branch below owns it. */
+  if (/\bcut\b|\bpause\b|\bstop\b|\bkill\b/i.test(q) || (/worst|underperform/i.test(q) && !metric)) {
     const pauses = found.filter((c) => c.kind === 'spend-return-mismatch');
     const gap = found.find((c) => c.tier === 3);
 
@@ -801,6 +827,14 @@ const leads = (n: number) => Math.round(n).toLocaleString();
 function whatIf(q: string, range: Range, subject?: Target): Answer | undefined {
   const named = channelsInOrder(q);
   const amount = parseAmount(q);
+  /* A stated $0 is an answer to give, not a gap to fill with the default. */
+  if (amount === 0 && /\b(move|shift|add|spend|put|invest|budget|scale)\b/i.test(q)) {
+    return {
+      answered: true,
+      text: 'Moving or adding $0 changes nothing. Give me an amount — "$5k", or "5,000" — and I will project it.',
+      followUps: ['Where should more budget go?'],
+    };
+  }
 
   /* "move / shift $X from A to B" */
   if (/\b(move|shift|reallocat\w*|transfer|swap)\b/i.test(q) && named.length >= 2) {

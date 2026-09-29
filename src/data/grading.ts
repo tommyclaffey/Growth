@@ -1,10 +1,10 @@
 import type { ChannelName } from '../styles/tokens';
-import { campaignTotals } from './campaignSeries';
+import { campaignById, campaignTotals } from './campaignSeries';
 import { stageOf } from './campaignStatus';
 import { creativeById, creativeTotals } from './creative';
 import type { Candidate } from './decisions';
 import { budgetForRange } from './profile';
-import { activeChannels, formatMetric, totals, type Range } from './metrics';
+import { activeChannels, formatMetric, suppliedChannels, totals, type Range } from './metrics';
 
 /**
  * ⭐ Grading -- the decision maker keeps score of itself.
@@ -77,15 +77,19 @@ function measureOf(c: Candidate): Measure | undefined {
 /** The current value of a measure. Undefined if its subject is gone. */
 export function measure(key: string, range: Range): number | undefined {
   const [kind, id] = key.split(':');
-  if (kind === 'campaign-cac') return campaignTotals(id, range).cac || undefined;
-  if (kind === 'ad-leads') return creativeTotals(id, range).leads;
-  if (kind === 'channel-leads') return totals(id as ChannelName, range).leads;
+  /* 🐛 A subject that no longer exists was measured as ZERO -- an ad removed
+     (or an account switched) graded "missed, 40 → 0"; a campaign gone from
+     the list read as Active and graded "done". Gone is undefined: the person
+     is asked how it went, which is the honest state. */
+  if (kind === 'campaign-cac') return campaignById(id) ? campaignTotals(id, range).cac || undefined : undefined;
+  if (kind === 'ad-leads') return creativeById(id) ? creativeTotals(id, range).leads : undefined;
+  if (kind === 'channel-leads') return suppliedChannels().includes(id as ChannelName) ? totals(id as ChannelName, range).leads : undefined;
   if (kind === 'pace:account' || kind === 'pace') {
     const planned = budgetForRange(range);
     const spent = activeChannels().reduce((a, ch) => a + totals(ch, range).spend, 0);
     return planned > 0 ? spent / planned : undefined;
   }
-  if (kind === 'stage-leaves') return stageOf(id) === key.split(':')[2] ? 0 : 1;
+  if (kind === 'stage-leaves') return campaignById(id) ? (stageOf(id) === key.split(':')[2] ? 0 : 1) : undefined;
   return undefined;
 }
 
