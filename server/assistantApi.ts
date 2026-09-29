@@ -29,7 +29,9 @@ type ChannelName = string;
    fine on `claude-haiku-4-5` at roughly a fifth of the cost. One-line swap. */
 const MODEL = 'claude-opus-5';
 
-const SYSTEM = `You are the assistant inside Growth, a cross-channel marketing dashboard.
+const systemFor = (currency: string) => `You are the assistant inside Growth, a cross-channel marketing dashboard.
+You are the team's thought partner: you help them decide how to grow, and you are
+honest about what the numbers can and cannot tell them.
 
 Answer questions about the dashboard's data by calling the tools. The tools read
 the same data the charts render from.
@@ -69,6 +71,14 @@ RULES, IN ORDER OF IMPORTANCE:
    on last-touch. Cutting it is exactly what the data cannot justify, because
    last touch always flatters whichever channel sits nearest the conversion.
 
+2d. WHAT-IF AND SCALING QUESTIONS GO TO project_budget. "Where should more budget
+   go?", "what if I move $5k from A to B?", "how do I scale Affiliates?" -- call
+   project_budget and report what it returns. Never compute a projection
+   yourself. Every projection is conditional: say its assumptions (cost per lead
+   holds as spend grows; last-touch flatters channels near the sale) in the same
+   answer. If it marks a channel as held because its CAC just spiked, say so and
+   do not recommend adding money there.
+
 3. Cost comparisons are not attribution. If you rank channels by CAC or ROAS,
    say that it is a cost comparison — a channel can look expensive and still be
    doing the work that makes another channel convert.
@@ -95,12 +105,15 @@ RULES, IN ORDER OF IMPORTANCE:
 7. Plain text only. No markdown — no asterisks for bold, no headers, no
    bullets. This renders as plain text, so the characters show up literally.
 
-8. Be brief. Two or three sentences. This sits in a panel next to the charts,
-   not in a report. Lead with the answer.
+8. BE BRIEF -- a hard limit, not a style note. At most FOUR short sentences and
+   about 70 words. Lead with the single most important thing. Name at most
+   THREE findings; if there are more, say how many more. Do NOT repeat figures
+   the panel already lists under "Figures used" -- mention a number only when
+   the sentence needs it. A reader should get the answer in one glance.
 
 9. When someone asks what is going on with a metric, a channel, a campaign or an
-   ad, answer in this order: the figures, then what the engine found about it,
-   then what this data cannot tell them about it. Always the third part — a
+   ad, answer in this order -- ONE sentence each: the key figure, the one thing
+   the engine found about it, what this data cannot tell them about it. Always the third part — a
    limitation stated only when the news is bad reads as an excuse; stated every
    time, it is a property of the instrument.
 
@@ -116,7 +129,7 @@ get_blended for any rate and say which channels it covers. Do NOT tell the user 
 metric is unavailable without checking; the tools above are the authority on what
 exists, and if a metric is in their enum, the product has it.
 
-Currency is USD. CAC is dollars per lead. ROAS is a multiple of spend.`;
+Currency is ${currency}. CAC is ${currency} per lead. ROAS is a multiple of spend.`;
 
 interface Metrics {
   /* Not CHANNEL_KEYS: a channel the account has switched off is not part of
@@ -128,6 +141,8 @@ interface Metrics {
   delta: (scope: string, metric: string, range: number) => number;
   series: (scope: string, metric: string, range: number) => { label: string; value: number }[];
   formatMetric: (metric: string, value: number) => string;
+  /** The account's currency, from the loaded source (Phase 3). */
+  CURRENCY?: string;
   METRICS: string[];
 }
 
@@ -197,6 +212,17 @@ interface ChannelMetrics {
   formatDerived: (m: string, v: number) => string;
 }
 
+interface Scenario {
+  whereToScale: (extra: number, range: number) => { options: { channel: string; cac: number; leads: number; hold?: string }[] };
+  moveBudget: (amount: number, from: string, to: string, range: number) =>
+    { lost: number; gained: number; net: number; hold?: string };
+  scaleWithin: (ch: string, range: number) =>
+    { options: { name: string; cac: number; spend: number; plusLeads: number }[]; hold?: string };
+  defaultExtra: (range: number) => number;
+  ASSUME_CAC_HOLDS: string;
+  ASSUME_LAST_TOUCH: string;
+}
+
 interface Blended {
   blendedTotal: (m: string, channels: string[], range: number) => number;
   blendedDelta: (m: string, channels: string[], range: number) => number;
@@ -220,7 +246,7 @@ interface Evidence { label: string; value: string; channel?: string }
 interface Source { title: string; url: string }
 
 function buildTools(
-  m: Metrics, d: Decisions, b: Blended, cm: ChannelMetrics,
+  m: Metrics, d: Decisions, b: Blended, cm: ChannelMetrics, sc: Scenario,
   range: number, evidence: Evidence[], subject?: Subject,
   findings?: DecisionCandidate[],
 ) {
@@ -416,6 +442,49 @@ function buildTools(
     }),
 
     betaTool({
+      name: 'project_budget',
+      description:
+        'What-if projections for growing or moving budget, computed from current cost per lead. '
+        + 'mode "add": where an extra amount buys the most leads across channels (channels whose CAC just spiked are marked hold). '
+        + 'mode "move": leads lost and gained moving an amount from one channel to another. '
+        + 'mode "within": which running campaigns inside one channel to push. '
+        + 'Always report the assumptions it returns.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          mode: { type: 'string', enum: ['add', 'move', 'within'] },
+          amount: { type: 'number', description: 'Money, in the account currency. Omit for a sensible default.' },
+          from: { type: 'string', enum: m.activeChannels(), description: 'mode "move": the channel money comes out of.' },
+          to: { type: 'string', enum: m.activeChannels(), description: 'mode "move": the channel it goes into.' },
+          channel: { type: 'string', enum: m.activeChannels(), description: 'mode "within": the channel to grow.' },
+        },
+        required: ['mode'],
+        additionalProperties: false,
+      },
+      run: ({ mode, amount, from, to, channel }: {
+        mode: 'add' | 'move' | 'within'; amount?: number; from?: string; to?: string; channel?: string;
+      }) => {
+        const r = (n: number) => Math.round(n);
+        const assumptions = [sc.ASSUME_CAC_HOLDS, sc.ASSUME_LAST_TOUCH];
+        if (mode === 'move' && from && to) {
+          const amt = amount ?? r(sc.defaultExtra(range) / 2);
+          const x = sc.moveBudget(amt, from, to, range);
+          evidence.push({ label: `Move ${m.formatMetric('Spend', amt)} ${label(from)} → ${label(to)}`, value: `${x.net >= 0 ? '+' : '−'}${Math.abs(r(x.net))} leads` });
+          return JSON.stringify({ amount: amt, from: label(from), to: label(to), leadsLost: r(x.lost), leadsGained: r(x.gained), netLeads: r(x.net), hold: x.hold, rangeDays: range, assumptions });
+        }
+        if (mode === 'within' && channel) {
+          const w = sc.scaleWithin(channel, range);
+          for (const o of w.options.slice(0, 3)) evidence.push({ label: `${o.name} CAC`, value: m.formatMetric('CAC', o.cac), channel });
+          return JSON.stringify({ channel: label(channel), hold: w.hold, campaigns: w.options.slice(0, 3).map((o) => ({ name: o.name, cac: o.cac, plus25PercentBudget: r(o.spend * 0.25), extraLeads: r(o.plusLeads) })), rangeDays: range, assumptions: [sc.ASSUME_CAC_HOLDS] });
+        }
+        const extra = amount ?? sc.defaultExtra(range);
+        const s = sc.whereToScale(extra, range);
+        for (const o of s.options) evidence.push({ label: `${label(o.channel)} CAC`, value: m.formatMetric('CAC', o.cac), channel: o.channel });
+        return JSON.stringify({ extra, rangeDays: range, options: s.options.map((o) => ({ channel: label(o.channel), cac: o.cac, leads: r(o.leads), hold: o.hold })), assumptions });
+      },
+    }),
+
+    betaTool({
       name: 'get_delta',
       description:
         'Percentage change for one metric — the selected range against the same number of days immediately before it. Positive means the metric rose. Rising is not automatically good: a rising CAC is worse, a rising ROAS is better.',
@@ -580,6 +649,7 @@ export function assistantApi(): Plugin {
           const d = (await server.ssrLoadModule('/src/data/decisions.ts')) as unknown as Decisions;
           const b = (await server.ssrLoadModule('/src/data/blended.ts')) as unknown as Blended;
           const cm = (await server.ssrLoadModule('/src/data/channelMetrics.ts')) as unknown as ChannelMetrics;
+          const sc = (await server.ssrLoadModule('/src/data/scenario.ts')) as unknown as Scenario;
           /* Pure data, no React — safe to load here. */
           const { CAMPAIGNS } = (await server.ssrLoadModule('/src/data/campaigns.ts')) as
             unknown as { CAMPAIGNS: CampaignRec[] };
@@ -591,10 +661,10 @@ export function assistantApi(): Plugin {
             model: MODEL,
             max_tokens: 4000,
             output_config: { effort: 'low' },
-            system: SYSTEM,
+            system: systemFor(m.CURRENCY ?? 'USD'),
             tools: [
               ...buildTools(
-                m, d, b, cm, Number(range), evidence,
+                m, d, b, cm, sc, range, evidence,
                 /* What the caller said, or failing that what the question names. */
                 (subject as Subject | undefined)
                   ?? inferSubject(String(question), CAMPAIGNS, m.CHANNEL_LABEL),

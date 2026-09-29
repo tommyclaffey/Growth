@@ -8,9 +8,10 @@ import { CHANNEL_DEPTH } from './channelDepth';
 import { formatDerived } from './channelMetrics';
 import { budgetForRange } from './profile';
 import {
-  CHANNEL_LABEL, activeChannels, formatMetric, totals, type Range,
+  CHANNEL_LABEL, LAST_WEEK, activeChannels, formatMetric, rowsFor, totals, type Range,
 } from './metrics';
 import { blendedTotal } from './blended';
+import { notifications } from './notifications';
 
 /**
  * The decision engine.
@@ -75,7 +76,8 @@ export type DecisionKind =
   | 'beats-its-channel'
   | 'concentration-risk'
   | 'pacing'
-  | 'cross-channel-cost-gap';
+  | 'cross-channel-cost-gap'
+  | 'weekly-move';
 
 export interface Evidence {
   label: string;
@@ -875,6 +877,83 @@ export function validate(c: Candidate): string | null {
 }
 
 /**
+ * ⭐ THIS WEEK'S BIG MOVES, as things to act on.
+ *
+ * 🐛 The engine looked only at the selected window's shape -- pacing, ad
+ * shares, missing variants -- and had no rule for "something just changed".
+ * So Meta's cost per lead jumping 42% in a week sat on Notifications and the
+ * Overview strip, and "what should I do next?" never mentioned it. A thought
+ * partner that misses the thing the whole team is looking at is not one.
+ *
+ * Reads the SAME rules as the notification feed (`notifications()`), so the
+ * two can never disagree about what counts as news -- a second threshold here
+ * is how the strip and the agenda would drift.
+ *
+ * Tier 1, because the move itself is arithmetic. The ACTION is to find out
+ * why, never to react to it: the data knows that CAC rose, not what caused it,
+ * and "cut Meta" off one week is exactly the overreaction the tiers exist to
+ * stop. A cost move asks what broke; a leads move asks what worked, so it can
+ * be repeated.
+ */
+/** "Meta's", "Affiliates'" -- not "Affiliates's". */
+const poss = (name: string) => (name.endsWith('s') ? `${name}'` : `${name}'s`);
+
+function weeklyMove(channels: ChannelName[]): Candidate[] {
+  return notifications(channels)
+    .filter((n) => n.group === 'This week' && n.channel && n.change !== undefined && n.metric)
+    .map((n) => {
+      const ch = n.channel!;
+      const name = CHANNEL_LABEL[ch];
+      const now = totals(ch, LAST_WEEK);
+      const cur = rowsFor(ch, LAST_WEEK);
+      const prev = rowsFor(ch, LAST_WEEK, 1);
+      const sum = (rs: typeof cur, f: 'spend' | 'leads') => rs.reduce((a, r) => a + r[f], 0);
+      const prevCac = sum(prev, 'leads') > 0 ? sum(prev, 'spend') / sum(prev, 'leads') : 0;
+      const bad = n.tone === 'bad';
+      const pct = Math.abs(n.change!);
+      const up = n.change! > 0;
+      const prevLeads = sum(prev, 'leads');
+      const isCac = n.metric === 'CAC';
+      /* The sentence names the metric that moved, with both weeks' figures. */
+      const action = isCac
+        ? (bad ? `Find out why ${name} CAC ${up ? 'rose' : 'fell'} ${pct}% this week`
+               : `Find out what cut ${poss(name)} CAC ${pct}% this week — and repeat it`)
+        : (bad ? `Find out why ${name} leads fell ${pct}% this week`
+               : `Find out what drove ${poss(name)} ${pct}% jump in leads — and repeat it`);
+      const because = isCac
+        ? `${name} paid ${formatDerived('CAC', now.cac)} a lead this week, against `
+          + `${formatDerived('CAC', prevCac)} the week before. The move is in the numbers; the cause is not.`
+        : `${name} brought in ${Math.round(now.leads).toLocaleString()} leads this week, against `
+          + `${Math.round(prevLeads).toLocaleString()} the week before. The move is in the numbers; the cause is not.`;
+      return {
+        id: `weekly:${n.id}`,
+        tier: 1 as Tier,
+        kind: 'weekly-move' as DecisionKind,
+        action,
+        because,
+        evidence: [
+          { label: 'This week CAC', value: formatDerived('CAC', now.cac) },
+          { label: 'Last week CAC', value: formatDerived('CAC', prevCac) },
+          { label: 'Leads this week', value: Math.round(now.leads).toLocaleString() },
+          { label: 'Change', value: `${n.change! > 0 ? '+' : ''}${n.change}% ${n.metric}` },
+        ],
+        expectation: {
+          outcome: bad
+            ? 'You know whether it is the audience, the creative or the auction before the next budget change.'
+            : 'You know what changed, so it can be done again on purpose.',
+          checkOn: checkDate(LAST_WEEK),
+        },
+        target: { kind: 'channel' as const, id: ch, label: name },
+        scope: [name],
+        channel: ch,
+        atStake: now.spend,
+        /* Ahead of the slow structural findings: this is what changed. */
+        strength: Math.min(1, 0.7 + pct / 100),
+      };
+    });
+}
+
+/**
  * Every candidate the data supports, best-supported first.
  *
  * ⭐ Sorted by TIER, then strength. **Never by `atStake`.** Sorting by money puts
@@ -886,6 +965,7 @@ export function decisions(
   channels: ChannelName[] = activeChannels(),
 ): Candidate[] {
   const all = [
+    ...weeklyMove(channels),
     ...spendReturnMismatch(range, channels),
     ...pausedWinner(range, channels),
     ...scaleWinner(range, channels),

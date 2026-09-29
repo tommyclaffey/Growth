@@ -5,6 +5,9 @@ import {
 import type { ChannelName } from '../styles/tokens';
 import { decisions, decisionsFor, limitsFor, type Candidate, type Target } from './decisions';
 import { isFlagged } from './attention';
+import {
+  ASSUME_CAC_HOLDS, ASSUME_LAST_TOUCH, defaultExtra, moveBudget, parseAmount, scaleWithin, whereToScale,
+} from './scenario';
 import { CAMPAIGNS } from './campaigns';
 import { creativeById, creativesFor } from './creative';
 
@@ -377,6 +380,12 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
   const period = rangeLabel(range).toLowerCase();
 
   const found = decisions(range);
+
+  /* ⭐ WHAT IF -- scaling and moving money (scenario.ts). Checked first: "where
+     should more budget go" also matches the agenda's "where should", and would
+     otherwise answer a different question -- what to fix, not where to grow. */
+  const scenario = whatIf(q, range, subject);
+  if (scenario) return scenario;
 
   /* "what would you do about X" -- the decision, scoped to one subject.
 
@@ -752,5 +761,127 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
     followUps: ['What should I do next?', 'What can this data not tell me?'],
     answered: false,
     text: `I could not turn that into a question about this data. I can only answer from what is on these screens — spend, clicks, leads, sales, CAC and ROAS, by channel, over the selected range. I do not have campaign history, creative, audiences or anything outside this dashboard, so I would rather say that than guess.`,
+  };
+}
+
+
+/* ------------------------------------------------------------ what if -- */
+
+/** Channels named in the question, in the order they appear -- "from A to B". */
+function channelsInOrder(q: string): ChannelName[] {
+  const lower = q.toLowerCase();
+  return activeChannels()
+    .map((k) => ({ k, i: Math.max(lower.indexOf(CHANNEL_LABEL[k].toLowerCase()), lower.indexOf(k.toLowerCase())) }))
+    .filter((x) => x.i >= 0)
+    .sort((a, b) => a.i - b.i)
+    .map((x) => x.k);
+}
+
+const money = (n: number) => formatMetric('Spend', n);
+const cacOf = (n: number) => formatMetric('CAC', n);
+const leads = (n: number) => Math.round(n).toLocaleString();
+
+/**
+ * The scaling questions, answered as projections with their assumptions said.
+ * Short lines, one idea each -- the answer is read, not studied.
+ */
+function whatIf(q: string, range: Range, subject?: Target): Answer | undefined {
+  const named = channelsInOrder(q);
+  const amount = parseAmount(q);
+
+  /* "move / shift $X from A to B" */
+  if (/\b(move|shift|reallocat\w*|transfer|swap)\b/i.test(q) && named.length >= 2) {
+    const amt = amount ?? Math.round(defaultExtra(range) / 2);
+    const [from, to] = named;
+    const m = moveBudget(amt, from, to, range);
+    const verdict = m.net >= 0
+      ? `About ${leads(m.net)} more leads overall.`
+      : `About ${leads(-m.net)} FEWER leads overall — ${CHANNEL_LABEL[to]} costs more per lead.`;
+    return {
+      answered: true,
+      text: [
+        `Moving ${money(amt)} from ${CHANNEL_LABEL[from]} to ${CHANNEL_LABEL[to]} over the ${rangeLabel(range).toLowerCase()}:`,
+        `• ${CHANNEL_LABEL[from]} loses about ${leads(m.lost)} leads.`,
+        `• ${CHANNEL_LABEL[to]} gains about ${leads(m.gained)}.`,
+        `• ${verdict}`,
+        ...(m.hold ? [`⚠️ Careful: ${CHANNEL_LABEL[to]} — ${m.hold}.`] : []),
+        `Assuming ${ASSUME_CAC_HOLDS}`,
+        `And: ${ASSUME_LAST_TOUCH}`,
+      ].join('\n'),
+      evidence: [
+        { label: `${CHANNEL_LABEL[from]} CAC`, value: cacOf(totals(from, range).cac), channel: from },
+        { label: `${CHANNEL_LABEL[to]} CAC`, value: cacOf(totals(to, range).cac), channel: to },
+        { label: 'Net leads', value: `${m.net >= 0 ? '+' : '−'}${leads(Math.abs(m.net))}` },
+      ],
+      followUps: [
+        'Where should more budget go?',
+        `What would you do about ${CHANNEL_LABEL[from]}?`,
+        'What can this data not tell me?',
+      ],
+    };
+  }
+
+  const scaling = /more (budget|money|spend)|extra (budget|money|spend)|where should (more|extra|the next|another)|\bscale\b|\bgrow\b|get more of|double down|invest more|\badd\w*\s+\$|what if i (add|spend|put)/i;
+  if (!scaling.test(q)) return undefined;
+
+  const ch = named[0] ?? (subject?.kind === 'channel' ? (subject.id as ChannelName) : undefined);
+
+  /* "how do I get more of what's working on Affiliates?" -- inside one channel. */
+  if (ch) {
+    const w = scaleWithin(ch, range);
+    if (w.options.length === 0) {
+      return { answered: true, text: `${CHANNEL_LABEL[ch]} has no running campaigns to put more money behind.`,
+        followUps: ['Where should more budget go?'] };
+    }
+    const best = w.options[0];
+    const jump = delta(ch, 'Leads', 7);
+    return {
+      answered: true,
+      text: [
+        `To grow ${CHANNEL_LABEL[ch]}, push the campaign that buys leads cheapest:`,
+        ...w.options.slice(0, 3).map((o, i) =>
+          `${i + 1}. ${o.name} — ${cacOf(o.cac)} a lead. +25% budget (about ${money(o.spend * 0.25)}) ≈ ${leads(o.plusLeads)} more leads.`),
+        ...(w.hold ? [`⚠️ Hold first: ${w.hold}.`] : []),
+        ...(!w.hold && jump >= 15
+          ? [`Its leads jumped ${jump}% this week. Find out what drove that before scaling, so you grow the right thing.`]
+          : []),
+        `Assuming ${ASSUME_CAC_HOLDS}`,
+      ].join('\n'),
+      evidence: w.options.slice(0, 3).map((o) => ({ label: `${o.name} CAC`, value: cacOf(o.cac), channel: ch })),
+      followUps: [
+        `Why is ${CHANNEL_LABEL[ch]} CAC ${delta(ch, 'CAC', 7) > 0 ? 'up' : 'down'}?`,
+        'Where should more budget go?',
+        `What would you do about ${best.name}?`,
+      ],
+    };
+  }
+
+  /* "where should more budget go?" -- across channels. */
+  const extra = amount ?? defaultExtra(range);
+  const s = whereToScale(extra, range);
+  const go = s.options.filter((o) => !o.hold);
+  const held = s.options.filter((o) => o.hold);
+  if (go.length === 0) {
+    return { answered: true, text: 'Every channel with spend has a cost spike this week. Find out why before adding money anywhere.' };
+  }
+  return {
+    answered: true,
+    text: [
+      `An extra ${money(extra)} over the ${rangeLabel(range).toLowerCase()} buys the most leads here:`,
+      ...go.slice(0, 3).map((o, i) =>
+        `${i + 1}. ${CHANNEL_LABEL[o.channel]} — ${cacOf(o.cac)} a lead ≈ ${leads(o.leads)} leads.`),
+      ...held.map((o) => `⚠️ Not ${CHANNEL_LABEL[o.channel]} yet: ${o.hold}.`),
+      `Splitting it across the top two is safer than one — each gets dearer as it grows.`,
+      `Assuming ${ASSUME_CAC_HOLDS}`,
+      `And: ${ASSUME_LAST_TOUCH}`,
+    ].join('\n'),
+    evidence: s.options.map((o) => ({ label: `${CHANNEL_LABEL[o.channel]} CAC`, value: cacOf(o.cac), channel: o.channel })),
+    followUps: [
+      `How do I scale ${CHANNEL_LABEL[go[0].channel]}?`,
+      /* NOT "move money from the dearest channel to the cheapest" -- that is
+         the podcast trap, and a suggested question is a nudge. */
+      'What should I do next?',
+      'What can this data not tell me?',
+    ],
   };
 }

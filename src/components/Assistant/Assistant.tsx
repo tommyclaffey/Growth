@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useOverlay } from '../../data/useOverlay';
 import './Assistant.css';
-import { SUGGESTIONS, resolveSubject, type Answer } from '../../data/assistant';
+import { resolveSubject, type Answer } from '../../data/assistant';
+import { brief } from '../../data/brief';
 import { decisions, figuresFor, type Target } from '../../data/decisions';
 import { baselineFor } from '../../data/grading';
 import { addFlag, isFlagged, ownDecisionId, removeFlag, useFlags } from '../../data/attention';
@@ -144,24 +145,38 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
         </header>
 
         <div className="gr-assist__body">
-          {turns.length === 0 && (
-            <div className="gr-assist__empty">
-              <p className="gr-type-body">
-                Ask me what to do. I read the same numbers the charts do, and I will tell
-                you which findings this data can support and which it cannot — with the
-                figures I used, every time.
-              </p>
-              <div className="gr-assist__suggestions">
-                {SUGGESTIONS.map((sugg) => (
-                  <button key={sugg} type="button"
-                          className="gr-assist__suggestion gr-type-body"
-                          onClick={() => submit(sugg)}>
-                    {sugg}
-                  </button>
-                ))}
+          {turns.length === 0 && (() => {
+            /* ⭐ The partner speaks first: what moved, what is waiting, what is
+               late, how the calls have gone -- then what to ask about it. The
+               fixed intro and four standing questions said the same thing
+               every day, whatever had happened. */
+            const b = brief(range);
+            return (
+              <div className="gr-assist__empty">
+                <p className="gr-type-card-heading gr-assist__brief-head">
+                  Here&rsquo;s where things stand <span className="gr-type-caption">· {b.heading}</span>
+                </p>
+                <ul className="gr-assist__brief">
+                  {b.lines.map((l) => (
+                    <li key={l.text} className={`gr-type-body tone-${l.tone}`}>
+                      <span className="gr-assist__brief-dot" aria-hidden="true" />
+                      {l.text}
+                    </li>
+                  ))}
+                </ul>
+                <p className="gr-type-caption gr-assist__brief-q">Where do you want to start?</p>
+                <div className="gr-assist__suggestions">
+                  {b.asks.map((sugg) => (
+                    <button key={sugg} type="button"
+                            className="gr-assist__suggestion gr-type-body"
+                            onClick={() => submit(sugg)}>
+                      {sugg}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {turns.map((t) => (
             <div key={t.id} className="gr-assist__turn">

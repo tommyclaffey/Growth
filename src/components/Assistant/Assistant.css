@@ -308,3 +308,17 @@
   color: var(--text-primary);
   margin: 0 0 var(--space-4);
 }
+
+/* The opening brief: five short lines, each with a tone dot, then the asks. */
+.gr-assist__brief-head { margin: 0 0 var(--space-10); color: var(--text-primary); }
+.gr-assist__brief-head .gr-type-caption { color: var(--text-muted); font-weight: 400; }
+.gr-assist__brief { list-style: none; margin: 0 0 var(--space-16); padding: 0; display: grid; gap: var(--space-8); }
+.gr-assist__brief li { display: flex; align-items: baseline; gap: var(--space-10); color: var(--text-primary); }
+.gr-assist__brief-dot {
+  flex: none; width: 8px; height: 8px; border-radius: var(--radius-pill);
+  background: var(--text-muted); transform: translateY(-1px);
+}
+.gr-assist__brief .tone-bad .gr-assist__brief-dot { background: var(--semantic-bad); }
+.gr-assist__brief .tone-good .gr-assist__brief-dot { background: var(--semantic-good); }
+.gr-assist__brief .tone-warn .gr-assist__brief-dot { background: var(--semantic-warn); }
+.gr-assist__brief-q { margin: 0 0 var(--space-8); color: var(--text-muted); }
