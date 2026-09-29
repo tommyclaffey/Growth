@@ -10,6 +10,9 @@
 .gr-report-name { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .gr-report-name strong { color: var(--text-primary); font-weight: 500; }
 .gr-report-name span   { color: var(--text-muted); }
+/* "Never run" sits where other rows have a 16px line of small text; a full
+   24px badge made that one row 7px taller than the rest. */
+.gr-report-name .gr-badge { height: 16px; padding: 0 var(--space-6); }
 
 /* Notifications */
 
@@ -18,9 +21,13 @@
 .gr-setting-row {
   display: flex; align-items: center; gap: var(--space-16);
   padding: var(--space-12) 0;
-  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+  /* -default, like the card's own outline: -subtle was 1.02:1 in dark mode. */
+  border-bottom: var(--border-width-sm) solid var(--border-default);
 }
 .gr-setting-row:last-child { border-bottom: none; }
+/* The toggle's 44px tap area stays; it just stops setting the row height.
+   The same six channels were 69px rows in one card and 57 in the next. */
+.gr-setting-row .gr-toggle { margin-block: calc(var(--space-6) * -1); }
 .gr-setting-row__text { flex: 1; min-width: 0; }
 .gr-setting-row__text strong { display: block; color: var(--text-primary); font-weight: 500; }
 .gr-setting-row__text span   { color: var(--text-muted); }
@@ -53,7 +60,9 @@
 
 .gr-setting-row__connect {
   flex: none;
-  padding: var(--space-6) var(--space-12);
+  /* 32, like every other Settings control (was 30). */
+  height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 var(--space-12);
   border: var(--border-width-sm) solid var(--border-default);
   border-radius: var(--radius-md);
   background: var(--surface-card);
@@ -136,6 +145,9 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-report-stat dd { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); color: var(--text-primary); }
 .gr-card__header .gr-spacer { flex: 1; }
 .gr-report-stat__sub { color: var(--text-muted); }
+/* The headline slot is 24 in every summary card -- the avatar row is 24 and
+   the numbers were 20, so the lines beneath them sat 4px apart. */
+.gr-report-stat dd > :first-child { min-height: 24px; display: flex; align-items: center; }
 
 /* "+2" beside the faces -- people outside the workspace, the same size as an
    avatar so the row reads as one list of recipients. */
@@ -168,6 +180,10 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-report-preview__title { margin: 0; color: var(--text-primary); }
 .gr-report-preview__sub { margin: var(--space-2) 0 0; color: var(--text-muted); }
 .gr-report-preview__table td, .gr-report-preview__table th { background: transparent; }
+/* The preview sits on the page tone, which is exactly the no-change pill's
+   fill and the row lines' colour in light mode -- both disappeared. */
+.gr-report-preview .gr-delta.is-flat { background: var(--surface-card); }
+.gr-report-preview__table td { border-bottom-color: var(--border-default); }
 .gr-report-preview__total td { border-top: var(--border-width-sm) solid var(--border-default); color: var(--text-primary); }
 
 /* Simulate-state control. A radiogroup, not a set of toggles: the states are
@@ -218,7 +234,7 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 }
 .gr-campaign__note {
   color: var(--text-muted);
-  padding: var(--space-12) var(--space-12) 0;
+  padding: var(--space-12) 0 0;   /* flush with the content above (was indented 12 from every edge) */
   border-top: var(--border-width-sm) solid var(--border-subtle);
   margin: var(--space-12) 0 0;
 }
@@ -238,7 +254,7 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
    content column — a container query, because the viewport has not changed. */
 /* align-items: start -- the copy card was stretched to the artwork's height and
    ended as a short list above a tall empty card. */
-.gr-ad__split { display: grid; gap: var(--space-16); grid-template-columns: 1fr; align-items: start; }
+.gr-ad__split { display: grid; gap: var(--space-14);   /* the KPI row's 14, so the columns sit under the cards above */ grid-template-columns: 1fr; align-items: start; }
 @container (min-width: 780px) { .gr-ad__split { grid-template-columns: 1fr 1fr; } }
 
 .gr-ad__preview { display: flex; flex-direction: column; gap: var(--space-16); }
@@ -399,6 +415,7 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 
 /* A narrow, right-aligned ordinal. Tabular so the numbers line up as the list
    passes 9 and the digits change width. */
+.gr-table thead th.gr-ads__rank { text-align: right; }   /* over its right-aligned digits; .gr-table thead th out-specified it */
 .gr-ads__rank {
   width: 2.5rem;
   text-align: right;
@@ -466,11 +483,15 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 /* The count as a pill, like the strip's badge -- a bare "6" floated loose. */
 .gr-dec__count {
   display: inline-grid; place-items: center;
-  min-width: 20px; height: 20px; padding: 0 var(--space-6);
+  /* 24, the badge height it sits beside -- two pill sizes in one heading read
+     as a mistake. Border -default: -subtle vanished on a card (1.08:1 dark). */
+  min-width: 24px; height: 24px; padding: 0 var(--space-6);
   border-radius: var(--radius-pill);
   color: var(--text-secondary); background: var(--surface-card);
-  border: var(--border-width-sm) solid var(--border-subtle);
+  border: var(--border-width-sm) solid var(--border-default);
 }
+/* Inside a card, a card-coloured pill is invisible -- take the page tone. */
+.gr-card .gr-dec__count { background: var(--surface-page-top); }
 .gr-dec__tier-note {
   color: var(--text-muted); margin: calc(var(--space-4) * -1) 0 var(--space-12); max-width: 74ch;
 }

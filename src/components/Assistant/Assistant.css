@@ -84,6 +84,10 @@
   border: var(--border-width-sm) solid var(--border-default);
   background: var(--surface-page-top);
 }
+/* Scoped under .gr-assist__a so it outranks `.gr-assist__a p { margin: 0 }`,
+   which silently cancelled this spacing -- paragraphs touched, and "Figures
+   used" sat on its first row. */
+.gr-assist__a .gr-assist__evidence-head,
 .gr-assist__evidence-head { color: var(--text-muted); margin: 0 0 var(--space-8); }
 .gr-assist__row {
   display: flex; align-items: center; gap: var(--space-8);
@@ -125,6 +129,7 @@
 .gr-assist__send:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
 
 .gr-assist__foot {
+  margin: 0;
   padding: 0 var(--space-20) var(--space-14);
   color: var(--text-muted);
 }
@@ -204,8 +209,8 @@
 
 /* Single-newline breaks inside a paragraph are meaningful here -- an expectation
    and the assumption under it are separate lines of one thought. */
-.gr-assist__para { white-space: pre-line; margin: 0 0 var(--space-8); }
-.gr-assist__para:last-of-type { margin-bottom: 0; }
+.gr-assist__a .gr-assist__para { white-space: pre-line; margin: 0 0 var(--space-8); }
+.gr-assist__a .gr-assist__para:last-of-type { margin-bottom: 0; }
 
 /* Take a decision, straight from the answer.
 
@@ -227,7 +232,7 @@
 /* A real button, not a link — it changes state rather than navigating. */
 .gr-assist__take {
   flex: none;
-  height: 26px;
+  height: 28px;   /* on the grid (was 26) */
   /* ⚠️ Both states share a width. "Make the decision" and "✓ On your queue" are
      different lengths, so without this the button resized on click and the
      action text beside it jumped sideways -- a control that moves the thing it
@@ -296,10 +301,21 @@
 .gr-assist__decision-text {
   color: var(--text-primary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  flex: 0 1 auto;
 }
 /* What it touches — the campaign, the channel, or the account. Quieter than the
    action, because the action is the thing being agreed to. */
-.gr-assist__decision-ctx { color: var(--text-muted); white-space: nowrap; flex: none; }
+/* The ACTION keeps the room; the context gives way. With the context rigid
+   (flex: none) the action was squeezed to 163px beside 349px of context, and
+   two different decisions both read 'Review why "Start free, no …'. */
+.gr-assist__decision-ctx {
+  color: var(--text-muted); white-space: nowrap;
+  /* Shrinks 100x faster than the action, so the ACTION keeps its words and
+     the label gives way -- and nothing truncates while there is room. (A
+     percentage cap was tried first: against a shrink-to-fit row it cut the
+     action short even with space to spare.) */
+  flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* The agent asking, not a label over a control group. Body type because
    everything else in this panel that speaks is body type — an overline here read

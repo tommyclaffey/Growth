@@ -18,7 +18,9 @@
   width: 44px; height: 24px; flex: none;
   border-radius: var(--radius-pill);
   background: var(--surface-disabled);
-  border: var(--border-width-sm) solid var(--border-default);
+  /* border-strong, not -default: an OFF switch is still a control, and in dark
+     mode the default border was 1.13:1 against the card -- the switch vanished. */
+  border: var(--border-width-sm) solid var(--border-strong);
   transition: background-color 140ms ease, border-color 140ms ease;
 }
 .gr-toggle.is-on .gr-toggle__track {
@@ -36,6 +38,9 @@
   transition: transform 140ms ease;
 }
 .gr-toggle.is-on .gr-toggle__thumb { transform: translateX(20px); }
+/* Dark: a card-coloured thumb on a near-card track was 1.08:1 -- the OFF
+   state could not be seen at all. The muted icon colour is 5.9:1. */
+[data-theme='dark'] .gr-toggle:not(.is-on) .gr-toggle__thumb { background: var(--icon-muted); }
 
 .gr-toggle__label { color: var(--text-primary); }
 

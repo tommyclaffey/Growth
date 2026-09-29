@@ -74,7 +74,7 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
             <th scope="col">Leads</th>
             {wideColumns && <th scope="col">CAC</th>}
             <th scope="col">ROAS</th>
-            {onAskAbout && <th scope="col"><span className="gr-sr-only">Discuss</span></th>}
+            {onAskAbout && <th scope="col" className="gr-table__ask"><span className="gr-sr-only">Discuss</span></th>}
           </tr>
         </thead>
         <tbody>

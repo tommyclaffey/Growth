@@ -15,7 +15,9 @@
   flex: 1 1 233px;
   min-width: 200px;
   min-height: 122px;
-  padding: var(--space-16);
+  /* 20 across, like every other card: at 16 the KPI labels started 4px left
+     of the card titles stacked beneath them. */
+  padding: var(--space-16) var(--space-20);
   border-radius: var(--radius-xl);
   border: var(--border-width-sm) solid var(--border-default);
   background: linear-gradient(to bottom, var(--surface-card), var(--surface-card-tint));
