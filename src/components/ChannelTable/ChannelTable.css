@@ -22,6 +22,11 @@
   align-items: center;
   gap: var(--space-12);
   padding-bottom: var(--space-10);
+  /* One height for every header, the tallest control's (the chart's 32).
+     Without it a title sat 19, 21, 23 or 24px from the card top depending on
+     what happened to be beside it -- so cards side by side had titles at
+     different heights. */
+  min-height: 32px;
 }
 
 /* A subtitle is not an action, so it stacks under the title rather than

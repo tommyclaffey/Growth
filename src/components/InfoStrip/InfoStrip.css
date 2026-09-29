@@ -4,7 +4,7 @@
   flex-wrap: wrap;
   gap: var(--space-10);
   min-height: 50px;
-  padding: var(--space-12) var(--space-16);
+  padding: var(--space-12) var(--space-20);   /* the cards' 20, so its left edge lines up with theirs */
   border-radius: var(--radius-lg);
   border: var(--border-width-sm) solid var(--border-default);
   background: linear-gradient(to bottom, var(--surface-card), var(--surface-card-tint));

@@ -25,6 +25,9 @@
   border-bottom: var(--border-width-sm) solid var(--border-default);
 }
 .gr-setting-row:last-child { border-bottom: none; }
+/* The toggle's 44px tap area stays; it just stops setting the row height.
+   The same six channels were 69px rows in one card and 57 in the next. */
+.gr-setting-row .gr-toggle { margin-block: calc(var(--space-6) * -1); }
 .gr-setting-row__text { flex: 1; min-width: 0; }
 .gr-setting-row__text strong { display: block; color: var(--text-primary); font-weight: 500; }
 .gr-setting-row__text span   { color: var(--text-muted); }
@@ -142,6 +145,9 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-report-stat dd { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); color: var(--text-primary); }
 .gr-card__header .gr-spacer { flex: 1; }
 .gr-report-stat__sub { color: var(--text-muted); }
+/* The headline slot is 24 in every summary card -- the avatar row is 24 and
+   the numbers were 20, so the lines beneath them sat 4px apart. */
+.gr-report-stat dd > :first-child { min-height: 24px; display: flex; align-items: center; }
 
 /* "+2" beside the faces -- people outside the workspace, the same size as an
    avatar so the row reads as one list of recipients. */
@@ -228,7 +234,7 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 }
 .gr-campaign__note {
   color: var(--text-muted);
-  padding: var(--space-12) var(--space-12) 0;
+  padding: var(--space-12) 0 0;   /* flush with the content above (was indented 12 from every edge) */
   border-top: var(--border-width-sm) solid var(--border-subtle);
   margin: var(--space-12) 0 0;
 }
@@ -248,7 +254,7 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
    content column — a container query, because the viewport has not changed. */
 /* align-items: start -- the copy card was stretched to the artwork's height and
    ended as a short list above a tall empty card. */
-.gr-ad__split { display: grid; gap: var(--space-16); grid-template-columns: 1fr; align-items: start; }
+.gr-ad__split { display: grid; gap: var(--space-14);   /* the KPI row's 14, so the columns sit under the cards above */ grid-template-columns: 1fr; align-items: start; }
 @container (min-width: 780px) { .gr-ad__split { grid-template-columns: 1fr 1fr; } }
 
 .gr-ad__preview { display: flex; flex-direction: column; gap: var(--space-16); }
