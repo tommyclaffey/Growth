@@ -58,21 +58,25 @@ export function Reports() {
     .filter((x): x is { r: Report; at: Date } => x.at !== undefined)
     .sort((a, b) => a.at.getTime() - b.at.getTime())[0];
   const people = new Set(list.flatMap((r) => (r.stage === 'Draft' ? [] : r.recipients)));
+  const outside = list.filter((r) => r.stage !== 'Draft').reduce((a, r) => a + (r.external ?? 0), 0);
+  const paused = list.filter((r) => r.stage === 'Paused').length;
+  const drafts = list.filter((r) => r.stage === 'Draft').length;
 
   return (
     <>
-      <header className="gr-section-head">
-        <span className="gr-spacer" />
-        {!creating && (
-          <Button variant="primary" onClick={() => setCreating(true)}>New report</Button>
-        )}
-      </header>
-
       <dl className="gr-report-summary">
         <div className="gr-card gr-report-stat">
           <dt className="gr-type-overline">Sending</dt>
-          <dd className="gr-type-card-heading">
-            {running.length} of {list.length} reports
+          {/* A second line on every card, so the three read as one row of
+              equal weight rather than one short card beside two tall ones. */}
+          <dd>
+            <span className="gr-type-card-heading">{running.length} of {list.length} reports</span>
+            <span className="gr-type-caption gr-report-stat__sub">
+              {[
+                paused > 0 && `${paused} paused`,
+                drafts > 0 && `${drafts} draft${drafts > 1 ? 's' : ''}`,
+              ].filter(Boolean).join(' · ') || 'All running'}
+            </span>
           </dd>
         </div>
         <div className="gr-card gr-report-stat">
@@ -88,10 +92,15 @@ export function Reports() {
         </div>
         <div className="gr-card gr-report-stat">
           <dt className="gr-type-overline">Your team receiving</dt>
-          <dd className="gr-report-people">
-            {[...people].map((id) => MEMBERS[id]).filter(Boolean).map((m) => (
-              <Avatar key={m.id} initials={m.initials} hue={m.hue} src={m.avatar} name={m.name} size={24} />
-            ))}
+          <dd>
+            <span className="gr-report-people">
+              {[...people].map((id) => MEMBERS[id]).filter(Boolean).map((m) => (
+                <Avatar key={m.id} initials={m.initials} hue={m.hue} src={m.avatar} name={m.name} size={24} />
+              ))}
+            </span>
+            <span className="gr-type-caption gr-report-stat__sub">
+              {outside > 0 ? `+ ${outside} outside the workspace` : 'Nobody outside the workspace'}
+            </span>
           </dd>
         </div>
       </dl>
@@ -99,6 +108,17 @@ export function Reports() {
       {creating && <NewReport active={active} onDone={() => setCreating(false)} />}
 
       <div className="gr-card">
+        {/* ⭐ New report lives WITH the list it adds to. It sat alone on a row
+            above the summary cards -- a whole line of page for one button, and
+            nowhere near the thing it creates. */}
+        <header className="gr-card__header">
+          <h3 className="gr-card__title gr-type-card-heading">Scheduled reports</h3>
+          <span className="gr-dec__count gr-type-caption-med">{list.length}</span>
+          <span className="gr-spacer" />
+          {!creating && (
+            <Button variant="primary" onClick={() => setCreating(true)}>New report</Button>
+          )}
+        </header>
         <table className="gr-table">
           <thead>
             <tr className="gr-type-overline">

@@ -134,7 +134,7 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-report-stat { gap: var(--space-6); }
 .gr-report-stat dt { color: var(--text-muted); }
 .gr-report-stat dd { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); color: var(--text-primary); }
-.gr-report-stat dd.gr-report-people { flex-direction: row; }
+.gr-card__header .gr-spacer { flex: 1; }
 .gr-report-stat__sub { color: var(--text-muted); }
 
 /* "+2" beside the faces -- people outside the workspace, the same size as an
