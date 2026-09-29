@@ -18,7 +18,8 @@
 .gr-setting-row {
   display: flex; align-items: center; gap: var(--space-16);
   padding: var(--space-12) 0;
-  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+  /* -default, like the card's own outline: -subtle was 1.02:1 in dark mode. */
+  border-bottom: var(--border-width-sm) solid var(--border-default);
 }
 .gr-setting-row:last-child { border-bottom: none; }
 .gr-setting-row__text { flex: 1; min-width: 0; }
@@ -168,6 +169,10 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-report-preview__title { margin: 0; color: var(--text-primary); }
 .gr-report-preview__sub { margin: var(--space-2) 0 0; color: var(--text-muted); }
 .gr-report-preview__table td, .gr-report-preview__table th { background: transparent; }
+/* The preview sits on the page tone, which is exactly the no-change pill's
+   fill and the row lines' colour in light mode -- both disappeared. */
+.gr-report-preview .gr-delta.is-flat { background: var(--surface-card); }
+.gr-report-preview__table td { border-bottom-color: var(--border-default); }
 .gr-report-preview__total td { border-top: var(--border-width-sm) solid var(--border-default); color: var(--text-primary); }
 
 /* Simulate-state control. A radiogroup, not a set of toggles: the states are
@@ -467,11 +472,15 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 /* The count as a pill, like the strip's badge -- a bare "6" floated loose. */
 .gr-dec__count {
   display: inline-grid; place-items: center;
-  min-width: 20px; height: 20px; padding: 0 var(--space-6);
+  /* 24, the badge height it sits beside -- two pill sizes in one heading read
+     as a mistake. Border -default: -subtle vanished on a card (1.08:1 dark). */
+  min-width: 24px; height: 24px; padding: 0 var(--space-6);
   border-radius: var(--radius-pill);
   color: var(--text-secondary); background: var(--surface-card);
-  border: var(--border-width-sm) solid var(--border-subtle);
+  border: var(--border-width-sm) solid var(--border-default);
 }
+/* Inside a card, a card-coloured pill is invisible -- take the page tone. */
+.gr-card .gr-dec__count { background: var(--surface-page-top); }
 .gr-dec__tier-note {
   color: var(--text-muted); margin: calc(var(--space-4) * -1) 0 var(--space-12); max-width: 74ch;
 }
