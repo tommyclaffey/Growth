@@ -1,7 +1,7 @@
 import { CAMPAIGNS, type AdSet, type Campaign } from './campaigns';
-import { campaignRows, campaignSeries } from './campaignSeries';
+import { campaignRows } from './campaignSeries';
 import { valueOf, type DerivedMetric } from './channelMetrics';
-import { changeOf, sampleOf, sliceWindow, type DayRow, type Metric, type Range } from './metrics';
+import { changeOf, sampleOf, sliceWindow, windowLabels, type DayRow, type Metric, type Range } from './metrics';
 
 /**
  * The ad-set tier, which until now had no numbers of its own.
@@ -192,15 +192,13 @@ export function adSetTotals(id: string, range: Range = 30) {
 }
 
 /** One funnel metric over time, in the shape Chart expects. */
-export function adSetSeries(id: string, metric: Metric, range: Range = 30) {
+export function adSetSeries(id: string, metric: Metric, range: Range = 30, shift = 0) {
   const ref = adSetById(id);
   if (!ref) return [];
-  const rows = adSetRows(id, range);
-  /* Labels borrowed from the campaign's own series rather than re-sliced out of
-     DAY_LABELS here. One owner of the axis: if the history length ever changes,
-     the ad-set chart cannot end up labelled differently from the campaign chart
-     directly above it. */
-  const labels = campaignSeries(ref.campaign.id, metric, range).map((p) => p.label);
+  const rows = adSetRows(id, range, 0, shift);
+  /* windowLabels is the ONE owner of the axis now -- every chart's days come
+     from the same window function, so no two can be labelled differently. */
+  const labels = windowLabels(range, 0, shift);
 
   return rows.map((r, i) => {
     let value: number;

@@ -614,9 +614,11 @@ export function rowsFor(scope: Scope, range: Range = 30, back = 0, shift = 0): D
  * podcast spend the same as $2,551/day on Meta and quietly reports a blended
  * CAC that no amount of money was ever actually spent at.
  */
-export function series(scope: Scope, metric: Metric, range: Range = 30): { label: string; value: number }[] {
-  const rows = rowsFor(scope, range);
-  const labels = windowLabels(range);
+export function series(scope: Scope, metric: Metric, range: Range = 30, shift = 0): { label: string; value: number }[] {
+  /* `shift`: the same window, that many days earlier -- the chart's "same
+     days last week / month / year". Empty when the data does not reach. */
+  const rows = rowsFor(scope, range, 0, shift);
+  const labels = windowLabels(range, 0, shift);
   return rows.map((r, i) => {
     let value: number;
     switch (metric) {

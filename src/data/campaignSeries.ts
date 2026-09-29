@@ -101,9 +101,9 @@ export function campaignRows(id: string, range: Range = 30, back = 0, shift = 0)
 }
 
 /** One metric over time for a campaign, shaped like `series()` does for a channel. */
-export function campaignSeries(id: string, metric: Metric, range: Range = 30) {
-  const rows = campaignRows(id, range);
-  const labels = windowLabels(range);
+export function campaignSeries(id: string, metric: Metric, range: Range = 30, shift = 0) {
+  const rows = campaignRows(id, range, 0, shift);
+  const labels = windowLabels(range, 0, shift);
   return rows.map((r, i) => {
     let value: number;
     switch (metric) {

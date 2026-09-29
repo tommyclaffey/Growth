@@ -175,6 +175,7 @@ export function AdDetail({ id, range, onBack, backLabel = 'Campaign' }: AdDetail
         onMetricChange={setChartMetric}
         data={creativeSeries(id, chartMetric, range)}
         compareSeries={(m) => creativeSeries(id, m, range)}
+        periodSeries={(m, sh) => creativeSeries(id, m, range, sh)}
         title={`${chartMetric} over time`}
       />
 

@@ -3,11 +3,13 @@ import { CSS_CHANNEL } from '../../styles/tokens';
 import './Chart.css';
 import { channelGradient, type ChannelName } from '../../styles/tokens';
 import {
-  METRICS, domainFor, formatMetric, isRatio, yTicks as computeTicks,
-  type Metric, CHANNEL_LABEL } from '../../data/metrics';
+  DAY_ISO, METRICS, compareShift, deltaTone, domainFor, formatMetric, isRatio, sliceWindow, windowDates,
+  yTicks as computeTicks,
+  type ComparePeriod, type Metric, CHANNEL_LABEL } from '../../data/metrics';
 import { resolveMark, type Mark } from './mark';
 import { smoothPath } from './smoothPath';
 import { MetricToggle } from '../MetricToggle/MetricToggle';
+import { betterHigher } from '../../data/channelMetrics';
 
 export { METRICS };
 export type { Metric };
@@ -31,7 +33,24 @@ export interface ChartProps {
    * the reader picked -- the caller only knows how to fetch one.
    */
   compareSeries?: (m: Metric) => { label: string; value: number }[];
+  /**
+   * The same metric over the same number of days, `shiftDays` earlier -- the
+   * "same days last week / month / year" comparison. Empty when the data does
+   * not reach that far back. Omit it and those options do not render.
+   */
+  periodSeries?: (m: Metric, shiftDays: number) => { label: string; value: number }[];
 }
+
+/* Same days, earlier. Week is 7 days; month and year are CALENDAR -- Aug 1-12
+   against Jul 1-12, not against 30 days before. */
+const PERIODS: { key: ComparePeriod; label: string; noun: string }[] = [
+  { key: 'week', label: 'Last week', noun: 'last week' },
+  { key: 'month', label: 'Last month', noun: 'last month' },
+  { key: 'year', label: 'Last year', noun: 'last year' },
+];
+const isPeriod = (v: unknown): v is ComparePeriod => v === 'week' || v === 'month' || v === 'year';
+const pct = (now: number, then: number) => (then === 0 ? null : Math.round(((now - then) / Math.abs(then)) * 100));
+const signed = (n: number | null) => (n === null ? '—' : `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n)}%`);
 
 
 export function Chart({
@@ -43,6 +62,7 @@ export function Chart({
   mark = 'auto',
   state = 'ready', onRetry,
   compareSeries,
+  periodSeries,
 }: ChartProps) {
   const [hover, setHover] = useState<number | null>(null);
 
@@ -50,21 +70,44 @@ export function Chart({
      effect: comparing Spend with Spend is meaningless, so if the reader
      switches the main metric to whatever they were comparing against, the
      overlay simply stops drawing -- and comes back if they switch away. */
-  const [comparePick, setComparePick] = useState<Metric | null>(null);
+  /* One Compare control, two kinds of comparison: another METRIC (its own
+     right-hand axis), or the same metric over the same days EARLIER (same
+     axis -- same units, directly comparable). */
+  const [comparePick, setComparePick] = useState<Metric | ComparePeriod | null>(null);
   /* Whether the last press on the select came from a pointer. Chrome treats a
      <select> as :focus-visible even after a mouse click, so the ring stayed on
      after picking a metric. A mouse pick lets go of focus; a keyboard pick
      keeps it, because a keyboard user still needs to see where they are. */
   const pickedByPointer = useRef(false);
-  const compare = compareSeries && comparePick && comparePick !== metric ? comparePick : null;
+  const compare = compareSeries && comparePick && !isPeriod(comparePick) && comparePick !== metric ? comparePick : null;
   const cData = compare ? compareSeries!(compare) : [];
+  const period = periodSeries && isPeriod(comparePick) ? comparePick : null;
+  const periodInfo = period ? PERIODS.find((p) => p.key === period)! : null;
+  /* Only drawn when it lines up day for day. A window reaching back before the
+     account's data returns nothing -- said, never drawn as zeros. */
+  const shiftDays = period ? compareShift(period) : 0;
+  const pRaw = period ? periodSeries!(metric, shiftDays) : [];
+  const pData = pRaw.length === data.length ? pRaw : [];
+  /* The earlier days' YEARS. "Last year · Jul 14 – Aug 12" did not say which
+     year, and the table showed "Jul 14" in both columns. Shown whenever the
+     comparison is in a different year from now. */
+  const nowIso = sliceWindow(DAY_ISO, data.length);
+  const pIso = period ? sliceWindow(DAY_ISO, data.length, 0, shiftDays) : [];
+  const otherYear = pIso.length > 0 && nowIso.length > 0
+    && pIso[pIso.length - 1].slice(0, 4) !== nowIso[nowIso.length - 1].slice(0, 4);
+  const pLabel = (i: number) => (otherYear && pIso[i] ? `${pData[i].label}, ${pIso[i].slice(0, 4)}` : pData[i].label);
+  const pSpan = () => {
+    if (!otherYear) return spanOf(pData);
+    const [a, b] = windowDates(data.length, 0, shiftDays);
+    return `${a} – ${b}`;
+  };
 
   /* A reader's override of the automatic choice, null while they have not
      expressed one. Kept separate from the `mark` prop rather than replacing
      it: `auto` still means "let the rule decide", so switching metric goes
      back to the right default for that metric instead of pinning bars onto a
      ratio the rule would never have drawn as bars. */
-  const [chosen, setChosen] = useState<'bar' | 'line' | null>(null);
+  const [chosen, setChosen] = useState<'bar' | 'line' | 'table' | null>(null);
 
   const auto = resolveMark(metric, data.length, mark);
   /* A ratio is never drawn as bars, whatever is clicked. A bar encodes
@@ -72,11 +115,14 @@ export function Chart({
      from -- the rule in mark.ts exists for that reason and an override should
      not be able to walk past it. */
   const canBar = !isRatio(metric);
-  const resolved = chosen && (chosen === 'line' || canBar) ? chosen : auto;
+  const resolved = chosen === 'table' ? 'table'
+    : chosen && (chosen === 'line' || canBar) ? chosen : auto;
   // Bars must start at zero; a ratio line must not.
   const zeroBased = resolved === 'bar' || !isRatio(metric);
-  const ticks = computeTicks(metric, data, zeroBased);
-  const [lo, hi] = domainFor(data, zeroBased);
+  /* The earlier period shares the axis, so the scale must hold both. */
+  const scaleData = pData.length ? [...data, ...pData] : data;
+  const ticks = computeTicks(metric, scaleData, zeroBased);
+  const [lo, hi] = domainFor(scaleData, zeroBased);
   const span = hi - lo || 1;
 
   const key = channel === 'all' ? 'accent' : (CSS_CHANNEL[channel] ?? channel);
@@ -124,6 +170,24 @@ export function Chart({
   });
   const cPath = smoothPath(cData.map((_, i) => cPointAt(i)));
 
+  /* The earlier period: the MAIN scale (same units), dashed. Over bars, on the
+     bar centres, like the metric overlay. */
+  const pPointAt = (i: number) => ({
+    x: resolved === 'bar'
+      ? ((i + 0.5) / pData.length) * 100
+      : pData.length === 1 ? 50 : (i / (pData.length - 1)) * 100,
+    y: 100 - ((pData[i].value - lo) / span) * 100,
+  });
+  const pPath = pData.map((_, i) => {
+    const { x, y } = pPointAt(i);
+    return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(' ');
+  const spanOf = (d: { label: string }[]) => (d.length ? `${d[0].label} – ${d[d.length - 1].label}` : '');
+  /* A total only where one is honest: a sum of daily Spend is the period's
+     spend; a sum (or average) of daily CAC is not the period's CAC. */
+  const sum = (d: { value: number }[]) => d.reduce((a, x) => a + x.value, 0);
+  const showTotal = !isRatio(metric);
+
   function onMove(e: React.MouseEvent<HTMLDivElement>) {
     const box = e.currentTarget.getBoundingClientRect();
     const ratio = (e.clientX - box.left) / box.width;
@@ -132,6 +196,7 @@ export function Chart({
 
   const hovered = hover !== null ? data[hover] : null;
   const cHovered = compare && hover !== null ? cData[hover] : null;
+  const pHovered = pData.length && hover !== null ? pData[hover] : null;
   // The crosshair follows the same rule: bar centre over bars, point over a line.
   const hoverX = hover === null ? 0
     : resolved === 'bar' ? ((hover + 0.5) / data.length) * 100
@@ -149,13 +214,14 @@ export function Chart({
      tabular and a screen reader can navigate one cell by cell. Same numbers,
      same formatter -- it cannot drift from the chart because it is built from
      the same array. */
-  const dataTable = (
+  const dataTable = resolved === 'table' ? null : (
     <table className="gr-sr-only">
       <caption>{title ?? `${metric} over time`}</caption>
       <thead>
         <tr>
           <th scope="col">Date</th><th scope="col">{metric}</th>
           {compare && <th scope="col">{compare}</th>}
+          {pData.length > 0 && <th scope="col">{metric}, {periodInfo!.noun}</th>}
         </tr>
       </thead>
       <tbody>
@@ -164,10 +230,71 @@ export function Chart({
             <th scope="row">{d.label}</th>
             <td>{formatMetric(metric, d.value)}</td>
             {compare && cData[i] && <td>{formatMetric(compare, cData[i].value)}</td>}
+            {pData[i] && <td>{formatMetric(metric, pData[i].value)} ({pLabel(i)})</td>}
           </tr>
         ))}
       </tbody>
     </table>
+  );
+
+  /* ⭐ THE TABLE VIEW -- the chart's own numbers, every day, readable and
+     copyable. Built from the same arrays as the plot, so it cannot disagree
+     with it. With a period comparison on, each day sits beside the same day
+     earlier and the change between them. */
+  const visibleTable = (
+    <div className="gr-chart__table-wrap" tabIndex={0} aria-label={`${title ?? metric} as a table`}>
+      <table className="gr-chart__table">
+        <thead>
+          <tr className="gr-type-overline">
+            <th scope="col">Date</th>
+            <th scope="col">{metric}</th>
+            {compare && <th scope="col">{compare}</th>}
+            {pData.length > 0 && (
+              <>
+                <th scope="col">{periodInfo!.label}</th>
+                <th scope="col">{metric}</th>
+                <th scope="col">Change</th>
+              </>
+            )}
+          </tr>
+        </thead>
+        <tbody className="gr-type-body">
+          {data.map((d, i) => {
+            const ch = pData[i] ? pct(d.value, pData[i].value) : null;
+            return (
+              <tr key={i}>
+                <th scope="row">{d.label}</th>
+                <td>{formatMetric(metric, d.value)}</td>
+                {compare && <td>{cData[i] ? formatMetric(compare, cData[i].value) : '—'}</td>}
+                {pData.length > 0 && (
+                  <>
+                    <td className="gr-chart__table-muted">{pLabel(i)}</td>
+                    <td>{formatMetric(metric, pData[i].value)}</td>
+                    <td className={ch === null ? '' : `is-${deltaTone(ch, betterHigher(metric))}`}>{signed(ch)}</td>
+                  </>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+        {showTotal && (
+          <tfoot className="gr-type-body-medium">
+            <tr>
+              <th scope="row">Total</th>
+              <td>{formatMetric(metric, sum(data))}</td>
+              {compare && <td>{isRatio(compare) ? '—' : formatMetric(compare, sum(cData))}</td>}
+              {pData.length > 0 && (
+                <>
+                  <td className="gr-chart__table-muted">{pSpan()}</td>
+                  <td>{formatMetric(metric, sum(pData))}</td>
+                  <td>{signed(pct(sum(data), sum(pData)))}</td>
+                </>
+              )}
+            </tr>
+          </tfoot>
+        )}
+      </table>
+    </div>
   );
 
   return (
@@ -181,32 +308,41 @@ export function Chart({
             identical pills would make "which one is the main metric" a
             question. Styled to sit on the same 32px tray as the toggle, and
             the main metric is excluded from its own options. */}
-        {compareSeries && (
-          <div className={`gr-chart__compare ${compare ? 'is-on' : ''}`}>
+        {(compareSeries || periodSeries) && (
+          <div className={`gr-chart__compare ${compare || period ? 'is-on' : ''}`}>
             <label className="gr-chart__compare-field">
               <span className="gr-chart__compare-label gr-type-label-button">
-                {compare ? 'vs' : 'Compare'}
+                {compare || period ? 'vs' : 'Compare'}
               </span>
               <select
                 className="gr-chart__compare-select gr-type-label-button"
-                value={compare ?? ''}
-                aria-label="Compare with a second metric"
+                value={compare ?? period ?? ''}
+                aria-label="Compare with another metric or an earlier period"
                 onPointerDown={() => { pickedByPointer.current = true; }}
                 onKeyDown={() => { pickedByPointer.current = false; }}
                 onChange={(e) => {
-                  setComparePick((e.target.value || null) as Metric | null);
+                  setComparePick((e.target.value || null) as Metric | ComparePeriod | null);
                   if (pickedByPointer.current) e.target.blur();
                 }}
               >
                 <option value="">None</option>
-                {METRICS.filter((m) => m !== metric).map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
+                {periodSeries && (
+                  <optgroup label="Same days earlier">
+                    {PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+                  </optgroup>
+                )}
+                {compareSeries && (
+                  <optgroup label="Another metric">
+                    {METRICS.filter((m) => m !== metric).map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </label>
-            {compare && (
+            {(compare || period) && (
               <button type="button" className="gr-chart__compare-clear"
-                      aria-label={`Stop comparing with ${compare}`}
+                      aria-label={`Stop comparing with ${compare ?? periodInfo!.noun}`}
                       onClick={() => setComparePick(null)}>
                 <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
                   <path d="M3 3l6 6M9 3l-6 6" />
@@ -249,6 +385,20 @@ export function Chart({
             </svg>
             <span className="gr-sr-only">Line chart</span>
           </button>
+          <button
+            type="button"
+            className={`gr-chart__mark ${resolved === 'table' ? 'is-on' : ''}`}
+            aria-pressed={resolved === 'table'}
+            title="Table"
+            onClick={() => setChosen('table')}
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"
+                 fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <rect x="2" y="2.5" width="12" height="11" rx="1.5" />
+              <path d="M2 6.5h12M2 10h12M6.5 6.5v7" />
+            </svg>
+            <span className="gr-sr-only">Table</span>
+          </button>
         </div>
       </header>
 
@@ -269,7 +419,18 @@ export function Chart({
                 {compare}
               </span>
             )}
+            {period && (pData.length > 0 ? (
+              <span className="gr-chart__axis-title">
+                <span className="gr-chart__glyph gr-chart__glyph--period" style={{ borderColor: stroke }} />
+                {periodInfo!.noun} · {pSpan()}
+              </span>
+            ) : (
+              <span className="gr-chart__axis-title gr-chart__axis-note">
+                No data for the same days {periodInfo!.noun}
+              </span>
+            ))}
           </div>
+          {resolved === 'table' ? visibleTable : (<>
           <div className="gr-chart__plot">
             <div className="gr-chart__y" aria-hidden="true">
               {ticks.map((t, i) => <span key={i} className="gr-type-micro">{t}</span>)}
@@ -327,6 +488,14 @@ export function Chart({
                 </svg>
               )}
 
+              {pData.length > 0 && (
+                <svg className="gr-chart__svg gr-chart__overlay" viewBox="0 0 100 100"
+                     preserveAspectRatio="none" aria-hidden="true">
+                  <path d={pPath} className="gr-chart__overlay-line gr-chart__overlay-line--period"
+                        style={{ stroke }} vectorEffect="non-scaling-stroke" />
+                </svg>
+              )}
+
               {hovered && (
                 <>
                   <span className="gr-chart__crosshair" style={{ left: `${hoverX}%` }} aria-hidden="true" />
@@ -338,6 +507,13 @@ export function Chart({
                         top: `${pointAt(hover!).y}%`,
                         borderColor: stroke,
                       }}
+                      aria-hidden="true"
+                    />
+                  )}
+                  {pHovered && resolved === 'line' && (
+                    <span
+                      className="gr-chart__marker gr-chart__marker--period"
+                      style={{ left: `${hoverX}%`, top: `${pPointAt(hover!).y}%`, borderColor: stroke }}
                       aria-hidden="true"
                     />
                   )}
@@ -371,6 +547,17 @@ export function Chart({
                         {formatMetric(compare!, cHovered.value)}
                       </span>
                     )}
+                    {pHovered && (
+                      <>
+                        <span className="gr-chart__tip-value gr-type-caption-med">
+                          <span className="gr-chart__tip-name">{pLabel(hover!)} </span>
+                          {formatMetric(metric, pHovered.value)}
+                        </span>
+                        <span className="gr-chart__tip-label gr-type-micro">
+                          {signed(pct(hovered.value, pHovered.value))} vs {periodInfo!.noun}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </>
               )}
@@ -396,6 +583,7 @@ export function Chart({
               </span>
             ))}
           </div>
+          </>)}
         </div>
       ) : (
         <div className={`gr-chart__state gr-chart__state--${state}`} role="status">

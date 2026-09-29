@@ -125,6 +125,7 @@ export function AdSetDetail({
         onMetricChange={setChartMetric}
         data={adSetSeries(id, chartMetric, range)}
         compareSeries={(m) => adSetSeries(id, m, range)}
+        periodSeries={(m, sh) => adSetSeries(id, m, range, sh)}
         title={`${chartMetric} over time`}
       />
 

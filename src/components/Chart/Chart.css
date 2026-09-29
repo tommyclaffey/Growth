@@ -323,3 +323,59 @@
 .gr-chart__tip-name { color: var(--text-muted); font-weight: 400; }
 
 @media (prefers-reduced-motion: reduce) { .gr-chart__compare { transition: none; } }
+
+/* ---- The earlier period (same days last week / month / year) -------------
+   Same colour as the main line -- it is the same metric -- but dashed and
+   quieter, so "now" still reads first. */
+.gr-chart__overlay-line--period {
+  stroke-width: 1.75;
+  stroke-dasharray: 4 4;
+  opacity: 0.7;
+}
+.gr-chart__glyph--period {
+  height: 0;
+  border-top: 2px dashed;
+  opacity: 0.7;
+}
+.gr-chart__marker--period { opacity: 0.7; }
+.gr-chart__axis-note { color: var(--text-muted); font-style: normal; text-transform: none; letter-spacing: 0; }
+
+/* ---- The table view ---------------------------------------------------------
+   Takes the plot's place at the plot's height (plus the axis row), so switching
+   views never moves anything below the card. */
+.gr-chart__table-wrap {
+  height: calc(230px + var(--space-24));
+  overflow: auto;
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-chart__table-wrap:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-sm); }
+.gr-chart__table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.gr-chart__table th,
+.gr-chart__table td {
+  padding: var(--space-6) var(--space-12);
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+.gr-chart__table th:first-child,
+.gr-chart__table td:first-child { text-align: left; padding-left: 0; }
+.gr-chart__table th:last-child,
+.gr-chart__table td:last-child { padding-right: 0; }
+.gr-chart__table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface-card);
+  color: var(--text-muted); font-weight: 500;
+}
+.gr-chart__table tbody th { color: var(--text-primary); font-weight: 400; }
+.gr-chart__table tfoot th,
+.gr-chart__table tfoot td {
+  position: sticky; bottom: 0;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border-top: var(--border-width-sm) solid var(--border-default);
+  border-bottom: 0;
+}
+.gr-chart__table-muted { color: var(--text-muted) !important; }
+.gr-chart__table .is-good { color: var(--semantic-good); }
+.gr-chart__table .is-bad { color: var(--semantic-bad); }

@@ -779,6 +779,7 @@ export default function App() {
                 onMetricChange={setMetric}
                 data={view.data}
                 compareSeries={(m) => series(scope, m, range)}
+                periodSeries={(m, sh) => series(scope, m, range, sh)}
                 state={demo}
                 onRetry={() => setDemoState('ready')}
               />

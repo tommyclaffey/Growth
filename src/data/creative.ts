@@ -1,8 +1,8 @@
 import type { ChannelName } from '../styles/tokens';
 import type { Stage } from '../components/StatusPill/StatusPill';
 import { CAMPAIGNS, type AdSet, type Campaign } from './campaigns';
-import { campaignRows, campaignSeries } from './campaignSeries';
-import { sliceWindow, type DayRow, type Metric, type Range } from './metrics';
+import { campaignRows } from './campaignSeries';
+import { sliceWindow, windowLabels, type DayRow, type Metric, type Range } from './metrics';
 import { assetFor } from './creativeAssets';
 import { CHANNEL_DEPTH } from './channelDepth';
 import { AD_SPREAD, adSetLeadShare, adSetWobble } from './adSets';
@@ -383,7 +383,7 @@ export function creativeTotals(id: string, range: Range = 30) {
 }
 
 /** Series for the ad chart, in the shape Chart expects. */
-export function creativeSeries(id: string, metric: Metric, range: Range = 30) {
+export function creativeSeries(id: string, metric: Metric, range: Range = 30, shift = 0) {
   /* 🐛 This scaled the CAMPAIGN's series by the ad's SPEND share -- wrong three
      ways: a ratio (CAC, ROAS) does not scale by a share; leads follow the LEAD
      share, not spend; and a real account's ad has its own rows, which were
@@ -392,8 +392,8 @@ export function creativeSeries(id: string, metric: Metric, range: Range = 30) {
      Built from the ad's own rows now -- the same rows its totals sum. */
   const owner = creativeById(id);
   if (!owner) return [];
-  const labels = campaignSeries(owner.campaignId, metric, range).map((p) => p.label);
-  return creativeRows(id, range).map((r, i) => {
+  const labels = windowLabels(range, 0, shift);
+  return creativeRows(id, range, 0, shift).map((r, i) => {
     let value: number;
     switch (metric) {
       case 'Spend':  value = r.spend; break;

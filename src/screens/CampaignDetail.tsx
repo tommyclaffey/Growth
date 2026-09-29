@@ -193,6 +193,7 @@ export function CampaignDetail({
         onMetricChange={setChartMetric}
         data={data}
         compareSeries={(m) => campaignSeries(id, m, range)}
+        periodSeries={(m, sh) => campaignSeries(id, m, range, sh)}
         title={`${chartMetric} over time`}
       />
 
