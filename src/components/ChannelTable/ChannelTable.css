@@ -191,8 +191,8 @@
   transition: opacity 120ms ease, background 120ms ease, border-color 120ms ease;
 }
 .gr-ask:hover {
-  background: var(--accent-base);
-  border-color: var(--accent-base);
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
   color: var(--brand-on-accent);
 }
 /* ⚠️ Every row class that carries an Ask button, not just the channel table's.

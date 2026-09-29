@@ -89,7 +89,7 @@
   min-width: 18px; height: 18px; padding: 0 5px;
   display: grid; place-items: center;
   border-radius: var(--radius-pill);
-  background: var(--accent-base); color: var(--brand-on-accent);
+  background: var(--accent-fill); color: var(--brand-on-accent);
   font: 500 11px/1 var(--font-sans);
 }
 
@@ -116,7 +116,7 @@
 .gr-convs__chip:hover { border-color: var(--border-strong); color: var(--text-primary); }
 .gr-convs__go {
   border: none; border-radius: var(--radius-pill);
-  background: var(--accent-base); color: var(--brand-on-accent);
+  background: var(--accent-fill); color: var(--brand-on-accent);
   padding: 4px var(--space-12); cursor: pointer; font-weight: 500;
 }
 .gr-convs__go:hover { filter: brightness(1.06); }

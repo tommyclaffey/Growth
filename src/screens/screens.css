@@ -64,7 +64,7 @@
 .gr-setting-row__connect:hover { border-color: var(--border-strong); color: var(--text-primary); }
 .gr-setting-row__connect.is-primary {
   border-color: transparent;
-  background: var(--accent-base);
+  background: var(--accent-fill);
   color: var(--brand-on-accent);
 }
 .gr-setting-row__connect.is-primary:hover { filter: brightness(1.06); }
@@ -183,7 +183,7 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 }
 .gr-demo-states__btn:hover { border-color: var(--accent-base); }
 .gr-demo-states__btn.is-on {
-  background: var(--accent-base); border-color: var(--accent-base);
+  background: var(--accent-fill); border-color: var(--accent-fill);
   color: var(--brand-on-accent);
 }
 .gr-demo-states__btn:focus-visible {
@@ -549,4 +549,7 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
   color: var(--text-muted);
   margin: 0 0 var(--space-8);
 }
-.gr-dec__crumb { color: var(--text-disabled); }
+/* Muted, not disabled. --text-disabled means "you cannot use this", and at
+   1.9:1 the separator all but vanished -- aria-hidden makes it exempt from AA,
+   but a breadcrumb whose joints you cannot see reads as one run-on phrase. */
+.gr-dec__crumb { color: var(--text-muted); }

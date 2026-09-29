@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "brand:check": "node scripts/render-brand.mjs"
+    "brand:check": "node scripts/render-brand.mjs",
+    "tokens": "node scripts/generate-tokens.mjs",
+    "tokens:check": "node scripts/generate-tokens.mjs --check",
+    "audit:contrast": "node scripts/audit-contrast.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",

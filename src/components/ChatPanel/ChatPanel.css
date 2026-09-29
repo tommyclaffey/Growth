@@ -193,7 +193,7 @@
   align-self: flex-start;
   padding: var(--space-8) var(--space-16);
   border: none; border-radius: var(--radius-md);
-  background: var(--accent-base); color: var(--brand-on-accent);
+  background: var(--accent-fill); color: var(--brand-on-accent);
   cursor: pointer; font-family: inherit;
 }
 .gr-slack__cta:hover { filter: brightness(1.06); }

@@ -67,7 +67,7 @@
 }
 .gr-creative__ratio { left: 6px; bottom: 6px; }
 .gr-creative__time  { right: 6px; bottom: 6px; }
-.gr-creative__rank  { left: 6px; top: 6px; background: var(--accent-base); }
+.gr-creative__rank  { left: 6px; top: 6px; background: var(--accent-fill); }
 
 /* Spacing follows the hierarchy rather than one uniform gap.
 

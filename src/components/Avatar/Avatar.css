@@ -7,10 +7,12 @@
   letter-spacing: 0.02em;
   user-select: none;
 }
-.gr-avatar--0 { background: var(--accent-base); }
-.gr-avatar--1 { background: var(--channel-meta); }
-.gr-avatar--2 { background: var(--channel-affiliates); }
-.gr-avatar--3 { background: var(--channel-youtube); }
+.gr-avatar--0 { background: var(--accent-fill); }
+/* Their own tokens, not the channel colours they used to borrow: white 11px
+   initials on YouTube red measured 4.00:1. See --avatar-* in tokens.json. */
+.gr-avatar--1 { background: var(--avatar-1); }
+.gr-avatar--2 { background: var(--avatar-2); }
+.gr-avatar--3 { background: var(--avatar-3); }
 
 /* Photo variant. `cover` because a portrait cropped to a square still is not
    guaranteed square, and a squashed face is worse than a tight crop. */

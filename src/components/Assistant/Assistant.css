@@ -116,7 +116,7 @@
   width: 40px; height: 40px; flex: none;
   display: grid; place-items: center;
   border: none; border-radius: var(--radius-md);
-  background: var(--accent-base); color: var(--brand-on-accent);
+  background: var(--accent-fill); color: var(--brand-on-accent);
   cursor: pointer;
 }
 .gr-assist__send:disabled {
@@ -235,8 +235,8 @@
   min-width: 9.5rem;
   padding: 0 var(--space-12);
   color: var(--brand-on-accent);
-  background: var(--accent-base);
-  border: var(--border-width-sm) solid var(--accent-base);
+  background: var(--accent-fill);
+  border: var(--border-width-sm) solid var(--accent-fill);
   border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;

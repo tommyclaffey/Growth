@@ -17,7 +17,7 @@
 .gr-links__btn:hover { border-color: var(--border-strong); color: var(--text-primary); }
 .gr-links__btn.is-primary {
   border-color: transparent;
-  background: var(--accent-base);
+  background: var(--accent-fill);
   color: var(--brand-on-accent);
 }
 .gr-links__btn.is-primary:hover { filter: brightness(1.06); }
