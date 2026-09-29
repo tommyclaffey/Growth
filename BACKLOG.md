@@ -559,6 +559,20 @@ wait on other people: the **Meta app** and the **Google Ads developer token**.
 
 ---
 
+## 🔁 Circle back — Channels table *(parked Sept 29)*
+
+> Tommy: *"better, but let's circle back."* Not finished to his eye — revisit before beta.
+
+**Where it stands** (`23bb9de`): trend always ROAS · "Change in" select, 11 metrics grouped
+Volume/Efficiency, default CAC · dash for metrics a channel can't report · All-channels total row
+· campaign count under each name · share bar capped.
+
+**Open questions to ask him, not guess:**
+- Is the problem the **control** (a select), the **columns** (too many / wrong ones), or the
+  **empty space** below the table?
+- Should the Channels screen carry more than a table — a CAC-by-channel chart, a per-channel card?
+- Does the Overview table need the same "Change in" control, or keep following the chart toggle?
+
 ## ✅ Done
 
 - **Phase 2 — accessibility, measured on the real page** *(Sept 28)*
