@@ -220,7 +220,7 @@ function spendReturnMismatch(range: Range, channels: ChannelName[]): Candidate[]
         tier: 1,
         kind: 'spend-return-mismatch',
         action: `Pause ${adName(a.creative.headline, a.creative.adSetName)}`,
-        because: `It takes ${pct(sShare)} of ${c.name}’s spend and returns ${pct(lShare)} of its leads.`,
+        because: `It gets ${pct(sShare)} of ${c.name}’s spend but brings in only ${pct(lShare)} of its leads.`,
         evidence: [
           { label: 'Share of campaign spend', value: pct(sShare) },
           { label: 'Share of campaign leads', value: pct(lShare) },
@@ -232,7 +232,7 @@ function spendReturnMismatch(range: Range, channels: ChannelName[]): Candidate[]
              Pausing frees spend; whether the freed spend performs is a separate
              claim this data cannot make. */
           outcome: `Frees ${formatMetric('Spend', a.totals.spend)} over the next ${range} days. `
-            + `Campaign CAC improves if the remaining ads hold their current rates.`,
+            + `The campaign’s CAC improves if its other ads keep performing.`,
           checkOn: checkDate(range),
         },
         target: { kind: 'ad', id: a.creative.id, label: a.creative.headline },
@@ -288,7 +288,7 @@ function scaleWinner(range: Range, channels: ChannelName[]): Candidate[] {
         tier: 2,
         kind: 'scale-winner',
         action: `Increase budget on ${adName(a.creative.headline, a.creative.adSetName)}`,
-        because: `It returns ${pct(lShare)} of ${c.name}’s leads on ${pct(sShare)} of its spend.`,
+        because: `It brings in ${pct(lShare)} of ${c.name}’s leads on just ${pct(sShare)} of its spend.`,
         evidence: [
           { label: 'Share of campaign leads', value: pct(lShare) },
           { label: 'Share of campaign spend', value: pct(sShare) },
@@ -296,11 +296,11 @@ function scaleWinner(range: Range, channels: ChannelName[]): Candidate[] {
           { label: `${c.name} CAC`, value: formatDerived('CAC', spend / leads) },
         ],
         expectation: {
-          outcome: `A 25% budget increase — about ${formatMetric('Spend', a.totals.spend * 0.25)} — `
-            + `would buy roughly ${Math.round((a.totals.spend * 0.25) / cac)} more leads.`,
+          outcome: `Raising its budget 25% (about ${formatMetric('Spend', a.totals.spend * 0.25)}) `
+            + `should buy about ${Math.round((a.totals.spend * 0.25) / cac)} more leads.`,
           /* The condition that makes this tier 2. Stated, not implied. */
-          assuming: `its CAC of ${formatDerived('CAC', cac)} holds at the higher budget — `
-            + `it usually rises as an audience is exhausted`,
+          assuming: `its ${formatDerived('CAC', cac)} CAC holds at the higher budget. `
+            + `It usually rises as the audience gets used up`,
           checkOn: checkDate(range),
         },
         target: { kind: 'ad', id: a.creative.id, label: a.creative.headline },
@@ -368,9 +368,9 @@ function pausedWinner(range: Range, channels: ChannelName[]): Candidate[] {
         tier: 1,
         kind: 'paused-winner',
         action: `Review why ${adName(a.creative.headline, a.creative.adSetName)} is paused`,
-        because: `While it ran it returned ${pct(lShare)} of ${c.name}’s leads on `
-          + `${pct(sShare)} of its spend, at ${formatDerived('CAC', cac)} a lead against the `
-          + `campaign’s ${formatDerived('CAC', spend / leads)} — and the campaign is still active.`,
+        because: `When it ran, it brought in ${pct(lShare)} of ${c.name}’s leads on `
+          + `${pct(sShare)} of its spend. It paid ${formatDerived('CAC', cac)} a lead; the `
+          + `campaign pays ${formatDerived('CAC', spend / leads)}. The campaign is still running.`,
         evidence: [
           { label: 'Status', value: 'Paused' },
           { label: 'Share of campaign leads', value: pct(lShare) },
@@ -383,8 +383,8 @@ function pausedWinner(range: Range, channels: ChannelName[]): Candidate[] {
           /* No assumption, so it stays tier 1 — which is only possible because
              the action is "review", not "scale". Turning it back on would be a
              forecast about future performance and belongs in tier 2. */
-          outcome: 'Either it goes back on, or the reason it was stopped gets written down. '
-            + 'Right now neither has happened.',
+          outcome: 'It goes back on, or someone writes down why it stopped. '
+            + 'Neither has happened yet.',
           checkOn: checkDate(7),
         },
         target: { kind: 'ad', id: a.creative.id, label: a.creative.headline },
@@ -448,8 +448,8 @@ function reallocateWithinChannel(range: Range, channels: ChannelName[]): Candida
       kind: 'reallocate-within-channel',
       action: `Shift ${formatMetric('Spend', move)} from “${worst.c.name}” to “${best.c.name}”`,
       because: `Both run on ${CHANNEL_LABEL[channel]}, so they are measured the same way. `
-        + `${worst.c.name} costs ${formatDerived('CAC', worstCac)} a lead against `
-        + `${formatDerived('CAC', bestCac)}.`,
+        + `${worst.c.name} pays ${formatDerived('CAC', worstCac)} a lead. `
+        + `${best.c.name} pays ${formatDerived('CAC', bestCac)}.`,
       evidence: [
         { label: `${worst.c.name} CAC`, value: formatDerived('CAC', worstCac) },
         { label: `${best.c.name} CAC`, value: formatDerived('CAC', bestCac) },
@@ -457,8 +457,8 @@ function reallocateWithinChannel(range: Range, channels: ChannelName[]): Candida
         { label: 'Proposed move', value: formatMetric('Spend', move) },
       ],
       expectation: {
-        outcome: `About ${Math.round(gained - lost)} additional leads over ${range} days `
-          + `— ${Math.round(gained)} gained against ${Math.round(lost)} given up.`,
+        outcome: `About ${Math.round(gained - lost)} more leads over ${range} days `
+          + `(${Math.round(gained)} gained, ${Math.round(lost)} given up).`,
         assuming: `${best.c.name} holds ${formatDerived('CAC', bestCac)} on `
           + `${Math.round((move / best.t.spend) * 100)}% more budget`,
         checkOn: checkDate(range),
@@ -489,14 +489,14 @@ function staleReview(channels: ChannelName[]): Candidate[] {
       tier: 1 as Tier,
       kind: 'stale-review' as DecisionKind,
       action: `Decide on “${c.name}” — it is in Review`,
-      because: `Review means it is waiting on a person. Nothing about it changes until someone rules.`,
+      because: `It is waiting on a person. Nothing changes until someone approves or ends it.`,
       evidence: [
         { label: 'Stage', value: 'Review' },
         { label: 'Channel', value: CHANNEL_LABEL[c.channel] },
         { label: 'Objective', value: c.objective },
       ],
       expectation: {
-        outcome: 'Moves to Active or Ended. Either is progress; Review is not a resting state.',
+        outcome: 'It moves to Active or Ended. Either one is progress.',
         checkOn: checkDate(7),
       },
       target: { kind: 'campaign' as const, id: c.id, label: c.name },
@@ -535,8 +535,8 @@ function concentrationRisk(range: Range, channels: ChannelName[]): Candidate[] {
       tier: 1,
       kind: 'concentration-risk',
       action: `Build a second ${noun} for ${CHANNEL_LABEL[channel]}`,
-      because: `One ${noun} — “${top.creative.headline}” — produces ${pct(share)} of `
-        + `${CHANNEL_LABEL[channel]}’s leads across ${mine.length} live assets.`,
+      because: `One ${noun}, “${top.creative.headline}”, brings in ${pct(share)} of `
+        + `${CHANNEL_LABEL[channel]}’s leads. There are ${mine.length} live assets.`,
       evidence: [
         { label: `Top ${noun}’s share of channel leads`, value: pct(share) },
         { label: `${CHANNEL_LABEL[channel]} assets`, value: String(mine.length) },
@@ -544,8 +544,8 @@ function concentrationRisk(range: Range, channels: ChannelName[]): Candidate[] {
         { label: 'Channel leads', value: Math.round(leads).toLocaleString() },
       ],
       expectation: {
-        outcome: `Reduces single-asset dependence. If this ${noun} stops working, `
-          + `${pct(share)} of ${CHANNEL_LABEL[channel]}’s leads go with it.`,
+        outcome: `If this ${noun} stops working, ${pct(share)} of `
+          + `${CHANNEL_LABEL[channel]}’s leads go with it. A second one spreads the risk.`,
         checkOn: checkDate(range),
       },
       target: { kind: 'channel', id: channel, label: CHANNEL_LABEL[channel] },
@@ -596,16 +596,15 @@ function noVariant(range: Range, channels: ChannelName[]): Candidate[] {
         kind: 'no-variant',
         action: `Add a second ${noun.group.one.toLowerCase()} to \u201c${c.name}\u201d`,
         because: `It runs one ${noun.group.one.toLowerCase()} on `
-          + `${formatMetric('Spend', t.spend)}, so there is nothing to compare it against `
-          + `\u2014 whatever it is doing, you cannot tell whether something else would do better.`,
+          + `${formatMetric('Spend', t.spend)}. There is nothing to compare it against.`,
         evidence: [
           { label: noun.group.many, value: '1' },
           { label: 'Spend', value: formatMetric('Spend', t.spend) },
           { label: 'CAC', value: formatDerived('CAC', t.cac) },
         ],
         expectation: {
-          outcome: `A second ${noun.group.one.toLowerCase()} makes the current one measurable. `
-            + `Right now its ${formatDerived('CAC', t.cac)} has nothing to be good or bad against.`,
+          outcome: `A second ${noun.group.one.toLowerCase()} gives the first one something to beat. `
+            + `Right now its ${formatDerived('CAC', t.cac)} CAC can’t be called good or bad.`,
           checkOn: checkDate(range),
         },
         target: { kind: 'campaign', id: c.id, label: c.name },
@@ -623,16 +622,16 @@ function noVariant(range: Range, channels: ChannelName[]): Candidate[] {
         tier: 1,
         kind: 'no-variant',
         action: `Add a second ${noun.leaf.one.toLowerCase()} in \u201c${c.name}\u201d`,
-        because: `Every ${noun.group.one.toLowerCase()} in it runs a single `
-          + `${noun.leaf.one.toLowerCase()}, so no creative here is being tested against anything.`,
+        because: `Each ${noun.group.one.toLowerCase()} runs a single `
+          + `${noun.leaf.one.toLowerCase()}. No creative here is being tested.`,
         evidence: [
           { label: noun.group.many, value: String(c.adSets.length) },
           { label: noun.leaf.many, value: String(ads.length) },
           { label: 'Spend', value: formatMetric('Spend', t.spend) },
         ],
         expectation: {
-          outcome: `Makes the creative measurable. Creative is the largest single lever in `
-            + `paid media, and nothing here is currently measuring it.`,
+          outcome: `Creative is the biggest lever in paid ads. A second `
+            + `${noun.leaf.one.toLowerCase()} starts measuring it.`,
           checkOn: checkDate(range),
         },
         target: { kind: 'campaign', id: c.id, label: c.name },
@@ -699,11 +698,9 @@ function beatsItsChannel(range: Range, channels: ChannelName[]): Candidate[] {
         /* Names the channel rather than saying "the channel". The card can be
            scanned without reading the action above it, and "the channel's
            $85.98" leaves the reader to work out which channel that was. */
-        because: `It costs ${formatDerived('CAC', t.cac)} a lead against `
-          + `${CHANNEL_LABEL[channel]}'s ${formatDerived('CAC', chCac)} `
-          + `\u2014 ${Math.round(better * 100)}% better \u2014 on `
-          + `${formatMetric('Spend', t.spend)}. Whatever it does differently is the only thing `
-          + `on this channel working better than average.`,
+        because: `It pays ${formatDerived('CAC', t.cac)} a lead. The ${CHANNEL_LABEL[channel]} `
+          + `average is ${formatDerived('CAC', chCac)}, so it is ${Math.round(better * 100)}% `
+          + `better, on ${formatMetric('Spend', t.spend)}.`,
         evidence: [
           { label: `${c.name} CAC`, value: formatDerived('CAC', t.cac) },
           { label: `${CHANNEL_LABEL[channel]} CAC`, value: formatDerived('CAC', chCac) },
@@ -711,8 +708,8 @@ function beatsItsChannel(range: Range, channels: ChannelName[]): Candidate[] {
           { label: 'Spend', value: formatMetric('Spend', t.spend) },
         ],
         expectation: {
-          outcome: `Whatever explains the gap \u2014 audience, creative, match type \u2014 is `
-            + `worth knowing before it gets copied anywhere else.`,
+          outcome: `Find out what it does differently (audience, creative, match type) `
+            + `before copying it anywhere else.`,
           checkOn: checkDate(range),
         },
         target: { kind: 'campaign', id: c.id, label: c.name },
@@ -758,7 +755,7 @@ function pacing(range: Range, channels: ChannelName[]): Candidate[] {
     action: over
       ? `Review pacing — spend is ${Math.round((ratio - 1) * 100)}% above plan`
       : `Review pacing — spend is ${Math.round((1 - ratio) * 100)}% below plan`,
-    because: `${formatMetric('Spend', spent)} spent against ${formatMetric('Spend', planned)} planned `
+    because: `${formatMetric('Spend', spent)} spent of ${formatMetric('Spend', planned)} planned `
       + `for ${range} days.`,
     evidence: [
       { label: 'Spent', value: formatMetric('Spend', spent) },
@@ -767,8 +764,8 @@ function pacing(range: Range, channels: ChannelName[]): Candidate[] {
     ],
     expectation: {
       outcome: over
-        ? 'Brings the month back onto plan, or the plan gets revised deliberately rather than by drift.'
-        : 'Either the plan is wrong or the budget is not being deployed. Both are worth naming.',
+        ? 'Bring spending back on plan, or change the plan on purpose.'
+        : 'Either the plan is wrong or the budget isn’t being spent. Both are worth knowing.',
       checkOn: checkDate(7),
     },
     /* The account is a scope, not the absence of one. Saying so beats an empty
@@ -821,10 +818,10 @@ function crossChannelCostGap(range: Range, channels: ChannelName[]): Candidate[]
     /* A QUESTION. Never "cut the expensive channel". */
     action: `Is ${CHANNEL_LABEL[dear.c]} spend creating demand that `
       + `${CHANNEL_LABEL[cheap.c]} is getting credit for?`,
-    because: `${CHANNEL_LABEL[dear.c]} costs ${formatDerived('CAC', dear.cac)} a lead against `
-      + `${CHANNEL_LABEL[cheap.c]}’s ${formatDerived('CAC', cheap.cac)}. `
-      + `The obvious read is to cut it — but this dashboard measures last touch, `
-      + `which always flatters whichever channel sits closest to the conversion.`,
+    because: `${CHANNEL_LABEL[dear.c]} pays ${formatDerived('CAC', dear.cac)} a lead. `
+      + `${CHANNEL_LABEL[cheap.c]} pays ${formatDerived('CAC', cheap.cac)}. `
+      + `It looks like the channel to cut. But Growth only credits the last touch `
+      + `before a sale, and that always favours the channel closest to it.`,
     evidence: [
       { label: `${CHANNEL_LABEL[dear.c]} CAC`, value: formatDerived('CAC', dear.cac) },
       { label: `${CHANNEL_LABEL[cheap.c]} CAC`, value: formatDerived('CAC', cheap.cac) },
@@ -833,10 +830,9 @@ function crossChannelCostGap(range: Range, channels: ChannelName[]): Candidate[]
     ],
     /* No expectation. There is nothing to expect from a question, and inventing
        one would make this look like a recommendation. */
-    needs: `An incrementality test — hold ${CHANNEL_LABEL[dear.c]} dark in some `
-      + `geos and watch whether ${CHANNEL_LABEL[cheap.c]} volume falls — or `
-      + `channel-specific promo codes and vanity URLs. Growth has no attribution `
-      + `model, no campaign log and no view of what a user saw before converting.`,
+    needs: `An incrementality test: turn ${CHANNEL_LABEL[dear.c]} off in some regions `
+      + `and see if ${CHANNEL_LABEL[cheap.c]} leads drop. Or give each channel its own `
+      + `promo code. Growth has no attribution model to answer this.`,
     target: { kind: 'channel', id: dear.c, label: CHANNEL_LABEL[dear.c] },
     scope: [CHANNEL_LABEL[dear.c]],
     channel: dear.c,
