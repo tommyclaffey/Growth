@@ -301,10 +301,17 @@
 .gr-assist__decision-text {
   color: var(--text-primary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  flex: 0 1 auto; max-width: 65%;
 }
 /* What it touches — the campaign, the channel, or the account. Quieter than the
    action, because the action is the thing being agreed to. */
-.gr-assist__decision-ctx { color: var(--text-muted); white-space: nowrap; flex: none; }
+/* The ACTION keeps the room; the context gives way. With the context rigid
+   (flex: none) the action was squeezed to 163px beside 349px of context, and
+   two different decisions both read 'Review why "Start free, no …'. */
+.gr-assist__decision-ctx {
+  color: var(--text-muted); white-space: nowrap;
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* The agent asking, not a label over a control group. Body type because
    everything else in this panel that speaks is body type — an overline here read
