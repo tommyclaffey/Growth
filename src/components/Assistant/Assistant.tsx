@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useOverlay } from '../../data/useOverlay';
 import './Assistant.css';
 import { SUGGESTIONS, resolveSubject, type Answer } from '../../data/assistant';
-import { figuresFor, type Target } from '../../data/decisions';
+import { decisions, figuresFor, type Target } from '../../data/decisions';
+import { baselineFor } from '../../data/grading';
 import { addFlag, isFlagged, ownDecisionId, removeFlag, useFlags } from '../../data/attention';
 import { askAssistant, probeModel, type AnswerSource } from '../../data/assistantClient';
 import { RANGE_LABEL, type Range } from '../../data/metrics';
@@ -236,7 +237,15 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                             className={`gr-assist__take gr-type-caption ${taken ? 'is-taken' : ''}`}
                             onClick={() => (taken
                               ? removeFlag('decision', d.id)
-                              : addFlag('decision', d.id, d.action, { target: d.target }))}
+                              : addFlag('decision', d.id, d.action, {
+                                target: d.target,
+                                /* The number it should move, captured NOW --
+                                   see grading.ts. */
+                                baseline: (() => {
+                                  const cand = decisions(range).find((x) => x.id === d.id);
+                                  return cand ? baselineFor(cand, range) : undefined;
+                                })(),
+                              }))}
                           >
                             {taken ? '✓ On your queue' : 'Make the decision'}
                           </button>

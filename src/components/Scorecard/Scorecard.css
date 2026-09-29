@@ -1,0 +1,29 @@
+/* One line: verdict pill, what it is based on, and -- when a person grades it --
+   the two answers. */
+.gr-score {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-8);
+  margin: 0 0 var(--space-12);
+  padding: var(--space-10) var(--space-12);
+  border: var(--border-width-sm) dashed var(--border-default);
+  border-radius: var(--radius-md);
+}
+.gr-score__pill {
+  flex: none; padding: var(--space-2) var(--space-8);
+  border-radius: var(--radius-pill);
+}
+.gr-score__pill.tone-good { color: var(--semantic-good); background: var(--semantic-good-bg); }
+.gr-score__pill.tone-bad { color: var(--semantic-bad); background: var(--semantic-bad-bg); }
+.gr-score__pill.tone-neutral { color: var(--text-secondary); background: var(--surface-page-top); }
+.gr-score__text { color: var(--text-secondary); flex: 1; min-width: 12rem; }
+.gr-score__manual { display: inline-flex; gap: var(--space-6); }
+.gr-score__btn {
+  height: 24px; padding: 0 var(--space-10);
+  color: var(--text-primary); background: var(--surface-card);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-sm); cursor: pointer;
+}
+.gr-score__btn:hover { border-color: var(--border-strong); }
+.gr-score__btn:focus-visible, .gr-score__undo:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px;
+}
+.gr-score__undo { color: var(--accent-text); text-decoration: underline; }

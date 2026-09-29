@@ -575,3 +575,5 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
    1.9:1 the separator all but vanished -- aria-hidden makes it exempt from AA,
    but a breadcrumb whose joints you cannot see reads as one run-on phrase. */
 .gr-dec__crumb { color: var(--text-muted); }
+.gr-dec__record { color: var(--text-muted); margin-left: auto; }
+.gr-dec__record strong { color: var(--semantic-good); font-weight: 500; }

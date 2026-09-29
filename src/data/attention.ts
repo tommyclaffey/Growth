@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { CAMPAIGNS } from './campaigns';
+import type { Baseline } from './grading';
 
 /**
  * Attention that a PERSON assigned, as opposed to attention the data derived.
@@ -91,6 +92,13 @@ export interface Flag {
    * so this module does not import the engine.
    */
   target?: { kind: 'campaign' | 'adSet' | 'ad' | 'channel' | 'account'; id: string; label: string };
+
+  /* ---- Grading (see grading.ts) --------------------------------------- */
+
+  /** The number the decision is meant to move, captured when it was taken. */
+  baseline?: Baseline;
+  /** A person's grade, for decisions no number can grade. */
+  outcome?: 'worked' | 'didnt';
 }
 
 /** True once any task field is set. A flag with an owner or a date is a task. */
@@ -201,7 +209,12 @@ function read(): Flag[] {
       const okTarget = t === undefined || (typeof t === 'object' && t !== null
         && ['campaign', 'adSet', 'ad', 'channel', 'account'].includes(String(t.kind))
         && typeof t.id === 'string' && typeof t.label === 'string');
-      return base && okOwner && okDue && okScope && okEvidence && okTarget;
+      const bl = x.baseline as Partial<Baseline> | undefined;
+      const okBaseline = bl === undefined || (typeof bl === 'object' && bl !== null
+        && typeof bl.key === 'string' && typeof bl.value === 'number'
+        && typeof bl.checkOn === 'string' && typeof bl.range === 'number');
+      const okOutcome = x.outcome === undefined || x.outcome === 'worked' || x.outcome === 'didnt';
+      return base && okOwner && okDue && okScope && okEvidence && okTarget && okBaseline && okOutcome;
     });
   } catch {
     return [];
@@ -239,7 +252,7 @@ export function isFlagged(kind: Flag['kind'], refId: string): boolean {
 
 export function addFlag(
   kind: Flag['kind'], refId: string, label: string,
-  context?: Pick<Flag, 'scope' | 'channel' | 'evidence' | 'target'>,
+  context?: Pick<Flag, 'scope' | 'channel' | 'evidence' | 'target' | 'baseline'>,
 ) {
   const id = flagId(kind, refId);
   if (cache.some((f) => f.id === id)) return;      // idempotent
@@ -279,6 +292,18 @@ export function setTask(
     if (fields.due !== undefined) {
       if (fields.due === null) delete next.due; else next.due = fields.due;
     }
+    return next;
+  });
+  save();
+}
+
+/** A person's grade. null clears it -- a grade is a judgement, and reversible. */
+export function setOutcome(kind: Flag['kind'], refId: string, outcome: 'worked' | 'didnt' | null) {
+  const id = flagId(kind, refId);
+  cache = cache.map((f) => {
+    if (f.id !== id) return f;
+    const next = { ...f };
+    if (outcome === null) delete next.outcome; else next.outcome = outcome;
     return next;
   });
   save();

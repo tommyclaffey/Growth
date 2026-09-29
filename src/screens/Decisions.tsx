@@ -7,6 +7,8 @@ import type { ChannelName } from '../styles/tokens';
 import { decisions, targetOfDecision, TIER_LABEL, type Candidate, type Target, type Tier } from '../data/decisions';
 import { addFlag, isFlagged, isOverdue, isOwnDecision, removeFlag, useFlags, type Flag } from '../data/attention';
 import { TaskFields, formatDue } from '../components/TaskFields/TaskFields';
+import { Scorecard } from '../components/Scorecard/Scorecard';
+import { baselineFor, grade, tally } from '../data/grading';
 import { CHANNEL_DEPTH, groupNoun, leafNoun } from '../data/channelDepth';
 import { dismiss, isDismissed, restore, useDismissals } from '../data/dismissedDecisions';
 import { useChannels } from '../data/channels';
@@ -83,8 +85,12 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
   const queue = [...flags]
     .filter((f) => f.kind === 'decision')
     .sort((a, b) => b.at - a.at)
-    .map((f) => ({ flag: f, candidate: byId.get(f.refId) }))
-    .filter((e) => e.candidate !== undefined || isOwnDecision(e.flag));
+    .map((f) => ({ flag: f, candidate: byId.get(f.refId) }));
+    /* 🐛 Every decision stays, even once the engine stops proposing it. The
+       filter here dropped a decided card whose finding had gone -- so deciding
+       on a campaign in Review, then approving it, made the decision VANISH at
+       the moment it should have said "done". A commitment outlives the
+       suggestion that prompted it; it renders from what the flag captured. */
 
   const live = all.filter((c) => !isDismissed(c.id) && !isFlagged('decision', c.id));
   const hidden = all.filter((c) => isDismissed(c.id));
@@ -124,13 +130,24 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
             <h3 className="gr-type-card-heading">Decided</h3>
             <Badge label="You committed to these" tone="good" />
             <span className="gr-dec__count gr-type-caption-med">{queue.length}</span>
+            {/* ⭐ The track record. A decision maker that never checks whether
+                its calls worked is a suggestion box. */}
+            {(() => {
+              const t = tally(queue.map(({ flag }) => grade(flag)));
+              return (
+                <span className="gr-type-caption gr-dec__record">
+                  Track record: <strong>{t.good} worked</strong> · {t.bad} didn&rsquo;t · {t.open} still open
+                </span>
+              );
+            })()}
           </header>
           <p className="gr-type-caption gr-dec__tier-note">
-            Newest first. Everything below this is still only proposed.
+            Newest first. Each one is graded against the number it was meant to move.
+            Everything below this is still only proposed.
           </p>
           <div className="gr-dec__list">
             {queue.map(({ flag: f, candidate }) => (candidate ? (
-              <DecisionCard key={f.id} candidate={candidate} flag={f}
+              <DecisionCard key={f.id} candidate={candidate} flag={f} range={range}
                             onDiscuss={onDiscuss} onOpen={onOpen} />
             ) : (
               <article key={f.id} className={`gr-card gr-dec__card is-own ${isOverdue(f) ? 'is-overdue' : ''}`}>
@@ -147,12 +164,12 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
                     are the figures the reader was looking at when they decided;
                     looking them up now would quietly restate the decision
                     against numbers that have moved since. */}
-                {f.scope && f.scope.length > 0 && (
+                {(f.scope?.length || f.target) && (
                   <p className="gr-dec__scope gr-type-caption">
                     {f.channel && (
                       <ChannelMark channel={f.channel as ChannelName} size={14} />
                     )}
-                    {f.scope.map((part, i) => (
+                    {(f.scope?.length ? f.scope : [f.target!.label]).map((part, i) => (
                       <span key={`${part}-${i}`}>
                         {i > 0 && <span className="gr-dec__crumb" aria-hidden="true"> › </span>}
                         {part}
@@ -167,7 +184,9 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
 
                 <header className="gr-dec__card-head">
                   <h4 className="gr-type-card-heading gr-dec__action">{f.label}</h4>
-                  <span className="gr-type-caption gr-dec__stake">Your decision</span>
+                  <span className="gr-type-caption gr-dec__stake">
+                    {isOwnDecision(f) ? 'Your decision' : 'Accepted'}
+                  </span>
                 </header>
 
                 {f.evidence && f.evidence.length > 0 && (
@@ -181,6 +200,7 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
                   </dl>
                 )}
 
+                <Scorecard flag={f} />
                 <TaskFields flag={f} />
 
                 <footer className="gr-dec__actions">
@@ -241,7 +261,7 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
 
             <div className="gr-dec__list">
               {mine.map((c) => (
-                <DecisionCard key={c.id} candidate={c} onDiscuss={onDiscuss} onOpen={onOpen} />
+                <DecisionCard key={c.id} candidate={c} onDiscuss={onDiscuss} onOpen={onOpen} range={range} />
               ))}
             </div>
           </section>
@@ -303,7 +323,8 @@ function GoTo({ target, channel, onOpen }: {
   );
 }
 
-function DecisionCard({ candidate: c, flag, onDiscuss, onOpen }: {
+function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range }: {
+  range: Range;
   candidate: Candidate;
   /** Present on the Decided queue -- the record owner and due date live on. */
   flag?: Flag;
@@ -381,6 +402,7 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen }: {
       )}
 
       {/* Only once decided. A proposal has no owner -- nobody has agreed to it. */}
+      {accepted && flag && <Scorecard flag={flag} />}
       {accepted && flag && <TaskFields flag={flag} />}
 
       <footer className="gr-dec__actions">
@@ -393,7 +415,9 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen }: {
              again pushed the row onto two lines. */
           !accepted && (
             <Button variant="primary"
-                    onClick={() => addFlag('decision', c.id, c.action, { target: c.target })}>
+                    onClick={() => addFlag('decision', c.id, c.action, {
+                      target: c.target, baseline: baselineFor(c, range),
+                    })}>
               Accept
             </Button>
           )

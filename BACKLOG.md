@@ -87,7 +87,7 @@ entries rendered differently — **a third source, *proposed*, slots straight in
 2. [x] ~~**Decisions surface**~~ ✅ Sept 27–28 — sectioned by confidence, Accept/Dismiss-with-reason, Decided queue with owner + due date (G-008), Go to.
 3. [x] ~~**Tier 3 as questions**~~ ✅ — "Worth investigating", no Accept, names what would answer it.
 4. [x] ~~**Model as narrator**~~ ✅ — `/api/assistant` renders `get_decisions`; local engine fallback.
-5. **Grading** — expected vs actual once the check date passes. ⭐ Nobody else's portfolio dashboard
+5. [x] ✅ **Grading** *(Sept 29)* — `grading.ts`. Baseline captured at decision; numbers compared after the check date; unmoved = "no new data", never "missed" (every numeric grade today, the seed is frozen — says so); state decisions grade instantly; the rest graded by the person. Track record on Decided. Decided cards now outlive their finding. — expected vs actual once the check date passes. ⭐ Nobody else's portfolio dashboard
    keeps score of its own recommendations.
 
 ### ✅ Decided Sept 27

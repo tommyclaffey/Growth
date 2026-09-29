@@ -170,3 +170,36 @@ describe('targetOfDecision', () => {
     expect(targetOfDecision({ refId: 'gone' }, cands())).toBeUndefined();
   });
 });
+
+describe('grading on the Decided queue', () => {
+  it('⭐ a decision stays after its finding goes away -- and reads Done', async () => {
+    const { setStage } = await import('../../data/campaignStatus');
+    const { CAMPAIGNS } = await import('../../data/campaigns');
+    setChannels([...CHANNEL_KEYS]);
+    const review = decisions(30, ALL_CHANNELS).find((c) => c.kind === 'stale-review')!;
+    const { container, rerender } = render(<Decisions range={30} />);
+    const card = [...container.querySelectorAll('.gr-dec__card')]
+      .find((el) => el.textContent!.includes(review.action)) as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: /^accept$/i }));
+    expect(decided(container).textContent).toMatch(/Not yet/);
+
+    /* Approve the campaign. The engine stops proposing "decide on it"... */
+    setStage(review.target.id, 'Active');
+    rerender(<Decisions range={30} />);
+    expect(decisions(30, ALL_CHANNELS).some((c) => c.id === review.id)).toBe(false);
+    /* ...and the decision is still there, graded. */
+    expect(decided(container).textContent).toContain(review.action);
+    expect(decided(container).querySelector('.gr-score')!.getAttribute('data-status')).toBe('done');
+    expect(decided(container).textContent).toMatch(/Track record: 1 worked/);
+    setStage(review.target.id, CAMPAIGNS.find((c) => c.id === review.target.id)!.stage);
+  });
+
+  it('a written decision is graded by hand', () => {
+    setChannels([...CHANNEL_KEYS]);
+    addFlag('decision', ownDecisionId('Pause podcasts for a week'), 'Pause podcasts for a week');
+    const { container } = render(<Decisions range={30} />);
+    fireEvent.click(within(decided(container)).getByRole('button', { name: 'Worked' }));
+    expect(flags().find((f) => f.label === 'Pause podcasts for a week')!.outcome).toBe('worked');
+    expect(decided(container).textContent).toMatch(/Track record: 1 worked/);
+  });
+});
