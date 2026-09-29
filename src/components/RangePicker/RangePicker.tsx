@@ -1,12 +1,16 @@
 import { useRef, useState } from 'react';
 import { useMenu } from '../../data/useMenu';
 import '../ChannelSwitcher/ChannelSwitcher.css';
-import { MAX_RANGE, RANGES, isRange, rangeLabel, type Range } from '../../data/metrics';
+import {
+  DAY_ISO, MAX_RANGE, RANGES, dataSpan, isRange, lastLabel, rangeLabel, windowEnd, windowFromDates, type Range,
+} from '../../data/metrics';
 
 export interface RangePickerProps {
   value: Range;
-  onChange: (next: Range) => void;
+  /** `endBack` = days between the window's last day and the last day of data. 0 = "Last N days". */
+  onChange: (next: Range, endBack?: number) => void;
 }
+
 
 /**
  * Date range picker.
@@ -22,11 +26,44 @@ export function RangePicker({ value, onChange }: RangePickerProps) {
      inside the menu, because the menu is a listbox -- arrow keys move between
      options and Tab closes it -- and a text field inside one fights both. */
   const [custom, setCustom] = useState<string | null>(null);
+  /* Custom DATES: a start and an end, anywhere in the account's history. */
+  const [dates, setDates] = useState<{ start: string; end: string } | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
+  const custDates = windowEnd() > 0;
 
   /* Outside-click, Escape with focus restore, and arrow-key navigation.
      All three menus declared role="listbox" and implemented none of it. */
   useMenu(open, setOpen, wrap);
+
+  if (dates !== null) {
+    const w = windowFromDates(dates.start, dates.end);
+    const [min, max] = dataSpan();
+    const done = () => setDates(null);
+    return (
+      <form
+        className="gr-switcher gr-range-custom gr-range-dates gr-type-label-button"
+        onSubmit={(e) => { e.preventDefault(); if (w) { onChange(w.range, w.endBack); done(); } }}
+        onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); done(); } }}
+      >
+        <label className="gr-sr-only" htmlFor="gr-range-start">Start date</label>
+        <input id="gr-range-start" className="gr-range-custom__input gr-range-dates__input gr-type-label-button"
+               type="date" min={min} max={max} value={dates.start} autoFocus
+               aria-invalid={!w} aria-describedby="gr-range-dates-hint"
+               onChange={(e) => setDates({ ...dates, start: e.target.value })} />
+        <span aria-hidden="true">–</span>
+        <label className="gr-sr-only" htmlFor="gr-range-end">End date</label>
+        <input id="gr-range-end" className="gr-range-custom__input gr-range-dates__input gr-type-label-button"
+               type="date" min={min} max={max} value={dates.end}
+               aria-invalid={!w} aria-describedby="gr-range-dates-hint"
+               onChange={(e) => setDates({ ...dates, end: e.target.value })} />
+        <button type="submit" className="gr-range-dates__apply gr-type-label-button" disabled={!w}>Apply</button>
+        <button type="button" className="gr-range-dates__cancel gr-type-label-button" onClick={done}>Cancel</button>
+        <span id="gr-range-dates-hint" className="gr-sr-only">
+          Between {min} and {max}, up to {MAX_RANGE} days. Enter to apply, Escape to cancel.
+        </span>
+      </form>
+    );
+  }
 
   if (custom !== null) {
     const n = Number(custom);
@@ -35,7 +72,7 @@ export function RangePicker({ value, onChange }: RangePickerProps) {
     return (
       <form
         className="gr-switcher gr-range-custom gr-type-label-button"
-        onSubmit={(e) => { e.preventDefault(); if (ok) { onChange(n); done(); } }}
+        onSubmit={(e) => { e.preventDefault(); if (ok) { onChange(n, 0); done(); } }}
       >
         <label htmlFor="gr-range-days">Last</label>
         <input
@@ -44,7 +81,7 @@ export function RangePicker({ value, onChange }: RangePickerProps) {
           aria-describedby="gr-range-hint" aria-invalid={!ok}
           onChange={(e) => setCustom(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); done(); } }}
-          onBlur={() => { if (ok) onChange(n); done(); }}
+          onBlur={() => { if (ok) onChange(n, 0); done(); }}
         />
         <span>days</span>
         <span id="gr-range-hint" className="gr-sr-only">
@@ -75,25 +112,38 @@ export function RangePicker({ value, onChange }: RangePickerProps) {
              style={{ width: 200 }}>
           {RANGES.map((r) => (
             <button
-              key={r} type="button" role="option" aria-selected={value === r}
-              className={`gr-switcher__row gr-type-body ${value === r ? 'is-selected' : ''}`}
-              onClick={() => { onChange(r); setOpen(false); }}
+              key={r} type="button" role="option" aria-selected={!custDates && value === r}
+              className={`gr-switcher__row gr-type-body ${!custDates && value === r ? 'is-selected' : ''}`}
+              onClick={() => { onChange(r, 0); setOpen(false); }}
             >
-              <span className="gr-switcher__label">{rangeLabel(r)}</span>
-              {value === r && <span className="gr-switcher__check" aria-hidden="true">✓</span>}
+              <span className="gr-switcher__label">{lastLabel(r)}</span>
+              {!custDates && value === r && <span className="gr-switcher__check" aria-hidden="true">✓</span>}
             </button>
           ))}
           {/* Selected when the current range is not a preset -- it came from
               here, so this is where it is shown as chosen. */}
           <button
-            type="button" role="option" aria-selected={!RANGES.includes(value)}
-            className={`gr-switcher__row gr-type-body ${!RANGES.includes(value) ? 'is-selected' : ''}`}
-            onClick={() => { setOpen(false); setCustom(String(RANGES.includes(value) ? 14 : value)); }}
+            type="button" role="option" aria-selected={!custDates && !RANGES.includes(value)}
+            className={`gr-switcher__row gr-type-body ${!custDates && !RANGES.includes(value) ? 'is-selected' : ''}`}
+            onClick={() => { setOpen(false); setCustom(String(RANGES.includes(value) || custDates ? 14 : value)); }}
           >
             <span className="gr-switcher__label">
-              {RANGES.includes(value) ? 'Custom…' : `Custom: ${value} days`}
+              {RANGES.includes(value) || custDates ? 'Custom…' : `Custom: ${value} days`}
             </span>
-            {!RANGES.includes(value) && <span className="gr-switcher__check" aria-hidden="true">✓</span>}
+            {!custDates && !RANGES.includes(value) && <span className="gr-switcher__check" aria-hidden="true">✓</span>}
+          </button>
+          {/* Exact start and end dates, anywhere in the account's history. */}
+          <button
+            type="button" role="option" aria-selected={custDates}
+            className={`gr-switcher__row gr-type-body ${custDates ? 'is-selected' : ''}`}
+            onClick={() => {
+              setOpen(false);
+              const endIdx = DAY_ISO.length - 1 - windowEnd();
+              setDates({ start: DAY_ISO[endIdx - value + 1] ?? DAY_ISO[0], end: DAY_ISO[endIdx] });
+            }}
+          >
+            <span className="gr-switcher__label">{custDates ? rangeLabel(value) : 'Custom dates…'}</span>
+            {custDates && <span className="gr-switcher__check" aria-hidden="true">✓</span>}
           </button>
         </div>
       )}

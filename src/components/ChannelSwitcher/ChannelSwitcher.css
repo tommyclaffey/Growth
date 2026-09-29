@@ -65,3 +65,22 @@
 }
 .gr-range-custom__input[aria-invalid='true'] { border-color: var(--semantic-bad); }
 .gr-range-custom__input:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }
+
+/* Custom DATES: the same box, two date fields and Apply/Cancel. */
+.gr-range-dates { gap: var(--space-8); padding-right: var(--space-6); }
+.gr-range-dates__input { width: auto; text-align: left; font-variant-numeric: tabular-nums; }
+.gr-range-dates__apply,
+.gr-range-dates__cancel {
+  height: 24px; padding: 0 var(--space-8);
+  border-radius: var(--radius-sm); cursor: pointer; font-family: inherit;
+}
+.gr-range-dates__apply {
+  border: 0; color: var(--brand-on-accent); background: var(--accent-fill);
+}
+.gr-range-dates__apply:disabled { opacity: 0.45; cursor: not-allowed; }
+.gr-range-dates__cancel {
+  border: var(--border-width-sm) solid var(--border-default);
+  color: var(--text-secondary); background: var(--surface-card);
+}
+.gr-range-dates__apply:focus-visible,
+.gr-range-dates__cancel:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }

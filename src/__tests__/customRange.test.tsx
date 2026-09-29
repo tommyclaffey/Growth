@@ -3,7 +3,9 @@ import { useState } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { RangePicker } from '../components/RangePicker/RangePicker';
-import { delta, isRange, rangeLabel, rowsFor, totals } from '../data/metrics';
+import {
+  DAY_ISO, compareShift, windowFromDates, delta, hasWindow, isRange, rangeLabel, rowsFor, setWindowEnd, totals, windowLabels,
+} from '../data/metrics';
 import { readUrlState, urlStateQuery } from '../data/urlState';
 
 afterEach(cleanup);
@@ -34,7 +36,7 @@ describe('custom date ranges (Phase 3)', () => {
     function P() { const [r, setR] = useState(30); return <RangePicker value={r} onChange={setR} />; }
     render(<P />);
     fireEvent.click(screen.getByRole('button', { name: /Last 30 days/ }));
-    fireEvent.click(screen.getByRole('option', { name: /Custom/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Custom…' }));
     const input = screen.getByRole('spinbutton');
     fireEvent.change(input, { target: { value: '21' } });
     fireEvent.submit(input.closest('form')!);
@@ -47,7 +49,7 @@ describe('custom date ranges (Phase 3)', () => {
     function P() { const [r, setR] = useState(30); return <RangePicker value={r} onChange={setR} />; }
     render(<P />);
     fireEvent.click(screen.getByRole('button', { name: /Last 30 days/ }));
-    fireEvent.click(screen.getByRole('option', { name: /Custom/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Custom…' }));
     const input = screen.getByRole('spinbutton');
     fireEvent.change(input, { target: { value: '400' } });
     expect(input.getAttribute('aria-invalid')).toBe('true');
@@ -55,5 +57,51 @@ describe('custom date ranges (Phase 3)', () => {
     expect(screen.getByRole('spinbutton')).toBeTruthy();     // still open, not applied
     fireEvent.keyDown(input, { key: 'Escape' });
     expect(screen.getByRole('button', { name: /Last 30 days/ })).toBeTruthy();
+  });
+});
+
+describe('custom DATES -- a start and an end, anywhere in two years', () => {
+  afterEach(() => setWindowEnd(0));
+
+  it('dates become a window: length, and how far back it ends', () => {
+    const end = DAY_ISO[DAY_ISO.length - 1];                         // 2026-08-12
+    expect(windowFromDates('2026-07-01', '2026-07-31')).toEqual({ range: 31, endBack: 12 });
+    expect(windowFromDates('2026-08-12', end)).toEqual({ range: 1, endBack: 0 });
+    expect(windowFromDates('2026-07-31', '2026-07-01')).toBeNull();    // backwards
+    expect(windowFromDates('2020-01-01', '2020-01-31')).toBeNull();    // before the data
+    expect(windowFromDates('2025-01-01', '2026-08-01')).toBeNull();    // longer than a year
+  });
+
+  it('every figure follows the window -- totals, labels, the words', () => {
+    setWindowEnd(12);
+    expect(rowsFor('meta', 31)).toHaveLength(31);
+    expect(rangeLabel(31)).toBe('Jul 1, 2026 – Jul 31, 2026');
+    expect(windowLabels(31)[0]).toBe('Jul 1');
+    expect(totals('meta', 31).spend).not.toBe(totals('meta', 30).spend);
+    setWindowEnd(0);
+    expect(rangeLabel(31)).toBe('Last 31 days');
+  });
+
+  it('the URL carries the END DATE, so a shared link means the same days', () => {
+    expect(readUrlState('?r=31&to=2026-07-31')).toMatchObject({ range: 31, endBack: 12 });
+    expect(readUrlState('?r=31&to=1999-01-01').endBack).toBeUndefined();
+  });
+
+  it('compare to last week / month / year: the same dates, earlier', () => {
+    expect(compareShift('week')).toBe(7);
+    expect(compareShift('month')).toBe(31);    // Aug 12 -> Jul 12
+    expect(compareShift('year')).toBe(365);
+    expect(hasWindow(90, 0, 365)).toBe(true);  // two years: last year exists
+  });
+
+  it('the picker: Custom dates… → pick → Apply', () => {
+    let got: [number, number | undefined] | null = null;
+    render(<RangePicker value={30} onChange={(r, e) => { got = [r, e]; }} />);
+    fireEvent.click(screen.getByRole('button', { name: /Last 30 days/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Custom dates…' }));
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-07-01' } });
+    fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2026-07-31' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(got).toEqual([31, 12]);
   });
 });

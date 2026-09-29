@@ -24,7 +24,7 @@ import {
   type DecisionRef, type Member, type Message, type ReportRef, type ViewRef,
 } from '../../data/chat';
 import {
-  CHANNEL_LABEL, METRICS, rangeLabel, delta, totals,
+  CHANNEL_LABEL, METRICS, lastLabel, delta, totals,
   type Metric, type Scope,
 } from '../../data/metrics';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
@@ -721,7 +721,7 @@ function ViewCard({ view, compact = false, onOpen }:
       {...(onOpen ? {
         type: 'button' as const,
         onClick: () => onOpen(view),
-        'aria-label': `Open ${label} ${view.metric}, ${rangeLabel(view.range)}`,
+        'aria-label': `Open ${label} ${view.metric}, ${lastLabel(view.range)}`,
       } : {})}
     >
       <p className="gr-viewcard__head gr-type-caption">
@@ -733,7 +733,7 @@ function ViewCard({ view, compact = false, onOpen }:
             real mark, so a dot here made the card look like it came from a
             different product than the row it was quoting. */}
         <ChannelMark channel={view.channel} size={14} />
-        {label} · {rangeLabel(view.range)}
+        {label} · {lastLabel(view.range)}
       </p>
       <p className="gr-viewcard__metric gr-type-body">{view.metric}</p>
       <p className="gr-viewcard__row">

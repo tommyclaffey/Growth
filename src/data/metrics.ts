@@ -55,13 +55,28 @@ export function isRange(n: unknown): n is Range {
   return typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= MAX_RANGE;
 }
 
-/** "Last 30 days", "Last day" -- or, for custom dates, the dates themselves. */
+/** A preset's own name, whatever window is showing: "Last 30 days". */
+export function lastLabel(r: Range): string {
+  return r === 1 ? 'Last day' : `Last ${r} days`;
+}
+
+/** "Last 30 days" -- or, for custom dates, the dates themselves. */
 export function rangeLabel(r: Range): string {
   if (WINDOW_END > 0) {
     const [a, b] = windowDates(r);
     return a === b ? a : `${a} – ${b}`;
   }
-  return r === 1 ? 'Last day' : `Last ${r} days`;
+  return lastLabel(r);
+}
+
+/** Mid-sentence: "last 30 days", or "Jul 1, 2026 – Jul 31, 2026" (months keep their capitals). */
+export function rangePhrase(r: Range): string {
+  return WINDOW_END > 0 ? rangeLabel(r) : lastLabel(r).toLowerCase();
+}
+
+/** After "over": "the last 30 days", or "Jul 1, 2026 – Jul 31, 2026". */
+export function rangeOver(r: Range): string {
+  return WINDOW_END > 0 ? rangeLabel(r) : `the ${lastLabel(r).toLowerCase()}`;
 }
 
 /**
@@ -169,7 +184,12 @@ export function windowEnd(): number { return WINDOW_END; }
 
 /** Show `range` days ending `endBack` days before the last day of data. */
 export function setWindowEnd(endBack: number) {
-  WINDOW_END = Math.max(0, Math.min(TOTAL_POINTS - 1, Math.floor(endBack) || 0));
+  const next = Math.max(0, Math.min(TOTAL_POINTS - 1, Math.floor(endBack) || 0));
+  if (next === WINDOW_END) return;
+  WINDOW_END = next;
+  /* Everything that caches on the data (App's memos, the blend) keys on the
+     version -- a different window is different data to them. */
+  VERSION += 1;
 }
 
 /** [start, end) of the window in an array of `length` days ending on PERIOD_END -- or null if any of it is missing. */
@@ -209,6 +229,17 @@ export function hasWindow(range: Range, back = 0, shift = 0): boolean {
 /** The first and last dates the account has data for (ISO). */
 export function dataSpan(): [string, string] {
   return [DAY_ISO[FIRST], DAY_ISO[DAY_ISO.length - 1]];
+}
+
+/** Start/end dates -> the product's window (length + how far back it ends). Null if invalid. */
+export function windowFromDates(start: string, end: string): { range: Range; endBack: number } | null {
+  const i = DAY_ISO.indexOf(start);
+  const j = DAY_ISO.indexOf(end);
+  const [first] = dataSpan();
+  if (i < 0 || j < 0 || i > j || start < first) return null;
+  const range = j - i + 1;
+  if (!isRange(range)) return null;
+  return { range, endBack: DAY_ISO.length - 1 - j };
 }
 
 /**
@@ -488,7 +519,8 @@ export function hydrate(data: {
     return [k, [...empty().slice(r.length), ...r]];
   })) as Record<ChannelName, DayRow[]>;
   FIRST = TOTAL_POINTS - longest;
-  WINDOW_END = 0;
+  /* WINDOW_END is kept: the app owns it (and the URL), and resetting it here
+     would leave the picker saying one thing and the data another. */
   PERIOD_END = new Date(`${data.periodEnd}T00:00:00Z`);
   DAY_LABELS = labelsEnding(PERIOD_END);
   DAY_ISO = datesEnding(PERIOD_END).map((d) => d.toISOString().slice(0, 10));

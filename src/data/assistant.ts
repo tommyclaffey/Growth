@@ -1,5 +1,5 @@
 import {
-  CHANNEL_LABEL, rangeLabel, activeChannels, delta, formatMetric, totals,
+  CHANNEL_LABEL, rangeOver, activeChannels, delta, formatMetric, totals,
   type Metric, type Range, type Scope,
 } from './metrics';
 import type { ChannelName } from '../styles/tokens';
@@ -386,7 +386,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
 
   const metric = findMetric(q);
   const channels = findChannels(q);
-  const period = rangeLabel(range).toLowerCase();
+  const periodOver = rangeOver(range);
 
   const found = decisions(range);
 
@@ -544,8 +544,8 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
     const figures = `${formatMetric('Spend', t.spend)} spend, ${formatMetric('Leads', t.leads)} leads, `
       + (t.leads > 0 ? `${formatMetric('CAC', t.cac)} CAC.` : 'no leads yet, so no CAC.');
     const head = target.kind === 'ad'
-      ? `“${target.label}” — an ad in ${campaign?.name ?? 'this account'}, over the ${period}: ${figures}`
-      : `${target.label} over the ${period}: ${figures}`;
+      ? `“${target.label}” — an ad in ${campaign?.name ?? 'this account'}, over ${periodOver}: ${figures}`
+      : `${target.label} over ${periodOver}: ${figures}`;
 
     const body: string[] = [head];
 
@@ -603,7 +603,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
          defeats the point of a conversational surface. The panel splits on blank
          lines. */
       text: [
-        `${top.length === 1 ? 'One thing' : `${top.length} things`} over the ${period}, strongest evidence first.`,
+        `${top.length === 1 ? 'One thing' : `${top.length} things`} over ${periodOver}, strongest evidence first.`,
         ...top.map((c, i) => `${i + 1}. ${speak(c)}`),
         found.some((c) => c.tier === 3)
           ? `There is also something the numbers raise that I deliberately will not turn into a recommendation — ask me what this data cannot tell you.`
@@ -747,7 +747,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
       : '';
     return {
       answered: true,
-      text: `${CHANNEL_LABEL[first]} has the ${superlative} ${metric} over the ${period} at ${formatMetric(metric, valueOf(first, metric, range))}${tail}.`,
+      text: `${CHANNEL_LABEL[first]} has the ${superlative} ${metric} over ${periodOver} at ${formatMetric(metric, valueOf(first, metric, range))}${tail}.`,
       evidence: ranked.slice(0, 3).map((k) => ({
         label: `${CHANNEL_LABEL[k]} ${metric}`,
         value: formatMetric(metric, valueOf(k, metric, range)),
@@ -765,7 +765,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
     const dir = change === 0 ? 'flat' : change > 0 ? `up ${change}%` : `down ${Math.abs(change)}%`;
     return {
       answered: true,
-      text: `${name} ${metric} is ${formatMetric(metric, value)} over the ${period}, ${dir} against the preceding period. I can tell you that it moved and by how much. I cannot tell you why — this data has no campaign changes, creative refreshes or auction pressure in it, so anything I said about cause would be invention.`,
+      text: `${name} ${metric} is ${formatMetric(metric, value)} over ${periodOver}, ${dir} against the preceding period. I can tell you that it moved and by how much. I cannot tell you why — this data has no campaign changes, creative refreshes or auction pressure in it, so anything I said about cause would be invention.`,
       evidence: [
         { label: `${name} ${metric}`, value: formatMetric(metric, value), channel: scope },
         { label: 'Change vs prior period', value: `${change > 0 ? '+' : ''}${change}%`, channel: scope },
@@ -779,7 +779,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
     const name = scope === 'all' ? 'All channels' : CHANNEL_LABEL[scope as ChannelName];
     return {
       answered: true,
-      text: `${name} ${metric} over the ${period} is ${formatMetric(metric, valueOf(scope, metric, range))}.`,
+      text: `${name} ${metric} over ${periodOver} is ${formatMetric(metric, valueOf(scope, metric, range))}.`,
       evidence: [{
         label: `${name} ${metric}`,
         value: formatMetric(metric, valueOf(scope, metric, range)),
@@ -847,7 +847,7 @@ function whatIf(q: string, range: Range, subject?: Target): Answer | undefined {
     return {
       answered: true,
       text: [
-        `Moving ${money(amt)} from ${CHANNEL_LABEL[from]} to ${CHANNEL_LABEL[to]} over the ${rangeLabel(range).toLowerCase()}:`,
+        `Moving ${money(amt)} from ${CHANNEL_LABEL[from]} to ${CHANNEL_LABEL[to]} over ${rangeOver(range)}:`,
         `• ${CHANNEL_LABEL[from]} loses about ${leads(m.lost)} leads.`,
         `• ${CHANNEL_LABEL[to]} gains about ${leads(m.gained)}.`,
         `• ${verdict}`,
@@ -914,7 +914,7 @@ function whatIf(q: string, range: Range, subject?: Target): Answer | undefined {
   return {
     answered: true,
     text: [
-      `An extra ${money(extra)} over the ${rangeLabel(range).toLowerCase()} buys the most leads here:`,
+      `An extra ${money(extra)} over ${rangeOver(range)} buys the most leads here:`,
       ...go.slice(0, 3).map((o, i) =>
         `${i + 1}. ${CHANNEL_LABEL[o.channel]} — ${cacOf(o.cac)} a lead ≈ ${leads(o.leads)} leads`
         + (o.room === undefined ? '.'
@@ -958,7 +958,7 @@ function compareAnswer(q: string, range: Range): Answer | undefined {
   const gap = cheaper ? Math.round((Math.abs(ta.cac - tb.cac) / Math.max(ta.cac, tb.cac)) * 100) : 0;
   const lines = [
     `${cmp.a.name} pays ${cac.a ?? '—'} a lead; ${cmp.b.name} pays ${cac.b ?? '—'}.`,
-    ...(cheaper ? [`${cheaper.name} is ${gap}% cheaper per lead over the ${rangeLabel(range).toLowerCase()}.`] : []),
+    ...(cheaper ? [`${cheaper.name} is ${gap}% cheaper per lead over ${rangeOver(range)}.`] : []),
     `ROAS: ${roas.a ?? '—'} against ${roas.b ?? '—'}.`,
     ...(cmp.cacTrend.a >= 15 ? [`${cmp.a.name}'s CAC rose ${cmp.cacTrend.a}% this week — the gap may be moving.`] : []),
     ...(cmp.cacTrend.b >= 15 ? [`${cmp.b.name}'s CAC rose ${cmp.cacTrend.b}% this week — the gap may be moving.`] : []),
