@@ -174,8 +174,8 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
                   <dl className="gr-dec__evidence">
                     {f.evidence.map((e) => (
                       <div key={e.label}>
-                        <dt className="gr-type-overline">{e.label}</dt>
-                        <dd className="gr-type-body-medium">{e.value}</dd>
+                        <dt className="gr-type-caption">{e.label}</dt>
+                        <dd className="gr-type-card-heading">{e.value}</dd>
                       </div>
                     ))}
                   </dl>
@@ -348,8 +348,8 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen }: {
       <dl className="gr-dec__evidence">
         {c.evidence.map((e) => (
           <div key={e.label}>
-            <dt className="gr-type-overline">{e.label}</dt>
-            <dd className="gr-type-body-medium">{e.value}</dd>
+            <dt className="gr-type-caption">{e.label}</dt>
+            <dd className="gr-type-card-heading">{e.value}</dd>
           </div>
         ))}
       </dl>
