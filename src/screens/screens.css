@@ -12,26 +12,6 @@
 .gr-report-name span   { color: var(--text-muted); }
 
 /* Notifications */
-.gr-feed { display: flex; flex-direction: column; }
-.gr-feed__day {
-  padding: var(--space-16) 0 var(--space-8);
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-.gr-feed__item {
-  display: flex; align-items: flex-start; gap: var(--space-12);
-  padding: var(--space-14) 0;
-  border-bottom: var(--border-width-sm) solid var(--border-subtle);
-}
-.gr-feed__item:last-child { border-bottom: none; }
-.gr-feed__dot { width: 8px; height: 8px; margin-top: 6px; border-radius: var(--radius-pill); flex: none; }
-.gr-feed__dot--bad  { background: var(--semantic-bad); }
-.gr-feed__dot--warn { background: var(--semantic-warn); }
-.gr-feed__dot--good { background: var(--semantic-good); }
-.gr-feed__body { flex: 1; min-width: 0; }
-.gr-feed__body p { margin: 0; color: var(--text-primary); }
-.gr-feed__meta { margin-top: 3px !important; color: var(--text-muted) !important; }
-.gr-feed__unread { width: 6px; height: 6px; border-radius: var(--radius-pill); background: var(--accent-base); flex: none; margin-top: 7px; }
 
 /* Settings */
 .gr-settings { display: flex; flex-direction: column; gap: var(--space-18); }
@@ -252,35 +232,6 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
    case a media query cannot see. */
 .gr-creative-section { container-type: inline-size; }
 
-/* A notification that is about a campaign opens it.
-
-   The row becomes a real <button>, so it inherits none of the browser default
-   button chrome and has to state its own box — text-align included, or the
-   whole feed centres itself the moment a row becomes activatable. */
-.gr-feed__item.is-clickable {
-  /* font, text-align, background and cursor come from .gr-unbutton. Only the
-     things specific to a feed row are declared here. */
-  width: 100%;
-  border-left: none;
-  border-right: none;
-  border-top: none;
-  padding-inline: var(--space-8);
-  margin-inline: calc(var(--space-8) * -1);
-  border-radius: var(--radius-sm);
-}
-.gr-feed__item.is-clickable:hover { background: var(--surface-page-top); }
-.gr-feed__item.is-clickable:focus-visible {
-  outline: var(--border-width-md) solid var(--focus-ring);
-  outline-offset: -2px;
-}
-
-/* The affordance, revealed rather than always shouting. A permanent arrow on
-   every clickable row competes with the message it is attached to. */
-.gr-feed__go { color: var(--accent-text); opacity: 0; transition: opacity 120ms ease; }
-.gr-feed__item.is-clickable:hover .gr-feed__go,
-.gr-feed__item.is-clickable:focus-visible .gr-feed__go { opacity: 1; }
-@media (prefers-reduced-motion: reduce) { .gr-feed__go { transition: none; } }
-
 /* ---- Ad detail ---- */
 
 /* The ad beside its copy. Falls to one column when the chat panel narrows the
@@ -311,32 +262,72 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-ad__spec dt, .gr-ad__fields dt { color: var(--text-muted); margin-bottom: var(--space-4); }
 .gr-ad__spec dd, .gr-ad__fields dd { margin: 0; color: var(--text-primary); }
 
-/* The row and its controls. The row itself may be a <button>, so the controls
-   sit beside it rather than inside it. */
-.gr-feed__row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  border-bottom: 1px solid var(--border-subtle);
+/* ---------- Notifications ---------- */
+
+.gr-note-head { align-items: center; flex-wrap: wrap; margin-bottom: var(--space-20); }
+.gr-note-head__window { color: var(--text-muted); }
+
+.gr-note-group { margin: 0 0 var(--space-24); }
+.gr-note-group__head { display: flex; align-items: center; gap: var(--space-8); margin: 0 0 var(--space-10); }
+.gr-note-group__head h3 { margin: 0; color: var(--text-primary); }
+.gr-note-group__note { color: var(--text-muted); margin-left: var(--space-4); }
+
+.gr-note-list { list-style: none; margin: 0; padding: var(--space-4) var(--space-20); gap: 0; }
+.gr-note-empty { padding: var(--space-24); color: var(--text-muted); }
+
+/* One row: mark | sentence | evidence | actions | unread. */
+.gr-note {
+  display: flex; align-items: center; gap: var(--space-16);
+  padding: var(--space-12) 0;
+  border-bottom: var(--border-width-sm) solid var(--border-subtle);
 }
-.gr-feed__row:last-child { border-bottom: none; }
-.gr-feed__row .gr-feed__item { flex: 1; border-bottom: none; min-width: 0; }
+.gr-note:last-child { border-bottom: none; }
 
-/* Revealed on hover or keyboard focus. Two extra controls on every row, always
-   visible, would compete with the message they act on. */
-.gr-feed__actions {
-  display: flex; gap: var(--space-4); flex: none;
-  opacity: 0; transition: opacity 120ms ease;
+.gr-note__open {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: var(--space-12);
+  padding: var(--space-4) var(--space-8); margin: 0 calc(var(--space-8) * -1);
+  border-radius: var(--radius-md);
 }
-.gr-feed__row:hover .gr-feed__actions,
-.gr-feed__row:focus-within .gr-feed__actions { opacity: 1; }
+.gr-note__open:hover { background: var(--surface-page-top); }
+.gr-note__open:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 0; }
 
-/* A flag that is ON stays visible, because it is state rather than an
-   affordance. Hiding it would mean the only way to see what you have flagged
-   is to hover every row in the list. */
-.gr-feed__actions:has(.is-pressed) { opacity: 1; }
+/* The channel's own mark, with the tone as a small dot on its corner -- the
+   logo says WHERE, the dot says good or bad. */
+.gr-note__mark { position: relative; flex: none; width: 32px; height: 32px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-md); background: var(--surface-page-top); }
+.gr-note__all { color: var(--text-secondary); font-size: 15px; line-height: 1; }
+.gr-note__tone {
+  position: absolute; right: -2px; top: -2px; width: 10px; height: 10px;
+  border-radius: var(--radius-pill); box-shadow: 0 0 0 2px var(--surface-card);
+}
+.gr-note__tone--bad  { background: var(--semantic-bad); }
+.gr-note__tone--warn { background: var(--semantic-warn); }
+.gr-note__tone--good { background: var(--semantic-good); }
 
-@media (prefers-reduced-motion: reduce) { .gr-feed__actions { transition: none; } }
+.gr-note__body { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+/* Read rows step back; unread rows carry the weight. */
+.gr-note__message { color: var(--text-secondary); font-weight: 400; }
+.gr-note.is-unread .gr-note__message { color: var(--text-primary); font-weight: 500; }
+.gr-note__meta { color: var(--text-muted); }
+.gr-note__go { color: var(--accent-text); opacity: 0; transition: opacity 120ms ease; }
+.gr-note__open:hover .gr-note__go, .gr-note__open:focus-visible .gr-note__go { opacity: 1; }
+
+.gr-note__evidence { flex: none; display: flex; align-items: center; gap: var(--space-12); }
+
+/* Revealed on hover or keyboard focus; a pressed Flag stays, because it is state. */
+.gr-note__actions { flex: none; display: flex; gap: var(--space-4); opacity: 0; transition: opacity 120ms ease; }
+.gr-note:hover .gr-note__actions, .gr-note:focus-within .gr-note__actions,
+.gr-note__actions:has(.is-pressed) { opacity: 1; }
+
+.gr-note__unread {
+  flex: none; width: 8px; height: 8px;
+  border-radius: var(--radius-pill); background: var(--accent-base);
+}
+.gr-note:not(.is-unread)::after { content: ''; width: 8px; flex: none; }
+
+@media (prefers-reduced-motion: reduce) { .gr-note__actions, .gr-note__go { transition: none; } }
 
 /* Flag for attention. Reads as a toggle rather than an action, because it is
    one: pressing it again takes the campaign back off the list. */

@@ -561,6 +561,8 @@ wait on other people: the **Meta app** and the **Google Ads developer token**.
 
 ## ✅ Done
 
+- **Notifications: computed, not typed** *(Sept 28)* — 🚨 the six hand-typed alerts were mostly false against the data ("Meta CAC rose 42%" — it had fallen 5%; "ROAS fell below 2.0x" — it was 3.4x; a TikTok "monthly target" that did not exist). The Figma story (Meta CAC +42% WoW, Affiliates leads +31%) is now an **event in the seeded data** for the last 7 days only — 30-day totals unchanged — so every screen finds it. `notifications()` derives the feed from rules (15% WoW move, account pacing, 2.5× blended CAC, campaigns in Review); the Overview strip reads the same objects. Rows show the channel mark, both weeks drawn, the change, and open/ask **at 7 days on the alert's metric**, so the page shows the number the alert stated.
+
 - **Reports, rebuilt** *(Sept 28)* — the thinnest screen, now worth opening. Summary strip (sending / next send / who receives), **Next run** computed from the last day of data, **Preview** shows the figures each report sends (per channel, its own window vs the one before — same functions as the CSV), Pause / Resume / Schedule-a-draft, recipients as faces + external count, a working **New report** builder. Fixed: "TikTok · YouTube" exported TikTok only; every report exported 30 days regardless of cadence; last-run dates after the data ended; a second Export that ignored the range. First screen checked in a real browser (headless Chrome via CDP, `/tmp/shot.mjs`) before handing over.
 - **Every decision goes back to its item** *(Sept 28)* — "Go to ad / campaign / Meta / all channels" on every card; the overdue pill goes there too. Target stored on the flag at decision time.
 

@@ -84,7 +84,9 @@ export const SEED: Message[] = [
   { id: 'm1', authorId: 'jr', minutesAgo: 214, time: '8:12 AM',
     body: 'Meta CAC is up 42% week over week. Worth a look before Friday.' },
   { id: 'm2', authorId: 'jr', minutesAgo: 212, time: '8:14 AM',
-    body: 'Pulled the campaign split — most of it is Advantage+ Shopping.',
+    /* "Advantage+ Shopping" is not a campaign in this account. Evergreen
+       Signups is, and it carries 56% of Meta's spend. */
+    body: 'Pulled the campaign split — Evergreen Signups carries over half of Meta spend, so most of it lands there.',
     view: { channel: 'meta', metric: 'CAC', range: 30 } },
   { id: 'm3', authorId: 'dk', minutesAgo: 156, time: '9:10 AM', fromSlack: true,
     body: 'That tracks. We raised the Advantage+ budget on the 14th and never re-baselined the target.' },

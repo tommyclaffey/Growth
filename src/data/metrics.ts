@@ -156,6 +156,31 @@ export function canProduce(channel: ChannelName, field: 'clicks' | 'impressions'
   return !(CANNOT_PRODUCE[channel] ?? []).includes(field);
 }
 
+/**
+ * Things that HAPPENED in the last week, written into the data rather than into
+ * a notification.
+ *
+ * 🚨 The alerts used to be typed by hand -- "Meta CAC rose 42% week over week",
+ * "Affiliate leads spiked 31%" -- over data that was flat to within ±8% every
+ * week. A beta tester reading the first and opening Meta saw CAC had FALLEN 5%.
+ * The Figma screens were designed around those events, so rather than delete
+ * the story, the story is now true: it happens in the data, and the
+ * notifications, the Overview strip, the KPI deltas, the decision engine and the
+ * assistant all find it there, because they all read these rows.
+ *
+ * A multiplier on each day's cost-per-lead over the final 7 days. The 30-day
+ * window is renormalised afterwards, so every published period total -- Meta's
+ * $35.94 CAC, the $160,780 spend -- is unchanged. The week moves; the month does
+ * not.
+ */
+export const LAST_WEEK = 7;
+const EVENTS: Partial<Record<ChannelName, { cac: number }>> = {
+  /* Advantage+ scaled into a tired audience: each lead costs ~42% more. */
+  meta: { cac: 1.49 },
+  /* The Tier 1 partner refresh: the same spend buys ~31% more leads. */
+  affiliates: { cac: 0.77 },
+};
+
 /** The raw funnel, one row per channel per day. Everything else derives from this. */
 const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
   CHANNEL_KEYS.map((key) => {
@@ -199,7 +224,10 @@ const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
     /* Recent days first and in the original order, history from a separate
        generator -- see histRand. */
     const histEff = mulberry32(hash(key + ':efficiency:history'));
-    const cacFactor = spendByDay.map((_, i) => 0.86 + (i < HISTORY ? histEff() : effRand()) * 0.28);
+    const event = EVENTS[key]?.cac ?? 1;
+    const cacFactor = spendByDay.map((_, i) =>
+      (0.86 + (i < HISTORY ? histEff() : effRand()) * 0.28)
+      * (i >= TOTAL_POINTS - LAST_WEEK ? event : 1));
     const roasFactor = spendByDay.map((_, i) => 0.9 + (i < HISTORY ? histEff() : effRand()) * 0.2);
 
     const rawLeads = spendByDay.map((sp, i) => sp / (c.cac * cacFactor[i]));

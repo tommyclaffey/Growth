@@ -11,6 +11,7 @@ import { ThemeToggle } from './components/ThemeToggle/ThemeToggle';
 import { ChannelSwitcher } from './components/ChannelSwitcher/ChannelSwitcher';
 import { ChannelWordmark } from './components/ChannelWordmark/ChannelWordmark';
 import { useChannels } from './data/channels';
+import { notifications, type NoteKind } from './data/notifications';
 import { setDemoState, useDemoState } from './data/demoState';
 import { RangePicker } from './components/RangePicker/RangePicker';
 import { ChatPanel } from './components/ChatPanel/ChatPanel';
@@ -54,22 +55,14 @@ import { MEMBERS, readDeepLink } from './data/chat';
 /* The alerts, with the view each one points at.
    Kept beside the labels so a pill can never name one channel and navigate to
    another -- the label and the destination are one object. */
-/* `kind` is what the Settings switches address. Without it the toggles could
-   only have been filtered by tone, which is a coincidence rather than a rule --
-   the next 'warn' alert added for something other than pacing would silently
-   have started obeying the pacing switch. */
-/* `notifId` links each pill to the Notifications row describing the SAME event
-   -- n1 is "Meta CAC rose 42% week over week". They are two renderings of one
-   thing, and dealing with it on Overview should not leave it sitting unread on
-   another screen. Only that direction: reading a notification means you have
-   SEEN it, which is not the same as having addressed it. */
-const ALERTS: { id: string; label: string; tone: 'warn' | 'bad' | 'good';
-                kind: 'cac' | 'pacing' | 'win'; notifId: string;
-                channel: ChannelName; metric: Metric }[] = [
-  { id: 'meta',       label: 'Meta CAC ↑ 42% WoW',       tone: 'bad',  kind: 'cac',    notifId: 'n1', channel: 'meta',       metric: 'CAC' },
-  { id: 'tiktok',     label: 'TikTok pacing 18% behind', tone: 'warn', kind: 'pacing', notifId: 'n2', channel: 'tiktok',     metric: 'Spend' },
-  { id: 'affiliates', label: 'Affiliate leads spike',    tone: 'good', kind: 'win',    notifId: 'n3', channel: 'affiliates', metric: 'Leads' },
-];
+/* The Overview strip's pills are the "This week" and pacing NOTIFICATIONS --
+   the same objects, from `notifications()`, not a second hand-typed list. It
+   used to be a separate array whose "Meta CAC ↑ 42% WoW" the data did not
+   support; now both screens say what the rows say, or neither says it.
+
+   `kind` is what the Settings switches address, and the id is shared with the
+   feed so dealing with a pill here marks its row read there. */
+const STRIP_KINDS: NoteKind[] = ['cac', 'leads', 'pacing'];
 
 const THEME_KEY = 'growth.theme';
 
@@ -414,9 +407,12 @@ export default function App() {
      switch a decoration -- which is what it was. */
   /* DERIVED: raised by the data, gated by the Settings switches, minus
      anything already dealt with. */
-  const derivedAlerts = ALERTS.filter((a) =>
-    (a.kind === 'cac' ? cacAlerts : a.kind === 'pacing' ? pacing : true)
-    && !dismissedAlerts.includes(a.id));
+  const notes = notifications(enabled);
+  const derivedAlerts = notes
+    .filter((n) => STRIP_KINDS.includes(n.kind))
+    .filter((n) => (n.kind === 'cac' ? cacAlerts : n.kind === 'pacing' ? pacing : true)
+      && !dismissedAlerts.includes(n.id))
+    .map((n) => ({ id: n.id, label: n.short, tone: n.tone, note: n }));
 
   /* ASSIGNED: put there by a person. Not gated by the alert switches -- those
      control which THINGS THE DATA NOTICES get surfaced, and silencing pacing
@@ -485,10 +481,10 @@ export default function App() {
       removeFlag(flag.kind, flag.refId);
       return;
     }
-    const a = ALERTS.find((x) => x.id === id);
+    const a = derivedAlerts.find((x) => x.id === id);
     if (!a) return;
     setLastCleared({ kind: 'derived', id: a.id, label: a.label });
-    markAllRead([a.notifId]);
+    markAllRead([a.id]);
     dismissAlert(id);
   }
 
@@ -503,7 +499,7 @@ export default function App() {
   const title = onChannelScreen ? CHANNEL_LABEL[channel] : navTitle(nav);
   const SUBTITLES: Record<string, string> = {
     reports: 'Scheduled exports sent to your team',
-    notifications: 'Alerts from the last two days',
+    notifications: 'What your numbers did this week — every alert computed, none typed',
     settings: 'Connections, alerts and appearance',
   };
   const sub = onChannelScreen
@@ -659,7 +655,7 @@ export default function App() {
                   ? (lastCleared.kind === 'assigned' ? lastCleared.flag.label : lastCleared.label)
                   : null}
                 onDismissAll={() => {
-                  markAllRead(derivedAlerts.map((a) => a.notifId));
+                  markAllRead(derivedAlerts.map((a) => a.id));
                   dismissAll(derivedAlerts.map((a) => a.id));
                   /* 🐛 Only what the strip actually SHOWS. This cleared every
                      flag in the store, so once decisions stopped appearing here,
@@ -687,8 +683,10 @@ export default function App() {
                     if (t) openTarget(t); else setNav('decisions');
                     return;
                   }
-                  const a = ALERTS.find((x) => x.id === id);
-                  if (a) applyView({ channel: a.channel, metric: a.metric, range });
+                  const n = derivedAlerts.find((x) => x.id === id)?.note;
+                  /* At 7 days: every pill is a week-over-week claim, and the
+                     30-day view of the same channel shows a different number. */
+                  if (n) applyView({ channel: n.channel ?? 'all', metric: n.metric ?? 'Spend', range: 7 });
                 }}
               />
               )}
@@ -812,7 +810,22 @@ export default function App() {
           )}
 
           {nav === 'reports' && <Reports />}
-          {nav === 'notifications' && <Notifications onOpenCampaign={(id) => openCampaign(id)} />}
+          {nav === 'notifications' && (
+            <Notifications
+              /* Set the view first, then go -- so the page and the assistant
+                 show the number the alert stated. */
+              onOpen={(t, v) => {
+                if (v?.range) setRange(v.range);
+                if (v?.metric) setMetric(v.metric);
+                openTarget(t);
+              }}
+              onAsk={(q, t, v) => {
+                if (v?.range) setRange(v.range);
+                if (v?.metric) setMetric(v.metric);
+                askAbout(q, t);
+              }}
+            />
+          )}
           {nav === 'settings' && (
             <Settings
               theme={theme}
