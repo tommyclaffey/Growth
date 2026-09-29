@@ -75,3 +75,41 @@ describe('a real account brings its OWN campaigns', () => {
     expect(CAMPAIGNS.some((c) => c.name === 'Advantage+ — Evergreen Signups')).toBe(true);
   });
 });
+
+describe('a campaign that moves on its own is flagged -- one that moves with its channel is not', () => {
+  const week = (spend: number, leads: number, lastWeekLeads: number): DayRow[] =>
+    Array.from({ length: TOTAL_POINTS }, (_, i) => {
+      const l = i >= TOTAL_POINTS - 7 ? lastWeekLeads : leads;
+      return { spend, impressions: spend * 80, clicks: l * 20, leads: l, sales: l / 10, revenue: spend * 3 };
+    });
+  const spiky: SourceCampaign[] = [
+    { id: 'm1', name: 'Spring Leads — Broad', channel: 'meta', stage: 'Active', objective: 'Conversions', rows: week(100, 4, 2) },  // CAC doubles
+    { id: 'm2', name: 'Retargeting', channel: 'meta', stage: 'Active', objective: 'Sales', rows: week(100, 4, 4) },           // flat
+  ];
+
+  it('⭐ the campaign that spiked is named; the flat one is not', async () => {
+    const { notifications } = await import('../notifications');
+    const sum = spiky[0].rows.map((r, i) => ({
+      spend: r.spend + spiky[1].rows[i].spend, impressions: r.impressions + spiky[1].rows[i].impressions,
+      clicks: r.clicks + spiky[1].rows[i].clicks, leads: r.leads + spiky[1].rows[i].leads,
+      sales: r.sales + spiky[1].rows[i].sales, revenue: r.revenue + spiky[1].rows[i].revenue,
+    }));
+    hydrate({ rows: { meta: sum }, periodEnd: '2026-09-28', currency: 'USD' });
+    applyStructure(spiky);
+    const ns = notifications(['meta']);
+    const camp = ns.find((n) => n.id === 'cac:campaign:m1')!;
+    expect(camp.message).toMatch(/^Spring Leads — Broad CAC rose 100% week over week/);
+    expect(camp.message).toMatch(/Meta overall moved \+33%/);
+    expect(ns.some((n) => n.id === 'cac:campaign:m2')).toBe(false);
+    /* ...and it becomes a decision about THE CAMPAIGN, not the channel. */
+    const d = decisions(30, ['meta']).find((c) => c.id === 'weekly:cac:campaign:m1')!;
+    expect(d.action).toBe('Find out why Spring Leads — Broad CAC rose 100% this week');
+    expect(d.target).toEqual({ kind: 'campaign', id: 'm1', label: 'Spring Leads — Broad' });
+    expect(d.scope).toEqual(['Meta', 'Spring Leads — Broad']);
+  });
+
+  it('the demo’s campaigns, which move with their channel, raise nothing extra', async () => {
+    const { notifications } = await import('../notifications');
+    expect(notifications().some((n) => n.id.includes(':campaign:'))).toBe(false);
+  });
+});

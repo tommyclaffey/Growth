@@ -1,6 +1,6 @@
 import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS } from './campaigns';
-import { campaignTotals } from './campaignSeries';
+import { campaignRows, campaignTotals } from './campaignSeries';
 import { stageOf } from './campaignStatus';
 import { rankedAds } from './adRanking';
 import { creativesFor } from './creative';
@@ -903,10 +903,13 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
     .filter((n) => n.group === 'This week' && n.channel && n.change !== undefined && n.metric)
     .map((n) => {
       const ch = n.channel!;
-      const name = CHANNEL_LABEL[ch];
-      const now = totals(ch, LAST_WEEK);
-      const cur = rowsFor(ch, LAST_WEEK);
-      const prev = rowsFor(ch, LAST_WEEK, 1);
+      /* A campaign's own move is about the campaign: its figures, its name,
+         and a scope that says which channel it sits in. */
+      const isCampaign = n.target.kind === 'campaign';
+      const name = isCampaign ? n.target.label : CHANNEL_LABEL[ch];
+      const now = isCampaign ? campaignTotals(n.target.id, LAST_WEEK) : totals(ch, LAST_WEEK);
+      const cur = isCampaign ? campaignRows(n.target.id, LAST_WEEK) : rowsFor(ch, LAST_WEEK);
+      const prev = isCampaign ? campaignRows(n.target.id, LAST_WEEK, 1) : rowsFor(ch, LAST_WEEK, 1);
       const sum = (rs: typeof cur, f: 'spend' | 'leads') => rs.reduce((a, r) => a + r[f], 0);
       const prevCac = sum(prev, 'leads') > 0 ? sum(prev, 'spend') / sum(prev, 'leads') : 0;
       const bad = n.tone === 'bad';
@@ -950,8 +953,8 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
             : 'You know what changed, so it can be done again on purpose.',
           checkOn: checkDate(LAST_WEEK),
         },
-        target: { kind: 'channel' as const, id: ch, label: name },
-        scope: [name],
+        target: isCampaign ? n.target : { kind: 'channel' as const, id: ch, label: name },
+        scope: isCampaign ? [CHANNEL_LABEL[ch], name] : [name],
         channel: ch,
         atStake: now.spend,
         /* Ahead of the slow structural findings: this is what changed. */

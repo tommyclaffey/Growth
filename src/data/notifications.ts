@@ -1,5 +1,6 @@
 import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS } from './campaigns';
+import { campaignDelta, campaignTotals } from './campaignSeries';
 import { stageOf } from './campaignStatus';
 import { budgetForRange } from './profile';
 import { prefs } from './prefs';
@@ -122,6 +123,42 @@ export function notifications(channels: ChannelName[] = activeChannels()): Note[
         target, channel: ch, metric: 'Leads', change: leads, trend: lastTwoWeeks(ch, 'Leads'),
       });
     }
+  }
+
+  /* ---- 1b. A CAMPAIGN that moved on its own.
+
+     A channel number is often an average of one campaign's problem and
+     several that are fine. Flagged only when the campaign moved past the
+     threshold AND differs from its channel's move by at least half the
+     threshold -- otherwise it is the channel's move again, and a second alert
+     for the same event is noise. (The seed's campaigns move exactly with their
+     channel, so none fire there; real accounts' campaigns do not.) */
+  const limitC = changeThreshold();
+  for (const c of CAMPAIGNS) {
+    if (!channels.includes(c.channel) || stageOf(c.id) !== 'Active') continue;
+    const cac = campaignDelta(c.id, 'CAC', LAST_WEEK);
+    const leads = campaignDelta(c.id, 'Leads', LAST_WEEK);
+    const chCac = delta(c.channel, 'CAC', LAST_WEEK);
+    const chLeads = delta(c.channel, 'Leads', LAST_WEEK);
+    const useCac = Math.abs(cac) >= Math.abs(leads);
+    const move = useCac ? cac : leads;
+    const own = Math.abs(move - (useCac ? chCac : chLeads)) >= limitC / 2;
+    if (Math.abs(move) < limitC || !own) continue;
+    const up = move > 0;
+    const bad = useCac ? up : !up;
+    const t = campaignTotals(c.id, LAST_WEEK);
+    out.push({
+      id: `${useCac ? 'cac' : 'leads'}:campaign:${c.id}`, kind: useCac ? 'cac' : 'leads', group: 'This week',
+      tone: bad ? 'bad' : 'good',
+      message: useCac
+        ? `${c.name} CAC ${up ? 'rose' : 'fell'} ${pct(move)} week over week, to ${money(t.cac)} a lead — `
+          + `${CHANNEL_LABEL[c.channel]} overall moved ${chCac > 0 ? '+' : ''}${chCac}%.`
+        : `${c.name} leads ${up ? 'rose' : 'fell'} ${pct(move)} week over week — `
+          + `${CHANNEL_LABEL[c.channel]} overall moved ${chLeads > 0 ? '+' : ''}${chLeads}%.`,
+      short: `${c.name} ${useCac ? 'CAC' : 'leads'} ${up ? '↑' : '↓'} ${pct(move)}`,
+      target: { kind: 'campaign', id: c.id, label: c.name },
+      channel: c.channel, metric: useCac ? 'CAC' : 'Leads', change: move,
+    });
   }
 
   /* ---- 2. Account pacing, against the budget set in Settings. A CHANNEL has
