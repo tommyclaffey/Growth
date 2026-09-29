@@ -30,12 +30,27 @@ export const HISTORY = 90;
 export const TOTAL_POINTS = HISTORY + POINTS;
 export const DAYS = 30;
 
-export type Range = 7 | 30 | 90;
+/**
+ * A window of whole days ending on the last day of data.
+ *
+ * ⭐ Phase 3: any 1–90, not just the three presets. The ceiling is not
+ * arbitrary -- every change figure compares the window with the SAME number of
+ * days before it, and the history holds 180, so 90 is the longest window that
+ * still has a full window to compare against.
+ */
+export type Range = number;
+export const MAX_RANGE = HISTORY;
 export const RANGES: Range[] = [7, 30, 90];
-export const POINTS_FOR: Record<Range, number> = { 7: 7, 30: 30, 90: 90 };
-export const RANGE_LABEL: Record<Range, string> = {
-  7: 'Last 7 days', 30: 'Last 30 days', 90: 'Last 90 days',
-};
+
+/** A whole number of days the product can show and compare. */
+export function isRange(n: unknown): n is Range {
+  return typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= MAX_RANGE;
+}
+
+/** "Last 30 days", "Last day". */
+export function rangeLabel(r: Range): string {
+  return r === 1 ? 'Last day' : `Last ${r} days`;
+}
 
 /**
  * Per-channel economics.
@@ -93,17 +108,44 @@ function hash(s: string): number {
 }
 
 /** Day 0 is the oldest. Labels are weekly so the axis stays readable. */
-/* One point per day, ending on a fixed date so the labels never shift under
-   the reader. A dashboard whose axis moves between two screenshots of the
-   same data is one nobody trusts. */
-export const PERIOD_END = new Date(Date.UTC(2026, 7, 12)); // 12 Aug 2026
+/* One point per day, ending on the LAST DAY OF DATA.
+
+   ⭐ Phase 3: this is the SOURCE's date now, not a constant. The seeded account
+   ends on Aug 12, 2026 (so the labels never shift under a reader comparing two
+   screenshots); a real ad account ends on its most recent complete day. It
+   changes only through `hydrate()`. `export let` is a live binding, so every
+   module that imported PERIOD_END or DAY_LABELS reads the current value. */
+export const SEEDED_PERIOD_END = '2026-08-12';
+export let PERIOD_END = new Date(`${SEEDED_PERIOD_END}T00:00:00Z`);
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-export const DAY_LABELS = Array.from({ length: TOTAL_POINTS }, (_, i) => {
-  const d = new Date(PERIOD_END);
-  d.setUTCDate(d.getUTCDate() - (TOTAL_POINTS - 1 - i));
-  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
-});
+function labelsEnding(end: Date): string[] {
+  return Array.from({ length: TOTAL_POINTS }, (_, i) => {
+    const d = new Date(end);
+    d.setUTCDate(d.getUTCDate() - (TOTAL_POINTS - 1 - i));
+    return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
+  });
+}
+export let DAY_LABELS = labelsEnding(PERIOD_END);
+
+/* The account's currency, from the source. Every money figure in the product
+   is formatted through `formatMoney`, so a EUR account reads in euros rather
+   than wearing a hard-coded "$" -- which is what it did everywhere. */
+export let CURRENCY = 'USD';
+
+/** Money in the account's currency, e.g. "$61,240" or "€61,240". */
+export function formatMoney(value: number, decimals = 0): string {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency', currency: CURRENCY,
+    minimumFractionDigits: decimals, maximumFractionDigits: decimals,
+  }).format(value);
+}
+
+/** The currency's symbol alone, for compact axis labels ("$12k"). */
+export function currencySymbol(): string {
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: CURRENCY, maximumFractionDigits: 0 })
+    .formatToParts(0).find((p) => p.type === 'currency')?.value ?? '';
+}
 
 export interface DayRow {
   spend: number;
@@ -182,7 +224,12 @@ const EVENTS: Partial<Record<ChannelName, { cac: number }>> = {
 };
 
 /** The raw funnel, one row per channel per day. Everything else derives from this. */
-const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
+/**
+ * The seeded account, generated. Exported for `sources/seeded.ts` -- the
+ * product never calls this directly; it reads whatever `hydrate()` loaded.
+ */
+export function generateSeeded(): Record<ChannelName, DayRow[]> {
+  return Object.fromEntries(
   CHANNEL_KEYS.map((key) => {
     const c = CHANNELS[key];
     const rand = mulberry32(hash(key));
@@ -271,6 +318,48 @@ const SERIES: Record<ChannelName, DayRow[]> = Object.fromEntries(
     return [key, rows];
   }),
 ) as Record<ChannelName, DayRow[]>;
+}
+
+/* What the product reads. Seeded at import so every screen, test and the
+   first paint have data synchronously; `hydrate()` replaces it with any
+   source's rows. */
+let SERIES: Record<ChannelName, DayRow[]> = generateSeeded();
+let VERSION = 0;
+
+/** Bumped on every hydrate -- for anything that caches across renders. */
+export function dataVersion(): number { return VERSION; }
+
+/**
+ * Load a data source's rows into the product.
+ *
+ * ⚠️ The seam real integrations plug into (see source.ts). Everything
+ * downstream -- totals, deltas, campaigns, decisions, notifications -- is
+ * derived from SERIES, so replacing it here is the whole integration from the
+ * product's side. Rows must cover the full history (TOTAL_POINTS days) ending
+ * on `periodEnd`; a channel the source does not have gets zero rows, which
+ * every screen already treats as "no activity".
+ */
+export function hydrate(data: {
+  rows: Partial<Record<ChannelName, DayRow[]>>;
+  periodEnd: string;
+  currency: string;
+}): void {
+  const empty = (): DayRow[] => Array.from({ length: TOTAL_POINTS },
+    () => ({ spend: 0, impressions: 0, clicks: 0, leads: 0, sales: 0, revenue: 0 }));
+  SERIES = Object.fromEntries(CHANNEL_KEYS.map((k) => {
+    const r = data.rows[k];
+    if (!r) return [k, empty()];
+    if (r.length !== TOTAL_POINTS) {
+      throw new Error(`${k}: expected ${TOTAL_POINTS} days of rows, got ${r.length}`);
+    }
+    return [k, r];
+  })) as Record<ChannelName, DayRow[]>;
+  PERIOD_END = new Date(`${data.periodEnd}T00:00:00Z`);
+  DAY_LABELS = labelsEnding(PERIOD_END);
+  CURRENCY = data.currency;
+  blendCache = null;
+  VERSION += 1;
+}
 
 /**
  * The channels this account actually runs.
@@ -332,7 +421,7 @@ function blend(): DayRow[] {
    campaigns sum to that channel; generating separately only hopes they do. */
 export function rowsFor(scope: Scope, range: Range = 30, back = 0): DayRow[] {
   const all = scope === 'all' ? blend() : SERIES[scope];
-  const n = POINTS_FOR[range];
+  const n = range;
   /* `back` = how many whole windows to step earlier. 0 is the window itself, 1
      is the window immediately before it -- the comparison "Δ Prev" refers to. */
   const end = all.length - back * n;
@@ -350,7 +439,7 @@ export function rowsFor(scope: Scope, range: Range = 30, back = 0): DayRow[] {
  */
 export function series(scope: Scope, metric: Metric, range: Range = 30): { label: string; value: number }[] {
   const rows = rowsFor(scope, range);
-  const labels = DAY_LABELS.slice(-POINTS_FOR[range]);
+  const labels = DAY_LABELS.slice(-range);
   return rows.map((r, i) => {
     let value: number;
     switch (metric) {
@@ -492,7 +581,7 @@ export function sparkline(scope: Scope, metric: Metric, range: Range = 30, point
 
 /** The raw funnel rows behind a view, with their labels. Used by the export. */
 export function rows(scope: Scope, range: Range = 30) {
-  const labels = DAY_LABELS.slice(-POINTS_FOR[range]);
+  const labels = DAY_LABELS.slice(-range);
   return rowsFor(scope, range).map((r, i) => ({ label: labels[i], ...r }));
 }
 
@@ -500,8 +589,8 @@ export function rows(scope: Scope, range: Range = 30) {
 
 export function formatMetric(metric: Metric, value: number): string {
   switch (metric) {
-    case 'Spend':  return `$${Math.round(value).toLocaleString()}`;
-    case 'CAC':    return `$${value.toFixed(2)}`;
+    case 'Spend':  return formatMoney(value);
+    case 'CAC':    return formatMoney(value, 2);
     case 'ROAS':   return `${value.toFixed(1)}x`;
     default:       return Math.round(value).toLocaleString();
   }
@@ -564,7 +653,7 @@ function niceCeil(n: number): number {
 function shortLabel(metric: Metric, v: number): string {
   if (metric === 'ROAS') return `${v.toFixed(1)}x`;
   const money = metric === 'Spend' || metric === 'CAC';
-  const prefix = money ? '$' : '';
+  const prefix = money ? currencySymbol() : '';
   if (v >= 1000) return `${prefix}${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k`;
   return `${prefix}${Math.round(v)}`;
 }

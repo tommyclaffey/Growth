@@ -1,7 +1,7 @@
 import { changeOf, sampleOf } from './metrics';
 import { valueOf, type DerivedMetric } from './channelMetrics';
 import { CAMPAIGNS, type Campaign } from './campaigns';
-import { DAY_LABELS, POINTS_FOR, formatMetric, isRatio, rowsFor, type DayRow, type Metric, type Range } from './metrics';
+import { DAY_LABELS, formatMetric, isRatio, rowsFor, type DayRow, type Metric, type Range } from './metrics';
 
 /**
  * Daily series for a campaign, derived from its channel's series.
@@ -80,7 +80,7 @@ export function campaignRows(id: string, range: Range = 30, back = 0): DayRow[] 
 /** One metric over time for a campaign, shaped like `series()` does for a channel. */
 export function campaignSeries(id: string, metric: Metric, range: Range = 30) {
   const rows = campaignRows(id, range);
-  const labels = DAY_LABELS.slice(-POINTS_FOR[range]);
+  const labels = DAY_LABELS.slice(-range);
   return rows.map((r, i) => {
     let value: number;
     switch (metric) {

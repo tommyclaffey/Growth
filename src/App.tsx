@@ -13,6 +13,8 @@ import { ChannelWordmark } from './components/ChannelWordmark/ChannelWordmark';
 import { useChannels } from './data/channels';
 import { notifications, type NoteKind } from './data/notifications';
 import { setDemoState, useDemoState } from './data/demoState';
+import { useDataSource } from './data/useDataSource';
+import { seededSource } from './data/sources/seeded';
 import { RangePicker } from './components/RangePicker/RangePicker';
 import { ChatPanel } from './components/ChatPanel/ChatPanel';
 import { Assistant } from './components/Assistant/Assistant';
@@ -29,7 +31,7 @@ import { CAMPAIGNS } from './data/campaigns';
 import { useMonthlyBudget } from './data/profile';
 import {
   CHANNEL_LABEL, activeChannels, delta, formatMetric, isActive, series, sparkline, totals,
-  RANGE_LABEL, METRICS,
+  rangeLabel, METRICS,
   type Metric, type Range, type Scope,
 } from './data/metrics';
 import { campaignById } from './data/campaignSeries';
@@ -113,7 +115,12 @@ export default function App() {
   const enabled = useChannels();
   /* Drives the loading/error/empty states, which are otherwise unreachable —
      the data layer is synchronous, so nothing here can be slow or fail. */
-  const demo = useDemoState();
+  const simulated = useDemoState();
+  /* ⭐ Phase 3: the data comes from a SOURCE, loaded with real request state.
+     The Settings simulator still overrides it, so the states can be looked at
+     on the demo account -- but it is now the second way in, not the only one. */
+  const source = useDataSource(seededSource);
+  const demo = simulated !== 'ready' ? simulated : source.status;
 
   /* Which campaign's page is open, if any. Null means the Campaigns list.
      Held here rather than inside CampaignTable because App owns navigation and
@@ -514,8 +521,8 @@ export default function App() {
     settings: 'Connections, alerts and appearance',
   };
   const sub = onChannelScreen
-    ? `${formatMetric('Spend', view.totals.spend)} spend · ${RANGE_LABEL[range].toLowerCase()}`
-    : (SUBTITLES[nav] ?? `All channels · ${RANGE_LABEL[range].toLowerCase()}`);
+    ? `${formatMetric('Spend', view.totals.spend)} spend · ${rangeLabel(range).toLowerCase()}`
+    : (SUBTITLES[nav] ?? `All channels · ${rangeLabel(range).toLowerCase()}`);
 
   const showDashboard = nav === 'overview' || (nav === 'channels' && onChannelScreen);
 

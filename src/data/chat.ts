@@ -3,7 +3,7 @@ import type { ChannelName } from '../styles/tokens';
 import { DERIVED_METRICS, type DerivedMetric } from './channelMetrics';
 import { CAMPAIGNS } from './campaigns';
 import type { Range } from './metrics';
-import { CHANNEL_KEYS, RANGES } from './metrics';
+import { CHANNEL_KEYS, isRange } from './metrics';
 
 export interface Member {
   id: string;
@@ -200,7 +200,7 @@ function asCampaign(v: string | null): string | undefined {
 }
 function asRange(v: string | null): Range | null {
   const n = Number(v);
-  return (RANGES as readonly number[]).includes(n) ? (n as Range) : null;
+  return isRange(n) ? n : null;
 }
 
 export function readDeepLink(search: string): DeepLink | null {

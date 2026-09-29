@@ -47,3 +47,21 @@
 .gr-switcher__dot--all {
   background: linear-gradient(to bottom, var(--accent-gradient-top), var(--accent-gradient-bottom));
 }
+
+/* The custom-range field, sitting where the trigger was. Same box, so nothing
+   around it moves when it opens. */
+.gr-range-custom {
+  display: inline-flex; align-items: center; gap: var(--space-6);
+  height: 36px; padding: 0 var(--space-12);
+  color: var(--text-primary); background: var(--surface-card);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+.gr-range-custom__input {
+  width: 3.5em; height: 24px; padding: 0 var(--space-4);
+  color: var(--text-primary); background: var(--surface-card-tint);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-sm); text-align: right;
+}
+.gr-range-custom__input[aria-invalid='true'] { border-color: var(--semantic-bad); }
+.gr-range-custom__input:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }

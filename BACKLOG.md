@@ -573,6 +573,15 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 
 ## ✅ Done
 
+- **Phase 3 — the API seam** *(Sept 29)*
+  - `src/data/source.ts`: the `DataSource` interface (account: name, **currency**, **timezone**, **periodEnd**; daily funnel rows per channel). `sources/seeded.ts` is ONE implementation of it.
+  - `hydrate()` in metrics.ts loads any source; `PERIOD_END`, `DAY_LABELS`, `CURRENCY` are live bindings — **the clock is no longer frozen in code**, it is the source's last day. All money formats through `formatMoney` (was a hard-coded "$" in 3 places).
+  - `useDataSource()`: real loading / error (with message) / empty from the request; the Settings simulator is now the second way in.
+  - **Custom ranges**: any 1–90 days (90 = longest window with a full prior window in 180 days of history). "Custom…" in the picker; URL, chat links and the server all accept it.
+  - ⚠️ Deliberate departure: NOT "every read path async". Async at the edge (one load), sync inside — ~40 pure functions and their tests unchanged. Argued in source.ts.
+  - ▶️ **Left for Phase 4:** a source must also supply the campaign / ad set / ad STRUCTURE (today it comes from the seed's campaigns.ts). Timezone is carried but not yet used for day boundaries — a real adapter should bucket days in `account.timezone`.
+  - Also fixed: the server's `get_delta` tool still told Claude change was "second half vs first half" — the pre-Sept-28 definition.
+
 - **Phase 2 — accessibility, measured on the real page** *(Sept 28)*
   - **Contrast:** 0 failures, 10 screens × 2 themes (`docs/CONTRAST.md`, `npm run audit:contrast`); 46 token pairs enforced every test run. Fixed: primary button gradient (3.07–3.70:1), accent fills in dark (3.62:1 — new `--accent-fill`), avatar initials (3.0–4.1:1 — new `--avatar-*`), the dismiss × (2.78:1).
   - **Token generator:** `tokens/tokens.json` → `scripts/generate-tokens.mjs` → `tokens.css`; the test fails on a hand edit. ⚠️ Figma is now BEHIND the JSON (contrast fixes Sept 3 + 28) — sync is manual; Variables REST API is Enterprise-only.

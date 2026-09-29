@@ -9,7 +9,7 @@ import { CHANNEL_KEYS, CHANNEL_LABEL, RANGES, setActiveChannels } from '../metri
 import { setStage } from '../campaignStatus';
 
 const reset = () => setActiveChannels([...CHANNEL_KEYS]);
-const all = (range: 7 | 30 | 90 = 30) => decisions(range, ALL_CHANNELS);
+const all = (range: number = 30) => decisions(range, ALL_CHANNELS);
 
 describe('the engine produces findings at all', () => {
   it('finds candidates from the seeded data', () => {

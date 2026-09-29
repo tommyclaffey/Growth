@@ -418,7 +418,7 @@ function buildTools(
     betaTool({
       name: 'get_delta',
       description:
-        'Percentage change for one metric — the second half of the range against the first. Positive means the metric rose. Rising is not automatically good: a rising CAC is worse, a rising ROAS is better.',
+        'Percentage change for one metric — the selected range against the same number of days immediately before it. Positive means the metric rose. Rising is not automatically good: a rising CAC is worse, a rising ROAS is better.',
       inputSchema: {
         type: 'object',
         properties: { scope: scopeProp, metric: metricProp },
@@ -561,7 +561,12 @@ export function assistantApi(): Plugin {
           });
         }
 
-        const { question, range = 30, subject, findings } = await readBody(req);
+        const body = await readBody(req);
+        const { question, subject, findings } = body;
+        /* Any whole number of days 1-90 (Phase 3), anything else falls back to
+           30 rather than reaching the metric functions unchecked. */
+        const asked = Number(body.range);
+        const range = Number.isInteger(asked) && asked >= 1 && asked <= 90 ? asked : 30;
         if (!question?.trim()) return send(res, 400, { error: 'Question required.' });
 
         try {

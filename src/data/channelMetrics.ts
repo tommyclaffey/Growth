@@ -1,5 +1,5 @@
 import type { ChannelName } from '../styles/tokens';
-import type { DayRow } from './metrics';
+import { formatMoney, type DayRow } from './metrics';
 
 /**
  * What each channel can honestly report.
@@ -142,8 +142,8 @@ function compact(v: number): string {
 }
 
 export function formatDerived(m: DerivedMetric, v: number): string {
-  const money = (n: number, dp = 0) =>
-    `$${n.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
+  /* The account's currency, not a hard-coded "$". */
+  const money = (n: number, dp = 0) => formatMoney(n, dp);
   switch (m) {
     case 'Spend':       return money(v);
     /* Compacted above six figures. "5,103,333" in a KPI card is nine glyphs

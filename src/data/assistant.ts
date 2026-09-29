@@ -1,5 +1,5 @@
 import {
-  CHANNEL_LABEL, RANGE_LABEL, activeChannels, delta, formatMetric, totals,
+  CHANNEL_LABEL, rangeLabel, activeChannels, delta, formatMetric, totals,
   type Metric, type Range, type Scope,
 } from './metrics';
 import type { ChannelName } from '../styles/tokens';
@@ -374,7 +374,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
 
   const metric = findMetric(q);
   const channels = findChannels(q);
-  const period = RANGE_LABEL[range].toLowerCase();
+  const period = rangeLabel(range).toLowerCase();
 
   const found = decisions(range);
 

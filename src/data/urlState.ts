@@ -1,5 +1,5 @@
 import type { NavKey } from '../components/Sidebar/Sidebar';
-import { CHANNEL_KEYS, METRICS, RANGES, type Metric, type Range } from './metrics';
+import { CHANNEL_KEYS, METRICS, isRange, type Metric, type Range } from './metrics';
 import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS } from './campaigns';
 import { creativeById } from './creative';
@@ -50,7 +50,7 @@ export function readUrlState(search: string): Partial<UrlState> {
   if (m && (METRICS as readonly string[]).includes(m)) out.metric = m as Metric;
 
   const r = Number(q.get('r'));
-  if ((RANGES as readonly number[]).includes(r)) out.range = r as Range;
+  if (isRange(r)) out.range = r;
 
   const p = q.get('p');
   if (p && CAMPAIGNS.some((x) => x.id === p)) out.campaign = p;

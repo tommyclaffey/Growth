@@ -6,7 +6,7 @@ import { decisions, figuresFor, type Target } from '../../data/decisions';
 import { baselineFor } from '../../data/grading';
 import { addFlag, isFlagged, ownDecisionId, removeFlag, useFlags } from '../../data/attention';
 import { askAssistant, probeModel, type AnswerSource } from '../../data/assistantClient';
-import { RANGE_LABEL, type Range } from '../../data/metrics';
+import { rangeLabel, type Range } from '../../data/metrics';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
 
 
@@ -138,7 +138,7 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
           </span>
           <div>
             <h2 className="gr-type-section">Assistant</h2>
-            <p className="gr-type-caption">Answers from this dashboard · {RANGE_LABEL[range]}</p>
+            <p className="gr-type-caption">Answers from this dashboard · {rangeLabel(range)}</p>
           </div>
           <button type="button" className="gr-assist__close" onClick={onClose} aria-label="Close assistant">✕</button>
         </header>
