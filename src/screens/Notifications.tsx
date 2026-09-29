@@ -35,7 +35,7 @@ const FILTER_LABEL: Record<NoteTone, string> = { bad: 'Issues', warn: 'Watch', g
 
 /** What each section of the feed MEANS, in one line under its heading. */
 const GROUP_NOTE: Record<string, string> = {
-  'This week': 'Moved 15% or more against the week before.',
+  'This week': 'Moved past your threshold against the week before.',
   Standing: 'True all month — not new, but not resolved.',
   'Waiting on someone': 'Nothing changes here until a person acts.',
 };

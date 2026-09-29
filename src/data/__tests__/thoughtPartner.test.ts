@@ -101,3 +101,21 @@ describe('what if -- scaling questions, with the assumption said', () => {
     expect((a.followUps ?? []).join(' ')).not.toMatch(/from Podcasts/);
   });
 });
+
+describe('the team sets what counts as a big move -- and every surface obeys it', () => {
+  it('one threshold drives the feed, the engine, the brief and the scaling hold', async () => {
+    const { setPref } = await import('../prefs');
+    const { notifications: notes } = await import('../notifications');
+    setPref('changeThreshold', 50);
+    try {
+      expect(notes([...CHANNEL_KEYS]).filter((n) => n.group === 'This week')).toHaveLength(0);
+      expect(decisions(30, ALL_CHANNELS).some((c) => c.kind === 'weekly-move')).toBe(false);
+      expect(brief(30, [...CHANNEL_KEYS]).lines[0].text).toMatch(/Nothing moved 50% or more/);
+      expect(whereToScale(1000, 30).options.find((o) => o.channel === 'meta')!.hold).toBeUndefined();
+      setPref('changeThreshold', 25);
+      expect(decisions(30, ALL_CHANNELS).filter((c) => c.kind === 'weekly-move')).toHaveLength(2);
+    } finally {
+      setPref('changeThreshold', 15);
+    }
+  });
+});

@@ -30,7 +30,16 @@ export interface Prefs {
    * still telling you your CAC is up 42%.
    */
   dismissedAlerts: string[];
+  /**
+   * How big a week-over-week move has to be to count as news -- one number for
+   * Notifications, the Overview strip, the engine's "this week" decisions, the
+   * brief and the scaling hold. A team spending $5k a month and one spending
+   * $500k do not agree on what is noise.
+   */
+  changeThreshold: number;
 }
+
+export const THRESHOLDS = [10, 15, 20, 25, 30];
 
 const KEY = 'growth.prefs';
 const CHANGED = 'growth:prefs';
@@ -42,6 +51,7 @@ export const DEFAULT_PREFS: Prefs = {
   digestTo: 'growth@example.com',
   readAlerts: [],
   dismissedAlerts: [],
+  changeThreshold: 15,
 };
 
 /* Validated field by field rather than trusting the shape.
@@ -66,6 +76,7 @@ function read(): Prefs {
       dismissedAlerts: Array.isArray(raw.dismissedAlerts)
         ? raw.dismissedAlerts.filter((x: unknown): x is string => typeof x === 'string')
         : [],
+      changeThreshold: THRESHOLDS.includes(raw.changeThreshold) ? raw.changeThreshold : DEFAULT_PREFS.changeThreshold,
     };
   } catch {
     return { ...DEFAULT_PREFS };

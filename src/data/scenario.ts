@@ -2,7 +2,7 @@ import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS } from './campaigns';
 import { campaignTotals } from './campaignSeries';
 import { stageOf } from './campaignStatus';
-import { CHANGE_THRESHOLD } from './notifications';
+import { changeThreshold } from './notifications';
 import {
   CHANNEL_LABEL, LAST_WEEK, activeChannels, delta, totals, type Range,
 } from './metrics';
@@ -60,7 +60,7 @@ export function defaultExtra(range: Range, channels = activeChannels()): number 
 /** Why a channel should not get more money right now -- or undefined. */
 function holdFor(ch: ChannelName): string | undefined {
   const wow = delta(ch, 'CAC', LAST_WEEK);
-  if (wow >= CHANGE_THRESHOLD) {
+  if (wow >= changeThreshold()) {
     return `its CAC rose ${wow}% this week — find out why before adding money`;
   }
   return undefined;

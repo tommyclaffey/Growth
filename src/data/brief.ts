@@ -2,7 +2,7 @@ import type { ChannelName } from '../styles/tokens';
 import { flags, isOverdue } from './attention';
 import { decisions } from './decisions';
 import { grade, tally } from './grading';
-import { notifications, weekLabels } from './notifications';
+import { changeThreshold, notifications, weekLabels } from './notifications';
 import { activeChannels, type Range } from './metrics';
 
 export type BriefTone = 'bad' | 'good' | 'warn' | 'info';
@@ -51,7 +51,7 @@ export function brief(range: Range = 30, channels: ChannelName[] = activeChannel
     }
   }
   if (moves.length === 0) {
-    lines.push({ tone: 'info', text: 'Nothing moved 15% or more this week. A quiet week is a real answer.' });
+    lines.push({ tone: 'info', text: `Nothing moved ${changeThreshold()}% or more this week. A quiet week is a real answer.` });
   }
 
   /* 2. What is waiting on you. */

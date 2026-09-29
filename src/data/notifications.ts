@@ -2,6 +2,7 @@ import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS } from './campaigns';
 import { stageOf } from './campaignStatus';
 import { budgetForRange } from './profile';
+import { prefs } from './prefs';
 import type { Target } from './decisions';
 import {
   CHANNEL_LABEL, DAY_LABELS, LAST_WEEK, activeChannels, delta, formatMetric, rowsFor, totals,
@@ -53,8 +54,13 @@ export interface Note {
   trend?: number[];
 }
 
-/** A change this size is news. Below it, a week is just a week. */
+/** The default size of change that counts as news. Below it, a week is just a week. */
 export const CHANGE_THRESHOLD = 15;
+
+/** The team's own threshold (Settings), or the default outside a browser. */
+export function changeThreshold(): number {
+  try { return prefs().changeThreshold; } catch { return CHANGE_THRESHOLD; }
+}
 /** A channel costing this multiple of blended is worth standing attention. */
 const COST_MULTIPLE = 2.5;
 /** Pacing further than this from plan either way. */
@@ -93,7 +99,8 @@ export function notifications(channels: ChannelName[] = activeChannels()): Note[
        -29%); Affiliates' is its volume (+31% leads, CAC -21%). Same event shape,
        different headline -- the one a person would say out loud. */
     const cacLeads = Math.abs(cac) >= Math.abs(leads);
-    if (cacLeads && Math.abs(cac) >= CHANGE_THRESHOLD) {
+    const limit = changeThreshold();
+    if (cacLeads && Math.abs(cac) >= limit) {
       const up = cac > 0;
       out.push({
         id: `cac:${ch}`, kind: 'cac', group: 'This week', tone: up ? 'bad' : 'good',
@@ -102,7 +109,7 @@ export function notifications(channels: ChannelName[] = activeChannels()): Note[
         short: `${name} CAC ${up ? '↑' : '↓'} ${pct(cac)} WoW`,
         target, channel: ch, metric: 'CAC', change: cac, trend: lastTwoWeeks(ch, 'CAC'),
       });
-    } else if (Math.abs(leads) >= CHANGE_THRESHOLD) {
+    } else if (Math.abs(leads) >= limit) {
       const up = leads > 0;
       out.push({
         id: `leads:${ch}`, kind: 'leads', group: 'This week', tone: up ? 'good' : 'bad',

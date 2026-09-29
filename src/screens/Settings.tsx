@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { restoreAlerts, setPref, usePrefs } from '../data/prefs';
+import { THRESHOLDS, restoreAlerts, setPref, usePrefs } from '../data/prefs';
 import { Button } from '../components/Button/Button';
 import { monthlyBudget, setMonthlyBudget, setWorkspaceName, workspaceName } from '../data/profile';
 import './screens.css';
@@ -39,7 +39,7 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
   /* Persisted, and two of them actually drive the Overview alert strip.
      These were four useState calls sitting beside three neighbours that saved
      properly -- so the screen accepted an answer and forgot it on navigation. */
-  const { digest, cacAlerts, pacing, digestTo, dismissedAlerts } = usePrefs();
+  const { digest, cacAlerts, pacing, digestTo, dismissedAlerts, changeThreshold } = usePrefs();
   /* Seeded from the STORE, not a literal.
 
      It was useState('Growth — Acquisition'), which wrote on change and never
@@ -238,16 +238,39 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
 
           <div className="gr-setting-row">
             <span className="gr-setting-row__text">
-              <strong className="gr-type-body-medium">CAC threshold</strong>
-              <span className="gr-type-caption">Alert when blended CAC rises more than 20% week over week</span>
+              <strong className="gr-type-body-medium">What counts as a big move</strong>
+              <span className="gr-type-caption">
+                A channel&rsquo;s CAC or leads moving this much week over week is news: it shows in
+                Notifications and on Overview, and becomes a decision to look into.
+              </span>
+            </span>
+            <select
+              className="gr-table__select gr-type-label-button"
+              aria-label="Big-move threshold"
+              value={changeThreshold}
+              onChange={(e) => setPref('changeThreshold', Number(e.target.value))}
+            >
+              {THRESHOLDS.map((t) => <option key={t} value={t}>{t}%</option>)}
+            </select>
+          </div>
+
+          <div className="gr-setting-row">
+            <span className="gr-setting-row__text">
+              <strong className="gr-type-body-medium">CAC alerts on Overview</strong>
+              {/* Said what it does. It read "blended CAC rises more than 20%":
+                  the rule is per channel, at the threshold below, and fires on
+                  a fall as well as a rise. */}
+              <span className="gr-type-caption">Show a channel whose CAC moved past your threshold this week</span>
             </span>
             <Toggle checked={cacAlerts} onChange={(v) => setPref('cacAlerts', v)} label="CAC threshold alerts" labelHidden />
           </div>
 
           <div className="gr-setting-row">
             <span className="gr-setting-row__text">
-              <strong className="gr-type-body-medium">Pacing warnings</strong>
-              <span className="gr-type-caption">Alert when a channel falls behind its monthly target</span>
+              <strong className="gr-type-body-medium">Pacing warnings on Overview</strong>
+              {/* "A channel falls behind its monthly target" -- channels have no
+                  targets. Pacing is total spend against the monthly budget. */}
+              <span className="gr-type-caption">Show when total spend is 15% or more off your monthly budget</span>
             </span>
             <Toggle checked={pacing} onChange={(v) => setPref('pacing', v)} label="Pacing warnings" labelHidden />
           </div>
