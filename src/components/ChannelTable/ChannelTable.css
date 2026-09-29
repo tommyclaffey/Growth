@@ -45,6 +45,10 @@
 
 .gr-table { width: 100%; border-collapse: collapse; }
 
+/* Sideways scroll as the last resort for a table wider than its card, rather
+   than letting the card edge slice off whatever column is last. */
+.gr-table-scroll { overflow-x: auto; }
+
 /* Header cells are buttons so sorting is keyboard reachable. They stay visually
    flat — a sortable header should not read as a control until you approach it. */
 .gr-th {
@@ -163,7 +167,12 @@
   width: 6rem;
   text-align: right;
 }
-/* A BUTTON, not link text.
+/* ⚠️ The TYPE comes from the cell (`gr-type-caption-med` on the td), and the
+   button inherits it through .gr-unbutton's `font: inherit`. With no class on
+   the cell the button inherited the page default -- on the Ads table, whose rows
+   carry no type class, that rendered "Ask" larger than the body text beside it.
+
+   A BUTTON, not link text.
 
    It shipped as bare blue text, which reads as a link -- and a link implies
    navigation, which this does not do: it opens a panel. The affordance has to

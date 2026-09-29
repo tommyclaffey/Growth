@@ -85,6 +85,10 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
         </p>
       )}
 
+      {/* Scrolls sideways only as a last resort. The text columns wrap first;
+          this catches a window too narrow even for that, so the last column is
+          reachable instead of sliced off by the card edge. */}
+      <div className="gr-table-scroll">
       <table className="gr-table">
         <thead>
           <tr className="gr-type-overline">
@@ -110,7 +114,7 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
           {rows.map((r, i) => (
             <tr key={r.creative.id} className="gr-campaign__adset-row">
               <td className="gr-type-caption gr-ads__rank">{i + 1}</td>
-              <td className="gr-type-body-medium">
+              <td className="gr-type-body-medium gr-ads__wrap">
                 <button
                   type="button"
                   className="gr-unbutton gr-campaign__adset-open"
@@ -131,7 +135,7 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
                   <span className="gr-type-body">{CHANNEL_LABEL[r.channel]}</span>
                 </span>
               </td>
-              <td className="gr-type-caption">
+              <td className="gr-type-caption gr-ads__wrap">
                 {r.campaign.name}
                 <span className="gr-ads__kind gr-type-caption">
                   {groupNoun(r.channel).one}: {r.creative.adSetName}
@@ -155,7 +159,7 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
               </td>
               <td><StatusPill stage={r.creative.stage} /></td>
               {onAskAbout && (
-                <td className="gr-table__ask">
+                <td className="gr-table__ask gr-type-caption-med">
                   <button type="button" className="gr-unbutton gr-ask"
                           aria-label={`Ask about ${r.creative.headline}`}
                           /* ⚠️ The ID travels, not just the headline. Ad
@@ -174,6 +178,7 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
           ))}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }

@@ -196,7 +196,7 @@ export function ChannelTable({ rows, onRowClick, onAskAbout, wideColumns = true,
                   <Sparkline values={r.trend} channel={r.key} variant="line" height={20} />
                 </td>
                 {onAskAbout && (
-                  <td className="gr-table__ask">
+                  <td className="gr-table__ask gr-type-caption-med">
                     {/* Revealed on row hover and on keyboard focus -- always
                         visible it becomes six identical buttons competing with the
                         numbers, which is what the row is for. */}

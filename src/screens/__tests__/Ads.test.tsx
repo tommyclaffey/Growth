@@ -93,4 +93,16 @@ describe('Ads renders the ranking', () => {
     expect(screen.getByText(/No channels are switched on/i)).toBeTruthy();
     setChannels([...CHANNEL_KEYS]);
   });
+
+  it('the Ask cell carries its own type size, and text columns can wrap', () => {
+    /* Ask inherited the page default font because nothing on its row set one,
+       and seven nowrap columns pushed it past the card edge. */
+    setActiveChannels([...CHANNEL_KEYS]);
+    const { container } = render(<Ads range={30} onAskAbout={() => {}} />);
+    const row = rows(container)[0];
+    const ask = row.querySelector('td.gr-table__ask');
+    expect(ask?.className).toMatch(/\bgr-type-/);
+    expect(row.querySelectorAll('td.gr-ads__wrap')).toHaveLength(2);
+    expect(container.querySelector('.gr-table-scroll > table.gr-table')).not.toBeNull();
+  });
 });

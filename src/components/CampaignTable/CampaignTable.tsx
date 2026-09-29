@@ -127,7 +127,7 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
                   {wideColumns && <td className="gr-type-body">{cacOf(c)}</td>}
                   <td className="gr-type-body">{c.roas.toFixed(1)}x</td>
                   {onAskAbout && (
-                    <td className="gr-table__ask">
+                    <td className="gr-table__ask gr-type-caption-med">
                       <button type="button" className="gr-unbutton gr-ask"
                               aria-label={`Ask about ${c.name}`}
                               onClick={(e) => {

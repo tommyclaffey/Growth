@@ -344,6 +344,14 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 
 .gr-ads__nopeer { color: var(--text-muted); }
 
+/* 🐛 Every table cell is `nowrap` -- right for figures, wrong for a headline and
+   a campaign-plus-ad-set name. Seven unbreakable columns made the table wider
+   than its card, and the Ask column was the one sliced off at the edge.
+
+   The two text columns wrap instead. 0-2-1 to beat `.gr-table td`. The
+   min-width stops them collapsing to one word per line before the numbers give. */
+.gr-table td.gr-ads__wrap { white-space: normal; min-width: 11rem; }
+
 /* ---------- Decisions — the decision maker's surface ---------- */
 
 .gr-dec__head {
