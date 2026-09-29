@@ -41,3 +41,8 @@
   background: var(--semantic-bad-bg);
   border-radius: var(--radius-sm);
 }
+
+/* The native date picker's calendar icon is drawn by the browser in the page's
+   color-scheme -- black on the dark card, so it vanished. Tell it the theme. */
+[data-theme='dark'] .gr-task__control { color-scheme: dark; }
+[data-theme='light'] .gr-task__control { color-scheme: light; }

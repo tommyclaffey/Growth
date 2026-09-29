@@ -193,7 +193,11 @@ describe('the assistant and the Decisions screen share one queue', () => {
     const card = [...container.querySelectorAll('.gr-dec__card')]
       .find((c) => c.textContent?.includes(first.action))!;
     expect(card, first.action).toBeDefined();
-    expect(within(card as HTMLElement).getByText(/On your attention queue/)).toBeTruthy();
+    /* Accepted = it sits under Decided, offers Undo, and no longer offers Accept. */
+    expect(card.closest('.gr-dec__tier')!.className).toMatch(/is-queue/);
+    expect(within(card as HTMLElement).getByRole('button', { name: 'Undo' })).toBeTruthy();
+    expect(within(card as HTMLElement).queryByRole('button', { name: /^accept$/i })).toBeNull();
+    expect(within(card as HTMLElement).queryByRole('button', { name: 'Dismiss' })).toBeNull();
   });
 
   it('and undoing on the screen clears it for the conversation too', () => {

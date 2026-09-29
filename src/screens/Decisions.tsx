@@ -6,7 +6,7 @@ import { ChannelMark } from '../components/ChannelMark/ChannelMark';
 import type { ChannelName } from '../styles/tokens';
 import { decisions, targetOfDecision, TIER_LABEL, type Candidate, type Target, type Tier } from '../data/decisions';
 import { addFlag, isFlagged, isOverdue, isOwnDecision, removeFlag, useFlags, type Flag } from '../data/attention';
-import { TaskFields } from '../components/TaskFields/TaskFields';
+import { TaskFields, formatDue } from '../components/TaskFields/TaskFields';
 import { CHANNEL_DEPTH, groupNoun, leafNoun } from '../data/channelDepth';
 import { dismiss, isDismissed, restore, useDismissals } from '../data/dismissedDecisions';
 import { useChannels } from '../data/channels';
@@ -93,15 +93,15 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
 
   return (
     <>
+      {/* ONE line, not a second heading and a paragraph. The page title already
+          says "Decisions"; an H2 of "What to do next" under it was the same
+          heading twice, and three lines of prose before the first card is a
+          wall to read past on every visit. */}
       <header className="gr-dec__head">
-        <div>
-          <h2 className="gr-type-section">What to do next</h2>
-          <p className="gr-type-body gr-dec__lede">
-            Every finding below is computed from the same numbers the charts render — no
-            model wrote them. They are grouped by <strong>how well this data supports
-            them</strong>, not by how large the figure is.
-          </p>
-        </div>
+        <p className="gr-type-caption gr-dec__lede">
+          Computed from the same numbers the charts use — no model wrote these. Grouped
+          by <strong>how well the data supports them</strong>, not by dollar size.
+        </p>
         {hidden.length > 0 && (
           <Button variant="ghost" onClick={() => setShowDismissed(!showDismissed)}>
             {showDismissed ? 'Hide' : `Dismissed (${hidden.length})`}
@@ -123,7 +123,7 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
                 alone. */}
             <h3 className="gr-type-card-heading">Decided</h3>
             <Badge label="You committed to these" tone="good" />
-            <span className="gr-type-caption">{queue.length}</span>
+            <span className="gr-dec__count gr-type-caption-med">{queue.length}</span>
           </header>
           <p className="gr-type-caption gr-dec__tier-note">
             Newest first. Everything below this is still only proposed.
@@ -219,7 +219,7 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
                 label={TIER_LABEL[tier]}
                 tone={tier === 3 ? 'warn' : tier === 2 ? 'accent' : 'good'}
               />
-              <span className="gr-type-caption">{mine.length}</span>
+              <span className="gr-dec__count gr-type-caption-med">{mine.length}</span>
             </header>
 
             {/* The argument for the section, stated where the reader is. A tier-3
@@ -252,7 +252,7 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
         <section className="gr-dec__tier">
           <header className="gr-dec__tier-head">
             <h3 className="gr-type-card-heading">Dismissed</h3>
-            <span className="gr-type-caption">{hidden.length}</span>
+            <span className="gr-dec__count gr-type-caption-med">{hidden.length}</span>
           </header>
           <div className="gr-dec__list">
             {hidden.map((c) => {
@@ -367,7 +367,7 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen }: {
             </p>
           )}
           <p className="gr-type-caption gr-dec__check">
-            <span className="gr-type-overline">Check on</span> {c.expectation.checkOn}
+            <span className="gr-type-overline">Check on</span> {formatDue(c.expectation.checkOn)}
           </p>
         </div>
       )}
@@ -388,16 +388,10 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen }: {
             question, and offering to "accept" it would turn it back into the
             recommendation the tier exists to refuse. */}
         {c.tier !== 3 && (
-          accepted ? (
-            <>
-              <span className="gr-type-caption gr-dec__accepted">
-                ✓ On your attention queue
-              </span>
-              <Button variant="ghost" onClick={() => removeFlag('decision', c.id)}>
-                Undo
-              </Button>
-            </>
-          ) : (
+          /* Once accepted there is no Accept, and no "✓ On your queue" label:
+             the card is sitting under a heading that says Decided. Saying it
+             again pushed the row onto two lines. */
+          !accepted && (
             <Button variant="primary"
                     onClick={() => addFlag('decision', c.id, c.action, { target: c.target })}>
               Accept
@@ -417,7 +411,14 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen }: {
           </Button>
         )}
 
-        {dismissing ? (
+        {accepted ? (
+          /* Undo takes Dismiss's place at the far edge. Dismissing something
+             you already committed to is not a thing -- you take it back. */
+          <Button variant="ghost" className="gr-dec__dismiss"
+                  onClick={() => removeFlag('decision', c.id)}>
+            Undo
+          </Button>
+        ) : dismissing ? (
           <form
             className="gr-dec__dismiss-form"
             onSubmit={(e) => { e.preventDefault(); dismiss(c.id, reason.trim() || 'No reason given'); }}
@@ -432,7 +433,11 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen }: {
             <Button variant="ghost" type="submit">Save</Button>
           </form>
         ) : (
-          <Button variant="ghost" onClick={() => setDismissing(true)}>Dismiss</Button>
+          /* Pushed to the far edge, away from Accept. Four equal buttons in a
+             row gave "throw this away" the same weight as "do it". */
+          <Button variant="ghost" className="gr-dec__dismiss" onClick={() => setDismissing(true)}>
+            Dismiss
+          </Button>
         )}
       </footer>
     </article>
