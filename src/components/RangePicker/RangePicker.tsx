@@ -30,19 +30,35 @@ export function RangePicker({ value, onChange }: RangePickerProps) {
   /* Custom DATES: a start and an end, anywhere in the account's history. */
   const [dates, setDates] = useState<{ start: string; end: string } | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const custDates = windowEnd() > 0;
+  /* Closing the calendar, however it happens, hands focus back to the button
+     that opened it -- it used to land on <body>. */
+  const closeDates = (restore = true) => {
+    setDates(null);
+    if (restore) requestAnimationFrame(() => trigger.current?.focus());
+  };
 
   /* Outside-click, Escape with focus restore, and arrow-key navigation.
      All three menus declared role="listbox" and implemented none of it. */
   useMenu(open, setOpen, wrap);
 
-  /* The calendar closes on a click outside it, like the menus. */
+  /* The calendar closes on a click outside it, and on Escape from ANYWHERE --
+     focus can still be on the date button when it opens, where the calendar's
+     own key handler never heard it. */
+  const isOpen = Boolean(dates);
   useEffect(() => {
-    if (!dates) return;
-    const out = (e: MouseEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setDates(null); };
+    if (!isOpen) return;
+    const out = (e: MouseEvent) => {
+      if (wrap.current && !wrap.current.contains(e.target as Node)) { setDates(null); }
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setDates(null); requestAnimationFrame(() => trigger.current?.focus()); }
+    };
     document.addEventListener('mousedown', out);
-    return () => document.removeEventListener('mousedown', out);
-  }, [dates]);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', out); document.removeEventListener('keydown', esc); };
+  }, [isOpen]);
 
   if (custom !== null) {
     const n = Number(custom);
@@ -73,9 +89,12 @@ export function RangePicker({ value, onChange }: RangePickerProps) {
   return (
     <div className="gr-switcher" ref={wrap}>
       <button
+        ref={trigger}
         type="button"
         className="gr-switcher__trigger gr-type-label-button"
-        onClick={() => setOpen((o) => !o)}
+        /* With the calendar open, the button closes it -- it used to open the
+           menu UNDERNEATH the calendar, both "expanded" at once. */
+        onClick={() => (dates ? closeDates() : setOpen((o) => !o))}
         aria-haspopup="listbox"
         aria-expanded={open || Boolean(dates)}
       >
@@ -131,11 +150,11 @@ export function RangePicker({ value, onChange }: RangePickerProps) {
         <RangeCalendar
           start={dates.start} end={dates.end}
           min={dataSpan()[0]} max={dataSpan()[1]} maxDays={MAX_RANGE}
-          onCancel={() => setDates(null)}
+          onCancel={() => closeDates()}
           onApply={(a, b) => {
             const w = windowFromDates(a, b);
             if (w) onChange(w.range, w.endBack);
-            setDates(null);
+            closeDates();
           }}
         />
       )}

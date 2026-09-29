@@ -305,7 +305,7 @@ export function Chart({
         </fieldset>
       )}
       <div className="gr-chart__table-wrap" tabIndex={0} aria-label={`${title ?? metric} as a table`}>
-        <table className="gr-chart__table">
+        <table className={`gr-chart__table ${comparing ? 'is-comparing' : ''}`}>
           <thead>
             {comparing && (
               <tr className="gr-type-overline gr-chart__table-group">
@@ -605,7 +605,7 @@ export function Chart({
                       loading and error states keep their live region, because
                       those are state changes a user needs told about. */}
                   <div
-                    className="gr-chart__tip"
+                    className={`gr-chart__tip ${hoverX > 80 ? 'is-near-right' : hoverX < 20 ? 'is-near-left' : ''}`}
                     style={{ left: `${hoverX}%` }}
                     aria-hidden="true"
                   >

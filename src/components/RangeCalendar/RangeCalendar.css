@@ -69,6 +69,12 @@
 .gr-cal__day.is-in:hover:not(:disabled):not(.is-edge) { background: var(--accent-soft); }
 .gr-cal__day:disabled { color: var(--text-disabled); cursor: not-allowed; }
 .gr-cal__day:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: -2px; z-index: 1; }
+/* On a start/end day the ring and the fill are the same violet (1.0:1) --
+   keyboard focus was invisible on exactly the day it lands on first. */
+.gr-cal__day.is-edge:focus-visible { outline-color: var(--text-primary); outline-offset: 2px; }
+/* The band carries "in range" on its own; a hairline keeps it visible where
+   the tint alone is faint against the card (1.15:1). */
+.gr-cal__day.is-in:not(.is-edge) { box-shadow: inset 0 1px 0 var(--accent-soft), inset 0 -1px 0 var(--accent-soft); }
 
 .gr-cal__foot {
   display: flex; align-items: center; gap: var(--space-8);

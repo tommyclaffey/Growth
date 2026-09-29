@@ -94,7 +94,11 @@
   height: 100%;
   display: flex;
   align-items: flex-end;
-  gap: 5px;
+  /* No gap: each slot carries half of the 5px gutter on either side, so slot
+     centres fall exactly at (i + 0.5) / n -- where the overlays put their
+     points. With a flex gap they drifted ~2.5px off the outer bars, and on
+     90-day bars the end points landed in the gutters. */
+  gap: 0;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -104,6 +108,8 @@
   height: 100%;
   display: flex;
   align-items: flex-end;
+  padding: 0 2.5px;
+  min-width: 0;
 }
 
 /* The 1px edge in the channel's own -soft colour is not decoration.
@@ -138,10 +144,10 @@
 
 .gr-chart__x {
   display: flex;
-  gap: 5px;
+  gap: 0;
   color: var(--text-muted);
 }
-.gr-chart__x > span { flex: 1; min-width: 0; white-space: nowrap; overflow: visible; }
+.gr-chart__x > span { flex: 1; min-width: 0; padding: 0 2.5px; white-space: nowrap; overflow: visible; }
 
 .gr-chart__state {
   flex: 1;
@@ -330,14 +336,13 @@
 .gr-chart__overlay-line--period {
   stroke-width: 1.75;
   stroke-dasharray: 4 4;
-  opacity: 0.7;
+  /* Full strength: at 0.7 the line fell under 3:1 (1.47:1 in Paid Search
+     yellow). The dashes already tell it from the solid line. */
 }
 .gr-chart__glyph--period {
   height: 0;
   border-top: 2px dashed;
-  opacity: 0.7;
 }
-.gr-chart__marker--period { opacity: 0.7; }
 .gr-chart__axis-note { color: var(--text-muted); font-style: normal; text-transform: none; letter-spacing: 0; }
 
 /* ---- The table view ---------------------------------------------------------
@@ -352,7 +357,31 @@
   border-top: var(--border-width-sm) solid var(--border-subtle);
 }
 .gr-chart__table-wrap:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-sm); }
-.gr-chart__table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.gr-chart__table {
+  width: 100%;
+  /* separate, not collapse: collapsed borders on sticky cells let the rows
+     show through ~4px under the grouped header while scrolling. */
+  border-collapse: separate; border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+/* The Date column stays put when a wide table scrolls sideways (20 columns
+   with every metric ticked and a comparison on). The earlier-date column
+   sticks beside it. */
+.gr-chart__table tr > :first-child {
+  position: sticky; left: 0; z-index: 1;
+  min-width: 64px; background: var(--surface-card);
+}
+.gr-chart__table.is-comparing tr:not(.gr-chart__table-group) > :nth-child(2) {
+  position: sticky; left: 64px; z-index: 1;
+  min-width: 104px; background: var(--surface-card);
+}
+/* In the group-title row the blank corner spans BOTH sticky columns; the
+   second cell there is a metric's title and scrolls with its columns. */
+.gr-chart__table-group > :first-child { min-width: 168px; }
+.gr-chart__table thead tr > :first-child,
+.gr-chart__table.is-comparing thead tr:not(.gr-chart__table-group) > :nth-child(2),
+.gr-chart__table tfoot tr > :first-child,
+.gr-chart__table.is-comparing tfoot tr > :nth-child(2) { z-index: 3; }
 .gr-chart__table th,
 .gr-chart__table td {
   padding: var(--space-6) var(--space-12);
@@ -409,3 +438,11 @@
 .gr-chart__table-group th[colspan="2"] { border-bottom: 0; }
 .gr-chart__table .gr-chart__table-start { border-left: var(--border-width-sm) solid var(--border-subtle); }
 .gr-chart__table-group + tr th { top: 22px; }
+
+/* The tooltip turns inward near the edges -- centred, it ran past the card at
+   either end and the content area clipped it ("$4,70"). */
+.gr-chart__tip.is-near-right { transform: translateX(-100%); }
+.gr-chart__tip.is-near-left { transform: translateX(0); }
+
+/* Native checkboxes follow the theme (they stayed white in dark mode). */
+[data-theme='dark'] .gr-chart__col input { color-scheme: dark; }

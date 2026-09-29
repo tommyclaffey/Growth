@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import './RangeCalendar.css';
 
 /**
@@ -88,12 +88,33 @@ export function RangeCalendar({ start, end, min, max, maxDays, onApply, onCancel
     requestAnimationFrame(() => grid.current?.querySelector<HTMLButtonElement>(`[data-day="${t}"]`)?.focus());
   }
 
+  /* Opening puts focus ON A DAY -- the range's end -- so arrows work at once
+     and Escape is heard. */
+  useEffect(() => {
+    grid.current?.querySelector<HTMLButtonElement>(`[data-day="${end}"]`)?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* The month arrows carry the focusable day with them: after three "next"
+     clicks no day had tabIndex 0, and Tab skipped the whole grid. */
+  function page(n: number) {
+    const next = addMonths(right, n);
+    setRight(next);
+    const target = addDays(focusDay, n * 30);
+    const lo2 = addMonths(next, -1); const hi2 = lastOfMonth(next);
+    const inView = target < lo2 ? lo2 : target > hi2 ? hi2 : target;
+    setFocusDay(inView < min ? min : inView > max ? max : inView);
+  }
+
   function onKey(e: KeyboardEvent) {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCancel(); return; }
+    /* Day keys only on a DAY: on the presets or the month buttons, arrows
+       moved an invisible focus and flipped the months under the pointer. */
+    if (!(e.target as HTMLElement).classList?.contains('gr-cal__day')) return;
     const step: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
     if (e.key in step) { e.preventDefault(); move(addDays(focusDay, step[e.key])); }
     else if (e.key === 'PageUp') { e.preventDefault(); move(addDays(focusDay, -30)); }
     else if (e.key === 'PageDown') { e.preventDefault(); move(addDays(focusDay, 30)); }
-    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCancel(); }
   }
 
   const months = [addMonths(right, -1), right];
@@ -121,9 +142,9 @@ export function RangeCalendar({ start, end, min, max, maxDays, onApply, onCancel
       <div className="gr-cal__main">
         <div className="gr-cal__nav">
           <button type="button" className="gr-cal__step gr-type-section" aria-label="Previous month" disabled={!canBack}
-                  onClick={() => setRight(addMonths(right, -1))}>‹</button>
+                  onClick={() => page(-1)}>‹</button>
           <button type="button" className="gr-cal__step gr-type-section" aria-label="Next month" disabled={!canFwd}
-                  onClick={() => setRight(addMonths(right, 1))}>›</button>
+                  onClick={() => page(1)}>›</button>
         </div>
 
         <div className="gr-cal__months" ref={grid} onMouseLeave={() => setHover(null)}>
