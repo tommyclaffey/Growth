@@ -29,9 +29,9 @@ import {
 
 export type NoteTone = 'bad' | 'warn' | 'good';
 /** What kind of rule raised it -- also what the Settings switches gate. */
-export type NoteKind = 'cac' | 'leads' | 'pacing' | 'cost' | 'status';
+export type NoteKind = 'cac' | 'leads' | 'pacing' | 'cost' | 'status' | 'decision';
 /** The three sections of the feed, in order. */
-export type NoteGroup = 'This week' | 'Standing' | 'Waiting on someone';
+export type NoteGroup = 'This week' | 'Standing' | 'Waiting on someone' | 'Your decisions';
 
 export interface Note {
   /** Derived from the rule and its subject, so read-state survives a reload. */
@@ -43,6 +43,8 @@ export interface Note {
   message: string;
   /** Four or five words, for the Overview strip pill. */
   short: string;
+  /** Opens the Decisions screen instead of a target -- decision events. */
+  opensDecisions?: boolean;
   /** What it is about -- where clicking it goes. */
   target: Target;
   /** For the trend mark and the change pill. Absent on status alerts. */
@@ -181,4 +183,4 @@ export function notifications(channels: ChannelName[] = activeChannels()): Note[
   return out;
 }
 
-export const NOTE_GROUPS: NoteGroup[] = ['This week', 'Standing', 'Waiting on someone'];
+export const NOTE_GROUPS: NoteGroup[] = ['Your decisions', 'This week', 'Standing', 'Waiting on someone'];

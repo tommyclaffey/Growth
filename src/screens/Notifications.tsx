@@ -7,6 +7,7 @@ import {
   NOTE_GROUPS, notifications, weekLabels, type Note, type NoteTone,
 } from '../data/notifications';
 import type { Target } from '../data/decisions';
+import { decisionEvents } from '../data/decisionEvents';
 import { CHANNEL_LABEL, LAST_WEEK, higherIsBetter, type Metric, type Range } from '../data/metrics';
 import './screens.css';
 import { Button } from '../components/Button/Button';
@@ -25,6 +26,8 @@ export interface NotificationsProps {
    * number, and no way to tell why. A weekly alert opens at 7 days on its metric.
    */
   onOpen?: (target: Target, view?: NoteView) => void;
+  /** A decision event opens the queue it lives in. */
+  onOpenDecisions?: () => void;
   /** Starts a conversation about it, scoped to its subject -- at the same view. */
   onAsk?: (question: string, subject?: Target, view?: NoteView) => void;
 }
@@ -35,6 +38,7 @@ const FILTER_LABEL: Record<NoteTone, string> = { bad: 'Issues', warn: 'Watch', g
 
 /** What each section of the feed MEANS, in one line under its heading. */
 const GROUP_NOTE: Record<string, string> = {
+  'Your decisions': 'What happened to what you committed to.',
   'This week': 'Moved past your threshold against the week before.',
   Standing: 'True all month — not new, but not resolved.',
   'Waiting on someone': 'Nothing changes here until a person acts.',
@@ -48,12 +52,14 @@ const GROUP_NOTE: Record<string, string> = {
  * drawn, and the change as a number. A notification you have to click through
  * to believe is one you learn to ignore.
  */
-export function Notifications({ onOpen, onAsk }: NotificationsProps) {
+export function Notifications({ onOpen, onAsk, onOpenDecisions }: NotificationsProps) {
   const [filter, setFilter] = useState<NoteTone | 'flagged' | null>(null);
   const channels = useChannels();
   /* Subscribed so approving a campaign in Review clears its row here. */
   useCampaignStatus();
-  const notes = notifications(channels);
+  /* The numbers' events and the team's -- one feed. */
+  useFlags();
+  const notes = [...decisionEvents(), ...notifications(channels)];
   const weeks = weekLabels();
 
   /* Persisted, so a read row stays read after navigating away. */
@@ -110,7 +116,8 @@ export function Notifications({ onOpen, onAsk }: NotificationsProps) {
                 <NoteRow
                   key={n.id} note={n}
                   isRead={read.has(n.id)} flagged={flaggedIds.has(n.id)}
-                  onOpen={onOpen} onAsk={onAsk}
+                  onOpen={n.opensDecisions ? () => onOpenDecisions?.() : onOpen}
+                  onAsk={onAsk}
                 />
               ))}
             </ul>
@@ -139,12 +146,15 @@ function NoteRow({ note: n, isRead, flagged, onOpen, onAsk }: {
   /* A week-over-week alert is a 7-day claim; anything else keeps the range. */
   const view: NoteView | undefined = n.group === 'This week' || n.kind === 'pacing'
     ? { metric: n.metric ?? 'Spend', range: LAST_WEEK as Range } : n.metric ? { metric: n.metric } : undefined;
-  const where = n.target.kind === 'account' ? 'All channels'
+  const where = n.opensDecisions ? 'Decisions'
+    : n.target.kind === 'account' ? 'All channels'
     : n.target.kind === 'campaign' && n.channel ? `${CHANNEL_LABEL[n.channel]} › ${n.target.label}`
     : n.target.label;
   /* Phrased the way the assistant's "why is X up" path reads a question, so
      Ask lands on the answer about THIS change rather than a generic summary. */
-  const question = n.metric && n.channel && n.change !== undefined
+  const question = n.opensDecisions
+    ? (n.id.startsWith('dec:overdue') ? "What's overdue?" : 'How are my decisions going?')
+    : n.metric && n.channel && n.change !== undefined
     ? `Why is ${CHANNEL_LABEL[n.channel]} ${n.metric} ${n.change > 0 ? 'up' : 'down'}?`
     : `What's going on with ${n.target.kind === 'account' ? 'all channels' : n.target.label}?`;
 
@@ -161,7 +171,7 @@ function NoteRow({ note: n, isRead, flagged, onOpen, onAsk }: {
         <span className="gr-note__mark" aria-hidden="true">
           {n.channel
             ? <ChannelMark channel={n.channel} size={20} />
-            : <span className="gr-note__all">∑</span>}
+            : <span className="gr-note__all">{n.opensDecisions ? '📌' : '∑'}</span>}
           <span className={`gr-note__tone gr-note__tone--${n.tone}`} />
         </span>
         <span className="gr-note__body">

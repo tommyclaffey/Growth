@@ -192,3 +192,31 @@ describe('the partner remembers what the team decided', () => {
     for (const q of asks) expect(ask(q, 30).answered, q).toBe(true);
   });
 });
+
+describe('decision events in the feed', () => {
+  it('overdue, worked and no-data events appear; a grade YOU gave does not', async () => {
+    const { addFlag, setTask, setOutcome, ownDecisionId } = await import('../attention');
+    const { decisionEvents } = await import('../decisionEvents');
+    const { setStage } = await import('../campaignStatus');
+    const { baselineFor } = await import('../grading');
+    const all = decisions(30, ALL_CHANNELS);
+    const review = all.find((c) => c.kind === 'stale-review')!;
+    const pacing = all.find((c) => c.kind === 'pacing')!;
+    addFlag('decision', review.id, review.action, { target: review.target, baseline: baselineFor(review, 30) });
+    addFlag('decision', pacing.id, pacing.action, { baseline: { ...baselineFor(pacing, 30)!, checkOn: '2020-01-01' } });
+    setTask('decision', pacing.id, pacing.action, { due: '2020-01-01' });
+    const own = ownDecisionId('Try a new hook');
+    addFlag('decision', own, 'Try a new hook');
+    setOutcome('decision', own, 'worked');
+    setStage(review.target.id, 'Active');
+    try {
+      const ids = decisionEvents().map((e) => e.id);
+      expect(ids).toContain(`dec:worked:${review.id}`);
+      expect(ids).toContain(`dec:overdue:${pacing.id}`);
+      expect(ids).toContain(`dec:nodata:${pacing.id}`);
+      expect(ids.some((i) => i.includes(own))).toBe(false);
+    } finally {
+      setStage(review.target.id, 'Review');
+    }
+  });
+});

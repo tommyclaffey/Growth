@@ -522,7 +522,7 @@ export default function App() {
   const title = onChannelScreen ? CHANNEL_LABEL[channel] : navTitle(nav);
   const SUBTITLES: Record<string, string> = {
     reports: 'Scheduled exports sent to your team',
-    notifications: 'What your numbers did this week — every alert computed, none typed',
+    notifications: 'What your numbers — and your decisions — did this week',
     settings: 'Connections, alerts and appearance',
   };
   const sub = onChannelScreen
@@ -861,6 +861,7 @@ export default function App() {
           {nav === 'reports' && <Reports />}
           {nav === 'notifications' && (
             <Notifications
+              onOpenDecisions={() => { setCampaignId(null); setAdSetId(null); setAdId(null); setNav('decisions'); }}
               /* Set the view first, then go -- so the page and the assistant
                  show the number the alert stated. */
               onOpen={(t, v) => {
