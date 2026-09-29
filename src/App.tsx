@@ -363,6 +363,10 @@ export default function App() {
           roas: ct.roas,
           delta: delta(key, metric, range),
           trend: sparkline(key, metric, range),
+          sub: (() => {
+            const n = CAMPAIGNS.filter((c) => c.channel === key).length;
+            return `${n} campaign${n === 1 ? '' : 's'}`;
+          })(),
         };
       }),
     };
@@ -704,6 +708,8 @@ export default function App() {
                 <ChannelTable
                   rows={view.rows}
                   metric={metric}
+                  range={range}
+                  total={{ delta: delta('all', metric, range), trend: sparkline('all', metric, range) }}
                   wideColumns={!chatOpen}
                   onRowClick={(k) => { setNav('channels'); setChannel(k); }}
                 />
@@ -747,6 +753,9 @@ export default function App() {
 
           {nav === 'channels' && !onChannelScreen && (
             <ChannelTable rows={view.rows} metric={metric} wideColumns={!chatOpen}
+                          range={range}
+                          onMetricChange={setMetric}
+                          total={{ delta: delta('all', metric, range), trend: sparkline('all', metric, range) }}
                           onRowClick={(k) => setChannel(k)}
                           onAskAbout={askAbout} />
           )}

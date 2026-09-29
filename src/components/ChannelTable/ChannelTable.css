@@ -118,7 +118,7 @@
    Percentage first, fixed width so every bar starts on the same line; the bar
    takes the rest. Rounded like the chart bars, resting at the same 72% as the
    chart so the table and chart read as one system. */
-.gr-share { display: flex; align-items: center; gap: var(--space-12); min-width: 160px; }
+.gr-share { display: flex; align-items: center; gap: var(--space-12); min-width: 160px; max-width: 280px; }
 .gr-share__value { width: 3ch; text-align: right; flex: none; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .gr-share__track {
   flex: 1;
@@ -209,3 +209,25 @@
   outline-offset: 1px;
 }
 @media (prefers-reduced-motion: reduce) { .gr-ask { transition: none; } }
+
+/* A channel's name with what is inside it underneath -- "2 campaigns" -- so the
+   row says what clicking it opens. */
+.gr-table__name { display: flex; flex-direction: column; gap: 1px; }
+.gr-table__sub { color: var(--text-muted); font-weight: 400; }
+
+.gr-table__metric-label { color: var(--text-muted); }
+
+/* The foot row: set apart by a heavier rule and full-strength text, since it
+   is the number the rows are shares OF. */
+.gr-table__total th, .gr-table__total td {
+  padding: var(--space-12);
+  color: var(--text-primary);
+  border-top: var(--border-width-sm) solid var(--border-strong);
+  text-align: left;
+  white-space: nowrap;
+}
+.gr-table__total th { padding-left: 0; font-weight: 500; }
+/* `.gr-table td` gives every cell a bottom rule; on the last row of the table
+   it started at the Spend column, because the row header is a th. */
+.gr-table .gr-table__total td { border-bottom: none; }
+.gr-table__total td:last-child { text-align: right; padding-right: 0; }

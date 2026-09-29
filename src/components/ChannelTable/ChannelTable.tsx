@@ -4,6 +4,7 @@ import { ChannelMark } from '../ChannelMark/ChannelMark';
 import { formatMetric, type Metric, higherIsBetter } from '../../data/metrics';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { Sparkline } from '../Sparkline/Sparkline';
+import { MetricToggle } from '../MetricToggle/MetricToggle';
 import { channelGradient, type ChannelName } from '../../styles/tokens';
 import type { Target } from '../../data/decisions';
 
@@ -21,6 +22,14 @@ export interface ChannelRow {
   leads: number;
   cac: number;
   roas: number;
+  delta: number;
+  trend: number[];
+  /** A second line under the name -- what is inside, e.g. "2 campaigns". */
+  sub?: string;
+}
+
+/** The "All channels" line at the foot. Rates are recomputed from the sums. */
+export interface ChannelTotal {
   delta: number;
   trend: number[];
 }
@@ -43,6 +52,18 @@ export interface ChannelTableProps {
   wideColumns?: boolean;
   /** The metric being shown. Decides whether a rising delta is good news. */
   metric?: Metric;
+  /** The window the delta compares, for the header's explanation. */
+  range?: number;
+  /**
+   * Lets the table change the metric itself. Passed on the Channels screen,
+   * where the Δ and Trend columns followed a metric toggle that lives on
+   * Overview -- invisible from here, so every row read "1%" with no way to see
+   * or change what it was measuring. Not passed on Overview, where the chart's
+   * own toggle directly above already does this.
+   */
+  onMetricChange?: (m: Metric) => void;
+  /** Adds the "All channels" foot row. */
+  total?: ChannelTotal;
 }
 
 
@@ -60,7 +81,9 @@ const COLUMNS: { key: SortKey; label: string; wideOnly?: boolean; numeric?: bool
   { key: 'share', label: 'Share of spend', wideOnly: true, numeric: true },
 ];
 
-export function ChannelTable({ rows, onRowClick, onAskAbout, wideColumns = true, metric }: ChannelTableProps) {
+export function ChannelTable({
+  rows, onRowClick, onAskAbout, wideColumns = true, metric = 'Spend', range, onMetricChange, total,
+}: ChannelTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({
     key: 'spend', dir: 'desc',
   });
@@ -83,12 +106,29 @@ export function ChannelTable({ rows, onRowClick, onAskAbout, wideColumns = true,
     return (a[sort.key] - b[sort.key]) * dir;
   });
 
-  const columns = COLUMNS.filter((c) => wideColumns || !c.wideOnly);
+  /* The Δ header NAMES what it measures. "Δ Prev" over a column of "1%" said
+     neither which metric nor against what. */
+  const columns = COLUMNS
+    .filter((c) => wideColumns || !c.wideOnly)
+    .map((c) => (c.key === 'delta' ? { ...c, label: `Δ ${metric}` } : c));
+
+  /* Summed, then divided once -- blended CAC is total spend over total leads,
+     never the mean of six channel CACs. ROAS by the same rule, via revenue. */
+  const sum = rows.reduce((a, r) => ({
+    spend: a.spend + r.spend, leads: a.leads + r.leads, revenue: a.revenue + r.spend * r.roas,
+  }), { spend: 0, leads: 0, revenue: 0 });
 
   return (
     <div className="gr-card">
       <header className="gr-card__header">
         <h3 className="gr-card__title gr-type-card-heading">Channels</h3>
+        {onMetricChange && (
+          <>
+            <span className="gr-spacer" />
+            <span className="gr-type-caption gr-table__metric-label">Change and trend in</span>
+            <MetricToggle value={metric} onChange={onMetricChange} />
+          </>
+        )}
       </header>
 
       <table className="gr-table">
@@ -98,7 +138,9 @@ export function ChannelTable({ rows, onRowClick, onAskAbout, wideColumns = true,
               const active = sort.key === c.key;
               return (
                 <th key={c.key} scope="col"
-                    aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    title={c.key === 'delta' && range
+                      ? `${metric}, last ${range} days against the ${range} days before` : undefined}>
                   <button type="button"
                           className={`gr-th ${active ? 'is-active' : ''}`}
                           onClick={() => toggleSort(c.key)}>
@@ -161,7 +203,10 @@ export function ChannelTable({ rows, onRowClick, onAskAbout, wideColumns = true,
                 <td>
                   <span className="gr-table__channel gr-type-body-medium">
                     <ChannelMark channel={r.key} size={16} />
-                    {r.name}
+                    <span className="gr-table__name">
+                      {r.name}
+                      {r.sub && <span className="gr-table__sub gr-type-caption">{r.sub}</span>}
+                    </span>
                   </span>
                 </td>
                 <td className="gr-type-body">{formatMetric('Spend', r.spend)}</td>
@@ -220,6 +265,31 @@ export function ChannelTable({ rows, onRowClick, onAskAbout, wideColumns = true,
             );
           })}
         </tbody>
+        {/* ⭐ What the rows add up to. A channel table with no total asked the
+            reader to sum six spends in their head to know what 38% was 38% OF. */}
+        {total && rows.length > 1 && (
+          <tfoot>
+            <tr className="gr-table__total">
+              <th scope="row" className="gr-type-body-medium">All channels</th>
+              <td className="gr-type-body-medium">{formatMetric('Spend', sum.spend)}</td>
+              <td className="gr-type-body-medium">{formatMetric('Leads', sum.leads)}</td>
+              {wideColumns && (
+                <td className="gr-type-body-medium">
+                  {formatMetric('CAC', sum.leads > 0 ? sum.spend / sum.leads : 0)}
+                </td>
+              )}
+              {wideColumns && (
+                <td className="gr-type-body-medium">
+                  {formatMetric('ROAS', sum.spend > 0 ? sum.revenue / sum.spend : 0)}
+                </td>
+              )}
+              <td><DeltaBadge percent={total.delta} higherIsBetter={higherIsBetter(metric)} bare /></td>
+              {wideColumns && <td className="gr-type-body-medium">100%</td>}
+              <td><Sparkline values={total.trend} channel="all" variant="line" height={20} /></td>
+              {onAskAbout && <td />}
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );
