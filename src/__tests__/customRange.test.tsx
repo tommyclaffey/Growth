@@ -4,9 +4,10 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { RangePicker } from '../components/RangePicker/RangePicker';
 import {
-  DAY_ISO, compareShift, windowFromDates, delta, hasWindow, isRange, rangeLabel, rowsFor, setWindowEnd, totals, windowLabels,
+  DAY_ISO, compareShift, endBackFor, hydrate, windowFromDates, delta, hasWindow, isRange, rangeLabel, rowsFor, setWindowEnd, totals, windowLabels,
 } from '../data/metrics';
 import { readUrlState, urlStateQuery } from '../data/urlState';
+import { seededSource } from '../data/sources/seeded';
 
 afterEach(cleanup);
 
@@ -82,9 +83,28 @@ describe('custom DATES -- a start and an end, anywhere in two years', () => {
     expect(rangeLabel(31)).toBe('Last 31 days');
   });
 
-  it('the URL carries the END DATE, so a shared link means the same days', () => {
-    expect(readUrlState('?r=31&to=2026-07-31')).toMatchObject({ range: 31, endBack: 12 });
-    expect(readUrlState('?r=31&to=1999-01-01').endBack).toBeUndefined();
+  it('the URL carries the END DATE, resolved against the account loaded NOW', () => {
+    expect(readUrlState('?r=31&to=2026-07-31')).toMatchObject({ range: 31, to: '2026-07-31' });
+    expect(readUrlState('?r=31&to=nonsense').to).toBeUndefined();
+    expect(endBackFor('2026-07-31', 31)).toBe(12);
+    /* 🐛 A date the account does not have, or a window reaching before its
+       data, is NOT a window -- the app falls back rather than going blank. */
+    expect(endBackFor('1999-01-01', 31)).toBeNull();
+    expect(endBackFor('2024-09-01', 90)).toBeNull();
+    /* The same date on a different account means the same DAY there. */
+    hydrate({ rows: { meta: Array.from({ length: 455 }, () => ({ spend: 1, impressions: 1, clicks: 1, leads: 1, sales: 0, revenue: 1 })) },
+              periodEnd: '2026-09-28', currency: 'USD' });
+    expect(endBackFor('2026-07-31', 31)).toBe(59);
+    const s = seededSource.initial!;
+    hydrate({ rows: s.rows, periodEnd: s.account.periodEnd, currency: s.account.currency });
+  });
+
+  it('⭐ "last month" never overlaps the window at a month end', () => {
+    setWindowEnd(DAY_ISO.length - 1 - DAY_ISO.indexOf('2026-03-31'));
+    expect(compareShift('month')).toBe(31);    // Mar 31 -> Feb 28, not "Feb 31" = Mar 3
+    setWindowEnd(DAY_ISO.length - 1 - DAY_ISO.indexOf('2026-07-31'));
+    expect(compareShift('month')).toBe(31);    // Jul 31 -> Jun 30
+    setWindowEnd(0);
   });
 
   it('compare to last week / month / year: the same dates, earlier', () => {

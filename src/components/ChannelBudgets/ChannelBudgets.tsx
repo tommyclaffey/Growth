@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ChannelWordmark } from '../ChannelWordmark/ChannelWordmark';
 import { setChannelBudget, useChannelBudgets, useMonthlyBudget } from '../../data/profile';
 import { useChannels } from '../../data/channels';
-import { CHANNEL_LABEL, formatMetric, totals } from '../../data/metrics';
+import { atLatest, CHANNEL_LABEL, formatMetric, totals } from '../../data/metrics';
 import type { ChannelName } from '../../styles/tokens';
 
 /**
@@ -46,7 +46,8 @@ function BudgetRow({ ch, value }: { ch: ChannelName; value?: number }) {
   const [text, setText] = useState(value ? String(value) : '');
   const n = Number(text.replace(/[^0-9.]/g, ''));
   const bad = text.trim() !== '' && !(n > 0);
-  const spent = totals(ch, 30).spend;
+  /* Budgets are about NOW: the latest 30 days, whatever window is picked. */
+  const spent = atLatest(() => totals(ch, 30).spend);
   return (
     <div className="gr-setting-row">
       <span className="gr-setting-row__channel">

@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { ChannelName } from '../styles/tokens';
 import type { Stage } from '../components/StatusPill/StatusPill';
-import { CHANNEL_KEYS, CHANNEL_LABEL, PERIOD_END, windowLabels, SEEDED_PERIOD_END, delta, formatMetric, totals, type Range } from './metrics';
+import { CHANNEL_KEYS, CHANNEL_LABEL, PERIOD_END, atLatest, windowLabels, SEEDED_PERIOD_END, delta, formatMetric, totals, type Range } from './metrics';
 import type { ReportRef } from './chat';
 
 /**
@@ -246,6 +246,11 @@ export function useReports(): Report[] {
  * Preview panel shows, formatted once.
  */
 export function snapshot(r: Report, channels: ChannelName[]): ReportRef {
+  /* A report is about the latest days -- see Preview. */
+  return atLatest(() => snapshotNow(r, channels));
+}
+
+function snapshotNow(r: Report, channels: ChannelName[]): ReportRef {
   const range = WINDOW[r.cadence];
   const a = windowLabels(range); const b = windowLabels(range, 1);
   const span = (l: string[]) => (l.length ? `${l[0]} – ${l[l.length - 1]}` : 'no earlier data');

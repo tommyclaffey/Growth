@@ -42,7 +42,7 @@ const addMonths = (s: string, n: number) => { const x = d(monthStart(s)); x.setU
 const lastOfMonth = (s: string) => addDays(addMonths(s, 1), -1);
 const pretty = (s: string) => { const x = d(s); return `${MONTHS[x.getUTCMonth()].slice(0, 3)} ${x.getUTCDate()}, ${x.getUTCFullYear()}`; };
 
-export function presetsFor(max: string, min: string) {
+function presetsFor(max: string, min: string) {
   const clampStart = (s: string) => (s < min ? min : s);
   const lastMonthEnd = addDays(monthStart(max), -1);
   return [

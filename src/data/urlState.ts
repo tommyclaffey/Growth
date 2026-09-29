@@ -1,5 +1,5 @@
 import type { NavKey } from '../components/Sidebar/Sidebar';
-import { CHANNEL_KEYS, DAY_ISO, METRICS, isRange, type Metric, type Range } from './metrics';
+import { CHANNEL_KEYS, METRICS, isRange, type Metric, type Range } from './metrics';
 import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS } from './campaigns';
 import { creativeById } from './creative';
@@ -22,8 +22,8 @@ export interface UrlState {
   channel: ChannelName | null;
   metric: Metric;
   range: Range;
-  /** Custom dates: days between the window's last day and the last day of data. */
-  endBack?: number;
+  /** Custom dates: the window's END DATE (ISO). Resolved against whatever account is loaded. */
+  to?: string | null;
   campaign: string | null;
   /** The ad set being inspected, when one is. */
   adSet: string | null;
@@ -56,10 +56,7 @@ export function readUrlState(search: string): Partial<UrlState> {
   /* Custom dates travel as the END DATE ("to=2026-07-31") -- a real date, so a
      shared link means the same days to whoever opens it. */
   const to = q.get('to');
-  if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) {
-    const i = DAY_ISO.indexOf(to);
-    if (i >= 0) out.endBack = DAY_ISO.length - 1 - i;
-  }
+  if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) out.to = to;
 
   /* 🐛 A real account's ids (source-prefixed, e.g. "meta-123") cannot be
      checked here: this runs on first paint, BEFORE the account has loaded, so
@@ -91,7 +88,7 @@ export function urlStateQuery(s: UrlState): string {
   q.set('c', s.channel ?? 'all');
   q.set('m', s.metric);
   q.set('r', String(s.range));
-  if (s.endBack) q.set('to', DAY_ISO[DAY_ISO.length - 1 - s.endBack]);
+  if (s.to) q.set('to', s.to);
   if (s.campaign) q.set('p', s.campaign);
   /* `s` for the ad-set tier. Short, because these URLs get pasted into Slack
      messages where a long query reads as noise and gets truncated by the

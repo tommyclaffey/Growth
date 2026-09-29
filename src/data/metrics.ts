@@ -221,6 +221,42 @@ export function windowDates(range: Range, back = 0, shift = 0): [string, string]
   return [f(d[0]), f(d[d.length - 1])];
 }
 
+/**
+ * A custom window's END DATE -> how many days back it ends, against the
+ * account that is loaded NOW. Null when the date is not in the data, or the
+ * window would reach before the data starts -- the caller falls back to
+ * "Last N days" rather than showing an empty app.
+ *
+ * 🐛 The window used to be stored as "N days back", resolved once against the
+ * demo's dates at first paint. A shared link to Jul 1-31 then opened on a real
+ * account as Aug 17 - Sep 16, and a date before the data blanked every screen.
+ */
+export function endBackFor(iso: string | null | undefined, range: Range): number | null {
+  if (!iso) return null;
+  const i = DAY_ISO.indexOf(iso);
+  if (i < 0) return null;
+  const endBack = DAY_ISO.length - 1 - i;
+  const end = TOTAL_POINTS - endBack;
+  return end - range < FIRST ? null : endBack;
+}
+
+/** The end date (ISO) of a window ending `endBack` days back -- what the URL and the app keep. */
+export function isoForEndBack(endBack: number): string | null {
+  return endBack > 0 ? DAY_ISO[DAY_ISO.length - 1 - endBack] ?? null : null;
+}
+
+/**
+ * Run `fn` against the LATEST data, whatever window the picker shows, then put
+ * the window back. For things that are about NOW by definition -- a decision's
+ * grade is "how is it going", not "how was July". No version bump: nothing
+ * outside `fn` sees the change.
+ */
+export function atLatest<T>(fn: () => T): T {
+  const saved = WINDOW_END;
+  WINDOW_END = 0;
+  try { return fn(); } finally { WINDOW_END = saved; }
+}
+
 /** Does the data reach far enough back for this window? */
 export function hasWindow(range: Range, back = 0, shift = 0): boolean {
   return windowIndex(TOTAL_POINTS, range, back, shift, FIRST) !== null;

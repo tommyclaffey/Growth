@@ -8,7 +8,7 @@ import {
 } from '../data/notifications';
 import type { Target } from '../data/decisions';
 import { decisionEvents } from '../data/decisionEvents';
-import { CHANNEL_LABEL, LAST_WEEK, higherIsBetter, type Metric, type Range } from '../data/metrics';
+import { CHANNEL_LABEL, LAST_WEEK, higherIsBetter, windowEnd, type Metric, type Range } from '../data/metrics';
 import './screens.css';
 import { Button } from '../components/Button/Button';
 import { Badge } from '../components/Badge/Badge';
@@ -107,7 +107,11 @@ export function Notifications({ onOpen, onAsk, onOpenDecisions }: NotificationsP
         return (
           <section key={group} className="gr-note-group">
             <header className="gr-note-group__head">
-              <h3 className="gr-type-card-heading">{group}</h3>
+              {/* "This week" is only true of the latest data. Under custom
+                  dates it is the window's last week -- said with its dates. */}
+              <h3 className="gr-type-card-heading">
+                {group === 'This week' && windowEnd() > 0 ? `Week of ${weekLabels().now}` : group}
+              </h3>
               <span className="gr-dec__count gr-type-caption-med">{rows.length}</span>
               <span className="gr-type-caption gr-note-group__note">{GROUP_NOTE[group]}</span>
             </header>
