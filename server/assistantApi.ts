@@ -71,6 +71,12 @@ RULES, IN ORDER OF IMPORTANCE:
    on last-touch. Cutting it is exactly what the data cannot justify, because
    last touch always flatters whichever channel sits nearest the conversion.
 
+2e. WHAT THE TEAM DECIDED GOES TO get_commitments. Questions about decisions
+   already made -- what, who owns them, whether they worked, what is late --
+   are answered from the queue, never from the data tools. A grade of "no new
+   data" means the number has not moved since the decision: say that, never
+   call it a success or a failure.
+
 2d. WHAT-IF AND SCALING QUESTIONS GO TO project_budget. "Where should more budget
    go?", "what if I move $5k from A to B?", "how do I scale Affiliates?" -- call
    project_budget and report what it returns. Never compute a projection
@@ -249,6 +255,7 @@ function buildTools(
   m: Metrics, d: Decisions, b: Blended, cm: ChannelMetrics, sc: Scenario,
   range: number, evidence: Evidence[], subject?: Subject,
   findings?: DecisionCandidate[],
+  commitments: unknown[] = [],
 ) {
   const scopeEnum = ['all', ...m.activeChannels()];
   /* 🐛 STALE, AND IT MADE THE PRODUCT LIE ABOUT ITSELF.
@@ -442,6 +449,20 @@ function buildTools(
     }),
 
     betaTool({
+      name: 'get_commitments',
+      description:
+        'The team\'s decisions queue: what has been decided (newest first), who owns each, its due date, '
+        + 'whether it is overdue, and how it has been graded so far (worked / missed / pending / no new data / needs the person to judge). '
+        + 'Use for "what did we decide", "is it working", "what is overdue", "what does Jess own".',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      run: () => JSON.stringify({
+        count: commitments.length,
+        decisions: commitments.slice(0, 12),
+        note: commitments.length === 0 ? 'Nothing decided yet.' : undefined,
+      }),
+    }),
+
+    betaTool({
       name: 'project_budget',
       description:
         'What-if projections for growing or moving budget, computed from current cost per lead. '
@@ -582,6 +603,7 @@ async function readBody(
 ): Promise<{
   question?: string; range?: number; subject?: Subject;
   findings?: DecisionCandidate[];
+  commitments?: unknown[];
 }> {
   const chunks: Buffer[] = [];
   for await (const c of req) chunks.push(c as Buffer);
@@ -631,7 +653,7 @@ export function assistantApi(): Plugin {
         }
 
         const body = await readBody(req);
-        const { question, subject, findings } = body;
+        const { question, subject, findings, commitments } = body;
         /* Any whole number of days 1-90 (Phase 3), anything else falls back to
            30 rather than reaching the metric functions unchecked. */
         const asked = Number(body.range);
@@ -669,6 +691,7 @@ export function assistantApi(): Plugin {
                 (subject as Subject | undefined)
                   ?? inferSubject(String(question), CAMPAIGNS, m.CHANNEL_LABEL),
                 Array.isArray(findings) ? findings : undefined,
+                Array.isArray(commitments) ? commitments : [],
               ),
               /* Server-side: runs on Anthropic's infrastructure, so there is no
                  run() to write and no search account to hold. Capped at 3 so a

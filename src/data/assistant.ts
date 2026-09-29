@@ -6,6 +6,8 @@ import type { ChannelName } from '../styles/tokens';
 import { decisions, decisionsFor, limitsFor, type Candidate, type Target } from './decisions';
 import { isFlagged } from './attention';
 import { compareCampaigns } from './compare';
+import { commitments, recordOf, type Commitment } from './commitments';
+import { MEMBERS } from './chat';
 import { campaignTotals } from './campaignSeries';
 import {
   ASSUME_CAC_HOLDS, ASSUME_LAST_TOUCH, defaultExtra, moveBudget, parseAmount, scaleWithin, whereToScale,
@@ -386,6 +388,11 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
   /* ⭐ WHAT IF -- scaling and moving money (scenario.ts). Checked first: "where
      should more budget go" also matches the agenda's "where should", and would
      otherwise answer a different question -- what to fix, not where to grow. */
+  /* What the TEAM committed to -- checked first, because "what did we decide
+     about Meta" names a channel and would otherwise be read as a data question. */
+  const mine = commitmentAnswer(q);
+  if (mine) return mine;
+
   const scenario = whatIf(q, range, subject);
   if (scenario) return scenario;
 
@@ -934,5 +941,94 @@ function compareAnswer(q: string, range: Range): Answer | undefined {
       `What would you do about ${cmp.b.name}?`,
       'Where should more budget go?',
     ],
+  };
+}
+
+
+/* --------------------------------------------------------- commitments -- */
+
+const dueLabel = (iso?: string) => {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+};
+
+function line(c: Commitment): string {
+  const who = c.ownerName ? ` — ${c.ownerName.split(' ')[0]}` : '';
+  const when = c.due ? `${c.overdue ? ', overdue since' : ', due'} ${dueLabel(c.due)}` : '';
+  return `• ${c.label}${who}${when}.`;
+}
+
+/**
+ * Questions about the decisions queue: what was decided, whether it worked,
+ * what is late, who owns what. Read from the queue itself -- never invented.
+ */
+function commitmentAnswer(q: string): Answer | undefined {
+  const all = commitments();
+  const owner = Object.values(MEMBERS).find((m) =>
+    new RegExp(`\\b${m.name.split(' ')[0]}\\b`, 'i').test(q)
+    && /\b(own|owns|working on|assigned|responsible|on (his|her|their) plate)\b/i.test(q));
+
+  const asks = {
+    decided: /what (have|did) (we|i) (decide|commit)|our decisions|my decisions\b(?! going)|decided so far|committed to|what.s on (my|our) (queue|plate)/i.test(q),
+    record: /how (are|is) (my|our|the) (calls?|decisions?)|track record|did (it|they|that|those) work|what worked|scorecard/i.test(q),
+    late: /overdue|what.s late|behind on|missed (the|a) (date|deadline)/i.test(q),
+  };
+  if (!owner && !asks.decided && !asks.record && !asks.late) return undefined;
+
+  if (all.length === 0) {
+    return {
+      answered: true,
+      text: 'Nothing is decided yet. When you accept a proposal or write a decision, I will track it here — who owns it, when it is due, and whether it worked.',
+      followUps: ['What should I do next?', 'Where should more budget go?'],
+    };
+  }
+
+  if (owner) {
+    const theirs = all.filter((c) => c.owner === owner.id);
+    return {
+      answered: true,
+      text: theirs.length === 0
+        ? `${owner.name} doesn't own any decisions yet.`
+        : [`${owner.name} owns ${theirs.length} decision${theirs.length === 1 ? '' : 's'}:`, ...theirs.slice(0, 5).map(line)].join('\n'),
+      followUps: ["What's overdue?", 'How are my decisions going?'],
+    };
+  }
+
+  if (asks.late) {
+    const late = all.filter((c) => c.overdue);
+    return {
+      answered: true,
+      text: late.length === 0
+        ? 'Nothing is overdue.'
+        : [`${late.length} decision${late.length === 1 ? ' is' : 's are'} overdue:`, ...late.slice(0, 5).map(line)].join('\n'),
+      followUps: ['How are my decisions going?', 'What should I do next?'],
+    };
+  }
+
+  if (asks.record) {
+    const t = recordOf(all);
+    const graded = all.filter((c) => ['met', 'missed', 'done', 'worked', 'didnt'].includes(c.status));
+    const waiting = all.filter((c) => c.status === 'pending' || c.status === 'waiting');
+    const noData = all.filter((c) => c.status === 'no-data').length;
+    const ungraded = all.filter((c) => c.status === 'ungraded').length;
+    return {
+      answered: true,
+      text: [
+        `${t.good} worked, ${t.bad} didn't, ${t.open} still open.`,
+        ...graded.slice(0, 3).map((c) => `• ${c.label}: ${c.grade}`),
+        ...(waiting.length ? [`${waiting.length} still waiting for their check date or to happen.`] : []),
+        ...(noData ? [`${noData} can't be graded yet — no new data since you decided.`] : []),
+        ...(ungraded ? [`${ungraded} need you to say whether they worked — there's no single number for them.`] : []),
+      ].join('\n'),
+      followUps: ["What's overdue?", 'What should I do next?'],
+    };
+  }
+
+  return {
+    answered: true,
+    text: [`${all.length} decision${all.length === 1 ? '' : 's'}, newest first:`, ...all.slice(0, 5).map(line),
+      ...(all.length > 5 ? [`…and ${all.length - 5} more on the Decisions screen.`] : [])].join('\n'),
+    followUps: ['How are my decisions going?', "What's overdue?"],
   };
 }

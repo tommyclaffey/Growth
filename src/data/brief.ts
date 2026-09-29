@@ -73,10 +73,12 @@ export function brief(range: Range = 30, channels: ChannelName[] = activeChannel
   const late = decided.filter((f) => isOverdue(f));
   if (late.length) {
     lines.push({ tone: 'warn', text: `${late.length} of your decisions ${late.length === 1 ? 'is' : 'are'} overdue.` });
+    asks.unshift("What's overdue?");
   }
   if (decided.length) {
     const t = tally(decided.map((f) => grade(f)));
     lines.push({ tone: 'info', text: `Track record: ${t.good} worked, ${t.bad} didn't, ${t.open} still open.` });
+    asks.push('How are my decisions going?');
   }
 
   /* 4. What the data cannot answer -- said up front, not buried. */

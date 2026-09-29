@@ -1,6 +1,7 @@
 import {
   ask, decisionsForQuestion, followUpsFor, resolveSubject, type Answer,
 } from './assistant';
+import { commitments } from './commitments';
 import { flags } from './attention';
 import { decisionsFor, decisions as allDecisions } from './decisions';
 import type { Target } from './decisions';
@@ -131,6 +132,9 @@ export async function askAssistant(
         subject,
         findings: (subject ? decisionsFor(subject, range) : allDecisions(range))
           .filter((c) => !taken.includes(c.id)),
+        /* The decisions queue lives in this browser; the server cannot see it.
+           Sent, so "what did we decide / is it working" has an answer there. */
+        commitments: commitments(),
       }),
     });
 

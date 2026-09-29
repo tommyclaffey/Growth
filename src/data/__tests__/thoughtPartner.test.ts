@@ -147,3 +147,48 @@ describe('compare ties', () => {
     for (const r of c.rows) if (r.a !== undefined && r.a === r.b) expect(r.winner, r.metric).toBeUndefined();
   });
 });
+
+describe('the partner remembers what the team decided', () => {
+  const setup = async () => {
+    const { addFlag, setTask, setOutcome, ownDecisionId } = await import('../attention');
+    const meta = decisions(30, ALL_CHANNELS).find((c) => c.id === 'weekly:cac:meta')!;
+    addFlag('decision', meta.id, meta.action, { target: meta.target });
+    setTask('decision', meta.id, meta.action, { owner: 'jr', due: '2020-01-01' });
+    const own = ownDecisionId('Pause podcasts for a week');
+    addFlag('decision', own, 'Pause podcasts for a week');
+    setOutcome('decision', own, 'worked');
+    return meta;
+  };
+
+  it('"what have we decided?" lists the queue, newest first, with owners and dates', async () => {
+    const meta = await setup();
+    const a = ask('What have we decided?', 30);
+    expect(a.text).toMatch(/^2 decisions, newest first:/);
+    expect(a.text).toContain(`${meta.action} — Jess, overdue since`);
+  });
+
+  it('"how are my decisions going?" gives the track record from the grades', async () => {
+    await setup();
+    const a = ask('How are my decisions going?', 30);
+    expect(a.text).toMatch(/^1 worked, 0 didn't, 1 still open\./);
+    expect(a.text).toMatch(/Pause podcasts for a week: You marked this as having worked/);
+  });
+
+  it('"what\'s overdue?" and "what does Jess own?"', async () => {
+    const meta = await setup();
+    expect(ask("What's overdue?", 30).text).toMatch(/1 decision is overdue/);
+    expect(ask('What does Jess own?', 30).text).toContain(meta.action);
+    expect(ask('What does Dan own?', 30).text).toMatch(/doesn't own any decisions yet/);
+  });
+
+  it('with nothing decided, it says so and points forward', () => {
+    expect(ask('What did we decide?', 30).text).toMatch(/^Nothing is decided yet/);
+  });
+
+  it('the brief offers these questions when they apply', async () => {
+    await setup();
+    const asks = brief(30, [...CHANNEL_KEYS]).asks;
+    expect(asks).toContain("What's overdue?");
+    for (const q of asks) expect(ask(q, 30).answered, q).toBe(true);
+  });
+});
