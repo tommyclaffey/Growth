@@ -7,6 +7,7 @@ import type { ChannelName } from '../styles/tokens';
 import { decisions, targetOfDecision, TIER_LABEL, type Candidate, type Target, type Tier } from '../data/decisions';
 import { addFlag, isFlagged, isOverdue, isOwnDecision, removeFlag, useFlags, type Flag } from '../data/attention';
 import { TaskFields } from '../components/TaskFields/TaskFields';
+import { CHANNEL_DEPTH, groupNoun, leafNoun } from '../data/channelDepth';
 import { dismiss, isDismissed, restore, useDismissals } from '../data/dismissedDecisions';
 import { useChannels } from '../data/channels';
 import { formatMetric, type Range } from '../data/metrics';
@@ -183,7 +184,7 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
                 <TaskFields flag={f} />
 
                 <footer className="gr-dec__actions">
-                  <GoTo target={targetOfDecision(f, all)} onOpen={onOpen} />
+                  <GoTo target={targetOfDecision(f, all)} channel={f.channel} onOpen={onOpen} />
                   <Button variant="ghost" onClick={() => removeFlag('decision', f.refId)}>
                     Remove
                   </Button>
@@ -276,11 +277,28 @@ export function Decisions({ range, onDiscuss, onOpen }: DecisionsProps) {
  * buttons over link text on the Ask control, and the reason holds here: this is
  * the action, and it should look like one.
  */
-function GoTo({ target, onOpen }: { target?: Target; onOpen?: (t: Target) => void }) {
+function GoTo({ target, channel, onOpen }: {
+  target?: Target; channel?: string; onOpen?: (t: Target) => void;
+}) {
   if (!target || !onOpen) return null;
+  /* The NOUN for anything below a channel, not its name. The breadcrumb above
+     already names it, and an ad's full headline made "Go to Start free, no
+     card →" -- a button wider than the card's other three put together. The
+     platform's own word, so a podcast says "Go to spot". */
+  const ch = channel && channel in CHANNEL_DEPTH ? (channel as ChannelName) : undefined;
+  const label = target.kind === 'account' ? 'all channels'
+    : target.kind === 'channel' ? target.label
+    : target.kind === 'campaign' ? 'campaign'
+    : target.kind === 'adSet' ? (ch ? groupNoun(ch).one.toLowerCase() : 'ad set')
+    : (ch ? leafNoun(ch).one.toLowerCase() : 'ad');
   return (
-    <Button variant="ghost" onClick={() => onOpen(target)}>
-      {target.kind === 'account' ? 'Go to all channels' : `Go to ${target.label}`} →
+    <Button variant="ghost" onClick={() => onOpen(target)}
+            /* The visible words first, then WHICH one -- so a screen reader
+               hears the name, and voice control ("click Go to ad") still
+               matches what is on screen. */
+            aria-label={target.kind === 'account' || target.kind === 'channel'
+              ? undefined : `Go to ${label}: ${target.label}`}>
+      Go to {label} →
     </Button>
   );
 }
@@ -387,7 +405,7 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen }: {
           )
         )}
 
-        <GoTo target={flag?.target ?? c.target} onOpen={onOpen} />
+        <GoTo target={flag?.target ?? c.target} channel={c.channel} onOpen={onOpen} />
 
         {/* ⭐ The route from the queue into the conversation. A card states a
             finding; this is how you argue with it. Tier 3 gets it too -- in fact
