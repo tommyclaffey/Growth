@@ -160,3 +160,42 @@ describe('custom DATES -- a start and an end, anywhere in two years', () => {
     expect(got).toBeNull();
   });
 });
+
+describe('the calendar, by keyboard', () => {
+  afterEach(() => setWindowEnd(0));
+
+  it('opening puts focus on a day; arrows move it; Escape closes and returns focus to the button', async () => {
+    render(<RangePicker value={30} onChange={() => {}} />);
+    const button = screen.getByRole('button', { name: /Last 30 days/ });
+    fireEvent.click(button);
+    fireEvent.click(screen.getByRole('option', { name: 'Custom dates…' }));
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Aug 12, 2026');
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowLeft' });
+    await new Promise((r) => requestAnimationFrame(r));
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Aug 11, 2026');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await new Promise((r) => requestAnimationFrame(r));
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('the date button closes an open calendar -- it never opens the menu underneath', () => {
+    render(<RangePicker value={30} onChange={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /Last 30 days/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Custom dates…' }));
+    /* The trigger -- not the calendar's own "Last 30 days" preset. */
+    const trigger = document.querySelector<HTMLButtonElement>('.gr-switcher__trigger')!;
+    fireEvent.click(trigger);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('after paging months, one day is still reachable by Tab', () => {
+    render(<RangePicker value={30} onChange={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /Last 30 days/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Custom dates…' }));
+    for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+    const tabbable = screen.getByRole('dialog').querySelectorAll('.gr-cal__day[tabindex="0"]');
+    expect(tabbable).toHaveLength(1);
+  });
+});
