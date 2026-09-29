@@ -20,6 +20,29 @@
     <meta name="twitter:description" content="Six channels, one view. A design system built in Figma and implemented in React and TypeScript." />
   </head>
   <body>
+    <!-- ?reset=1 -- wipe every saved Growth setting BEFORE the app loads.
+
+         For beta sessions: each tester's decisions, flags, reports and read
+         state live in this browser, and the next tester must not inherit them.
+         It has to run here, ahead of the bundle, because every store reads
+         localStorage the moment its module is imported -- clearing it from
+         inside the app would leave each store holding the old values in memory.
+         Only keys prefixed "growth." are touched; the param is then removed so
+         a reload does not wipe again. -->
+    <script>
+      (function () {
+        var q = new URLSearchParams(location.search);
+        if (!q.has('reset')) return;
+        try {
+          Object.keys(localStorage)
+            .filter(function (k) { return k.indexOf('growth.') === 0; })
+            .forEach(function (k) { localStorage.removeItem(k); });
+        } catch (e) { /* storage blocked -- nothing to clear */ }
+        q.delete('reset');
+        var s = q.toString();
+        history.replaceState(null, '', location.pathname + (s ? '?' + s : '') + location.hash);
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

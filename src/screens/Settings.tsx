@@ -323,6 +323,30 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
               ))}
             </div>
           </div>
+
+          {/* For moderated sessions: one click gives the next tester a clean
+              product. Confirmed, because it throws away everything saved --
+              and a reload, because every store reads storage at import time
+              (see the ?reset handler in index.html). */}
+          <div className="gr-setting-row">
+            <span className="gr-setting-row__text">
+              <strong className="gr-type-body-medium">Reset demo data</strong>
+              <span className="gr-type-caption">
+                Clears decisions, flags, reports, read state and settings saved in this browser.
+                Use between test sessions.
+              </span>
+            </span>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                if (window.confirm('Reset all demo data saved in this browser?')) {
+                  window.location.assign(`${window.location.pathname}?reset=1`);
+                }
+              }}
+            >
+              Reset
+            </Button>
+          </div>
         </section>
       </div>
     </>
