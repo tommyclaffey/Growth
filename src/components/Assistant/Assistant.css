@@ -301,7 +301,7 @@
 .gr-assist__decision-text {
   color: var(--text-primary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
-  flex: 0 1 auto; max-width: 65%;
+  flex: 0 1 auto;
 }
 /* What it touches — the campaign, the channel, or the account. Quieter than the
    action, because the action is the thing being agreed to. */
@@ -310,7 +310,11 @@
    two different decisions both read 'Review why "Start free, no …'. */
 .gr-assist__decision-ctx {
   color: var(--text-muted); white-space: nowrap;
-  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  /* Shrinks 100x faster than the action, so the ACTION keeps its words and
+     the label gives way -- and nothing truncates while there is room. (A
+     percentage cap was tried first: against a shrink-to-fit row it cut the
+     action short even with space to spare.) */
+  flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
 }
 
 /* The agent asking, not a label over a control group. Body type because
