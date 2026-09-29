@@ -119,3 +119,31 @@ describe('the team sets what counts as a big move -- and every surface obeys it'
     }
   });
 });
+
+describe('compare two campaigns', () => {
+  it('only efficiency gets a winner; a missing metric is a dash, not 0', async () => {
+    const { compareCampaigns } = await import('../compare');
+    const c = compareCampaigns('c1', 'c9', 30)!;            // Meta vs Podcasts
+    expect(c.crossChannel).toBe(true);
+    expect(c.rows.find((r) => r.metric === 'Spend')!.winner).toBeUndefined();
+    expect(c.rows.find((r) => r.metric === 'CAC')!.winner).toBe('a');
+    expect(c.rows.find((r) => r.metric === 'CTR')!.b).toBeUndefined();   // podcasts: no clicks
+  });
+
+  it('Ask answers "compare A with B", with the cross-channel caveat when it applies', () => {
+    const a = ask('Compare Advantage+ — Evergreen Signups with Mid-roll Sponsorships', 30);
+    expect(a.answered).toBe(true);
+    expect(a.text).toMatch(/cheaper per lead/);
+    expect(a.text).toMatch(/cost comparison, not attribution/);
+    const same = ask('Compare Advantage+ — Evergreen Signups with Tax Season — Prospecting', 30);
+    expect(same.text).toMatch(/Same channel, so they are measured the same way/);
+  });
+});
+
+describe('compare ties', () => {
+  it('values equal as displayed are a tie -- no winner from an invisible decimal', async () => {
+    const { compareCampaigns } = await import('../compare');
+    const c = compareCampaigns('c1', 'c2', 30)!;
+    for (const r of c.rows) if (r.a !== undefined && r.a === r.b) expect(r.winner, r.metric).toBeUndefined();
+  });
+});

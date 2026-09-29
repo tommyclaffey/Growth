@@ -1,0 +1,16 @@
+.gr-compare__hint { margin: 0; color: var(--text-muted); }
+.gr-compare__who { display: inline-flex; align-items: center; gap: var(--space-6); text-transform: none; letter-spacing: 0; }
+.gr-compare__table th[scope='row'] { color: var(--text-secondary); font-weight: 400; text-align: left; padding: var(--space-10) var(--space-12) var(--space-10) 0; border-bottom: var(--border-width-sm) solid var(--border-subtle); }
+.gr-compare__table td { color: var(--text-primary); }
+.gr-compare__table td.is-better { color: var(--semantic-good); }
+.gr-compare__mark { margin-left: var(--space-6); }
+.gr-compare__note { margin: var(--space-10) 0 0; color: var(--text-muted); }
+.gr-compare__ask { margin-top: var(--space-12); }
+
+/* Three even columns, values left-aligned under their campaign's name. The
+   table default right-aligns the last cell (for figure columns), which threw
+   the second campaign to the far edge, away from the one it is compared with. */
+.gr-compare__table { table-layout: fixed; }
+.gr-compare__table th:first-child { width: 24%; }
+.gr-table.gr-compare__table td:last-child,
+.gr-table.gr-compare__table thead th:last-child { text-align: left; padding-right: var(--space-12); }

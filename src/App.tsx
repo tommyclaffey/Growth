@@ -826,6 +826,7 @@ export default function App() {
                 onBack={closeCampaign}
                 backLabel={cameFrom ? CHANNEL_LABEL[cameFrom] : 'Campaigns'}
                 onDiscuss={(m) => shareCampaign(campaignId, m)}
+                onAsk={(q) => askAbout(q)}
                 onOpenAd={setAdId}
                 onOpenAdSet={setAdSetId}
                 wideColumns={!chatOpen}

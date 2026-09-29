@@ -18,6 +18,7 @@ import { creativesFor } from '../data/creative';
 import { adSetTotals } from '../data/adSets';
 import { groupNoun } from '../data/channelDepth';
 import { CreativeSection } from '../components/CreativeCard/CreativeSection';
+import { CompareCard } from '../components/CompareCard/CompareCard';
 
 export interface CampaignDetailProps {
   id: string;
@@ -30,6 +31,8 @@ export interface CampaignDetailProps {
   backLabel?: string;
   /** Stages this campaign's metric as a card in the chat composer. */
   onDiscuss?: (metric: DerivedMetric) => void;
+  /** Opens the assistant on a question -- "talk through the difference". */
+  onAsk?: (question: string) => void;
   /** Opens one ad's own page. */
   onOpenAd?: (id: string) => void;
   /** Opens one ad set's own page — the tier between this page and an ad. */
@@ -50,7 +53,7 @@ export interface CampaignDetailProps {
  * not three calculations that agree today.
  */
 export function CampaignDetail({
-  id, metric, range, onBack, onDiscuss, onOpenAd, onOpenAdSet,
+  id, metric, range, onBack, onDiscuss, onAsk, onOpenAd, onOpenAdSet,
   backLabel = 'Campaigns', wideColumns = true,
 }: CampaignDetailProps) {
   const campaign = campaignById(id);
@@ -192,6 +195,8 @@ export function CampaignDetail({
         compareSeries={(m) => campaignSeries(id, m, range)}
         title={`${chartMetric} over time`}
       />
+
+      <CompareCard campaignId={campaign.id} range={range} onAsk={onAsk} />
 
       {/* Creative sits ABOVE ad sets on purpose. "Which ad is working" is the
           question this page gets opened for; the ad-set table is the breakdown

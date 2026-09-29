@@ -5,6 +5,8 @@ import {
 import type { ChannelName } from '../styles/tokens';
 import { decisions, decisionsFor, limitsFor, type Candidate, type Target } from './decisions';
 import { isFlagged } from './attention';
+import { compareCampaigns } from './compare';
+import { campaignTotals } from './campaignSeries';
 import {
   ASSUME_CAC_HOLDS, ASSUME_LAST_TOUCH, defaultExtra, moveBudget, parseAmount, scaleWithin, whereToScale,
 } from './scenario';
@@ -386,6 +388,10 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
      otherwise answer a different question -- what to fix, not where to grow. */
   const scenario = whatIf(q, range, subject);
   if (scenario) return scenario;
+
+  /* "Compare A with B" -- two campaigns, head to head (compare.ts). */
+  const head = compareAnswer(q, range);
+  if (head) return head;
 
   /* "what would you do about X" -- the decision, scoped to one subject.
 
@@ -882,6 +888,51 @@ function whatIf(q: string, range: Range, subject?: Target): Answer | undefined {
          the podcast trap, and a suggested question is a nudge. */
       'What should I do next?',
       'What can this data not tell me?',
+    ],
+  };
+}
+
+
+/* ------------------------------------------------------------- compare -- */
+
+function compareAnswer(q: string, range: Range): Answer | undefined {
+  if (!/\bcompare\b|\bversus\b|\bvs\.?\b|against/i.test(q)) return undefined;
+  const lower = q.toLowerCase();
+  const named = CAMPAIGNS
+    .map((c) => ({ c, i: lower.indexOf(c.name.toLowerCase()) }))
+    .filter((x) => x.i >= 0)
+    .sort((a, b) => a.i - b.i)
+    .map((x) => x.c);
+  if (named.length < 2) return undefined;
+  const cmp = compareCampaigns(named[0].id, named[1].id, range);
+  if (!cmp) return undefined;
+  const cac = cmp.rows.find((r) => r.metric === 'CAC')!;
+  const roas = cmp.rows.find((r) => r.metric === 'ROAS')!;
+  const ta = campaignTotals(cmp.a.id, range);
+  const tb = campaignTotals(cmp.b.id, range);
+  const cheaper = ta.cac > 0 && tb.cac > 0 ? (ta.cac < tb.cac ? cmp.a : cmp.b) : undefined;
+  const gap = cheaper ? Math.round((Math.abs(ta.cac - tb.cac) / Math.max(ta.cac, tb.cac)) * 100) : 0;
+  const lines = [
+    `${cmp.a.name} pays ${cac.a ?? '—'} a lead; ${cmp.b.name} pays ${cac.b ?? '—'}.`,
+    ...(cheaper ? [`${cheaper.name} is ${gap}% cheaper per lead over the ${rangeLabel(range).toLowerCase()}.`] : []),
+    `ROAS: ${roas.a ?? '—'} against ${roas.b ?? '—'}.`,
+    ...(cmp.cacTrend.a >= 15 ? [`${cmp.a.name}'s CAC rose ${cmp.cacTrend.a}% this week — the gap may be moving.`] : []),
+    ...(cmp.cacTrend.b >= 15 ? [`${cmp.b.name}'s CAC rose ${cmp.cacTrend.b}% this week — the gap may be moving.`] : []),
+    ...(cmp.crossChannel
+      ? ['They run on different channels, so this is a cost comparison, not attribution — last touch flatters the channel nearest the sale.']
+      : ['Same channel, so they are measured the same way — a fair comparison.']),
+  ];
+  return {
+    answered: true,
+    text: lines.join('\n'),
+    evidence: [
+      { label: `${cmp.a.name} CAC`, value: cac.a ?? '—', channel: cmp.a.channel },
+      { label: `${cmp.b.name} CAC`, value: cac.b ?? '—', channel: cmp.b.channel },
+    ],
+    followUps: [
+      `What would you do about ${cmp.a.name}?`,
+      `What would you do about ${cmp.b.name}?`,
+      'Where should more budget go?',
     ],
   };
 }
