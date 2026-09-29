@@ -12,9 +12,11 @@
 
 .gr-signin__card {
   width: 100%;
-  max-width: 400px;
+  /* A hair wider and a little shorter than first drawn (Tommy, Sept 29):
+     closer to square, so the card reads as one block, not a tall strip. */
+  max-width: 432px;
   gap: var(--space-20);
-  padding: var(--space-30) var(--space-28);
+  padding: var(--space-28) var(--space-30);
 }
 
 .gr-signin__lockup { display: flex; align-items: center; gap: var(--space-8); }
@@ -62,8 +64,13 @@
   border-top: var(--border-width-sm) solid var(--border-subtle);
 }
 
-.gr-signin__form { display: flex; flex-direction: column; gap: var(--space-12); }
-.gr-signin__submit { width: 100%; justify-content: center; margin-top: var(--space-4); }
+.gr-signin__form { display: flex; flex-direction: column; gap: var(--space-14); }
+/* The field's reserved message row is for per-field validation. This form
+   reports errors once, above the button -- so an EMPTY row here is only a
+   gap, and two of them read as the boxes drifting apart. A hint (the
+   password rule) still shows. */
+.gr-signin__form .gr-field__msg:empty { display: none; }
+.gr-signin__submit { width: 100%; justify-content: center; margin-top: var(--space-6); }
 .gr-signin__error { color: var(--semantic-bad); margin: 0; }
 
 .gr-signin__switch { color: var(--text-secondary); margin: 0; text-align: center; }
