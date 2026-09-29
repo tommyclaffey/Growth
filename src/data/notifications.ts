@@ -6,7 +6,7 @@ import { budgetForRange, channelBudgetForRange } from './profile';
 import { prefs } from './prefs';
 import type { Target } from './decisions';
 import {
-  CHANNEL_LABEL, DAY_LABELS, LAST_WEEK, activeChannels, delta, formatMetric, rowsFor, totals,
+  CHANNEL_LABEL, LAST_WEEK, activeChannels, delta, formatMetric, rowsFor, totals, windowLabels,
   type Metric,
 } from './metrics';
 
@@ -79,10 +79,13 @@ function lastTwoWeeks(ch: ChannelName, m: 'CAC' | 'Leads'): number[] {
 
 /** The week just ended and the one before, as dates. */
 export function weekLabels() {
-  const n = DAY_LABELS.length;
+  /* The last week OF THE WINDOW -- with custom dates, "this week" is the
+     window's final 7 days, the same days every rule here measures. */
+  const now = windowLabels(LAST_WEEK);
+  const before = windowLabels(LAST_WEEK, 1);
   return {
-    now: `${DAY_LABELS[n - LAST_WEEK]} – ${DAY_LABELS[n - 1]}`,
-    before: `${DAY_LABELS[n - 2 * LAST_WEEK]} – ${DAY_LABELS[n - LAST_WEEK - 1]}`,
+    now: `${now[0]} – ${now[now.length - 1]}`,
+    before: `${before[0]} – ${before[before.length - 1]}`,
   };
 }
 

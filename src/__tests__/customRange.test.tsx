@@ -9,9 +9,9 @@ import { readUrlState, urlStateQuery } from '../data/urlState';
 afterEach(cleanup);
 
 describe('custom date ranges (Phase 3)', () => {
-  it('any whole 1-90 days is a range; 0, 91 and fractions are not', () => {
-    expect([1, 14, 45, 90].every(isRange)).toBe(true);
-    expect([0, 91, 7.5, -3, NaN].some(isRange)).toBe(false);
+  it('any whole 1-365 days is a range (two years of history); 0, 366 and fractions are not', () => {
+    expect([1, 14, 45, 90, 365].every(isRange)).toBe(true);
+    expect([0, 366, 7.5, -3, NaN].some(isRange)).toBe(false);
     expect(rangeLabel(14)).toBe('Last 14 days');
     expect(rangeLabel(1)).toBe('Last day');
   });

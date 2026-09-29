@@ -2,7 +2,7 @@ import type { ChannelName } from '../styles/tokens';
 import type { Stage } from '../components/StatusPill/StatusPill';
 import { CAMPAIGNS, type AdSet, type Campaign } from './campaigns';
 import { campaignRows, campaignSeries } from './campaignSeries';
-import type { DayRow, Metric, Range } from './metrics';
+import { sliceWindow, type DayRow, type Metric, type Range } from './metrics';
 import { assetFor } from './creativeAssets';
 import { CHANNEL_DEPTH } from './channelDepth';
 import { AD_SPREAD, adSetLeadShare, adSetWobble } from './adSets';
@@ -345,12 +345,9 @@ export function creativeLeadShare(id: string): number {
 }
 
 /** Daily rows for one ad, scaled out of its campaign's. Follows the range. */
-export function creativeRows(id: string, range: Range = 30, back = 0): DayRow[] {
+export function creativeRows(id: string, range: Range = 30, back = 0, shift = 0): DayRow[] {
   const real = SOURCE_AD_ROWS?.get(id);
-  if (real) {
-    const end = real.length - back * range;
-    return end - range < 0 ? [] : real.slice(end - range, end);
-  }
+  if (real) return sliceWindow(real, range, back, shift);
   const owner = creativeById(id);
   if (!owner) return [];
   /* Bought on spend, returns on leads. The gap between the two shares IS the
@@ -358,7 +355,7 @@ export function creativeRows(id: string, range: Range = 30, back = 0): DayRow[] 
      different CACs. */
   const share = creativeShare(id);
   const leadShare = creativeLeadShare(id);
-  return campaignRows(owner.campaignId, range, back).map((r) => ({
+  return campaignRows(owner.campaignId, range, back, shift).map((r) => ({
     ...r,
     spend: r.spend * share,
     impressions: r.impressions * share,

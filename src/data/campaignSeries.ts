@@ -1,7 +1,7 @@
 import { changeOf, sampleOf } from './metrics';
 import { valueOf, type DerivedMetric } from './channelMetrics';
 import { CAMPAIGNS, type Campaign } from './campaigns';
-import { DAY_LABELS, formatMetric, isRatio, rowsFor, type DayRow, type Metric, type Range } from './metrics';
+import { formatMetric, isRatio, rowsFor, sliceWindow, windowLabels, type DayRow, type Metric, type Range } from './metrics';
 
 /**
  * Daily series for a campaign, derived from its channel's series.
@@ -66,12 +66,9 @@ function wobble(id: string, d: number): number {
 }
 
 /** The campaign's funnel, one row per day, over the full history. */
-export function campaignRows(id: string, range: Range = 30, back = 0): DayRow[] {
+export function campaignRows(id: string, range: Range = 30, back = 0, shift = 0): DayRow[] {
   const real = SOURCE_ROWS?.get(id);
-  if (real) {
-    const end = real.length - back * range;
-    return end - range < 0 ? [] : real.slice(end - range, end);
-  }
+  if (real) return sliceWindow(real, range, back, shift);
   const c = byId.get(id);
   if (!c) return [];
 
@@ -80,7 +77,7 @@ export function campaignRows(id: string, range: Range = 30, back = 0): DayRow[] 
   const groupLeads = group.reduce((a, x) => a + x.leads, 0);
   const spendShare = groupSpend > 0 ? c.spend / groupSpend : 0;
 
-  const channel = rowsFor(c.channel, range, back);
+  const channel = rowsFor(c.channel, range, back, shift);
 
   /* Leads: wobble, then renormalise across the window so the campaign's own
      total still lands on its stated figure. */
@@ -106,7 +103,7 @@ export function campaignRows(id: string, range: Range = 30, back = 0): DayRow[] 
 /** One metric over time for a campaign, shaped like `series()` does for a channel. */
 export function campaignSeries(id: string, metric: Metric, range: Range = 30) {
   const rows = campaignRows(id, range);
-  const labels = DAY_LABELS.slice(-range);
+  const labels = windowLabels(range);
   return rows.map((r, i) => {
     let value: number;
     switch (metric) {

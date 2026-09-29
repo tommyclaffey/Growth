@@ -38,7 +38,9 @@ interface Normalizer {
 const GRAPH = 'https://graph.facebook.com/v21.0';
 const FILE = resolve(process.cwd(), '.meta-tokens.local');
 /** The product's full history: 90 selectable days + 90 to compare against. */
-const DAYS = 180;
+/* ~15 months: a year back plus the longest preset window (90), so year-over-year
+   works on a real account. The product pads anything shorter as "no data". */
+const DAYS = 455;
 
 interface Stored { accessToken: string; expiresAt?: number; accountId?: string }
 

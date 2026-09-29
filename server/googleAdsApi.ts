@@ -38,7 +38,9 @@ const VERSION = process.env.GOOGLE_ADS_API_VERSION || 'v25';
 const API = `https://googleads.googleapis.com/${VERSION}`;
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const FILE = resolve(process.cwd(), '.google-ads-tokens.local');
-const DAYS = 180;
+/* ~15 months: a year back plus the longest preset window (90), so year-over-year
+   works on a real account. The product pads anything shorter as "no data". */
+const DAYS = 455;
 
 interface Stored {
   refreshToken: string;

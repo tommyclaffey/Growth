@@ -13,7 +13,7 @@ import { MEMBERS } from '../data/chat';
 import { blendedDelta } from '../data/blended';
 import { formatDerived } from '../data/channelMetrics';
 import {
-  CHANNEL_LABEL, DAY_LABELS, delta, formatMetric, totals, type Range,
+  CHANNEL_LABEL, windowLabels, delta, formatMetric, totals, type Range,
 } from '../data/metrics';
 import type { ChannelName } from '../styles/tokens';
 import type { ReportRef } from '../data/chat';
@@ -33,8 +33,8 @@ function covers(r: Report): string {
 
 /** "Aug 6 – Aug 12". `back` = 1 for the window before it. */
 function windowLabel(range: Range, back = 0): string {
-  const end = DAY_LABELS.length - back * range;
-  return `${DAY_LABELS[end - range]} – ${DAY_LABELS[end - 1]}`;
+  const l = windowLabels(range, back);
+  return l.length ? `${l[0]} – ${l[l.length - 1]}` : '—';
 }
 
 /**
