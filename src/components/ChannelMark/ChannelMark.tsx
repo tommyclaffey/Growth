@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import googleAdsMark from '../../assets/brand/google-ads.svg';
 import metaMark from '../../assets/brand/meta-mark.svg';
 import tiktokMark from '../../assets/brand/tiktok-mark.svg';
+import tiktokMarkDark from '../../assets/brand/tiktok-mark-dark.svg';
 import youtubeMark from '../../assets/brand/youtube-mark.svg';
 import './ChannelMark.css';
 import type { ChannelName } from '../../styles/tokens';
@@ -47,6 +48,14 @@ const REAL: Partial<Record<string, string>> = {
   tiktok: tiktokMark,
   youtube: youtubeMark,
   paidSearch: googleAdsMark,
+};
+
+/* Dark-background variants, where the brand has one. TikTok's note has a
+   black body that vanished on a dark card (1.1:1). The dark file is TikTok's
+   OWN dark artwork -- every path identical to their dark lockup, where the
+   body is white -- cut exactly as the light mark was. Never recoloured here. */
+const REAL_DARK: Partial<Record<string, string>> = {
+  tiktok: tiktokMarkDark,
 };
 
 export interface ChannelMarkProps {
@@ -129,7 +138,12 @@ export function ChannelMark({ channel, size = 16, title }: ChannelMarkProps) {
         aria-label={title}
         aria-hidden={title ? undefined : true}
       >
-        <img src={real} alt="" />
+        {REAL_DARK[channel] ? (
+          <>
+            <img src={real} alt="" className="is-light-only" />
+            <img src={REAL_DARK[channel]} alt="" className="is-dark-only" />
+          </>
+        ) : <img src={real} alt="" />}
       </span>
     );
   }

@@ -26,3 +26,8 @@
   flex: none;
   display: block;
 }
+
+/* Light/dark artwork: the theme picks which of the brand's files shows. */
+.gr-chmark > img.is-dark-only { display: none; }
+[data-theme='dark'] .gr-chmark > img.is-light-only { display: none; }
+[data-theme='dark'] .gr-chmark > img.is-dark-only { display: block; }
