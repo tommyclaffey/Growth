@@ -1,4 +1,5 @@
 import {
+  CHANNEL_KEYS,
   CHANNEL_LABEL, rangeOver, activeChannels, delta, formatMetric, totals,
   type Metric, type Range, type Scope,
 } from './metrics';
@@ -924,6 +925,23 @@ function whatIf(q: string, range: Range, subject?: Target): Answer | undefined {
   }
 
   /* "move / shift $X from A to B" */
+  /* A budget move naming a channel this account does not have (off in
+     Settings, or not in the connected account): say so, rather than "I could
+     not turn that into a question". */
+  if (/\b(move|shift|reallocat\w*|transfer|swap|add|put)\b/i.test(q)) {
+    const lower = q.toLowerCase();
+    const missing = CHANNEL_KEYS.filter((k) => !activeChannels().includes(k)
+      && (lower.includes(CHANNEL_LABEL[k].toLowerCase()) || lower.includes(k.toLowerCase())));
+    if (missing.length) {
+      const names = missing.map((k) => CHANNEL_LABEL[k]).join(' and ');
+      return {
+        answered: true,
+        text: `${names} ${missing.length === 1 ? 'is' : 'are'} not part of this account right now — switched off in Settings, or not in the connected ad account — so there is no cost per lead to project from. I can compare the channels you do run: ${activeChannels().map((k) => CHANNEL_LABEL[k]).join(', ')}.`,
+        followUps: ['Where should more budget go?'],
+      };
+    }
+  }
+
   if (/\b(move|shift|reallocat\w*|transfer|swap)\b/i.test(q) && named.length >= 2) {
     const amt = amount ?? Math.round(defaultExtra(range) / 2);
     const [from, to] = named;
