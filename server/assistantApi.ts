@@ -238,6 +238,14 @@ interface Scenario {
   ASSUME_LAST_TOUCH: string;
 }
 
+/** The table's Week / Month view -- src/data/trend.ts. */
+interface TrendMod {
+  trendBy: (scope: string, metric: string, by: 'week' | 'month', days: number) => {
+    by: string; days: number;
+    points: { label: string; days: number; full: boolean; value: number | null; change: number | null }[];
+  };
+}
+
 interface Blended {
   blendedTotal: (m: string, channels: string[], range: number) => number;
   blendedDelta: (m: string, channels: string[], range: number) => number;
@@ -261,7 +269,7 @@ interface Evidence { label: string; value: string; channel?: string }
 interface Source { title: string; url: string }
 
 function buildTools(
-  m: Metrics, d: Decisions, b: Blended, cm: ChannelMetrics, sc: Scenario,
+  m: Metrics, d: Decisions, b: Blended, cm: ChannelMetrics, sc: Scenario, tr: TrendMod,
   range: number, evidence: Evidence[], subject?: Subject,
   findings?: DecisionCandidate[],
   commitments: unknown[] = [],
@@ -609,6 +617,40 @@ function buildTools(
     }),
 
     betaTool({
+      name: 'get_by_period',
+      description:
+        'One metric week by week or month by month -- the same numbers the dashboard table shows in its Week / Month view. '
+        + 'Use for "how is X trending", "last 12 weeks", "month over month". Each period has its value (null when it cannot be reported) '
+        + 'and its change against the period before (null when either period is partial -- a short period is not a worse one). '
+        + 'State what moved; never claim why.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          scope: scopeProp,
+          metric: metricProp,
+          by: { type: 'string', enum: ['week', 'month'] },
+          periods: { type: 'integer', minimum: 1, maximum: 52, description: 'How many weeks or months back. Omit for the selected range.' },
+        },
+        required: ['scope', 'metric', 'by'],
+        additionalProperties: false,
+      },
+      run: ({ scope, metric, by, periods }: { scope: string; metric: string; by: 'week' | 'month'; periods?: number }) => {
+        if (scope !== 'all' && !(m.activeChannels() as string[]).includes(scope)) return JSON.stringify({ error: 'Unknown channel for this account.' });
+        const n = Number.isInteger(periods) && periods! >= 1 && periods! <= 52 ? periods! : 0;
+        const days = n ? (by === 'month' ? n * 31 : n * 7) : range;
+        const t = tr.trendBy(scope, metric, by, days);
+        const latest = t.points[t.points.length - 1];
+        if (latest) {
+          evidence.push({ label: `${label(scope)} · ${metric} · ${latest.label}`, value: latest.value === null ? '—' : fmt(metric, latest.value), channel: scope });
+        }
+        return JSON.stringify({
+          scope: label(scope), metric, by, days: t.days,
+          points: t.points.map((p) => ({ ...p, formatted: p.value === null ? null : fmt(metric, p.value) })),
+        });
+      },
+    }),
+
+    betaTool({
       name: 'get_series',
       description:
         'The day-by-day values behind a metric. Use only when the shape over time matters — a spike, a trend, a specific day. For a single figure use get_totals; this returns a lot of points. Funnel metrics only (Spend, Clicks, Leads, Sales, CAC, ROAS).',
@@ -757,6 +799,7 @@ export function assistantApi(): Plugin {
           const b = (await server.ssrLoadModule('/src/data/blended.ts')) as unknown as Blended;
           const cm = (await server.ssrLoadModule('/src/data/channelMetrics.ts')) as unknown as ChannelMetrics;
           const sc = (await server.ssrLoadModule('/src/data/scenario.ts')) as unknown as Scenario;
+          const tr = (await server.ssrLoadModule('/src/data/trend.ts')) as unknown as TrendMod;
 
           /* ⭐ The browser's account and settings, applied to the server's copy
              of the data layer before any tool runs -- so the model and the
@@ -785,7 +828,7 @@ export function assistantApi(): Plugin {
               + 'When you state a figure, it is for these days -- name them the way they are named here.',
             tools: [
               ...buildTools(
-                m, d, b, cm, sc, range, evidence,
+                m, d, b, cm, sc, tr, range, evidence,
                 /* What the caller said, or failing that what the question names. */
                 subject ?? inferSubject(question, CAMPAIGNS, m.CHANNEL_LABEL),
                 findings,

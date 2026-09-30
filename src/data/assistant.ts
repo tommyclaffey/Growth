@@ -14,6 +14,7 @@ import {
 } from './scenario';
 import { CAMPAIGNS } from './campaigns';
 import { creativeById, creativeTotals, creativesFor } from './creative';
+import { trendBy, type TrendPoint } from './trend';
 
 /**
  * The assistant.
@@ -753,6 +754,57 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
         value: formatMetric(metric, valueOf(k, metric, range)),
         channel: k,
       })),
+    };
+  }
+
+  /* "how is X trending by week", "last 12 weeks", "month by month" -- the
+     table's Week / Month view, in words. Same function the table reads, so
+     the answer and the columns cannot disagree. What moved, never why. */
+  if (!/\bwhy\b/i.test(q)
+      && /trend|by week|weekly|week by week|by month|monthly|month by month|last \d+ (weeks?|months?)|past \d+ (weeks?|months?)/i.test(q)) {
+    const m: Metric = metric ?? 'Spend';
+    const scope: Scope = channels.length ? channels[0] : subject?.kind === 'channel' ? subject.id as ChannelName : 'all';
+    const name = scope === 'all' ? 'Blended' : CHANNEL_LABEL[scope as ChannelName];
+    const byMonth = /month/i.test(q);
+    const n = Number(q.match(/(?:last|past) (\d+) (?:weeks?|months?)/i)?.[1] ?? 0);
+    /* Named span wins; otherwise the screen's window -- but never so short it
+       answers nothing (two partial months, one partial week). */
+    const days = n ? (byMonth ? n * 31 : n * 7)
+      : byMonth ? Math.max(range, 183) : Math.max(range, 28);
+    const t = trendBy(scope, m, byMonth ? 'month' : 'week', days);
+    const shown = t.points.slice(-12);
+    const unit = byMonth ? 'month' : 'week';
+    const fmt = (v: number | null) => (v === null ? '—' : formatMetric(m, v));
+    const latest = shown[shown.length - 1];
+    const moves = t.points.map((p) => p.change).filter((c): c is number => c !== null);
+    const up = moves.filter((c) => c > 0).length;
+    const down = moves.filter((c) => c < 0).length;
+    const flat = moves.length - up - down;
+    const valued = t.points.filter((p) => p.value !== null && p.full);
+    const hi = valued.reduce<TrendPoint | null>((a2, p) => (!a2 || p.value! > a2.value! ? p : a2), null);
+    const lo = valued.reduce<TrendPoint | null>((a2, p) => (!a2 || p.value! < a2.value! ? p : a2), null);
+    return {
+      answered: true,
+      text: [
+        `${name} ${m} by ${unit}, ${n ? `the last ${n} ${unit}${n === 1 ? '' : 's'}` : `over ${t.days} days`}${t.points.length > shown.length ? ` (the latest ${shown.length} shown)` : ''}:\n`
+          + shown.map((p) => `• ${p.label}: ${fmt(p.value)}${p.full ? '' : ` (${p.days} days)`}`).join('\n'),
+        latest.change === null
+          ? `Latest ${unit} (${latest.label}): ${fmt(latest.value)}.`
+          : `Latest ${unit} (${latest.label}): ${fmt(latest.value)}, ${latest.change === 0 ? `level with the ${unit} before` : `${latest.change > 0 ? 'up' : 'down'} ${Math.abs(latest.change)}% on the ${unit} before`}.`,
+        moves.length
+          ? `Across ${moves.length} ${unit}-to-${unit} move${moves.length === 1 ? '' : 's'}: up ${up}, down ${down}, level ${flat}.`
+            + (hi && lo && hi !== lo ? ` Highest ${fmt(hi.value)} (${hi.label}); lowest ${fmt(lo.value)} (${lo.label}).` : '')
+          : '',
+        'That is what moved. Why it moved is not in this data.',
+      ].filter(Boolean).join('\n\n'),
+      evidence: [
+        { label: `${name} ${m} · ${latest.label}`, value: fmt(latest.value), channel: scope },
+        ...(shown.length > 1 ? [{ label: `${name} ${m} · ${shown[shown.length - 2].label}`, value: fmt(shown[shown.length - 2].value), channel: scope }] : []),
+      ],
+      followUps: [
+        latest.change !== null && latest.change !== 0 ? `Why is ${name} ${m} ${latest.change > 0 ? 'up' : 'down'}?` : 'What should I do next?',
+        byMonth ? `How is ${name} ${m} trending by week?` : `How is ${name} ${m} trending by month?`,
+      ],
     };
   }
 
