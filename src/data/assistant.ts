@@ -464,7 +464,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
        returns only ACCOUNT-level findings -- so "What would you do?" answered
        "One call: review pacing" while "What should I do next?" listed twelve.
        Nothing named = everything. */
-    const mine = tgt.kind === 'account' ? found : decisionsFor(tgt, range);
+    const mine = tgt.kind === 'account' ? found : decisionsFor(tgt, range, undefined, found);
     /* ⚠️ Taken decisions leave the NARRATION, not just the buttons.
        
        The prose used `act` and the buttons used takeable(act), which filters what
@@ -560,7 +560,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
           ? { kind: 'channel', id: channel, label: CHANNEL_LABEL[channel] }
           : { kind: 'account', id: 'account', label: 'this account' };
 
-    const mine = decisionsFor(target, range);
+    const mine = decisionsFor(target, range, undefined, found);
     /* Taken decisions are on the queue, not suggestions -- the same rule the
        "what would you do" branch follows. */
     const actionable = mine.filter((c) => c.tier !== 3 && !isFlagged('decision', c.id));
