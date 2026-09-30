@@ -55,8 +55,8 @@ describe('the chart: table view and earlier periods', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Leads' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'ROAS' }));
-    const names = [...screen.getByRole('table').querySelectorAll('.gr-chart__group-name')].map((n) => n.textContent);
-    expect(names).toEqual(['Spend', 'Leads', 'ROAS']);
+    const head = screen.getByRole('table').querySelector('thead')!.textContent!;
+    expect(head).toMatch(/Date.*Spend.*Leads.*ROAS/);
     const foot = screen.getByRole('table').querySelector('tfoot')!.textContent!;
     const t = totals('all', 30);
     expect(foot).toContain(formatMetric('Spend', t.spend));
@@ -75,7 +75,7 @@ describe('the chart: table view and earlier periods', () => {
     renderChart(30);
     pick('week');
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
-    const groups = [...screen.getByRole('table').querySelectorAll('.gr-chart__group-name')].map((th) => th.textContent);
+    const groups = [...screen.getByRole('table').querySelectorAll('th[scope="colgroup"]')].map((th) => th.textContent);
     expect(groups).toEqual(['Spend', 'Leads']);
     expect(screen.getByRole('table').querySelectorAll('tbody tr')[0].querySelectorAll('td')).toHaveLength(1 + 2 * 3);
     localStorage.clear();
@@ -88,32 +88,44 @@ describe('the chart: table view and earlier periods', () => {
     expect(screen.getByText(/No data for the same days last year/)).toBeTruthy();
   });
 
-  it('⭐ each metric can compare with its OWN period -- Leads vs last month beside Spend vs last week', () => {
-    localStorage.setItem('growth.tableColumns', JSON.stringify(['Leads']));
-    renderChart(30);
-    pick('week');
+  it('⭐ By Week: a column per week, oldest to newest, then the Total -- metrics are the rows', () => {
+    localStorage.setItem('growth.tableColumns', JSON.stringify(['Leads', 'CAC']));
+    renderChart(84);                       // twelve whole weeks
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
-    fireEvent.change(screen.getByLabelText('Compare Leads with'), { target: { value: 'month' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }));
     const table = screen.getByRole('table');
-    /* Mixed periods: no single "earlier date" column -- each group says its days. */
-    expect(table.classList.contains('is-comparing')).toBe(false);
-    const spans = [...table.querySelectorAll('.gr-chart__group-span')].map((n) => n.textContent);
-    expect(spans).toEqual(['Jul 7 – Aug 5', 'Jun 13 – Jul 12']);
-    /* Each column's earlier total uses ITS days. */
-    const lastMonthLeads = series('all', 'Leads', 30, 31).reduce((a, d) => a + d.value, 0);
-    expect(table.querySelector('tfoot')!.textContent).toContain(formatMetric('Leads', lastMonthLeads));
+    const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent);
+    expect(heads[0]).toBe('Week');
+    expect(heads).toHaveLength(1 + 12 + 1);
+    expect(heads.at(-2)).toBe('Aug 6–12');                 // the newest week, whole
+    expect(heads.at(-1)).toBe('Total');
+    const rows = [...table.querySelectorAll('tbody tr')].map((r) => r.querySelector('th')!.textContent);
+    expect(rows).toEqual(['Spend', 'Leads', 'CAC']);
+    /* The Total column is the window's own total -- the dashboard's figure. */
+    const cac = table.querySelectorAll('tbody tr')[2].querySelectorAll('td');
+    expect(cac[cac.length - 1].textContent).toBe(formatMetric('CAC', totals('all', 84).cac));
+    /* Each week (after the first) carries its change against the week before. */
+    expect(table.querySelectorAll('tbody tr')[0].querySelectorAll('.gr-chart__pivot-change')).toHaveLength(11);
     localStorage.clear();
   });
 
-  it('a column can opt out ("No comparison"); the Compare control resets every column', () => {
-    localStorage.setItem('growth.tableColumns', JSON.stringify(['Leads']));
-    renderChart(30);
-    pick('week');
+  it('a SHORT oldest week says so, and gets no "change" -- 2 days against 7 is not a drop', () => {
+    renderChart(30);                       // 4 whole weeks + 2 days
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
-    fireEvent.change(screen.getByLabelText('Compare Leads with'), { target: { value: 'none' } });
-    expect(screen.getByRole('table').querySelector('tbody tr')!.querySelectorAll('td')).toHaveLength(1 + 3 + 1);
-    pick('year');
-    expect((screen.getByLabelText('Compare Leads with') as HTMLSelectElement).value).toBe('year');
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }));
+    const table = screen.getByRole('table');
+    expect(table.querySelectorAll('thead th')[1].textContent).toMatch(/2 days/);
+    const first = table.querySelectorAll('tbody tr')[0].querySelectorAll('td');
+    expect(first[1].querySelector('.gr-chart__pivot-change')).toBeNull();   // week 2 vs a 2-day week: no change shown
+    localStorage.clear();
+  });
+
+  it('By Month: calendar months, the partial ones marked', () => {
+    renderChart(90);
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Month' }));
+    const heads = [...screen.getByRole('table').querySelectorAll('thead th')].map((th) => th.textContent);
+    expect(heads).toEqual(['Month', 'May 202617 days', 'Jun 2026', 'Jul 2026', 'Aug 202612 days', 'Total']);
     localStorage.clear();
   });
 });

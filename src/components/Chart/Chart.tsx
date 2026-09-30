@@ -10,6 +10,7 @@ import { resolveMark, type Mark } from './mark';
 import { smoothPath } from './smoothPath';
 import { MetricToggle } from '../MetricToggle/MetricToggle';
 import { betterHigher } from '../../data/channelMetrics';
+import { bucketsOf } from '../../data/buckets';
 
 export { METRICS };
 export type { Metric };
@@ -55,6 +56,17 @@ function savedCols(): Metric[] {
     const raw = JSON.parse(localStorage.getItem(COLS_KEY) ?? '[]');
     return Array.isArray(raw) ? METRICS.filter((m) => raw.includes(m)) : [];
   } catch { return []; }
+}
+/* How the table groups days. Day = a row per day (the Compare control adds
+   Now | Then | Change). Week / Month = a COLUMN per week or month across the
+   window, oldest to newest, so a trend reads left to right. */
+type GroupBy = 'day' | 'week' | 'month';
+const GROUP_KEY = 'growth.tableGroup';
+function savedGroup(): GroupBy {
+  try {
+    const g = localStorage.getItem(GROUP_KEY);
+    return g === 'week' || g === 'month' ? g : 'day';
+  } catch { return 'day'; }
 }
 const isPeriod = (v: unknown): v is ComparePeriod => v === 'week' || v === 'month' || v === 'year';
 const pct = (now: number, then: number) => (then === 0 ? null : Math.round(((now - then) / Math.abs(then)) * 100));
@@ -117,8 +129,12 @@ export function Chart({
      ratio the rule would never have drawn as bars. */
   const [chosen, setChosen] = useState<'bar' | 'line' | 'table' | null>(null);
   const [tableCols, setTableCols] = useState<Metric[]>(savedCols);
-  /* Per-column comparison overrides; empty = every column follows Compare. */
-  const [colPeriods, setColPeriods] = useState<Partial<Record<Metric, ComparePeriod | 'none'>>>({});
+  /* Table rows by Day, or columns by Week / Month -- remembered. */
+  const [groupBy, setGroupByState] = useState<GroupBy>(savedGroup);
+  const setGroupBy = (g: GroupBy) => {
+    setGroupByState(g);
+    try { localStorage.setItem(GROUP_KEY, g); } catch { /* quota */ }
+  };
 
   const auto = resolveMark(metric, data.length, mark);
   /* A ratio is never drawn as bars, whatever is clicked. A bar encodes
@@ -247,185 +263,208 @@ export function Chart({
     </table>
   );
 
-  /* ⭐ THE TABLE VIEW -- the chart's own numbers, every day, readable and
-     copyable. Built from the same series as the plot, so it cannot disagree
-     with it.
+  /* ⭐ THE TABLE VIEW -- the chart's own numbers, readable and copyable. Built
+     from the same series as the plot, so it cannot disagree with it.
 
-     Columns are CHOSEN (Tommy, Sept 29: "check off any boxes that I want to
-     display side by side"), and each column has its OWN comparison (Sept 30:
-     "comparing different time frames for each individual category") -- Clicks
-     against last week beside Sales against last year. The Compare control sets
-     them all at once; each column's header can change its own. */
+     Columns are CHOSEN (Tommy, Sept 29: "check off any boxes"), and the days
+     can be GROUPED (Sept 30: "show me every single week within that time
+     frame ... compare the last 12 weeks and see how my numbers are trending"):
+       Day    a row per day; Compare adds Now | Then | Change
+       Week   a column per week across the window, oldest -> newest, + Total
+       Month  a column per calendar month, the same way */
   const tableMetrics: Metric[] = [metric, ...METRICS.filter((m) =>
     m !== metric && (tableCols.includes(m) || m === compare) && (compareSeries || m === metric))];
   const seriesOf = (m: Metric) => (m === metric ? data : compareSeries!(m));
-
-  /* A column's period: its own choice if it has one, else the Compare
-     control's. 'none' is an explicit "no comparison for this column". */
-  const periodFor = (m: Metric): ComparePeriod | null => {
-    const own = colPeriods[m];
-    if (own === 'none') return null;
-    return own ?? period;
-  };
-  /* The same days `shift` earlier -- only when it lines up day for day; a
-     window reaching back before the data returns nothing, never zeros. */
-  const earlier = (m: Metric, shift: number) => {
-    if (!periodSeries) return [];
-    const got = m === metric && shift === shiftDays ? pRaw : periodSeries(m, shift);
+  const earlier = (m: Metric) => {
+    if (!period || !periodSeries) return [];
+    const got = m === metric ? pRaw : periodSeries(m, shiftDays);
     return got.length === data.length ? got : [];
   };
-  const cols = tableMetrics.map((m) => {
-    const p = periodFor(m);
-    const shift = p ? compareShift(p) : 0;
-    return { m, p, shift, now: seriesOf(m), then: p ? earlier(m, shift) : [] };
-  });
+  const cols = tableMetrics.map((m) => ({ m, now: seriesOf(m), then: earlier(m) }));
+  const comparing = pData.length > 0;
 
-  /* One "earlier date" column only when every compared column looks back the
-     SAME distance -- otherwise each group states its own days. */
-  const compared = cols.filter((c) => c.p);
-  const shared = compared.length > 0 && compared.every((c) => c.shift === compared[0].shift) ? compared[0] : null;
-  const isoAt = (shift: number) => sliceWindow(DAY_ISO, data.length, 0, shift);
-  const yearOf = (iso?: string) => iso?.slice(0, 4);
-  const labelAt = (c: typeof cols[number], i: number) => {
-    const iso = isoAt(c.shift)[i];
-    const other = yearOf(iso) !== yearOf(nowIso[nowIso.length - 1]);
-    const l = c.then[i]?.label ?? '';
-    return other && iso ? `${l}, ${yearOf(iso)}` : l;
-  };
-  const spanAt = (c: typeof cols[number]) => {
-    if (!c.then.length) return 'no data that far back';
-    const [a2, b2] = windowDates(data.length, 0, c.shift);
-    return yearOf(isoAt(c.shift)[0]) === yearOf(nowIso[nowIso.length - 1])
-      ? `${c.then[0].label} – ${c.then[c.then.length - 1].label}` : `${a2} – ${b2}`;
-  };
-
-  /* Totals that mean something for EVERY metric. A quantity sums. A ratio is
-     rebuilt from its parts -- CAC is total spend over total leads, ROAS is
-     total revenue over total spend (each day's revenue is its ROAS times its
-     spend) -- never a sum or an average of daily ratios. The earlier total
-     uses the SAME earlier days as its column. */
-  const totalOf = (m: Metric, shift: number | null): number | null => {
-    const get = (x: Metric) => (shift === null ? seriesOf(x) : earlier(x, shift));
-    const s = get(m);
+  /* A metric over a span of days, honestly: a quantity sums; a ratio is
+     rebuilt from its parts -- CAC is spend over leads, ROAS is revenue over
+     spend (each day's revenue is its ROAS times its spend) -- never a sum or
+     an average of daily ratios. `get` picks now or the earlier days. */
+  const over = (m: Metric, from: number, to: number, get: (x: Metric) => { value: number }[]): number | null => {
+    const part = (x: Metric) => get(x).slice(from, to);
+    const s = part(m);
     if (!s.length) return null;
     if (!isRatio(m)) return sum(s);
     if (!compareSeries) return null;
-    const spend = get('Spend');
+    const spend = part('Spend');
     if (m === 'CAC') {
-      const leads = sum(get('Leads'));
+      const leads = sum(part('Leads'));
       return leads > 0 ? sum(spend) / leads : null;
     }
     const sp = sum(spend);
-    const revenue = s.reduce((a, x, i) => a + x.value * (spend[i]?.value ?? 0), 0);
+    const revenue = s.reduce((acc, x, i) => acc + x.value * (spend[i]?.value ?? 0), 0);
     return sp > 0 ? revenue / sp : null;
   };
+  const totalOf = (m: Metric, which: 'now' | 'then') =>
+    over(m, 0, data.length, which === 'now' ? seriesOf : earlier);
   const cell = (m: Metric, v: number | null | undefined) => (v === null || v === undefined ? '—' : formatMetric(m, v));
   const tone = (m: Metric, ch: number | null) => (ch === null ? '' : `is-${deltaTone(ch, betterHigher(m))}`);
-  const anyCompared = compared.length > 0;
+
+  /* Week / Month columns. */
+  const grouped = groupBy !== 'day';
+  const buckets = grouped ? bucketsOf(nowIso, groupBy) : [];
+
+  const controls = compareSeries && (
+    <div className="gr-chart__table-bar">
+      <fieldset className="gr-chart__cols">
+        <legend className="gr-chart__cols-label gr-type-caption-med">{grouped ? 'Rows' : 'Columns'}</legend>
+        {METRICS.map((m) => {
+          const main = m === metric;
+          const on = main || tableCols.includes(m) || m === compare;
+          return (
+            <label key={m} className={`gr-chart__col gr-type-caption-med ${on ? 'is-on' : ''} ${main ? 'is-main' : ''}`}>
+              <input type="checkbox" checked={on} disabled={main || m === compare}
+                     onChange={(e) => setTableCols((prev) => {
+                       const next = e.target.checked ? [...prev, m] : prev.filter((x) => x !== m);
+                       try { localStorage.setItem(COLS_KEY, JSON.stringify(next)); } catch { /* quota */ }
+                       return next;
+                     })} />
+              {m}
+            </label>
+          );
+        })}
+      </fieldset>
+      {/* The same segmented control as Bar | Line | Table. */}
+      <div className="gr-chart__by" role="group" aria-label="Group days by">
+        <span className="gr-chart__cols-label gr-type-caption-med" aria-hidden="true">By</span>
+        {(['day', 'week', 'month'] as GroupBy[]).map((g) => (
+          <button key={g} type="button" aria-pressed={groupBy === g}
+                  className={`gr-chart__by-btn gr-type-caption-med ${groupBy === g ? 'is-on' : ''}`}
+                  onClick={() => setGroupBy(g)}>
+            {g === 'day' ? 'Day' : g === 'week' ? 'Week' : 'Month'}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const dayTable = (
+    <table className={`gr-chart__table ${comparing ? 'is-comparing' : ''}`}>
+      <thead>
+        {comparing && (
+          <tr className="gr-type-overline gr-chart__table-group">
+            <th scope="col" colSpan={2} className="is-wide" />
+            {cols.map((c) => <th key={c.m} scope="colgroup" colSpan={3} className="gr-chart__table-start">{c.m}</th>)}
+          </tr>
+        )}
+        <tr className="gr-type-overline">
+          <th scope="col">Date</th>
+          {comparing && <th scope="col">{periodInfo!.label}</th>}
+          {cols.map((c) => (comparing ? (
+            <Fragment key={c.m}>
+              <th scope="col" className="gr-chart__table-start">Now</th>
+              <th scope="col">Then</th>
+              <th scope="col">Change</th>
+            </Fragment>
+          ) : <th key={c.m} scope="col">{c.m}</th>))}
+        </tr>
+      </thead>
+      <tbody className="gr-type-body">
+        {data.map((d, i) => (
+          <tr key={i}>
+            <th scope="row">{d.label}</th>
+            {comparing && <td className="gr-chart__table-muted">{pLabel(i)}</td>}
+            {cols.map((c) => {
+              const now = c.now[i]?.value;
+              if (!comparing) return <td key={c.m}>{cell(c.m, now)}</td>;
+              const then = c.then[i]?.value;
+              const ch = now !== undefined && then !== undefined ? pct(now, then) : null;
+              return (
+                <Fragment key={c.m}>
+                  <td className="gr-chart__table-start">{cell(c.m, now)}</td>
+                  <td className="gr-chart__table-muted">{cell(c.m, then)}</td>
+                  <td className={tone(c.m, ch)}>{signed(ch)}</td>
+                </Fragment>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+      <tfoot className="gr-type-body-medium">
+        <tr>
+          <th scope="row">Total</th>
+          {comparing && <td className="gr-chart__table-muted">{pSpan()}</td>}
+          {cols.map((c) => {
+            const now = totalOf(c.m, 'now');
+            if (!comparing) return <td key={c.m}>{cell(c.m, now)}</td>;
+            const then = totalOf(c.m, 'then');
+            const ch = now !== null && then !== null ? pct(now, then) : null;
+            return (
+              <Fragment key={c.m}>
+                <td className="gr-chart__table-start">{cell(c.m, now)}</td>
+                <td className="gr-chart__table-muted">{cell(c.m, then)}</td>
+                <td className={tone(c.m, ch)}>{signed(ch)}</td>
+              </Fragment>
+            );
+          })}
+        </tr>
+      </tfoot>
+    </table>
+  );
+
+  /* ⭐ A column per week (or month), oldest -> newest, then the window's
+     Total. Each figure carries its change against the column before -- but
+     only between two WHOLE periods: a 3-day week against a 7-day one is a
+     smaller number, not a worse week. */
+  const pivotTable = (
+    <table className="gr-chart__table gr-chart__table--pivot">
+      <thead>
+        <tr className="gr-type-overline">
+          <th scope="col">{groupBy === 'week' ? 'Week' : 'Month'}</th>
+          {buckets.map((b) => (
+            <th key={b.start} scope="col">
+              {b.label}
+              {!b.full && <span className="gr-chart__partial gr-type-micro">{b.days} day{b.days === 1 ? '' : 's'}</span>}
+            </th>
+          ))}
+          <th scope="col" className="gr-chart__table-start">Total</th>
+        </tr>
+      </thead>
+      <tbody className="gr-type-body">
+        {cols.map((c) => (
+          <tr key={c.m}>
+            <th scope="row">{c.m}</th>
+            {buckets.map((b, j) => {
+              const v = over(c.m, b.start, b.end, seriesOf);
+              const prev = j > 0 ? buckets[j - 1] : null;
+              const pv = prev ? over(c.m, prev.start, prev.end, seriesOf) : null;
+              const ch = prev && b.full && prev.full && v !== null && pv !== null ? pct(v, pv) : null;
+              return (
+                <td key={b.start}>
+                  <span className="gr-chart__pivot-value">{cell(c.m, v)}</span>
+                  {ch !== null && (
+                    <span className={`gr-chart__pivot-change gr-type-micro ${tone(c.m, ch)}`}>
+                      {signed(ch)}
+                      <span className="gr-sr-only"> vs the {groupBy} before</span>
+                    </span>
+                  )}
+                </td>
+              );
+            })}
+            <td className="gr-chart__table-start gr-type-body-medium">{cell(c.m, totalOf(c.m, 'now'))}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 
   const visibleTable = (
     <>
-      {compareSeries && (
-        <fieldset className="gr-chart__cols">
-          <legend className="gr-chart__cols-label gr-type-caption-med">Columns</legend>
-          {METRICS.map((m) => {
-            const main = m === metric;
-            const on = main || tableCols.includes(m) || m === compare;
-            return (
-              <label key={m} className={`gr-chart__col gr-type-caption-med ${on ? 'is-on' : ''} ${main ? 'is-main' : ''}`}>
-                <input type="checkbox" checked={on} disabled={main || m === compare}
-                       onChange={(e) => setTableCols((prev) => {
-                         const next = e.target.checked ? [...prev, m] : prev.filter((x) => x !== m);
-                         try { localStorage.setItem(COLS_KEY, JSON.stringify(next)); } catch { /* quota */ }
-                         return next;
-                       })} />
-                {m}
-              </label>
-            );
-          })}
-        </fieldset>
-      )}
-      <div className="gr-chart__table-wrap" tabIndex={0} aria-label={`${title ?? metric} as a table`}>
-        <table className={`gr-chart__table ${shared ? 'is-comparing' : ''}`}>
-          <thead>
-            {/* Each metric's name, and what it is compared with -- its own
-                choice. Spans Now | Then | Change when it compares. */}
-            <tr className="gr-chart__table-group">
-              <th scope="col" colSpan={shared ? 2 : 1} className={shared ? 'is-wide' : ''} />
-              {cols.map((c) => (
-                <th key={c.m} scope="colgroup" colSpan={c.p ? 3 : 1} className={c.p ? 'gr-chart__table-start' : ''}>
-                  <span className="gr-chart__group-name gr-type-overline">{c.m}</span>
-                  {periodSeries && (
-                    <select
-                      className="gr-chart__col-period gr-type-caption"
-                      aria-label={`Compare ${c.m} with`}
-                      value={c.p ?? 'none'}
-                      onChange={(e) => setColPeriods((prev) => ({ ...prev, [c.m]: e.target.value as ComparePeriod | 'none' }))}
-                    >
-                      <option value="none">No comparison</option>
-                      {PERIODS.map((p) => <option key={p.key} value={p.key}>vs {p.noun}</option>)}
-                    </select>
-                  )}
-                  {c.p && !shared && <span className="gr-chart__group-span gr-type-micro">{spanAt(c)}</span>}
-                </th>
-              ))}
-            </tr>
-            <tr className="gr-type-overline">
-              <th scope="col">Date</th>
-              {shared && <th scope="col">{PERIODS.find((x) => x.key === shared.p)!.label}</th>}
-              {cols.map((c) => (c.p ? (
-                <Fragment key={c.m}>
-                  <th scope="col" className="gr-chart__table-start">Now</th>
-                  <th scope="col">Then</th>
-                  <th scope="col">Change</th>
-                </Fragment>
-              ) : <th key={c.m} scope="col">{anyCompared ? 'Now' : ''}</th>))}
-            </tr>
-          </thead>
-          <tbody className="gr-type-body">
-            {data.map((d, i) => (
-              <tr key={i}>
-                <th scope="row">{d.label}</th>
-                {shared && <td className="gr-chart__table-muted">{shared.then.length ? labelAt(shared, i) : '—'}</td>}
-                {cols.map((c) => {
-                  const now = c.now[i]?.value;
-                  if (!c.p) return <td key={c.m}>{cell(c.m, now)}</td>;
-                  const then = c.then[i]?.value;
-                  const ch = now !== undefined && then !== undefined ? pct(now, then) : null;
-                  return (
-                    <Fragment key={c.m}>
-                      <td className="gr-chart__table-start">{cell(c.m, now)}</td>
-                      <td className="gr-chart__table-muted" title={shared || !c.then.length ? undefined : labelAt(c, i)}>{cell(c.m, then)}</td>
-                      <td className={tone(c.m, ch)}>{signed(ch)}</td>
-                    </Fragment>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-          <tfoot className="gr-type-body-medium">
-            <tr>
-              <th scope="row">Total</th>
-              {shared && <td className="gr-chart__table-muted">{spanAt(shared)}</td>}
-              {cols.map((c) => {
-                const now = totalOf(c.m, null);
-                if (!c.p) return <td key={c.m}>{cell(c.m, now)}</td>;
-                const then = totalOf(c.m, c.shift);
-                const ch = now !== null && then !== null ? pct(now, then) : null;
-                return (
-                  <Fragment key={c.m}>
-                    <td className="gr-chart__table-start">{cell(c.m, now)}</td>
-                    <td className="gr-chart__table-muted">{cell(c.m, then)}</td>
-                    <td className={tone(c.m, ch)}>{signed(ch)}</td>
-                  </Fragment>
-                );
-              })}
-            </tr>
-          </tfoot>
-        </table>
+      {controls}
+      <div className={`gr-chart__table-wrap ${grouped ? 'is-pivot' : ''}`} tabIndex={0} aria-label={`${title ?? metric} as a table`}>
+        {grouped ? pivotTable : dayTable}
       </div>
-      {anyCompared && !shared && (
-        <p className="gr-chart__table-note gr-type-caption">Each metric is compared with its own period — see its header for the days.</p>
+      {grouped && comparing && (
+        <p className="gr-chart__table-note gr-type-caption">
+          By {groupBy}, the columns are the comparison — the Compare setting applies to the chart and the Day table.
+        </p>
       )}
     </>
   );
@@ -455,8 +494,6 @@ export function Chart({
                 onKeyDown={() => { pickedByPointer.current = false; }}
                 onChange={(e) => {
                   setComparePick((e.target.value || null) as Metric | ComparePeriod | null);
-                  /* Compare sets EVERY column; per-column choices start over. */
-                  setColPeriods({});
                   if (pickedByPointer.current) e.target.blur();
                 }}
               >

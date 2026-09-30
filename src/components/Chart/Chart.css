@@ -352,7 +352,7 @@
   /* Room for ~8 days at once. Holding the plot's exact height left four rows
      visible under the column picker and grouped headers -- the table became a
      scroll exercise. Readability wins over the card keeping one height. */
-  height: 400px;   /* ~8 days under the two-row header (names + their own comparison) */
+  height: 360px;   /* ~8 rows under the header */
   overflow: auto;
   border-top: var(--border-width-sm) solid var(--border-subtle);
 }
@@ -434,29 +434,11 @@
 
 /* Grouped headers when comparing: the metric's name over Now | Then | Change,
    and a rule at the start of each group so the eye finds where a metric begins. */
-/* The group row: each metric's name, its own "compare with" choice, and --
-   when periods differ between columns -- the days it looks back to. One fixed
-   height, so the sub-header row below can stick exactly beneath it. */
-.gr-chart__table-group th {
-  height: 64px; box-sizing: border-box;
-  vertical-align: bottom;
-  text-align: center !important; color: var(--text-primary) !important;
-  padding-bottom: var(--space-6) !important;
-}
+.gr-chart__table-group th { text-align: center !important; color: var(--text-primary) !important; padding-bottom: 0 !important; }
 .gr-chart__table-group > :first-child { border-bottom: 0; }
-.gr-chart__group-name { display: block; margin-bottom: var(--space-4); }
-.gr-chart__group-span { display: block; margin-top: var(--space-4); color: var(--text-muted); font-weight: 400; }
-.gr-chart__col-period {
-  height: 24px; max-width: 100%; padding: 0 var(--space-6);
-  color: var(--text-secondary); background: var(--surface-card);
-  border: var(--border-width-sm) solid var(--border-default); border-radius: var(--radius-sm);
-  font-family: inherit; cursor: pointer;
-}
-.gr-chart__col-period:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }
-[data-theme='dark'] .gr-chart__col-period { color-scheme: dark; }
 .gr-chart__table-note { margin: var(--space-8) 0 0; color: var(--text-muted); }
 .gr-chart__table .gr-chart__table-start { border-left: var(--border-width-sm) solid var(--border-subtle); }
-.gr-chart__table-group + tr th { top: 64px; }
+.gr-chart__table-group + tr th { top: 22px; }
 
 /* The tooltip turns inward near the edges -- centred, it ran past the card at
    either end and the content area clipped it ("$4,70"). */
@@ -465,3 +447,32 @@
 
 /* Native checkboxes follow the theme (they stayed white in dark mode). */
 [data-theme='dark'] .gr-chart__col input { color-scheme: dark; }
+
+/* ---- Table controls: which metrics, and how the days are grouped ---------- */
+.gr-chart__table-bar { display: flex; align-items: flex-start; gap: var(--space-16); }
+.gr-chart__table-bar .gr-chart__cols { flex: 1; }
+.gr-chart__by {
+  display: inline-flex; align-items: center; gap: 2px; flex: none;
+  padding: 2px; border-radius: var(--radius-md); background: var(--surface-page-top);
+}
+.gr-chart__by .gr-chart__cols-label { padding: 0 var(--space-6); }
+.gr-chart__by-btn {
+  height: 24px; padding: 0 var(--space-10);
+  border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--text-secondary);
+  cursor: pointer; font-family: inherit;
+}
+.gr-chart__by-btn:hover { color: var(--text-primary); }
+.gr-chart__by-btn.is-on { background: var(--surface-card); color: var(--text-primary); box-shadow: var(--elevation-raised); }
+.gr-chart__by-btn:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }
+
+/* ---- Week / Month: a column per period, oldest -> newest ------------------- */
+.gr-chart__table-wrap.is-pivot { height: auto; max-height: 360px; }
+.gr-chart__table--pivot td { vertical-align: top; padding-top: var(--space-10); padding-bottom: var(--space-10); }
+.gr-chart__table--pivot tbody th { vertical-align: top; padding-top: var(--space-10); color: var(--text-primary); font-weight: 500; }
+.gr-chart__pivot-value { display: block; color: var(--text-primary); }
+.gr-chart__pivot-change { display: block; margin-top: 2px; color: var(--text-muted); }
+.gr-chart__partial { display: block; margin-top: 2px; color: var(--text-muted); text-transform: none; letter-spacing: 0; font-weight: 400; }
+.gr-chart__table--pivot thead th { vertical-align: bottom; }
+/* The window's total reads as the answer, not as a footnote. */
+.gr-chart__table--pivot tbody td:last-child { color: var(--text-primary); }
