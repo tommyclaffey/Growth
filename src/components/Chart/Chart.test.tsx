@@ -33,16 +33,6 @@ describe('the chart: table view and earlier periods', () => {
     expect(screen.getByRole('group', { name: 'Another metric' })).toBeTruthy();
   });
 
-  it('the table puts each day beside the same day earlier, with the change -- and the year when it differs', () => {
-    renderChart(30);
-    pick('year');
-    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
-    const table = screen.getByRole('table');
-    expect(table.querySelector('thead')!.textContent).toMatch(/Spend.*Date.*Last year.*Now.*Then.*Change/s);
-    expect(table.querySelector('tbody tr')!.textContent).toMatch(/Jul 14.*Jul 14, 2025/);
-    expect(table.querySelector('tfoot')!.textContent).toMatch(/2025/);
-  });
-
   it('⭐ a ratio’s total is REBUILT from its parts -- total spend over total leads, never a sum of daily CACs', () => {
     renderChart(30, 'CAC');
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
@@ -53,16 +43,18 @@ describe('the chart: table view and earlier periods', () => {
     localStorage.clear();
     const { unmount } = renderChart(30);
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    /* Starts with the chart's metric; the last one ticked cannot be unticked. */
+    expect((screen.getByRole('checkbox', { name: 'Spend' }) as HTMLInputElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Leads' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'ROAS' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Spend' }));         // any of them can go now
     const head = screen.getByRole('table').querySelector('thead')!.textContent!;
-    expect(head).toMatch(/Date.*Spend.*Leads.*ROAS/);
+    expect(head).toMatch(/Date.*Leads.*ROAS/);
+    expect(head).not.toMatch(/Spend/);
     const foot = screen.getByRole('table').querySelector('tfoot')!.textContent!;
     const t = totals('all', 30);
-    expect(foot).toContain(formatMetric('Spend', t.spend));
     expect(foot).toContain(formatMetric('Leads', t.leads));
     expect(foot).toContain(formatMetric('ROAS', t.roas));
-    expect((screen.getByRole('checkbox', { name: 'Spend' }) as HTMLInputElement).disabled).toBe(true);   // the main metric stays
     unmount();
     renderChart(30);
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
@@ -70,17 +62,17 @@ describe('the chart: table view and earlier periods', () => {
     localStorage.clear();
   });
 
-  it('comparing: each ticked metric gets Now | Then | Change under its own name', () => {
-    localStorage.setItem('growth.tableColumns', JSON.stringify(['Leads']));
+  it('⭐ the table has its own controls only -- no metric buttons, no Compare, no legend; it follows the date picker', () => {
     renderChart(30);
-    pick('week');
+    pick('year');
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
-    const groups = [...screen.getByRole('table').querySelectorAll('th[scope="colgroup"]')].map((th) => th.textContent);
-    expect(groups).toEqual(['Spend', 'Leads']);
-    expect(screen.getByRole('table').querySelectorAll('tbody tr')[0].querySelectorAll('td')).toHaveLength(1 + 2 * 3);
-    localStorage.clear();
+    expect(screen.queryByLabelText(/Compare with another metric or an earlier period/)).toBeNull();
+    expect(screen.queryByRole('tablist', { name: 'Metric' })).toBeNull();
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('By day');
+    expect(screen.getByRole('table').textContent).not.toMatch(/Then|Last year/);
+    fireEvent.click(screen.getByRole('button', { name: 'Line chart' }));
+    expect(screen.getByLabelText(/Compare with another metric or an earlier period/)).toBeTruthy();
   });
-
   it('when the data does not reach back that far, it SAYS so -- never draws zeros', () => {
     setWindowEnd(10);          // a year ending 10 days back: last year starts before the data
     renderChart(365);
@@ -100,9 +92,9 @@ describe('the chart: table view and earlier periods', () => {
     expect(heads.at(-2)).toBe('Aug 6–12');                 // the newest week, whole
     expect(heads.at(-1)).toBe('Total');
     const rows = [...table.querySelectorAll('tbody tr')].map((r) => r.querySelector('th')!.textContent);
-    expect(rows).toEqual(['Spend', 'Leads', 'CAC']);
+    expect(rows).toEqual(['Leads', 'CAC']);
     /* The Total column is the window's own total -- the dashboard's figure. */
-    const cac = table.querySelectorAll('tbody tr')[2].querySelectorAll('td');
+    const cac = table.querySelectorAll('tbody tr')[1].querySelectorAll('td');
     expect(cac[cac.length - 1].textContent).toBe(formatMetric('CAC', totals('all', 84).cac));
     /* Each week (after the first) carries its change against the week before. */
     expect(table.querySelectorAll('tbody tr')[0].querySelectorAll('.gr-chart__pivot-change')).toHaveLength(11);

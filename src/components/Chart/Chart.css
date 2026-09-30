@@ -476,3 +476,8 @@
 .gr-chart__table--pivot thead th { vertical-align: bottom; }
 /* The window's total reads as the answer, not as a footnote. */
 .gr-chart__table--pivot tbody td:last-child { color: var(--text-primary); }
+
+/* A table is as tall as its rows. The chart's min-height holds the card steady
+   across loading and empty states; a 3-row week table under it left a band of
+   empty card. */
+.gr-chart.is-table { min-height: 0; }

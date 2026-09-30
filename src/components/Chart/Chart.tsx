@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { CSS_CHANNEL } from '../../styles/tokens';
 import './Chart.css';
 import { channelGradient, type ChannelName } from '../../styles/tokens';
@@ -266,29 +266,25 @@ export function Chart({
   /* ⭐ THE TABLE VIEW -- the chart's own numbers, readable and copyable. Built
      from the same series as the plot, so it cannot disagree with it.
 
-     Columns are CHOSEN (Tommy, Sept 29: "check off any boxes"), and the days
-     can be GROUPED (Sept 30: "show me every single week within that time
-     frame ... compare the last 12 weeks and see how my numbers are trending"):
-       Day    a row per day; Compare adds Now | Then | Change
-       Week   a column per week across the window, oldest -> newest, + Total
-       Month  a column per calendar month, the same way */
-  const tableMetrics: Metric[] = [metric, ...METRICS.filter((m) =>
-    m !== metric && (tableCols.includes(m) || m === compare) && (compareSeries || m === metric))];
+     Its own controls, and only those (Tommy, Sept 30):
+       - WHICH metrics: the checkboxes. The chart's metric buttons are hidden
+         here -- two ways to choose the same thing.
+       - HOW the days group: Day (a row per day) | Week | Month (a column per
+         week or month across the window, oldest -> newest, + Total).
+       - WHICH days: the date picker, and nothing else. Compare is hidden here
+         -- a second set of dates inside the table would override the main
+         one. The trend across weeks IS the comparison. */
+  const saved = METRICS.filter((m) => tableCols.includes(m) && (compareSeries || m === metric));
+  const tableMetrics: Metric[] = saved.length ? saved : [metric];
   const seriesOf = (m: Metric) => (m === metric ? data : compareSeries!(m));
-  const earlier = (m: Metric) => {
-    if (!period || !periodSeries) return [];
-    const got = m === metric ? pRaw : periodSeries(m, shiftDays);
-    return got.length === data.length ? got : [];
-  };
-  const cols = tableMetrics.map((m) => ({ m, now: seriesOf(m), then: earlier(m) }));
-  const comparing = pData.length > 0;
+  const cols = tableMetrics.map((m) => ({ m, now: seriesOf(m) }));
 
   /* A metric over a span of days, honestly: a quantity sums; a ratio is
      rebuilt from its parts -- CAC is spend over leads, ROAS is revenue over
      spend (each day's revenue is its ROAS times its spend) -- never a sum or
-     an average of daily ratios. `get` picks now or the earlier days. */
-  const over = (m: Metric, from: number, to: number, get: (x: Metric) => { value: number }[]): number | null => {
-    const part = (x: Metric) => get(x).slice(from, to);
+     an average of daily ratios. */
+  const over = (m: Metric, from: number, to: number): number | null => {
+    const part = (x: Metric) => seriesOf(x).slice(from, to);
     const s = part(m);
     if (!s.length) return null;
     if (!isRatio(m)) return sum(s);
@@ -302,35 +298,39 @@ export function Chart({
     const revenue = s.reduce((acc, x, i) => acc + x.value * (spend[i]?.value ?? 0), 0);
     return sp > 0 ? revenue / sp : null;
   };
-  const totalOf = (m: Metric, which: 'now' | 'then') =>
-    over(m, 0, data.length, which === 'now' ? seriesOf : earlier);
+  const totalOf = (m: Metric) => over(m, 0, data.length);
   const cell = (m: Metric, v: number | null | undefined) => (v === null || v === undefined ? '—' : formatMetric(m, v));
   const tone = (m: Metric, ch: number | null) => (ch === null ? '' : `is-${deltaTone(ch, betterHigher(m))}`);
 
-  /* Week / Month columns. */
   const grouped = groupBy !== 'day';
   const buckets = grouped ? bucketsOf(nowIso, groupBy) : [];
 
-  const controls = compareSeries && (
+  const controls = (
     <div className="gr-chart__table-bar">
-      <fieldset className="gr-chart__cols">
-        <legend className="gr-chart__cols-label gr-type-caption-med">{grouped ? 'Rows' : 'Columns'}</legend>
-        {METRICS.map((m) => {
-          const main = m === metric;
-          const on = main || tableCols.includes(m) || m === compare;
-          return (
-            <label key={m} className={`gr-chart__col gr-type-caption-med ${on ? 'is-on' : ''} ${main ? 'is-main' : ''}`}>
-              <input type="checkbox" checked={on} disabled={main || m === compare}
-                     onChange={(e) => setTableCols((prev) => {
-                       const next = e.target.checked ? [...prev, m] : prev.filter((x) => x !== m);
-                       try { localStorage.setItem(COLS_KEY, JSON.stringify(next)); } catch { /* quota */ }
-                       return next;
-                     })} />
-              {m}
-            </label>
-          );
-        })}
-      </fieldset>
+      {compareSeries && (
+        <fieldset className="gr-chart__cols">
+          <legend className="gr-chart__cols-label gr-type-caption-med">Show</legend>
+          {METRICS.map((m) => {
+            const on = tableMetrics.includes(m);
+            /* At least one: an empty table answers nothing. */
+            const last = on && tableMetrics.length === 1;
+            return (
+              <label key={m} className={`gr-chart__col gr-type-caption-med ${on ? 'is-on' : ''}`}
+                     title={last ? 'At least one metric stays on' : undefined}>
+                <input type="checkbox" checked={on} disabled={last}
+                       onChange={(e) => {
+                         const next = e.target.checked
+                           ? METRICS.filter((x) => x === m || tableMetrics.includes(x))
+                           : tableMetrics.filter((x) => x !== m);
+                         setTableCols(next);
+                         try { localStorage.setItem(COLS_KEY, JSON.stringify(next)); } catch { /* quota */ }
+                       }} />
+                {m}
+              </label>
+            );
+          })}
+        </fieldset>
+      )}
       {/* The same segmented control as Bar | Line | Table. */}
       <div className="gr-chart__by" role="group" aria-label="Group days by">
         <span className="gr-chart__cols-label gr-type-caption-med" aria-hidden="true">By</span>
@@ -346,64 +346,25 @@ export function Chart({
   );
 
   const dayTable = (
-    <table className={`gr-chart__table ${comparing ? 'is-comparing' : ''}`}>
+    <table className="gr-chart__table">
       <thead>
-        {comparing && (
-          <tr className="gr-type-overline gr-chart__table-group">
-            <th scope="col" colSpan={2} className="is-wide" />
-            {cols.map((c) => <th key={c.m} scope="colgroup" colSpan={3} className="gr-chart__table-start">{c.m}</th>)}
-          </tr>
-        )}
         <tr className="gr-type-overline">
           <th scope="col">Date</th>
-          {comparing && <th scope="col">{periodInfo!.label}</th>}
-          {cols.map((c) => (comparing ? (
-            <Fragment key={c.m}>
-              <th scope="col" className="gr-chart__table-start">Now</th>
-              <th scope="col">Then</th>
-              <th scope="col">Change</th>
-            </Fragment>
-          ) : <th key={c.m} scope="col">{c.m}</th>))}
+          {cols.map((c) => <th key={c.m} scope="col">{c.m}</th>)}
         </tr>
       </thead>
       <tbody className="gr-type-body">
         {data.map((d, i) => (
           <tr key={i}>
             <th scope="row">{d.label}</th>
-            {comparing && <td className="gr-chart__table-muted">{pLabel(i)}</td>}
-            {cols.map((c) => {
-              const now = c.now[i]?.value;
-              if (!comparing) return <td key={c.m}>{cell(c.m, now)}</td>;
-              const then = c.then[i]?.value;
-              const ch = now !== undefined && then !== undefined ? pct(now, then) : null;
-              return (
-                <Fragment key={c.m}>
-                  <td className="gr-chart__table-start">{cell(c.m, now)}</td>
-                  <td className="gr-chart__table-muted">{cell(c.m, then)}</td>
-                  <td className={tone(c.m, ch)}>{signed(ch)}</td>
-                </Fragment>
-              );
-            })}
+            {cols.map((c) => <td key={c.m}>{cell(c.m, c.now[i]?.value)}</td>)}
           </tr>
         ))}
       </tbody>
       <tfoot className="gr-type-body-medium">
         <tr>
           <th scope="row">Total</th>
-          {comparing && <td className="gr-chart__table-muted">{pSpan()}</td>}
-          {cols.map((c) => {
-            const now = totalOf(c.m, 'now');
-            if (!comparing) return <td key={c.m}>{cell(c.m, now)}</td>;
-            const then = totalOf(c.m, 'then');
-            const ch = now !== null && then !== null ? pct(now, then) : null;
-            return (
-              <Fragment key={c.m}>
-                <td className="gr-chart__table-start">{cell(c.m, now)}</td>
-                <td className="gr-chart__table-muted">{cell(c.m, then)}</td>
-                <td className={tone(c.m, ch)}>{signed(ch)}</td>
-              </Fragment>
-            );
-          })}
+          {cols.map((c) => <td key={c.m}>{cell(c.m, totalOf(c.m))}</td>)}
         </tr>
       </tfoot>
     </table>
@@ -432,9 +393,9 @@ export function Chart({
           <tr key={c.m}>
             <th scope="row">{c.m}</th>
             {buckets.map((b, j) => {
-              const v = over(c.m, b.start, b.end, seriesOf);
+              const v = over(c.m, b.start, b.end);
               const prev = j > 0 ? buckets[j - 1] : null;
-              const pv = prev ? over(c.m, prev.start, prev.end, seriesOf) : null;
+              const pv = prev ? over(c.m, prev.start, prev.end) : null;
               const ch = prev && b.full && prev.full && v !== null && pv !== null ? pct(v, pv) : null;
               return (
                 <td key={b.start}>
@@ -448,7 +409,7 @@ export function Chart({
                 </td>
               );
             })}
-            <td className="gr-chart__table-start gr-type-body-medium">{cell(c.m, totalOf(c.m, 'now'))}</td>
+            <td className="gr-chart__table-start gr-type-body-medium">{cell(c.m, totalOf(c.m))}</td>
           </tr>
         ))}
       </tbody>
@@ -458,29 +419,29 @@ export function Chart({
   const visibleTable = (
     <>
       {controls}
-      <div className={`gr-chart__table-wrap ${grouped ? 'is-pivot' : ''}`} tabIndex={0} aria-label={`${title ?? metric} as a table`}>
+      <div className={`gr-chart__table-wrap ${grouped ? 'is-pivot' : ''}`} tabIndex={0} aria-label={`${title ?? 'Metrics'} as a table`}>
         {grouped ? pivotTable : dayTable}
       </div>
-      {grouped && comparing && (
-        <p className="gr-chart__table-note gr-type-caption">
-          By {groupBy}, the columns are the comparison — the Compare setting applies to the chart and the Day table.
-        </p>
-      )}
     </>
   );
+  const isTable = resolved === 'table';
 
   return (
-    <section className="gr-chart" aria-label={title ?? `${metric} over time`}>
+    <section className={`gr-chart ${isTable ? 'is-table' : ''}`} aria-label={title ?? `${metric} over time`}>
       {dataTable}
       <header className="gr-chart__header">
-        <h3 className="gr-chart__title gr-type-card-heading">{title ?? `${metric} over time`}</h3>
-        <MetricToggle value={metric} onChange={(m) => onMetricChange?.(m)} />
+        <h3 className="gr-chart__title gr-type-card-heading">
+          {isTable ? `By ${groupBy}` : (title ?? `${metric} over time`)}
+        </h3>
+        {/* Hidden in the table: its checkboxes choose the metrics. */}
+        {!isTable && <MetricToggle value={metric} onChange={(m) => onMetricChange?.(m)} />}
 
         {/* A native select, not a second segmented control: two rows of six
             identical pills would make "which one is the main metric" a
             question. Styled to sit on the same 32px tray as the toggle, and
             the main metric is excluded from its own options. */}
-        {(compareSeries || periodSeries) && (
+        {/* Hidden in the table: the table follows the date picker only. */}
+        {!isTable && (compareSeries || periodSeries) && (
           <div className={`gr-chart__compare ${compare || period ? 'is-on' : ''}`}>
             <label className="gr-chart__compare-field">
               <span className="gr-chart__compare-label gr-type-label-button">
@@ -580,7 +541,7 @@ export function Chart({
               there is a comparison, then the second key joins beside it. It
               used to appear only on compare, which made the whole card grow
               ~20px taller the moment Compare was switched on. */}
-          <div className="gr-chart__axes gr-type-overline" aria-hidden="true">
+          {!isTable && <div className="gr-chart__axes gr-type-overline" aria-hidden="true">
             <span className="gr-chart__axis-title">
               <span className="gr-chart__glyph gr-chart__glyph--main" style={{ background: stroke }} />
               {metric}
@@ -601,7 +562,7 @@ export function Chart({
                 No data for the same days {periodInfo!.noun}
               </span>
             ))}
-          </div>
+          </div>}
           {resolved === 'table' ? visibleTable : (<>
           <div className="gr-chart__plot">
             <div className="gr-chart__y" aria-hidden="true">
