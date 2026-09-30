@@ -371,17 +371,8 @@
   position: sticky; left: 0; z-index: 1;
   min-width: 64px; background: var(--surface-card);
 }
-.gr-chart__table.is-comparing tr:not(.gr-chart__table-group) > :nth-child(2) {
-  position: sticky; left: 64px; z-index: 1;
-  min-width: 104px; background: var(--surface-card);
-}
-/* In the group-title row the blank corner spans BOTH sticky columns; the
-   second cell there is a metric's title and scrolls with its columns. */
-.gr-chart__table-group > .is-wide:first-child { min-width: 168px; }
 .gr-chart__table thead tr > :first-child,
-.gr-chart__table.is-comparing thead tr:not(.gr-chart__table-group) > :nth-child(2),
-.gr-chart__table tfoot tr > :first-child,
-.gr-chart__table.is-comparing tfoot tr > :nth-child(2) { z-index: 3; }
+.gr-chart__table tfoot tr > :first-child { z-index: 3; }
 .gr-chart__table th,
 .gr-chart__table td {
   padding: var(--space-6) var(--space-12);
@@ -408,7 +399,6 @@
   border-top: var(--border-width-sm) solid var(--border-default);
   border-bottom: 0;
 }
-.gr-chart__table-muted { color: var(--text-muted) !important; }
 .gr-chart__table .is-good { color: var(--semantic-good); }
 .gr-chart__table .is-bad { color: var(--semantic-bad); }
 
@@ -428,18 +418,10 @@
 }
 .gr-chart__col:hover { border-color: var(--border-strong); color: var(--text-primary); }
 .gr-chart__col.is-on { border-color: var(--accent-soft); background: var(--accent-tint); color: var(--accent-text); }
-.gr-chart__col.is-main { cursor: default; }
 .gr-chart__col input { margin: 0; width: 13px; height: 13px; accent-color: var(--accent-fill); cursor: inherit; }
 .gr-chart__col:has(input:focus-visible) { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
 
-/* Grouped headers when comparing: the metric's name over Now | Then | Change,
-   and a rule at the start of each group so the eye finds where a metric begins. */
-.gr-chart__table-group th { text-align: center !important; color: var(--text-primary) !important; padding-bottom: 0 !important; }
-.gr-chart__table-group > :first-child { border-bottom: 0; }
-.gr-chart__table-note { margin: var(--space-8) 0 0; color: var(--text-muted); }
 .gr-chart__table .gr-chart__table-start { border-left: var(--border-width-sm) solid var(--border-subtle); }
-.gr-chart__table-group + tr th { top: 22px; }
-
 /* The tooltip turns inward near the edges -- centred, it ran past the card at
    either end and the content area clipped it ("$4,70"). */
 .gr-chart__tip.is-near-right { transform: translateX(-100%); }
