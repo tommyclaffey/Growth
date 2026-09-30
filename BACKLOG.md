@@ -589,6 +589,8 @@ Everything below is built, tested and screenshotted; nothing is live until merge
 - **Table view:** Show checkboxes (any metric, at least one) · By **Day | Week | Month** (Week/Month = a column per period, oldest → newest, Total pinned right, change vs the period before only between whole periods). Metric buttons, Compare and legend hidden in Table view — the table follows the date picker only (Tommy). Honest totals: ratios rebuilt from parts.
 - **"No comparison" is a dash, not 0%** (`changeOf` → NaN).
 - Two audits on the new work: 18 findings fixed with tests.
+- **Overnight Sept 30:** Ask answers trend questions (`trend.ts`, `get_by_period` tool); real-scale stress test (60 campaigns / 1,200 ads / 455 days: tiers reconcile across 1.2M cells) — fixed campaign-name matching (`campaignIn`), compact wire format (`wire.ts`, 51 MB → ~10 MB), ranking built once, engine not run twice, sort totals memoised; full-app dev-mode sweep clean — fixed start-of-data labels, 1-day week label, ISO dates in CSV.
+- 🟡 **Open, for Tommy:** decision-queue length on large accounts (150–340 candidates); "last month" for month-end windows borrows days from two months back (honest, labelled) vs comparing unequal lengths; engine results are not memoised per render (70–115 ms on a very large account; a cache would need eight inputs in its key).
 - ❌ **Tried and retired:** per-column comparison dropdowns (Tommy: sloppy) and Now/Then/Change inside the table (table follows the date picker only).
 
 ## ✅ Done
