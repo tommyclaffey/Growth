@@ -38,7 +38,7 @@ describe('the chart: table view and earlier periods', () => {
     pick('year');
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     const table = screen.getByRole('table');
-    expect(table.querySelector('thead')!.textContent).toMatch(/Spend.*Date.*Last year.*Now.*Then.*Change/);
+    expect(table.querySelector('thead')!.textContent).toMatch(/Spend.*Date.*Last year.*Now.*Then.*Change/s);
     expect(table.querySelector('tbody tr')!.textContent).toMatch(/Jul 14.*Jul 14, 2025/);
     expect(table.querySelector('tfoot')!.textContent).toMatch(/2025/);
   });
@@ -55,8 +55,8 @@ describe('the chart: table view and earlier periods', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Leads' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'ROAS' }));
-    const head = screen.getByRole('table').querySelector('thead')!.textContent!;
-    expect(head).toMatch(/Date.*Spend.*Leads.*ROAS/);
+    const names = [...screen.getByRole('table').querySelectorAll('.gr-chart__group-name')].map((n) => n.textContent);
+    expect(names).toEqual(['Spend', 'Leads', 'ROAS']);
     const foot = screen.getByRole('table').querySelector('tfoot')!.textContent!;
     const t = totals('all', 30);
     expect(foot).toContain(formatMetric('Spend', t.spend));
@@ -75,7 +75,7 @@ describe('the chart: table view and earlier periods', () => {
     renderChart(30);
     pick('week');
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
-    const groups = [...screen.getByRole('table').querySelectorAll('th[scope="colgroup"]')].map((th) => th.textContent);
+    const groups = [...screen.getByRole('table').querySelectorAll('.gr-chart__group-name')].map((th) => th.textContent);
     expect(groups).toEqual(['Spend', 'Leads']);
     expect(screen.getByRole('table').querySelectorAll('tbody tr')[0].querySelectorAll('td')).toHaveLength(1 + 2 * 3);
     localStorage.clear();
@@ -86,5 +86,34 @@ describe('the chart: table view and earlier periods', () => {
     renderChart(365);
     pick('year');
     expect(screen.getByText(/No data for the same days last year/)).toBeTruthy();
+  });
+
+  it('⭐ each metric can compare with its OWN period -- Leads vs last month beside Spend vs last week', () => {
+    localStorage.setItem('growth.tableColumns', JSON.stringify(['Leads']));
+    renderChart(30);
+    pick('week');
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    fireEvent.change(screen.getByLabelText('Compare Leads with'), { target: { value: 'month' } });
+    const table = screen.getByRole('table');
+    /* Mixed periods: no single "earlier date" column -- each group says its days. */
+    expect(table.classList.contains('is-comparing')).toBe(false);
+    const spans = [...table.querySelectorAll('.gr-chart__group-span')].map((n) => n.textContent);
+    expect(spans).toEqual(['Jul 7 – Aug 5', 'Jun 13 – Jul 12']);
+    /* Each column's earlier total uses ITS days. */
+    const lastMonthLeads = series('all', 'Leads', 30, 31).reduce((a, d) => a + d.value, 0);
+    expect(table.querySelector('tfoot')!.textContent).toContain(formatMetric('Leads', lastMonthLeads));
+    localStorage.clear();
+  });
+
+  it('a column can opt out ("No comparison"); the Compare control resets every column', () => {
+    localStorage.setItem('growth.tableColumns', JSON.stringify(['Leads']));
+    renderChart(30);
+    pick('week');
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    fireEvent.change(screen.getByLabelText('Compare Leads with'), { target: { value: 'none' } });
+    expect(screen.getByRole('table').querySelector('tbody tr')!.querySelectorAll('td')).toHaveLength(1 + 3 + 1);
+    pick('year');
+    expect((screen.getByLabelText('Compare Leads with') as HTMLSelectElement).value).toBe('year');
+    localStorage.clear();
   });
 });

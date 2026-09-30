@@ -352,7 +352,7 @@
   /* Room for ~8 days at once. Holding the plot's exact height left four rows
      visible under the column picker and grouped headers -- the table became a
      scroll exercise. Readability wins over the card keeping one height. */
-  height: 340px;
+  height: 400px;   /* ~8 days under the two-row header (names + their own comparison) */
   overflow: auto;
   border-top: var(--border-width-sm) solid var(--border-subtle);
 }
@@ -377,7 +377,7 @@
 }
 /* In the group-title row the blank corner spans BOTH sticky columns; the
    second cell there is a metric's title and scrolls with its columns. */
-.gr-chart__table-group > :first-child { min-width: 168px; }
+.gr-chart__table-group > .is-wide:first-child { min-width: 168px; }
 .gr-chart__table thead tr > :first-child,
 .gr-chart__table.is-comparing thead tr:not(.gr-chart__table-group) > :nth-child(2),
 .gr-chart__table tfoot tr > :first-child,
@@ -434,10 +434,29 @@
 
 /* Grouped headers when comparing: the metric's name over Now | Then | Change,
    and a rule at the start of each group so the eye finds where a metric begins. */
-.gr-chart__table-group th { text-align: center !important; color: var(--text-primary) !important; padding-bottom: 0 !important; }
-.gr-chart__table-group th[colspan="2"] { border-bottom: 0; }
+/* The group row: each metric's name, its own "compare with" choice, and --
+   when periods differ between columns -- the days it looks back to. One fixed
+   height, so the sub-header row below can stick exactly beneath it. */
+.gr-chart__table-group th {
+  height: 64px; box-sizing: border-box;
+  vertical-align: bottom;
+  text-align: center !important; color: var(--text-primary) !important;
+  padding-bottom: var(--space-6) !important;
+}
+.gr-chart__table-group > :first-child { border-bottom: 0; }
+.gr-chart__group-name { display: block; margin-bottom: var(--space-4); }
+.gr-chart__group-span { display: block; margin-top: var(--space-4); color: var(--text-muted); font-weight: 400; }
+.gr-chart__col-period {
+  height: 24px; max-width: 100%; padding: 0 var(--space-6);
+  color: var(--text-secondary); background: var(--surface-card);
+  border: var(--border-width-sm) solid var(--border-default); border-radius: var(--radius-sm);
+  font-family: inherit; cursor: pointer;
+}
+.gr-chart__col-period:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }
+[data-theme='dark'] .gr-chart__col-period { color-scheme: dark; }
+.gr-chart__table-note { margin: var(--space-8) 0 0; color: var(--text-muted); }
 .gr-chart__table .gr-chart__table-start { border-left: var(--border-width-sm) solid var(--border-subtle); }
-.gr-chart__table-group + tr th { top: 22px; }
+.gr-chart__table-group + tr th { top: 64px; }
 
 /* The tooltip turns inward near the edges -- centred, it ran past the card at
    either end and the content area clipped it ("$4,70"). */
