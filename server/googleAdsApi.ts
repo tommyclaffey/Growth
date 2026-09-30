@@ -38,7 +38,9 @@ const VERSION = process.env.GOOGLE_ADS_API_VERSION || 'v25';
 const API = `https://googleads.googleapis.com/${VERSION}`;
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const FILE = resolve(process.cwd(), '.google-ads-tokens.local');
-const DAYS = 180;
+/* ~15 months: a year back plus the longest preset window (90), so year-over-year
+   works on a real account. The product pads anything shorter as "no data". */
+const DAYS = 455;
 
 interface Stored {
   refreshToken: string;
@@ -227,7 +229,9 @@ export function googleApi(): Plugin {
 
           if (req.method === 'GET' && path === '/data') {
             if (!s.customerId) return send(res, 409, { error: 'Choose a Google Ads account in Settings.' });
-            return send(res, 200, await loadGoogle(server));
+            /* Compact on the wire; the client expands it (src/data/sources/wire.ts). */
+            const { compact } = (await server.ssrLoadModule('/src/data/sources/wire.ts')) as unknown as { compact: (d: unknown) => unknown };
+            return send(res, 200, compact(await loadGoogle(server)));
           }
           return send(res, 404, { error: 'Unknown Google Ads endpoint.' });
         } catch (e) {

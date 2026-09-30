@@ -78,7 +78,7 @@ function gather(range: Range, channels: ChannelName[]): Omit<RankedAd, 'value' |
     if (ads.length === 0) continue;
 
     /* Summed once per campaign, not once per ad. */
-    const period = campaignRows(campaign.id, range).reduce(addFunnel, EMPTY_FUNNEL);
+    const period = sumRows(campaignRows(campaign.id, range));
     const totalSpend = ads.reduce((a, c) => a + c.spend, 0);
 
     for (const creative of ads) {
@@ -93,7 +93,7 @@ function gather(range: Range, channels: ChannelName[]): Omit<RankedAd, 'value' |
       /* A real account's ad has its own days -- read them, never re-derive. */
       if (hasRealRows(creative.id)) {
         out.push({ creative, campaign, channel: campaign.channel,
-          totals: creativeRows(creative.id, range).reduce(addFunnel, EMPTY_FUNNEL) });
+          totals: sumRows(creativeRows(creative.id, range)) });
         continue;
       }
       const leadShare = creativeLeadShare(creative.id);
@@ -114,6 +114,17 @@ function gather(range: Range, channels: ChannelName[]): Omit<RankedAd, 'value' |
   }
 
   return out;
+}
+
+/* Summed in place: reduce(addFunnel) made a new object for every day of every
+   ad -- ~438k allocations per ranking on a 1,200-ad account at a year. */
+function sumRows(rows: { spend: number; impressions: number; clicks: number; leads: number; sales: number; revenue: number }[]): Funnel {
+  const f = { ...EMPTY_FUNNEL };
+  for (const r of rows) {
+    f.spend += r.spend; f.impressions += r.impressions; f.clicks += r.clicks;
+    f.leads += r.leads; f.sales += r.sales; f.revenue += r.revenue;
+  }
+  return f;
 }
 
 /**

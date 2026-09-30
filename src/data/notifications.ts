@@ -6,7 +6,7 @@ import { budgetForRange, channelBudgetForRange } from './profile';
 import { prefs } from './prefs';
 import type { Target } from './decisions';
 import {
-  CHANNEL_LABEL, DAY_LABELS, LAST_WEEK, activeChannels, delta, formatMetric, rowsFor, totals,
+  CHANNEL_LABEL, LAST_WEEK, activeChannels, delta, formatMetric, rowsFor, totals, windowLabels,
   type Metric,
 } from './metrics';
 
@@ -79,11 +79,21 @@ function lastTwoWeeks(ch: ChannelName, m: 'CAC' | 'Leads'): number[] {
 
 /** The week just ended and the one before, as dates. */
 export function weekLabels() {
-  const n = DAY_LABELS.length;
-  return {
-    now: `${DAY_LABELS[n - LAST_WEEK]} – ${DAY_LABELS[n - 1]}`,
-    before: `${DAY_LABELS[n - 2 * LAST_WEEK]} – ${DAY_LABELS[n - LAST_WEEK - 1]}`,
-  };
+  /* The last week OF THE WINDOW -- with custom dates, "this week" is the
+     window's final 7 days, the same days every rule here measures. */
+  const now = windowLabels(LAST_WEEK);
+  const before = windowLabels(LAST_WEEK, 1);
+  /* At the very start of the data there may be no full week (or no week
+     before it). Said, never "undefined – undefined". */
+  const span = (l: string[]) => (l.length ? `${l[0]} – ${l[l.length - 1]}` : null);
+  return { now: span(now), before: span(before) };
+}
+
+/** "Week of Aug 6 – Aug 12, compared with Jul 30 – Aug 5" -- or what is true when it is not. */
+export function weekSentence(): string {
+  const w = weekLabels();
+  if (!w.now) return 'Not a full week of data yet';
+  return w.before ? `Week of ${w.now}, compared with ${w.before}` : `Week of ${w.now} — no earlier week to compare with`;
 }
 
 export function notifications(channels: ChannelName[] = activeChannels()): Note[] {

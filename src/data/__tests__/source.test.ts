@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import {
-  CHANNEL_KEYS, DAY_LABELS, PERIOD_END, TOTAL_POINTS, formatMetric, hydrate, totals, type DayRow,
+  CHANNEL_KEYS, DAY_LABELS, PERIOD_END, TOTAL_POINTS, formatMetric, hydrate, totals, type DayRow, rowsFor, hasWindow,
 } from '../metrics';
 import { formatDerived } from '../channelMetrics';
 import { seededSource } from '../sources/seeded';
@@ -52,9 +52,19 @@ describe('⭐ the product runs on ANY source loaded through hydrate()', () => {
     expect(totals('podcasts', 30).spend).toBe(0);
   });
 
-  it('refuses rows that do not cover the full history', () => {
-    expect(() => hydrate({ rows: { meta: flat(1).slice(10) }, periodEnd: '2026-09-28', currency: 'USD' }))
-      .toThrow(/expected 180 days/);
+  it('a SHORTER history is padded as "no data" -- a window reaching into it returns nothing, never zeros', () => {
+    hydrate({ rows: { meta: flat(10).slice(0, 455) }, periodEnd: '2026-09-28', currency: 'USD' });
+    expect(rowsFor('meta', 30)).toHaveLength(30);
+    expect(rowsFor('meta', 30, 0, 365)).toHaveLength(30);        // last year: inside 455 days
+    expect(rowsFor('meta', 90, 0, 365)).toHaveLength(90);
+    expect(rowsFor('meta', 100, 0, 365)).toHaveLength(0);        // reaches before the data: nothing
+    expect(hasWindow(30, 0, 365)).toBe(true);
+    expect(hasWindow(100, 0, 365)).toBe(false);
+  });
+
+  it('refuses rows longer than the history the product holds', () => {
+    expect(() => hydrate({ rows: { meta: [...flat(1), ...flat(1)] }, periodEnd: '2026-09-28', currency: 'USD' }))
+      .toThrow(/at most 730 days/);
   });
 
   it('the seeded source reproduces the published figures exactly', () => {

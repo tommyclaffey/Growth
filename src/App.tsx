@@ -32,8 +32,8 @@ import { AdSetDetail } from './screens/AdSetDetail';
 import { CAMPAIGNS } from './data/campaigns';
 import { useMonthlyBudget } from './data/profile';
 import {
-  CHANNEL_LABEL, activeChannels, dataVersion, delta, formatMetric, isActive, series, sparkline, totals,
-  rangeLabel, METRICS,
+  CHANNEL_LABEL, activeChannels, dataVersion, delta, endBackFor, isoForEndBack, setWindowEnd, formatMetric, isActive, series, sparkline, totals,
+  rangePhrase, METRICS,
   type Metric, type Range, type Scope,
 } from './data/metrics';
 import { campaignById } from './data/campaignSeries';
@@ -96,6 +96,20 @@ export default function App() {
   const [metric, setMetric] = useState<Metric>(initialUrl.metric ?? 'Spend');
   const [chatOpen, setChatOpen] = useState(false);
   const [range, setRange] = useState<Range>(initialUrl.range ?? 30);
+  /* Custom dates: the window's END DATE. Kept as a date, not "N days back", and
+     resolved against the account loaded NOW -- every render, before anything
+     reads the data (idempotent: the data layer only changes if the answer
+     does). A date the account does not have, or a window reaching before its
+     data, falls back to "Last N days" instead of an empty app. */
+  const [toIso, setToIso] = useState<string | null>(initialUrl.to ?? null);
+  const endBack = endBackFor(toIso, range) ?? 0;
+  setWindowEnd(endBack);
+  /** One way to change the window: length and where it ends, together. */
+  const setWindow = useCallback((r: Range, e = 0) => {
+    setWindowEnd(e);
+    setToIso(isoForEndBack(e));
+    setRange(r);
+  }, []);
   /* What the Channels screen's change column measures. Its own state, not the
      app-wide metric: that one drives the Overview chart and is limited to six
      funnel metrics; this column can show any of eleven. CAC by default --
@@ -227,8 +241,10 @@ export default function App() {
     else { setChannel(null); setNav('overview'); }
   }, [openCampaign]);
 
-  const applyView = useCallback((v: ViewRef) => {
-    setRange(v.range);
+  const applyView = useCallback((v: ViewRef, keepEnd = 0) => {
+    /* A shared view is "last N days" -- it carries no custom dates. An alert
+       opened from the strip passes the window's end, so it shows its own week. */
+    setWindow(v.range, keepEnd);
 
     /* A ViewRef's metric is a DerivedMetric, which is wider than what the
        app-wide toggle accepts -- a campaign can share CTR or CPM. Narrow
@@ -253,7 +269,7 @@ export default function App() {
     setAdId(null);
     if (v.channel === 'all') { setChannel(null); setNav('overview'); }
     else { setChannel(v.channel as ChannelName); setNav('channels'); }
-  }, []);
+  }, [setWindow]);
 
   /* Write the URL back whenever the screen changes.
 
@@ -270,9 +286,9 @@ export default function App() {
     const place = `${nav}|${channel ?? 'all'}|${campaignId ?? ''}|${adSetId ?? ''}|${adId ?? ''}`;
     const isNavigation = lastPlace.current !== null && lastPlace.current !== place;
     lastPlace.current = place;
-    writeUrlState({ nav, channel, metric, range, campaign: campaignId, adSet: adSetId, ad: adId },
+    writeUrlState({ nav, channel, metric, range, to: endBack ? toIso : null, campaign: campaignId, adSet: adSetId, ad: adId },
                   isNavigation ? 'push' : 'replace');
-  }, [nav, channel, metric, range, campaignId, adSetId, adId]);
+  }, [nav, channel, metric, range, endBack, toIso, campaignId, adSetId, adId]);
 
   /* The back button. Without this, history entries existed and pressing back
      changed the URL while the screen stayed exactly where it was -- which is
@@ -285,6 +301,7 @@ export default function App() {
       setChannel(u.channel ?? null);
       setMetric(u.metric ?? 'Spend');
       setRange(u.range ?? 30);
+      setToIso(u.to ?? null);
       setCampaignId(u.campaign ?? null);
       setAdSetId(u.adSet ?? null);
       setAdId(u.ad ?? null);
@@ -294,7 +311,7 @@ export default function App() {
     }
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, []);
+  }, [setWindow]);
 
   useEffect(() => {
     if (!deepLink) return;
@@ -542,8 +559,8 @@ export default function App() {
     settings: 'Connections, alerts and appearance',
   };
   const sub = onChannelScreen
-    ? `${formatMetric('Spend', view.totals.spend)} spend · ${rangeLabel(range).toLowerCase()}`
-    : (SUBTITLES[nav] ?? `All channels · ${rangeLabel(range).toLowerCase()}`);
+    ? `${formatMetric('Spend', view.totals.spend)} spend · ${rangePhrase(range)}`
+    : (SUBTITLES[nav] ?? `All channels · ${rangePhrase(range)}`);
 
   const showDashboard = nav === 'overview' || (nav === 'channels' && onChannelScreen);
 
@@ -620,7 +637,7 @@ export default function App() {
                   if (next) setNav('channels');
                 }}
               />
-              <RangePicker value={range} onChange={setRange} />
+              <RangePicker value={range} onChange={(r, e) => setWindow(r, e ?? 0)} />
               <ThemeToggle theme={theme} onToggle={toggleTheme} />
             </div>
             <div className="gr-toolbar__group">
@@ -743,7 +760,7 @@ export default function App() {
                   const n = derivedAlerts.find((x) => x.id === id)?.note;
                   /* At 7 days: every pill is a week-over-week claim, and the
                      30-day view of the same channel shows a different number. */
-                  if (n) applyView({ channel: n.channel ?? 'all', metric: n.metric ?? 'Spend', range: 7 });
+                  if (n) applyView({ channel: n.channel ?? 'all', metric: n.metric ?? 'Spend', range: 7 }, endBack);
                 }}
               />
               )}
@@ -765,6 +782,7 @@ export default function App() {
                 onMetricChange={setMetric}
                 data={view.data}
                 compareSeries={(m) => series(scope, m, range)}
+                periodSeries={(m, sh) => series(scope, m, range, sh)}
                 state={demo}
                 onRetry={() => setDemoState('ready')}
               />
@@ -889,13 +907,16 @@ export default function App() {
               onOpenDecisions={() => { setCampaignId(null); setAdSetId(null); setAdId(null); setNav('decisions'); }}
               /* Set the view first, then go -- so the page and the assistant
                  show the number the alert stated. */
+              /* The alert's week is the window's last week -- keep where the
+                 window ENDS, or a custom window's alert opens on different
+                 days than it described. */
               onOpen={(t, v) => {
-                if (v?.range) setRange(v.range);
+                if (v?.range) setWindow(v.range, endBack);
                 if (v?.metric) setMetric(v.metric);
                 openTarget(t);
               }}
               onAsk={(q, t, v) => {
-                if (v?.range) setRange(v.range);
+                if (v?.range) setWindow(v.range, endBack);
                 if (v?.metric) setMetric(v.metric);
                 askAbout(q, t);
               }}

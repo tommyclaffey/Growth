@@ -22,6 +22,8 @@ export interface UrlState {
   channel: ChannelName | null;
   metric: Metric;
   range: Range;
+  /** Custom dates: the window's END DATE (ISO). Resolved against whatever account is loaded. */
+  to?: string | null;
   campaign: string | null;
   /** The ad set being inspected, when one is. */
   adSet: string | null;
@@ -51,6 +53,10 @@ export function readUrlState(search: string): Partial<UrlState> {
 
   const r = Number(q.get('r'));
   if (isRange(r)) out.range = r;
+  /* Custom dates travel as the END DATE ("to=2026-07-31") -- a real date, so a
+     shared link means the same days to whoever opens it. */
+  const to = q.get('to');
+  if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) out.to = to;
 
   /* 🐛 A real account's ids (source-prefixed, e.g. "meta-123") cannot be
      checked here: this runs on first paint, BEFORE the account has loaded, so
@@ -82,6 +88,7 @@ export function urlStateQuery(s: UrlState): string {
   q.set('c', s.channel ?? 'all');
   q.set('m', s.metric);
   q.set('r', String(s.range));
+  if (s.to) q.set('to', s.to);
   if (s.campaign) q.set('p', s.campaign);
   /* `s` for the ad-set tier. Short, because these URLs get pasted into Slack
      messages where a long query reads as noise and gets truncated by the

@@ -4,7 +4,7 @@ import { stageOf } from './campaignStatus';
 import { creativeById, creativeTotals } from './creative';
 import type { Candidate } from './decisions';
 import { budgetForRange } from './profile';
-import { activeChannels, formatMetric, suppliedChannels, totals, type Range } from './metrics';
+import { activeChannels, atLatest, formatMetric, suppliedChannels, totals, type Range } from './metrics';
 
 /**
  * ⭐ Grading -- the decision maker keeps score of itself.
@@ -75,7 +75,15 @@ function measureOf(c: Candidate): Measure | undefined {
 }
 
 /** The current value of a measure. Undefined if its subject is gone. */
+/* 🐛 Measured on the LATEST data, always. It read whatever window the date
+   picker showed, so choosing an older window turned "no new data" grades into
+   "missed" -- and the brief's track record flipped with it. A baseline is
+   captured, and a grade checked, against now. */
 export function measure(key: string, range: Range): number | undefined {
+  return atLatest(() => measureNow(key, range));
+}
+
+function measureNow(key: string, range: Range): number | undefined {
   const [kind, id] = key.split(':');
   /* 🐛 A subject that no longer exists was measured as ZERO -- an ad removed
      (or an account switched) graded "missed, 40 → 0"; a campaign gone from

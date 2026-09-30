@@ -1,0 +1,95 @@
+/* The range calendar. Tokens only; sits in the same menu surface as the
+   switcher menus (radius, border, elevation). */
+
+.gr-cal {
+  position: absolute; top: calc(100% + var(--space-6)); right: 0; z-index: 30;
+  display: flex;
+  border-radius: var(--radius-lg);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-card);
+  box-shadow: var(--elevation-menu);
+}
+
+.gr-cal__presets {
+  list-style: none; margin: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--space-12) var(--space-8);
+  border-right: var(--border-width-sm) solid var(--border-subtle);
+  min-width: 132px;
+}
+.gr-cal__preset {
+  width: 100%; text-align: left;
+  padding: var(--space-6) var(--space-10);
+  border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--text-secondary);
+  cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+.gr-cal__preset:hover { background: var(--surface-page-top); color: var(--text-primary); }
+.gr-cal__preset.is-on { background: var(--accent-tint); color: var(--accent-text); }
+.gr-cal__preset:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }
+
+.gr-cal__main { position: relative; display: flex; flex-direction: column; padding: var(--space-12) var(--space-16) var(--space-12); }
+
+.gr-cal__nav {
+  position: absolute; top: var(--space-10); left: var(--space-12); right: var(--space-12);
+  display: flex; justify-content: space-between; pointer-events: none;
+}
+.gr-cal__step {
+  pointer-events: auto;
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--icon-default);
+  font-family: inherit; cursor: pointer;   /* type from gr-type-section on the element */
+}
+.gr-cal__step:hover:not(:disabled) { background: var(--surface-page-top); color: var(--text-primary); }
+.gr-cal__step:disabled { color: var(--text-disabled); cursor: not-allowed; }
+.gr-cal__step:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }
+
+.gr-cal__months { display: flex; gap: var(--space-24); }
+.gr-cal__title { margin: 0 0 var(--space-8); text-align: center; line-height: 28px; color: var(--text-primary); }
+
+.gr-cal__grid { display: grid; grid-template-columns: repeat(7, 36px); row-gap: 2px; }
+.gr-cal__wd { text-align: center; color: var(--text-muted); padding-bottom: var(--space-4); }
+
+.gr-cal__day {
+  height: 32px; padding: 0;
+  border: 0; background: none;
+  color: var(--text-primary);
+  cursor: pointer; font-family: inherit; font-variant-numeric: tabular-nums;
+  position: relative;
+}
+/* The band between start and end. Squared inside, rounded at the ends, so the
+   range reads as one shape. */
+.gr-cal__day.is-in { background: var(--accent-tint); }
+.gr-cal__day.is-start { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.gr-cal__day.is-end { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.gr-cal__day.is-start.is-end { border-radius: var(--radius-sm); }
+.gr-cal__day.is-edge { background: var(--accent-fill); color: var(--brand-on-accent); font-weight: 500; }
+.gr-cal__day:hover:not(:disabled):not(.is-edge) { background: var(--surface-page-top); }
+.gr-cal__day.is-in:hover:not(:disabled):not(.is-edge) { background: var(--accent-soft); }
+.gr-cal__day:disabled { color: var(--text-disabled); cursor: not-allowed; }
+.gr-cal__day:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: -2px; z-index: 1; }
+/* On a start/end day the ring and the fill are the same violet (1.0:1) --
+   keyboard focus was invisible on exactly the day it lands on first. */
+.gr-cal__day.is-edge:focus-visible { outline-color: var(--text-primary); outline-offset: 2px; }
+/* The band carries "in range" on its own; a hairline keeps it visible where
+   the tint alone is faint against the card (1.15:1). */
+.gr-cal__day.is-in:not(.is-edge) { box-shadow: inset 0 1px 0 var(--accent-soft), inset 0 -1px 0 var(--accent-soft); }
+
+.gr-cal__foot {
+  display: flex; align-items: center; gap: var(--space-8);
+  margin-top: var(--space-12); padding-top: var(--space-12);
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-cal__range { flex: 1; color: var(--text-secondary); }
+.gr-cal__warn { flex: 1; color: var(--semantic-bad); }
+.gr-cal__btn {
+  height: 32px; padding: 0 var(--space-12);
+  border: var(--border-width-sm) solid var(--border-default); border-radius: var(--radius-md);
+  background: var(--surface-card); color: var(--text-secondary);
+  cursor: pointer; font-family: inherit;
+}
+.gr-cal__btn:hover:not(:disabled) { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-cal__btn.is-primary { border-color: transparent; background: var(--accent-fill); color: var(--brand-on-accent); }
+.gr-cal__btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.gr-cal__btn:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }

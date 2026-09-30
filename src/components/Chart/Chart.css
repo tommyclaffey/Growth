@@ -94,7 +94,11 @@
   height: 100%;
   display: flex;
   align-items: flex-end;
-  gap: 5px;
+  /* No gap: each slot carries half of the 5px gutter on either side, so slot
+     centres fall exactly at (i + 0.5) / n -- where the overlays put their
+     points. With a flex gap they drifted ~2.5px off the outer bars, and on
+     90-day bars the end points landed in the gutters. */
+  gap: 0;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -104,6 +108,8 @@
   height: 100%;
   display: flex;
   align-items: flex-end;
+  padding: 0 2.5px;
+  min-width: 0;
 }
 
 /* The 1px edge in the channel's own -soft colour is not decoration.
@@ -138,10 +144,10 @@
 
 .gr-chart__x {
   display: flex;
-  gap: 5px;
+  gap: 0;
   color: var(--text-muted);
 }
-.gr-chart__x > span { flex: 1; min-width: 0; white-space: nowrap; overflow: visible; }
+.gr-chart__x > span { flex: 1; min-width: 0; padding: 0 2.5px; white-space: nowrap; overflow: visible; }
 
 .gr-chart__state {
   flex: 1;
@@ -323,3 +329,165 @@
 .gr-chart__tip-name { color: var(--text-muted); font-weight: 400; }
 
 @media (prefers-reduced-motion: reduce) { .gr-chart__compare { transition: none; } }
+
+/* ---- The earlier period (same days last week / month / year) -------------
+   Same colour as the main line -- it is the same metric -- but dashed and
+   quieter, so "now" still reads first. */
+.gr-chart__overlay-line--period {
+  stroke-width: 1.75;
+  stroke-dasharray: 4 4;
+  /* Full strength: at 0.7 the line fell under 3:1 (1.47:1 in Paid Search
+     yellow). The dashes already tell it from the solid line. */
+}
+.gr-chart__glyph--period {
+  height: 0;
+  border-top: 2px dashed;
+}
+.gr-chart__axis-note { color: var(--text-muted); font-style: normal; text-transform: none; letter-spacing: 0; }
+
+/* ---- The table view ---------------------------------------------------------
+   Takes the plot's place at the plot's height (plus the axis row), so switching
+   views never moves anything below the card. */
+.gr-chart__table-wrap {
+  /* Room for ~8 days at once. Holding the plot's exact height left four rows
+     visible under the column picker and grouped headers -- the table became a
+     scroll exercise. Readability wins over the card keeping one height. */
+  height: 360px;   /* ~8 rows under the header */
+  overflow: auto;
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+}
+.gr-chart__table-wrap:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-sm); }
+.gr-chart__table {
+  width: 100%;
+  /* separate, not collapse: collapsed borders on sticky cells let the rows
+     show through ~4px under the grouped header while scrolling. */
+  border-collapse: separate; border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+/* The Date column stays put when a wide table scrolls sideways (20 columns
+   with every metric ticked and a comparison on). The earlier-date column
+   sticks beside it. */
+.gr-chart__table tr > :first-child {
+  position: sticky; left: 0; z-index: 1;
+  min-width: 64px; background: var(--surface-card);
+}
+.gr-chart__table thead tr > :first-child,
+.gr-chart__table tfoot tr > :first-child { z-index: 3; }
+.gr-chart__table th,
+.gr-chart__table td {
+  padding: var(--space-6) var(--space-12);
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: var(--border-width-sm) solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+.gr-chart__table th:first-child,
+.gr-chart__table td:first-child { text-align: left; padding-left: 0; }
+.gr-chart__table th:last-child,
+.gr-chart__table td:last-child { padding-right: 0; }
+.gr-chart__table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface-card);
+  color: var(--text-muted); font-weight: 500;
+}
+.gr-chart__table tbody th { color: var(--text-primary); font-weight: 400; }
+.gr-chart__table tfoot th,
+.gr-chart__table tfoot td {
+  position: sticky; bottom: 0;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border-top: var(--border-width-sm) solid var(--border-default);
+  border-bottom: 0;
+}
+.gr-chart__table .is-good { color: var(--semantic-good); }
+.gr-chart__table .is-bad { color: var(--semantic-bad); }
+
+/* ---- Table columns: tick what sits side by side ---------------------------- */
+.gr-chart__cols {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6);
+  margin: 0; padding: 0 0 var(--space-12); border: 0; min-width: 0;
+  height: 36px;
+}
+.gr-chart__cols-label { float: left; color: var(--text-muted); margin-right: var(--space-4); padding: 0; }
+.gr-chart__col {
+  display: inline-flex; align-items: center; gap: var(--space-6);
+  height: 24px; padding: 0 var(--space-10) 0 var(--space-8);
+  border: var(--border-width-sm) solid var(--border-default); border-radius: var(--radius-pill);
+  background: var(--surface-card); color: var(--text-secondary);
+  cursor: pointer; user-select: none;
+}
+.gr-chart__col:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.gr-chart__col.is-on { border-color: var(--accent-soft); background: var(--accent-tint); color: var(--accent-text); }
+.gr-chart__col input { margin: 0; width: 13px; height: 13px; accent-color: var(--accent-fill); cursor: inherit; }
+.gr-chart__col:has(input:focus-visible) { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+
+.gr-chart__table .gr-chart__table-start { border-left: var(--border-width-sm) solid var(--border-subtle); }
+/* The tooltip turns inward near the edges -- centred, it ran past the card at
+   either end and the content area clipped it ("$4,70"). */
+.gr-chart__tip.is-near-right { transform: translateX(-100%); }
+.gr-chart__tip.is-near-left { transform: translateX(0); }
+
+/* Native checkboxes follow the theme (they stayed white in dark mode). */
+[data-theme='dark'] .gr-chart__col input { color-scheme: dark; }
+
+/* ---- Table controls: which metrics, and how the days are grouped ---------- */
+.gr-chart__table-bar { display: flex; align-items: flex-start; gap: var(--space-16); }
+.gr-chart__table-bar .gr-chart__cols { flex: 1; }
+.gr-chart__by {
+  display: inline-flex; align-items: center; gap: 2px; flex: none;
+  padding: 2px; border-radius: var(--radius-md); background: var(--surface-page-top);
+}
+.gr-chart__by .gr-chart__cols-label { padding: 0 var(--space-6); }
+.gr-chart__by-btn {
+  height: 24px; padding: 0 var(--space-10);
+  border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--text-secondary);
+  cursor: pointer; font-family: inherit;
+}
+.gr-chart__by-btn:hover { color: var(--text-primary); }
+.gr-chart__by-btn.is-on { background: var(--surface-card); color: var(--text-primary); box-shadow: var(--elevation-raised); }
+.gr-chart__by-btn:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }
+
+/* ---- Week / Month: a column per period, oldest -> newest ------------------- */
+.gr-chart__table-wrap.is-pivot { height: auto; max-height: 360px; }
+.gr-chart__table--pivot td { vertical-align: top; padding-top: var(--space-10); padding-bottom: var(--space-10); }
+.gr-chart__table--pivot tbody th { vertical-align: top; padding-top: var(--space-10); color: var(--text-primary); font-weight: 500; }
+.gr-chart__pivot-value { display: block; color: var(--text-primary); }
+.gr-chart__pivot-change { display: block; margin-top: 2px; color: var(--text-muted); }
+.gr-chart__partial { display: block; margin-top: 2px; color: var(--text-muted); text-transform: none; letter-spacing: 0; font-weight: 400; }
+.gr-chart__table--pivot thead th { vertical-align: bottom; }
+/* The window's total reads as the answer, not as a footnote. */
+.gr-chart__table--pivot tbody td:last-child { color: var(--text-primary); }
+
+/* A table is as tall as its rows. The chart's min-height holds the card steady
+   across loading and empty states; a 3-row week table under it left a band of
+   empty card. */
+.gr-chart.is-table { min-height: 0; }
+
+/* ---- Table layout -----------------------------------------------------------
+   Compact, not stretched. At width:100% three metric columns spread across the
+   whole card: the date at the far left, its numbers at the far right, and a
+   gap the eye had to cross on every row. Columns now sit at a reading width,
+   side by side, and the table scrolls only when there are genuinely many.
+
+   And ONE surface: the sticky date column needed an opaque background, so it
+   was white while the card behind the rows is a gradient -- the date column
+   read as a separate white panel. The whole table sits on the card colour. */
+.gr-chart__table-wrap { background: var(--surface-card); }
+.gr-chart__table { width: auto; min-width: 0; }
+.gr-chart__table th,
+.gr-chart__table td { min-width: 112px; }
+.gr-chart__table tr > :first-child { min-width: 96px; }
+/* Week / Month tables fill the card -- twelve weeks fit at 1280 -- and the
+   newest period plus the Total stay in view: Total is pinned to the right, and
+   a long run of periods (52 weeks) opens scrolled to the newest. */
+.gr-chart__table--pivot { width: 100%; }
+.gr-chart__table--pivot th,
+.gr-chart__table--pivot td { min-width: 0; }
+.gr-chart__table--pivot tr > :first-child { min-width: 72px; }
+.gr-chart__table--pivot tr > :last-child {
+  position: sticky; right: 0; z-index: 1;
+  background: var(--surface-card);
+  padding-left: var(--space-16);
+}
+.gr-chart__table--pivot thead tr > :last-child { z-index: 3; }

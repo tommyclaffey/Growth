@@ -13,7 +13,7 @@ import { MEMBERS } from '../data/chat';
 import { blendedDelta } from '../data/blended';
 import { formatDerived } from '../data/channelMetrics';
 import {
-  CHANNEL_LABEL, DAY_LABELS, delta, formatMetric, totals, type Range,
+  CHANNEL_LABEL, atLatest, windowLabels, delta, formatMetric, totals, type Range,
 } from '../data/metrics';
 import type { ChannelName } from '../styles/tokens';
 import type { ReportRef } from '../data/chat';
@@ -33,8 +33,8 @@ function covers(r: Report): string {
 
 /** "Aug 6 – Aug 12". `back` = 1 for the window before it. */
 function windowLabel(range: Range, back = 0): string {
-  const end = DAY_LABELS.length - back * range;
-  return `${DAY_LABELS[end - range]} – ${DAY_LABELS[end - 1]}`;
+  const l = windowLabels(range, back);
+  return l.length ? `${l[0]} – ${l[l.length - 1]}` : '—';
 }
 
 /**
@@ -233,7 +233,14 @@ export function Reports({ onSend }: ReportsProps = {}) {
  * the window before it. Plus the controls that change the report itself, kept
  * here rather than crowding every row with four buttons.
  */
-function Preview({ report: r, channels, onSend }: {
+/* A scheduled report covers the LATEST days ("Covers the last 7 days"), so its
+   preview and the copy sent to chat read the latest data -- whatever window the
+   picker shows. Otherwise the preview said "last 7 days" over July's numbers. */
+function Preview(props: Parameters<typeof PreviewBody>[0]) {
+  return atLatest(() => PreviewBody(props));
+}
+
+function PreviewBody({ report: r, channels, onSend }: {
   report: Report; channels: ChannelName[] | null; onSend?: (r: ReportRef) => void;
 }) {
   const range = WINDOW[r.cadence];
@@ -314,7 +321,11 @@ function Preview({ report: r, channels, onSend }: {
 }
 
 /** Summed, then divided once -- the same rule as the CSV's totals row. */
-function TotalRow({ channels, range }: { channels: ChannelName[]; range: Range }) {
+function TotalRow(props: { channels: ChannelName[]; range: Range }) {
+  return atLatest(() => TotalRowBody(props));
+}
+
+function TotalRowBody({ channels, range }: { channels: ChannelName[]; range: Range }) {
   const s = channels.map((c) => totals(c, range)).reduce(
     (a, t) => ({ spend: a.spend + t.spend, leads: a.leads + t.leads, revenue: a.revenue + t.revenue }),
     { spend: 0, leads: 0, revenue: 0 },

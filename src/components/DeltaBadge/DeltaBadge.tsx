@@ -47,6 +47,17 @@ export function DeltaBadge({
   /* 🐛 Toned on what is SHOWN. A benchmark of -0.3% rendered "0% below" in
      red: the label rounded to zero, the verdict did not. If the reader sees 0,
      the badge says level. */
+  /* No comparison to make (no earlier data, nothing to divide by): a dash --
+     NOT "0%", which claims nothing changed. */
+  if (!Number.isFinite(percent)) {
+    return (
+      <span className={`gr-delta gr-type-caption-med is-flat ${bare ? 'is-bare' : ''}`}
+            title="No earlier period to compare with">
+        —
+        <span className="gr-sr-only">no earlier period to compare with</span>
+      </span>
+    );
+  }
   const tone = deltaTone(Math.round(percent), higherIsBetter);
   if (tone === 'flat') {
     return (

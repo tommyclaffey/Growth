@@ -93,3 +93,15 @@ describe('English', () => {
     expect(all).not.toMatch(/s’s\b/);
   });
 });
+
+describe('budget moves to a channel the account does not have', () => {
+  it('says the channel is not in the account -- not "could not turn that into a question"', async () => {
+    const { setChannels } = await import('../channels');
+    const { CHANNEL_KEYS } = await import('../metrics');
+    setChannels(['meta', 'tiktok']);
+    const a = ask('What if I move $5k from Meta to Paid Search?', 30);
+    expect(a.answered).toBe(true);
+    expect(a.text).toMatch(/Paid Search is not part of this account/);
+    setChannels([...CHANNEL_KEYS]);
+  });
+});

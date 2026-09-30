@@ -90,5 +90,5 @@ export function brief(range: Range = 30, channels: ChannelName[] = activeChannel
   /* Always offered: the scaling question -- the reason a growth team is here. */
   asks.push('Where should more budget go?');
   const w = weekLabels();
-  return { heading: `Week of ${w.now}`, lines, asks: [...new Set(asks)].slice(0, 4) };
+  return { heading: w.now ? `Week of ${w.now}` : 'The first days of data', lines, asks: [...new Set(asks)].slice(0, 4) };
 }

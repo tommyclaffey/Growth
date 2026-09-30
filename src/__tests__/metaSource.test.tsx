@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import App from '../App';
 import { setPref } from '../data/prefs';
 import { normalizeMeta } from '../data/sources/metaNormalize';
+import { compact } from '../data/sources/wire';
 import { hydrate } from '../data/metrics';
 import { applyStructure } from '../data/structure';
 import { seededSource } from '../data/sources/seeded';
@@ -94,5 +95,14 @@ describe('real ad sets and ads -- never the demo’s invented ones', () => {
     const ads = render(<App />);
     await waitFor(() => expect(ads.container.textContent).toContain('Real headline from Meta'));
     expect(ads.container.textContent).not.toMatch(/Join 400,000 people/);
+  });
+
+  it('⭐ the COMPACT wire format (what the server now sends) renders the same account', async () => {
+    vi.stubGlobal('fetch', respond('/api/meta/data', compact(adPayload)));
+    setPref('dataSource', 'meta');
+    window.history.replaceState(null, '', '/?v=campaigns&p=meta-1');
+    const { container } = render(<App />);
+    await waitFor(() => expect(container.textContent).toContain('Real headline from Meta'));
+    expect(container.textContent).toContain('Broad — Detroit 25-54');
   });
 });

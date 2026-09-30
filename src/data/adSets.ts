@@ -1,7 +1,7 @@
 import { CAMPAIGNS, type AdSet, type Campaign } from './campaigns';
-import { campaignRows, campaignSeries } from './campaignSeries';
+import { campaignRows } from './campaignSeries';
 import { valueOf, type DerivedMetric } from './channelMetrics';
-import { changeOf, sampleOf, type DayRow, type Metric, type Range } from './metrics';
+import { changeOf, sampleOf, sliceWindow, windowLabels, type DayRow, type Metric, type Range } from './metrics';
 
 /**
  * The ad-set tier, which until now had no numbers of its own.
@@ -150,12 +150,9 @@ export function setAdSetRows(rows: Map<string, DayRow[]> | null): void {
   SOURCE_ADSET_ROWS = rows;
 }
 
-export function adSetRows(id: string, range: Range = 30, back = 0): DayRow[] {
+export function adSetRows(id: string, range: Range = 30, back = 0, shift = 0): DayRow[] {
   const real = SOURCE_ADSET_ROWS?.get(id);
-  if (real) {
-    const end = real.length - back * range;
-    return end - range < 0 ? [] : real.slice(end - range, end);
-  }
+  if (real) return sliceWindow(real, range, back, shift);
   const ref = adSetById(id);
   if (!ref) return [];
   /* Spend, impressions and clicks follow SPEND share -- what you bought.
@@ -164,7 +161,7 @@ export function adSetRows(id: string, range: Range = 30, back = 0): DayRow[] {
      and ROAS differ between siblings at all. */
   const spendShare = adSetShare(id);
   const leadShare = adSetLeadShare(id);
-  return campaignRows(ref.campaign.id, range, back).map((r) => ({
+  return campaignRows(ref.campaign.id, range, back, shift).map((r) => ({
     spend: r.spend * spendShare,
     impressions: r.impressions * spendShare,
     clicks: r.clicks * spendShare,
@@ -195,15 +192,13 @@ export function adSetTotals(id: string, range: Range = 30) {
 }
 
 /** One funnel metric over time, in the shape Chart expects. */
-export function adSetSeries(id: string, metric: Metric, range: Range = 30) {
+export function adSetSeries(id: string, metric: Metric, range: Range = 30, shift = 0) {
   const ref = adSetById(id);
   if (!ref) return [];
-  const rows = adSetRows(id, range);
-  /* Labels borrowed from the campaign's own series rather than re-sliced out of
-     DAY_LABELS here. One owner of the axis: if the history length ever changes,
-     the ad-set chart cannot end up labelled differently from the campaign chart
-     directly above it. */
-  const labels = campaignSeries(ref.campaign.id, metric, range).map((p) => p.label);
+  const rows = adSetRows(id, range, 0, shift);
+  /* windowLabels is the ONE owner of the axis now -- every chart's days come
+     from the same window function, so no two can be labelled differently. */
+  const labels = windowLabels(range, 0, shift);
 
   return rows.map((r, i) => {
     let value: number;

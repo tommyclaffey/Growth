@@ -2,7 +2,7 @@ import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS } from './campaigns';
 import { campaignRows, campaignTotals } from './campaignSeries';
 import { stageOf } from './campaignStatus';
-import { rankedAds } from './adRanking';
+import { rankedAds, type RankedAd } from './adRanking';
 import { creativesFor } from './creative';
 import { CHANNEL_DEPTH } from './channelDepth';
 import { formatDerived } from './channelMetrics';
@@ -197,9 +197,9 @@ function adName(headline: string, adSetName: string): string {
  * elsewhere would work. The action is to stop, which is the only action this
  * data can support on its own.
  */
-function spendReturnMismatch(range: Range, channels: ChannelName[]): Candidate[] {
+function spendReturnMismatch(range: Range, channels: ChannelName[], ranked?: RankedAd[]): Candidate[] {
   const out: Candidate[] = [];
-  const ads = rankedAds('Leads', 'absolute', range, channels);
+  const ads = ranked ?? rankedAds('Leads', 'absolute', range, channels);
 
   for (const c of CAMPAIGNS) {
     if (!channels.includes(c.channel)) continue;
@@ -268,9 +268,9 @@ function spendReturnMismatch(range: Range, channels: ChannelName[]): Candidate[]
  * the cheapest slice of an audience. Stopping something needs no forecast;
  * scaling it does.
  */
-function scaleWinner(range: Range, channels: ChannelName[]): Candidate[] {
+function scaleWinner(range: Range, channels: ChannelName[], ranked?: RankedAd[]): Candidate[] {
   const out: Candidate[] = [];
-  const ads = rankedAds('Leads', 'absolute', range, channels);
+  const ads = ranked ?? rankedAds('Leads', 'absolute', range, channels);
 
   for (const c of CAMPAIGNS) {
     if (!channels.includes(c.channel)) continue;
@@ -346,9 +346,9 @@ function scaleWinner(range: Range, channels: ChannelName[]): Candidate[] {
  * start and stop dates. So the numbers describe the period, not the ad's live
  * span, and the card says so rather than letting a reader assume otherwise.
  */
-function pausedWinner(range: Range, channels: ChannelName[]): Candidate[] {
+function pausedWinner(range: Range, channels: ChannelName[], ranked?: RankedAd[]): Candidate[] {
   const out: Candidate[] = [];
-  const ads = rankedAds('Leads', 'absolute', range, channels);
+  const ads = ranked ?? rankedAds('Leads', 'absolute', range, channels);
 
   for (const c of CAMPAIGNS) {
     if (!channels.includes(c.channel)) continue;
@@ -524,9 +524,9 @@ function staleReview(channels: ChannelName[]): Candidate[] {
  * claim the ad will fatigue, because frequency data is not in this dataset. It
  * says the channel has a single point of failure, which is arithmetic.
  */
-function concentrationRisk(range: Range, channels: ChannelName[]): Candidate[] {
+function concentrationRisk(range: Range, channels: ChannelName[], ranked?: RankedAd[]): Candidate[] {
   const out: Candidate[] = [];
-  const ads = rankedAds('Leads', 'absolute', range, channels);
+  const ads = ranked ?? rankedAds('Leads', 'absolute', range, channels);
 
   for (const channel of channels) {
     const mine = ads.filter((a) => a.channel === channel);
@@ -979,16 +979,19 @@ export function decisions(
   range: Range = 30,
   channels: ChannelName[] = activeChannels(),
 ): Candidate[] {
+  /* The ad ranking, ONCE -- four detectors read it. Built four times it was
+     ~42 of 70ms on a 1,200-ad account at a year's range. */
+  const ranked = rankedAds('Leads', 'absolute', range, channels);
   const all = [
     ...weeklyMove(channels),
-    ...spendReturnMismatch(range, channels),
-    ...pausedWinner(range, channels),
-    ...scaleWinner(range, channels),
+    ...spendReturnMismatch(range, channels, ranked),
+    ...pausedWinner(range, channels, ranked),
+    ...scaleWinner(range, channels, ranked),
     ...reallocateWithinChannel(range, channels),
     ...staleReview(channels),
     ...noVariant(range, channels),
     ...beatsItsChannel(range, channels),
-    ...concentrationRisk(range, channels),
+    ...concentrationRisk(range, channels, ranked),
     ...pacing(range, channels),
     ...crossChannelCostGap(range, channels),
   ];
@@ -1031,9 +1034,9 @@ export function decisionsFor(
   target: { kind: Target['kind']; id: string },
   range: Range = 30,
   channels: ChannelName[] = activeChannels(),
+  /* Already computed? Pass it -- ask() used to run the whole engine twice. */
+  all: Candidate[] = decisions(range, channels),
 ): Candidate[] {
-  const all = decisions(range, channels);
-
   return all.filter((c) => {
     if (c.target.kind === target.kind && c.target.id === target.id) return true;
     /* A channel question inherits everything running on that channel. */

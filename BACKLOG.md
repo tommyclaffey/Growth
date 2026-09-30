@@ -577,7 +577,25 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 - Should the Channels screen carry more than a table — a CAC-by-channel chart, a per-channel card?
 - Does the Overview table need the same "Change in" control, or keep following the chart toggle?
 
+## 🔀 On branch `chart-periods` — awaiting Tommy's "merge" *(Sept 29–30)*
+
+Everything below is built, tested and screenshotted; nothing is live until merged.
+
+- **Two years of history.** Seeded: 730 days — the recent 180 generated exactly as before (proven identical), 550 older days from their own generators. Real sources fetch ~15 months; shorter history is padded as *no data* (`FIRST`), never zero-spend days.
+- **The window model** (`metrics.ts`): `WINDOW_END`, `sliceWindow`, `windowLabels`, `windowDates`, `hasWindow`, `compareShift` (calendar month/year, clamped at month ends), `endBackFor`/`isoForEndBack`, `atLatest`. Every channel/campaign/ad-set/ad slice and every label goes through it.
+- **Custom dates, app-wide.** Range calendar (two months, click start + end, presets, keyboard). URL carries the END DATE (`to=2026-07-31`), resolved against whatever account is loaded. Ask follows the window (server applies it, tells the model the dates).
+- **Things about NOW stay about now** under a custom window: decision grades, scheduled reports, channel budgets (`atLatest`). Alerts say "Week of …" instead of "This week".
+- **Chart:** Compare gets *Same days earlier* (last week / month / year) — dashed, same axis; year shown when it differs; "no data" said, never zeros.
+- **Table view:** Show checkboxes (any metric, at least one) · By **Day | Week | Month** (Week/Month = a column per period, oldest → newest, Total pinned right, change vs the period before only between whole periods). Metric buttons, Compare and legend hidden in Table view — the table follows the date picker only (Tommy). Honest totals: ratios rebuilt from parts.
+- **"No comparison" is a dash, not 0%** (`changeOf` → NaN).
+- Two audits on the new work: 18 findings fixed with tests.
+- **Overnight Sept 30:** Ask answers trend questions (`trend.ts`, `get_by_period` tool); real-scale stress test (60 campaigns / 1,200 ads / 455 days: tiers reconcile across 1.2M cells) — fixed campaign-name matching (`campaignIn`), compact wire format (`wire.ts`, 51 MB → ~10 MB), ranking built once, engine not run twice, sort totals memoised; full-app dev-mode sweep clean — fixed start-of-data labels, 1-day week label, ISO dates in CSV.
+- 🟡 **Open, for Tommy:** decision-queue length on large accounts (150–340 candidates); "last month" for month-end windows borrows days from two months back (honest, labelled) vs comparing unequal lengths; engine results are not memoised per render (70–115 ms on a very large account; a cache would need eight inputs in its key).
+- ❌ **Tried and retired:** per-column comparison dropdowns (Tommy: sloppy) and Now/Then/Change inside the table (table follows the date picker only).
+
 ## ✅ Done
+
+- **Visual consistency pass** *(Sept 29)* — 29 findings from two measured audits, six batches approved by Tommy: tables aligned, dark-mode visibility, stray browser spacing, one size per control, edges/rhythm, Ask decision text. TikTok's own dark artwork in dark mode.
 
 - **Phase 4 — Meta, built and waiting on the app** *(Sept 29)* — everything except a real account to test against.
   - `metaNormalize.ts` (pure, tested against Graph v21 shapes): strings → numbers, leads/purchases from `actions` with NO double-counting across overlapping action types, zero-filled 180 days ending on **yesterday in the account's timezone**, stage/objective mapped, deleted-since campaigns kept.
@@ -588,7 +606,7 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
   - ▶️ **Needs Tommy:** the Meta app (Todoist). Then: `META_CLIENT_ID` + `META_CLIENT_SECRET` in `.env.local`, restart, Settings → Data source → Connect → choose account → Use Meta. Ad sets and ads load with it — see below.
 - **Real ad sets and ads from Meta** *(Sept 29)* — insights at `level=ad`, plus `/adsets` and `/ads` (with creative title, body, thumbnail). **Ads are the unit; ad sets and campaigns are sums of their ads**, so all three tiers reconcile by construction — the demo's rule. The campaign page, ad set page, Ads screen, ad ranking and grading all read the real rows. Deep links to real ids survive a reload (they used to be dropped because the URL was checked before the account loaded); the page says "Loading your account…" instead of "no longer exists".
 - **Sign-in — five ways in, one account per person** *(Sept 29)* — email + password, Google, Slack, Microsoft, Microsoft Teams (OpenID Connect; logos are the providers' own files). First account only from this machine = owner in the `maya` seat; others via `GROWTH_ALLOWED_EMAILS`. Every `/api` route needs a session. Slack acts as the signed-in person with their own token; `?person=` spoofing closed. Public demo unchanged (no server = no login).
-  - ▶️ **Needs Tommy:** create the owner account on localhost. Optional: `GOOGLE_CLIENT_ID/SECRET`, `MS_CLIENT_ID/SECRET` for those buttons (register `<origin>/api/auth/callback`); Slack sign-in needs `<https origin>/api/auth/callback` added to the Slack app's redirect URLs.
+  - **One-click demo account** (Maya at Northbank, the `maya` seat), local only — Tommy uses Growth alone, so this replaced creating an owner account. Optional: `GOOGLE_CLIENT_ID/SECRET`, `MS_CLIENT_ID/SECRET` for those buttons (register `<origin>/api/auth/callback`); Slack sign-in needs `<https origin>/api/auth/callback` added to the Slack app's redirect URLs.
   - ⏭ **Next:** a real team roster from signed-in people (chat still shows the demo team).
 - **Hardening pass** *(Sept 29)* — four audits (server, data, thought partner, UI), 39 bugs fixed with regression tests. See commits `72abbe6`…`abfe201`.
 - **Phase 4b — Google Ads, built and waiting on the developer token** *(Sept 29)* — same seam as Meta, against the REST API (`googleAds:searchStream`, v25; override with `GOOGLE_ADS_API_VERSION`).

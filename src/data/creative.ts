@@ -1,8 +1,8 @@
 import type { ChannelName } from '../styles/tokens';
 import type { Stage } from '../components/StatusPill/StatusPill';
 import { CAMPAIGNS, type AdSet, type Campaign } from './campaigns';
-import { campaignRows, campaignSeries } from './campaignSeries';
-import type { DayRow, Metric, Range } from './metrics';
+import { campaignRows } from './campaignSeries';
+import { sliceWindow, windowLabels, type DayRow, type Metric, type Range } from './metrics';
 import { assetFor } from './creativeAssets';
 import { CHANNEL_DEPTH } from './channelDepth';
 import { AD_SPREAD, adSetLeadShare, adSetWobble } from './adSets';
@@ -270,13 +270,24 @@ export function rankCreatives(
   totalsOf: TotalsOf = (c) => creativeTotals(c.id, range),
 ): Creative[] {
   const dir = sort === 'CAC' ? 1 : -1;
-  return [...list].sort((a, b) => {
-    const d = (score(a, sort, totalsOf) - score(b, sort, totalsOf)) * dir;
+  /* Each ad's totals ONCE, before sorting. The comparator used to recompute
+     them up to four times per comparison -- ~10x the work, 15ms to sort 200
+     ads on a real account. */
+  const memo = new Map<string, ReturnType<TotalsOf>>();
+  const t = (c: Creative) => {
+    let v = memo.get(c.id);
+    if (!v) { v = totalsOf(c); memo.set(c.id, v); }
+    return v;
+  };
+  const cached: TotalsOf = (c) => t(c);
+  const keyed = list.map((c) => ({ c, s: score(c, sort, cached), spend: t(c).spend }));
+  return keyed.sort((a, b) => {
+    const d = (a.s - b.s) * dir;
     /* A TOTAL order. Without the tie-breaks the same data can render in a
        different sequence between renders, which reads as the list shuffling
        on its own. */
-    return d !== 0 ? d : (totalsOf(b).spend - totalsOf(a).spend) || a.id.localeCompare(b.id);
-  });
+    return d !== 0 ? d : (b.spend - a.spend) || a.c.id.localeCompare(b.c.id);
+  }).map((x) => x.c);
 }
 
 /* ---------------------------------------------------------------- one ad -- */
@@ -345,12 +356,9 @@ export function creativeLeadShare(id: string): number {
 }
 
 /** Daily rows for one ad, scaled out of its campaign's. Follows the range. */
-export function creativeRows(id: string, range: Range = 30, back = 0): DayRow[] {
+export function creativeRows(id: string, range: Range = 30, back = 0, shift = 0): DayRow[] {
   const real = SOURCE_AD_ROWS?.get(id);
-  if (real) {
-    const end = real.length - back * range;
-    return end - range < 0 ? [] : real.slice(end - range, end);
-  }
+  if (real) return sliceWindow(real, range, back, shift);
   const owner = creativeById(id);
   if (!owner) return [];
   /* Bought on spend, returns on leads. The gap between the two shares IS the
@@ -358,7 +366,7 @@ export function creativeRows(id: string, range: Range = 30, back = 0): DayRow[] 
      different CACs. */
   const share = creativeShare(id);
   const leadShare = creativeLeadShare(id);
-  return campaignRows(owner.campaignId, range, back).map((r) => ({
+  return campaignRows(owner.campaignId, range, back, shift).map((r) => ({
     ...r,
     spend: r.spend * share,
     impressions: r.impressions * share,
@@ -386,7 +394,7 @@ export function creativeTotals(id: string, range: Range = 30) {
 }
 
 /** Series for the ad chart, in the shape Chart expects. */
-export function creativeSeries(id: string, metric: Metric, range: Range = 30) {
+export function creativeSeries(id: string, metric: Metric, range: Range = 30, shift = 0) {
   /* 🐛 This scaled the CAMPAIGN's series by the ad's SPEND share -- wrong three
      ways: a ratio (CAC, ROAS) does not scale by a share; leads follow the LEAD
      share, not spend; and a real account's ad has its own rows, which were
@@ -395,8 +403,8 @@ export function creativeSeries(id: string, metric: Metric, range: Range = 30) {
      Built from the ad's own rows now -- the same rows its totals sum. */
   const owner = creativeById(id);
   if (!owner) return [];
-  const labels = campaignSeries(owner.campaignId, metric, range).map((p) => p.label);
-  return creativeRows(id, range).map((r, i) => {
+  const labels = windowLabels(range, 0, shift);
+  return creativeRows(id, range, 0, shift).map((r, i) => {
     let value: number;
     switch (metric) {
       case 'Spend':  value = r.spend; break;

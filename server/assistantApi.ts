@@ -154,6 +154,8 @@ interface Metrics {
   METRICS: string[];
   CHANNEL_KEYS: ChannelName[];
   setActiveChannels: (keys: ChannelName[]) => void;
+  setWindowEnd: (endBack: number) => void;
+  rangeLabel: (range: number) => string;
   hydrate: (d: { rows: unknown; periodEnd: string; currency: string }) => void;
 }
 
@@ -195,7 +197,9 @@ function inferSubject(
 ): Subject | undefined {
   const q = question.toLowerCase();
 
-  const campaign = campaigns.find((c) => q.includes(c.name.toLowerCase()));
+  /* Longest full name wins -- real accounts share long prefixes. */
+  const campaign = campaigns.filter((c) => q.includes(c.name.toLowerCase()))
+    .sort((a, b) => b.name.length - a.name.length)[0];
   if (campaign) return { kind: 'campaign', id: campaign.id, label: campaign.name };
 
   for (const [key, label] of Object.entries(channelLabel)) {
@@ -236,6 +240,14 @@ interface Scenario {
   ASSUME_LAST_TOUCH: string;
 }
 
+/** The table's Week / Month view -- src/data/trend.ts. */
+interface TrendMod {
+  trendBy: (scope: string, metric: string, by: 'week' | 'month', days: number) => {
+    by: string; days: number;
+    points: { label: string; days: number; full: boolean; value: number | null; change: number | null }[];
+  };
+}
+
 interface Blended {
   blendedTotal: (m: string, channels: string[], range: number) => number;
   blendedDelta: (m: string, channels: string[], range: number) => number;
@@ -259,7 +271,7 @@ interface Evidence { label: string; value: string; channel?: string }
 interface Source { title: string; url: string }
 
 function buildTools(
-  m: Metrics, d: Decisions, b: Blended, cm: ChannelMetrics, sc: Scenario,
+  m: Metrics, d: Decisions, b: Blended, cm: ChannelMetrics, sc: Scenario, tr: TrendMod,
   range: number, evidence: Evidence[], subject?: Subject,
   findings?: DecisionCandidate[],
   commitments: unknown[] = [],
@@ -607,6 +619,40 @@ function buildTools(
     }),
 
     betaTool({
+      name: 'get_by_period',
+      description:
+        'One metric week by week or month by month -- the same numbers the dashboard table shows in its Week / Month view. '
+        + 'Use for "how is X trending", "last 12 weeks", "month over month". Each period has its value (null when it cannot be reported) '
+        + 'and its change against the period before (null when either period is partial -- a short period is not a worse one). '
+        + 'State what moved; never claim why.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          scope: scopeProp,
+          metric: metricProp,
+          by: { type: 'string', enum: ['week', 'month'] },
+          periods: { type: 'integer', minimum: 1, maximum: 52, description: 'How many weeks or months back. Omit for the selected range.' },
+        },
+        required: ['scope', 'metric', 'by'],
+        additionalProperties: false,
+      },
+      run: ({ scope, metric, by, periods }: { scope: string; metric: string; by: 'week' | 'month'; periods?: number }) => {
+        if (scope !== 'all' && !(m.activeChannels() as string[]).includes(scope)) return JSON.stringify({ error: 'Unknown channel for this account.' });
+        const n = Number.isInteger(periods) && periods! >= 1 && periods! <= 52 ? periods! : 0;
+        const days = n ? (by === 'month' ? n * 31 : n * 7) : range;
+        const t = tr.trendBy(scope, metric, by, days);
+        const latest = t.points[t.points.length - 1];
+        if (latest) {
+          evidence.push({ label: `${label(scope)} · ${metric} · ${latest.label}`, value: latest.value === null ? '—' : fmt(metric, latest.value), channel: scope });
+        }
+        return JSON.stringify({
+          scope: label(scope), metric, by, days: t.days,
+          points: t.points.map((p) => ({ ...p, formatted: p.value === null ? null : fmt(metric, p.value) })),
+        });
+      },
+    }),
+
+    betaTool({
       name: 'get_series',
       description:
         'The day-by-day values behind a metric. Use only when the shape over time matters — a spike, a trend, a specific day. For a single figure use get_totals; this returns a lot of points. Funnel metrics only (Spend, Clicks, Leads, Sales, CAC, ROAS).',
@@ -672,6 +718,10 @@ async function applyContext(server: ViteDevServer, m: Metrics, raw: unknown) {
   m.hydrate({ rows: data.rows, periodEnd: data.account.periodEnd, currency: data.account.currency });
   structure.applyStructure(data.campaigns);
 
+  /* 1b. Which days: custom dates end this many days before the last day of
+        data. After hydrate, so it indexes the account that is loaded. */
+  m.setWindowEnd(typeof c.windowEnd === 'number' && Number.isFinite(c.windowEnd) ? c.windowEnd : 0);
+
   /* 2. Which channels this business runs. */
   if (Array.isArray(c.channels)) {
     m.setActiveChannels(m.CHANNEL_KEYS.filter((k) => (c.channels as unknown[]).includes(k)));
@@ -728,10 +778,11 @@ export function assistantApi(): Plugin {
           const question = typeof body.question === 'string' ? body.question.trim() : '';
           if (!question) return send(res, 400, { error: 'Question required.' });
           if (question.length > 2000) return send(res, 413, { error: 'Question too long (2,000 characters max).' });
-          /* Any whole number of days 1-90 (Phase 3), anything else falls back to
-             30 rather than reaching the metric functions unchecked. */
+          /* Any whole number of days 1-365 (two years of history), anything
+             else falls back to 30 rather than reaching the metric functions
+             unchecked. */
           const asked = Number(body.range);
-          const range = Number.isInteger(asked) && asked >= 1 && asked <= 90 ? asked : 30;
+          const range = Number.isInteger(asked) && asked >= 1 && asked <= 365 ? asked : 30;
           const rawSubject = body.subject as Partial<Subject> | undefined;
           const subject = rawSubject && typeof rawSubject.kind === 'string' && typeof rawSubject.id === 'string'
             ? { kind: rawSubject.kind, id: rawSubject.id, label: String(rawSubject.label ?? rawSubject.id).slice(0, 200) }
@@ -750,6 +801,7 @@ export function assistantApi(): Plugin {
           const b = (await server.ssrLoadModule('/src/data/blended.ts')) as unknown as Blended;
           const cm = (await server.ssrLoadModule('/src/data/channelMetrics.ts')) as unknown as ChannelMetrics;
           const sc = (await server.ssrLoadModule('/src/data/scenario.ts')) as unknown as Scenario;
+          const tr = (await server.ssrLoadModule('/src/data/trend.ts')) as unknown as TrendMod;
 
           /* ⭐ The browser's account and settings, applied to the server's copy
              of the data layer before any tool runs -- so the model and the
@@ -772,10 +824,13 @@ export function assistantApi(): Plugin {
             max_iterations: 6,
             max_tokens: 4000,
             output_config: { effort: 'low' },
-            system: systemFor(m.CURRENCY ?? 'USD'),
+            /* Which days, in words -- with custom dates the reader is not
+               looking at "the last 30 days", and every figure must say so. */
+            system: `${systemFor(m.CURRENCY ?? 'USD')}\n\nThe reader is looking at: ${m.rangeLabel(range)} (${range} days). `
+              + 'When you state a figure, it is for these days -- name them the way they are named here.',
             tools: [
               ...buildTools(
-                m, d, b, cm, sc, range, evidence,
+                m, d, b, cm, sc, tr, range, evidence,
                 /* What the caller said, or failing that what the question names. */
                 subject ?? inferSubject(question, CAMPAIGNS, m.CHANNEL_LABEL),
                 findings,

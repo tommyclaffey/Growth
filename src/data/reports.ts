@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { ChannelName } from '../styles/tokens';
 import type { Stage } from '../components/StatusPill/StatusPill';
-import { CHANNEL_KEYS, CHANNEL_LABEL, DAY_LABELS, PERIOD_END, SEEDED_PERIOD_END, delta, formatMetric, totals, type Range } from './metrics';
+import { CHANNEL_KEYS, CHANNEL_LABEL, PERIOD_END, atLatest, windowLabels, SEEDED_PERIOD_END, delta, formatMetric, totals, type Range } from './metrics';
 import type { ReportRef } from './chat';
 
 /**
@@ -246,9 +246,15 @@ export function useReports(): Report[] {
  * Preview panel shows, formatted once.
  */
 export function snapshot(r: Report, channels: ChannelName[]): ReportRef {
+  /* A report is about the latest days -- see Preview. */
+  return atLatest(() => snapshotNow(r, channels));
+}
+
+function snapshotNow(r: Report, channels: ChannelName[]): ReportRef {
   const range = WINDOW[r.cadence];
-  const n = DAY_LABELS.length;
-  const win = `${DAY_LABELS[n - range]} – ${DAY_LABELS[n - 1]}, compared with ${DAY_LABELS[n - 2 * range]} – ${DAY_LABELS[n - range - 1]}`;
+  const a = windowLabels(range); const b = windowLabels(range, 1);
+  const span = (l: string[]) => (l.length ? `${l[0]} – ${l[l.length - 1]}` : 'no earlier data');
+  const win = `${span(a)}, compared with ${span(b)}`;
   const rows = channels.map((c) => {
     const t = totals(c, range);
     const d = delta(c, 'CAC', range);
@@ -258,7 +264,7 @@ export function snapshot(r: Report, channels: ChannelName[]): ReportRef {
       leads: Math.round(t.leads).toLocaleString(),
       /* No leads: no CAC, and no change in it -- a dash, never "$0.00" or "−100%". */
       cac: t.leads > 0 ? formatMetric('CAC', t.cac) : '—',
-      change: t.leads > 0 ? `${d > 0 ? '+' : ''}${d}% CAC` : '—',
+      change: t.leads > 0 && Number.isFinite(d) ? `${d > 0 ? '+' : ''}${d}% CAC` : '—',
     };
   });
   const sum = channels.reduce((a, c) => {

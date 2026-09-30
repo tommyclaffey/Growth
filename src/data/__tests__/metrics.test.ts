@@ -131,11 +131,17 @@ describe('direction and verdict', () => {
     expect(deltaTone(0, false)).toBe('flat');
   });
 
-  it('produces a finite delta for every combination', () => {
+  it('a finite delta for every combination a channel can report -- and "no comparison" (NaN, shown as a dash) where it cannot', () => {
     reset();
     for (const scope of ['all', ...ALL] as const) {
       for (const m of METRICS) {
-        for (const r of RANGES) expect(Number.isFinite(delta(scope, m, r))).toBe(true);
+        for (const r of RANGES) {
+          const d = delta(scope, m, r);
+          /* Podcasts have no clicks: there is no change to report, and "0%"
+             would claim there was none. Never Infinity, anywhere. */
+          if (scope === 'podcasts' && m === 'Clicks') expect(Number.isNaN(d)).toBe(true);
+          else expect(Number.isFinite(d), `${scope} ${m} ${r}`).toBe(true);
+        }
       }
     }
   });

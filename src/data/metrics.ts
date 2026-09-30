@@ -27,7 +27,13 @@ export const POINTS = 90;
    to exist. They are never displayed as a window of their own -- they are only
    ever the comparison. */
 export const HISTORY = 90;
-export const TOTAL_POINTS = HISTORY + POINTS;
+/* ⭐ Two years (Sept 29): year-over-year needs last year's same days to exist.
+   The most recent 180 (HISTORY + POINTS) are generated EXACTLY as before --
+   every published figure is unchanged -- and ARCHIVE older days are prepended
+   from their own generators. See generateSeeded. */
+const RECENT = HISTORY + POINTS;
+export const TOTAL_POINTS = 730;
+const ARCHIVE = TOTAL_POINTS - RECENT;
 export const DAYS = 30;
 
 /**
@@ -39,7 +45,9 @@ export const DAYS = 30;
  * still has a full window to compare against.
  */
 export type Range = number;
-export const MAX_RANGE = HISTORY;
+/* A year: the longest window that still has a full window before it in two
+   years of history. */
+export const MAX_RANGE = 365;
 export const RANGES: Range[] = [7, 30, 90];
 
 /** A whole number of days the product can show and compare. */
@@ -47,9 +55,28 @@ export function isRange(n: unknown): n is Range {
   return typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= MAX_RANGE;
 }
 
-/** "Last 30 days", "Last day". */
-export function rangeLabel(r: Range): string {
+/** A preset's own name, whatever window is showing: "Last 30 days". */
+export function lastLabel(r: Range): string {
   return r === 1 ? 'Last day' : `Last ${r} days`;
+}
+
+/** "Last 30 days" -- or, for custom dates, the dates themselves. */
+export function rangeLabel(r: Range): string {
+  if (WINDOW_END > 0) {
+    const [a, b] = windowDates(r);
+    return a === b ? a : `${a} – ${b}`;
+  }
+  return lastLabel(r);
+}
+
+/** Mid-sentence: "last 30 days", or "Jul 1, 2026 – Jul 31, 2026" (months keep their capitals). */
+export function rangePhrase(r: Range): string {
+  return WINDOW_END > 0 ? rangeLabel(r) : lastLabel(r).toLowerCase();
+}
+
+/** After "over": "the last 30 days", or "Jul 1, 2026 – Jul 31, 2026". */
+export function rangeOver(r: Range): string {
+  return WINDOW_END > 0 ? rangeLabel(r) : `the ${lastLabel(r).toLowerCase()}`;
 }
 
 /**
@@ -119,14 +146,158 @@ export const SEEDED_PERIOD_END = '2026-08-12';
 export let PERIOD_END = new Date(`${SEEDED_PERIOD_END}T00:00:00Z`);
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-function labelsEnding(end: Date): string[] {
+function datesEnding(end: Date): Date[] {
   return Array.from({ length: TOTAL_POINTS }, (_, i) => {
     const d = new Date(end);
     d.setUTCDate(d.getUTCDate() - (TOTAL_POINTS - 1 - i));
-    return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
+    return d;
   });
 }
+const short = (d: Date) => `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
+function labelsEnding(end: Date): string[] {
+  return datesEnding(end).map(short);
+}
 export let DAY_LABELS = labelsEnding(PERIOD_END);
+/** ISO dates, one per day, aligned with DAY_LABELS. */
+export let DAY_ISO = datesEnding(PERIOD_END).map((d) => d.toISOString().slice(0, 10));
+
+/* ------------------------------------------------------------------ window
+
+   ⭐ WHICH DAYS every screen is looking at -- one definition, used by every
+   slice of every series (channel, campaign, ad set, ad, labels).
+
+   A window is `range` days ending WINDOW_END days before the last day of data.
+   WINDOW_END is 0 for "Last N days"; custom start/end dates set it. Held here,
+   like the active channels, rather than threaded through every call: a caller
+   that forgot to pass it would silently report a different window from every
+   figure beside it.
+
+   `back` steps whole windows earlier (Δ Prev); `shift` steps a number of DAYS
+   earlier (compare to the same days last week / month / year). */
+let WINDOW_END = 0;
+/* The first index with real data. A real account with 15 months of history is
+   padded to TOTAL_POINTS at the front; those padded days are NOT zero spend --
+   they are "no data", and a window reaching into them returns nothing. */
+let FIRST = 0;
+
+export function windowEnd(): number { return WINDOW_END; }
+
+/** Show `range` days ending `endBack` days before the last day of data. */
+export function setWindowEnd(endBack: number) {
+  const next = Math.max(0, Math.min(TOTAL_POINTS - 1, Math.floor(endBack) || 0));
+  if (next === WINDOW_END) return;
+  WINDOW_END = next;
+  /* Everything that caches on the data (App's memos, the blend) keys on the
+     version -- a different window is different data to them. */
+  VERSION += 1;
+}
+
+/** [start, end) of the window in an array of `length` days ending on PERIOD_END -- or null if any of it is missing. */
+export function windowIndex(length: number, range: Range, back = 0, shift = 0, first = 0): [number, number] | null {
+  const end = length - WINDOW_END - shift - back * range;
+  const start = end - range;
+  return start < first || end > length ? null : [start, end];
+}
+
+/** The window's slice of a series. Empty when any of it falls outside the data. */
+export function sliceWindow<T>(all: T[], range: Range, back = 0, shift = 0, first = 0): T[] {
+  const w = windowIndex(all.length, range, back, shift, first);
+  return w ? all.slice(w[0], w[1]) : [];
+}
+
+/** Axis labels for the window ("Aug 6"). */
+export function windowLabels(range: Range, back = 0, shift = 0): string[] {
+  return sliceWindow(DAY_LABELS, range, back, shift);
+}
+
+/** First and last day of the window, with the year: ["Jul 1, 2026", "Jul 31, 2026"]. */
+export function windowDates(range: Range, back = 0, shift = 0): [string, string] {
+  const d = sliceWindow(DAY_ISO, range, back, shift);
+  const f = (iso?: string) => {
+    if (!iso) return '';
+    const x = new Date(`${iso}T00:00:00Z`);
+    return `${short(x)}, ${x.getUTCFullYear()}`;
+  };
+  return [f(d[0]), f(d[d.length - 1])];
+}
+
+/**
+ * A custom window's END DATE -> how many days back it ends, against the
+ * account that is loaded NOW. Null when the date is not in the data, or the
+ * window would reach before the data starts -- the caller falls back to
+ * "Last N days" rather than showing an empty app.
+ *
+ * 🐛 The window used to be stored as "N days back", resolved once against the
+ * demo's dates at first paint. A shared link to Jul 1-31 then opened on a real
+ * account as Aug 17 - Sep 16, and a date before the data blanked every screen.
+ */
+export function endBackFor(iso: string | null | undefined, range: Range): number | null {
+  if (!iso) return null;
+  const i = DAY_ISO.indexOf(iso);
+  if (i < 0) return null;
+  const endBack = DAY_ISO.length - 1 - i;
+  const end = TOTAL_POINTS - endBack;
+  return end - range < FIRST ? null : endBack;
+}
+
+/** The end date (ISO) of a window ending `endBack` days back -- what the URL and the app keep. */
+export function isoForEndBack(endBack: number): string | null {
+  return endBack > 0 ? DAY_ISO[DAY_ISO.length - 1 - endBack] ?? null : null;
+}
+
+/**
+ * Run `fn` against the LATEST data, whatever window the picker shows, then put
+ * the window back. For things that are about NOW by definition -- a decision's
+ * grade is "how is it going", not "how was July". No version bump: nothing
+ * outside `fn` sees the change.
+ */
+export function atLatest<T>(fn: () => T): T {
+  const saved = WINDOW_END;
+  WINDOW_END = 0;
+  try { return fn(); } finally { WINDOW_END = saved; }
+}
+
+/** Does the data reach far enough back for this window? */
+export function hasWindow(range: Range, back = 0, shift = 0): boolean {
+  return windowIndex(TOTAL_POINTS, range, back, shift, FIRST) !== null;
+}
+
+/** The first and last dates the account has data for (ISO). */
+export function dataSpan(): [string, string] {
+  return [DAY_ISO[FIRST], DAY_ISO[DAY_ISO.length - 1]];
+}
+
+/** Start/end dates -> the product's window (length + how far back it ends). Null if invalid. */
+export function windowFromDates(start: string, end: string): { range: Range; endBack: number } | null {
+  const i = DAY_ISO.indexOf(start);
+  const j = DAY_ISO.indexOf(end);
+  const [first] = dataSpan();
+  if (i < 0 || j < 0 || i > j || start < first) return null;
+  const range = j - i + 1;
+  if (!isRange(range)) return null;
+  return { range, endBack: DAY_ISO.length - 1 - j };
+}
+
+/**
+ * How many days before the current window's end the comparison window ends.
+ * Week: 7. Month and year: calendar -- the same dates one month / one year
+ * earlier, so "Aug 1–12" compares with "Jul 1–12", not with 30 days ago.
+ */
+export type ComparePeriod = 'week' | 'month' | 'year';
+export function compareShift(p: ComparePeriod): number {
+  if (p === 'week') return 7;
+  const endIso = DAY_ISO[DAY_ISO.length - 1 - WINDOW_END];
+  const end = new Date(`${endIso}T00:00:00Z`);
+  /* 🐛 setUTCMonth(m - 1) ROLLS OVER when the earlier month is shorter: Mar 31
+     became "Feb 31" = Mar 3, so "last month" for Mar 1-31 compared against
+     Feb 1 - Mar 3 -- overlapping the window itself. Clamped to the earlier
+     month's last day (and Feb 29 to Feb 28 for a year). */
+  const y = end.getUTCFullYear() - (p === 'year' ? 1 : 0);
+  const m = end.getUTCMonth() - (p === 'month' ? 1 : 0);
+  const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  const then = new Date(Date.UTC(y, m, Math.min(end.getUTCDate(), lastDay)));
+  return Math.round((end.getTime() - then.getTime()) / 86_400_000);
+}
 
 /* The account's currency, from the source. Every money figure in the product
    is formatted through `formatMoney`, so a EUR account reads in euros rather
@@ -247,7 +418,7 @@ export function generateSeeded(): Record<ChannelName, DayRow[]> {
 
     /* `d` counts from the start of the RECENT 90 days, so history is d < 0 and
        the ramp simply continues backwards at the same slope. */
-    const shape = Array.from({ length: TOTAL_POINTS }, (_, i) => {
+    const shape = Array.from({ length: RECENT }, (_, i) => {
       const d = i - HISTORY;
       const ramp = 1 - k / 2 + (k * d) / (POINTS - 1);
       const weekly = 1 + Math.sin((d / 7) * Math.PI * 2) * 0.08;
@@ -274,7 +445,7 @@ export function generateSeeded(): Record<ChannelName, DayRow[]> {
     const event = EVENTS[key]?.cac ?? 1;
     const cacFactor = spendByDay.map((_, i) =>
       (0.86 + (i < HISTORY ? histEff() : effRand()) * 0.28)
-      * (i >= TOTAL_POINTS - LAST_WEEK ? event : 1));
+      * (i >= RECENT - LAST_WEEK ? event : 1));
     const roasFactor = spendByDay.map((_, i) => 0.9 + (i < HISTORY ? histEff() : effRand()) * 0.2);
 
     const rawLeads = spendByDay.map((sp, i) => sp / (c.cac * cacFactor[i]));
@@ -315,7 +486,35 @@ export function generateSeeded(): Record<ChannelName, DayRow[]> {
         revenue: rawRevenue[i] * revScale,
       };
     });
-    return [key, rows];
+
+    /* ⭐ THE ARCHIVE -- the ARCHIVE days before the recent 180, for year-over-
+       year. Its own generators (so nothing above changes), and not the ramp
+       continued backwards -- run back two years it goes negative. Instead the
+       business was smaller: spend compounds at `growth` a year, and each lead
+       cost a little more a year ago (the team has been getting better). */
+    const archRand = mulberry32(hash(key + ':archive'));
+    const archEff = mulberry32(hash(key + ':archive:efficiency'));
+    const growth = 0.12 + c.trend * 0.5;
+    const edge = shape[0];     // where the recent history starts
+    const archive: DayRow[] = Array.from({ length: ARCHIVE }, (_, j) => {
+      const d = j - ARCHIVE;   // -ARCHIVE .. -1, days before the recent 180
+      const years = -d / 365;
+      const weekly = 1 + Math.sin(((d - HISTORY) / 7) * Math.PI * 2) * 0.08;
+      const spend = (edge / (1 + growth) ** years) * weekly * (0.94 + archRand() * 0.12)
+        / windowSum * c.spend;
+      const cacF = (0.86 + archEff() * 0.28) * (1 + 0.08 * years);
+      const roasF = (0.9 + archEff() * 0.2) * (1 - 0.05 * years);
+      const leads = (spend / (c.cac * cacF)) * leadScale;
+      return {
+        spend,
+        impressions: canProduce(key, 'impressions') ? (spend / c.cpm) * 1000 : 0,
+        clicks: canProduce(key, 'clicks') ? leads / c.cvr : 0,
+        leads,
+        sales: leads * c.closeRate,
+        revenue: spend * c.roas * roasF * revScale,
+      };
+    });
+    return [key, [...archive, ...rows]];
   }),
 ) as Record<ChannelName, DayRow[]>;
 }
@@ -346,16 +545,26 @@ export function hydrate(data: {
 }): void {
   const empty = (): DayRow[] => Array.from({ length: TOTAL_POINTS },
     () => ({ spend: 0, impressions: 0, clicks: 0, leads: 0, sales: 0, revenue: 0 }));
+  /* A source may have LESS history than TOTAL_POINTS (a real account fetches
+     ~15 months). Padded at the front so every series ends on the same day --
+     and FIRST marks where real data starts, so a window reaching into the
+     padding returns nothing rather than a run of zero-spend days. */
+  let longest = 0;
   SERIES = Object.fromEntries(CHANNEL_KEYS.map((k) => {
     const r = data.rows[k];
     if (!r) return [k, empty()];
-    if (r.length !== TOTAL_POINTS) {
-      throw new Error(`${k}: expected ${TOTAL_POINTS} days of rows, got ${r.length}`);
+    if (r.length > TOTAL_POINTS) {
+      throw new Error(`${k}: at most ${TOTAL_POINTS} days of rows, got ${r.length}`);
     }
-    return [k, r];
+    longest = Math.max(longest, r.length);
+    return [k, [...empty().slice(r.length), ...r]];
   })) as Record<ChannelName, DayRow[]>;
+  FIRST = TOTAL_POINTS - longest;
+  /* WINDOW_END is kept: the app owns it (and the URL), and resetting it here
+     would leave the picker saying one thing and the data another. */
   PERIOD_END = new Date(`${data.periodEnd}T00:00:00Z`);
   DAY_LABELS = labelsEnding(PERIOD_END);
+  DAY_ISO = datesEnding(PERIOD_END).map((d) => d.toISOString().slice(0, 10));
   CURRENCY = data.currency;
   /* Which channels the source actually reported. A Meta-only account has no
      TikTok; filling it with zeros for the arithmetic is fine, SHOWING it as a
@@ -429,13 +638,12 @@ function blend(): DayRow[] {
 /* Exported so campaign series can be derived FROM the channel rows rather
    than generated alongside them. Deriving is what guarantees a channel's
    campaigns sum to that channel; generating separately only hopes they do. */
-export function rowsFor(scope: Scope, range: Range = 30, back = 0): DayRow[] {
+export function rowsFor(scope: Scope, range: Range = 30, back = 0, shift = 0): DayRow[] {
   const all = scope === 'all' ? blend() : SERIES[scope];
-  const n = range;
   /* `back` = how many whole windows to step earlier. 0 is the window itself, 1
-     is the window immediately before it -- the comparison "Δ Prev" refers to. */
-  const end = all.length - back * n;
-  return end - n < 0 ? [] : all.slice(end - n, end);
+     is the window immediately before it -- the comparison "Δ Prev" refers to.
+     `shift` = days earlier (compare to last week / month / year). */
+  return sliceWindow(all, range, back, shift, FIRST);
 }
 
 /**
@@ -447,9 +655,11 @@ export function rowsFor(scope: Scope, range: Range = 30, back = 0): DayRow[] {
  * podcast spend the same as $2,551/day on Meta and quietly reports a blended
  * CAC that no amount of money was ever actually spent at.
  */
-export function series(scope: Scope, metric: Metric, range: Range = 30): { label: string; value: number }[] {
-  const rows = rowsFor(scope, range);
-  const labels = DAY_LABELS.slice(-range);
+export function series(scope: Scope, metric: Metric, range: Range = 30, shift = 0): { label: string; value: number }[] {
+  /* `shift`: the same window, that many days earlier -- the chart's "same
+     days last week / month / year". Empty when the data does not reach. */
+  const rows = rowsFor(scope, range, 0, shift);
+  const labels = windowLabels(range, 0, shift);
   return rows.map((r, i) => {
     let value: number;
     switch (metric) {
@@ -539,7 +749,10 @@ export function deltaTone(percent: number, better = true): Tone {
  * window or its figure is 0 -- there is nothing to compare against.
  */
 export function changeOf(metric: DerivedMetric, current: DayRow[], prior: DayRow[]): number {
-  if (current.length === 0 || prior.length === 0) return 0;
+  /* NaN, not 0, when there is nothing to compare: 0 renders "0% -- no
+     change", a claim; NaN renders a dash. (A custom window at the start of the
+     data has no window before it.) */
+  if (current.length === 0 || prior.length === 0) return NaN;
   const sum = (rs: DayRow[]) => rs.reduce<DayRow>((a, r) => ({
     spend: a.spend + r.spend, impressions: a.impressions + r.impressions,
     clicks: a.clicks + r.clicks, leads: a.leads + r.leads,
@@ -550,9 +763,9 @@ export function changeOf(metric: DerivedMetric, current: DayRow[], prior: DayRow
      window unable to report the metric means there is no change to state.
      (The collapse itself is still reported -- by Leads, at −100%.) */
   const a = sum(prior); const b = sum(current);
-  if (!reportable(metric, a) || !reportable(metric, b)) return 0;
+  if (!reportable(metric, a) || !reportable(metric, b)) return NaN;
   const before = valueOf(metric, a);
-  if (before === 0) return 0;
+  if (before === 0) return NaN;
   const now = valueOf(metric, b);
   return Math.round(((now - before) / before) * 100);
 }
@@ -597,7 +810,11 @@ export function sparkline(scope: Scope, metric: Metric, range: Range = 30, point
 
 /** The raw funnel rows behind a view, with their labels. Used by the export. */
 export function rows(scope: Scope, range: Range = 30) {
-  const labels = DAY_LABELS.slice(-range);
+  /* 🐛 Was DAY_LABELS.slice(-range): under custom dates every CSV row carried
+     the date 12 days AFTER its data. The window owns the labels too.
+     ISO dates ("2026-07-01"), not "Jul 1": with two years of history a date
+     without its year is ambiguous, and spreadsheets read ISO as a real date. */
+  const labels = sliceWindow(DAY_ISO, range);
   return rowsFor(scope, range).map((r, i) => ({ label: labels[i], ...r }));
 }
 

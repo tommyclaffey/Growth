@@ -97,7 +97,7 @@ describe('real accounts', () => {
 describe('no number where there is nothing to divide by', () => {
   const row = (spend: number, leads: number): DayRow => ({ spend, impressions: 1000, clicks: 50, leads, sales: 0, revenue: 0 });
   it('🐛 CAC change is not "−100%" when this week had spend and no leads', () => {
-    expect(changeOf('CAC', [row(100, 0)], [row(100, 5)])).toBe(0);
+    expect(changeOf('CAC', [row(100, 0)], [row(100, 5)])).toBeNaN();   // no CAC to compare: a dash
     expect(changeOf('Leads', [row(100, 0)], [row(100, 5)])).toBe(-100);   // the collapse is still reported
   });
 

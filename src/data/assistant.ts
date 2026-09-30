@@ -1,5 +1,6 @@
 import {
-  CHANNEL_LABEL, rangeLabel, activeChannels, delta, formatMetric, totals,
+  CHANNEL_KEYS,
+  CHANNEL_LABEL, rangeOver, activeChannels, delta, formatMetric, totals,
   type Metric, type Range, type Scope,
 } from './metrics';
 import type { ChannelName } from '../styles/tokens';
@@ -12,8 +13,9 @@ import { campaignTotals } from './campaignSeries';
 import {
   ASSUME_CAC_HOLDS, ASSUME_LAST_TOUCH, defaultExtra, moveBudget, parseAmount, scaleWithin, whereToScale,
 } from './scenario';
-import { CAMPAIGNS } from './campaigns';
+import { CAMPAIGNS, type Campaign } from './campaigns';
 import { creativeById, creativeTotals, creativesFor } from './creative';
+import { trendBy, type TrendPoint } from './trend';
 
 /**
  * The assistant.
@@ -179,17 +181,51 @@ export function resolveSubject(question: string): Target | undefined {
   const q = question.toLowerCase();
 
   /* Most specific first, same order the pull branch uses. */
+  /* Longest headline first, for the same reason as campaigns. */
   const ad = CAMPAIGNS.flatMap((c) => creativesFor(c.id))
-    .find((x) => x.headline.length > 8 && q.includes(x.headline.toLowerCase()));
+    .filter((x) => x.headline.length > 8 && q.includes(x.headline.toLowerCase()))
+    .sort((a, b) => b.headline.length - a.headline.length)[0];
   if (ad) return { kind: 'ad', id: ad.id, label: ad.headline };
 
-  const campaign = CAMPAIGNS.find((c) => q.includes(c.name.toLowerCase()));
+  const campaign = campaignIn(question);
   if (campaign) return { kind: 'campaign', id: campaign.id, label: campaign.name };
 
   const channel = findChannels(question)[0];
   if (channel) return { kind: 'channel', id: channel, label: CHANNEL_LABEL[channel] };
 
   return undefined;
+}
+
+/**
+ * The campaign a question names -- or undefined. ONE rule, used everywhere:
+ *
+ *   1. The LONGEST full name that appears in the question wins.
+ *   2. Else the campaign whose name shares the longest opening with the
+ *      question ("Tax Season" -> "Tax Season — Prospecting"), at least 8
+ *      characters, and only if no other campaign ties -- a tie is ambiguous,
+ *      and a guess is how you answer about the wrong one.
+ *
+ * 🐛 Real accounts name campaigns with long shared prefixes ("CA | Prospecting
+ * | Lookalike 3% | v10" vs "CA | Prospecting | Site Visitors 30d | v6"). The
+ * old first-14-characters match answered 13 of 20 questions about the wrong
+ * campaign, and "Cluster 21" resolved to "Cluster 2".
+ */
+export function campaignIn(question: string): Campaign | undefined {
+  const q = question.toLowerCase();
+  const full = CAMPAIGNS.filter((c) => q.includes(c.name.toLowerCase()))
+    .sort((a, b) => b.name.length - a.name.length);
+  if (full.length) return full[0];
+  let best: Campaign | undefined; let bestK = 0; let tie = false;
+  for (const c of CAMPAIGNS) {
+    const n = c.name.toLowerCase();
+    let k = 0;
+    for (let len = Math.min(n.length, 60); len >= 8; len -= 1) {
+      if (q.includes(n.slice(0, len))) { k = len; break; }
+    }
+    if (k > bestK) { best = c; bestK = k; tie = false; }
+    else if (k > 0 && k === bestK) tie = true;
+  }
+  return bestK >= 8 && !tie ? best : undefined;
 }
 
 /** Decisions a question implies, for whichever engine answered it. */
@@ -386,7 +422,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
 
   const metric = findMetric(q);
   const channels = findChannels(q);
-  const period = rangeLabel(range).toLowerCase();
+  const periodOver = rangeOver(range);
 
   const found = decisions(range);
 
@@ -416,7 +452,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
   if (/what would you do|what.s the (call|move|decision)|your recommendation|what (should|do|can) i do (about|with|on)\b/i.test(q)) {
     const campaignFor = subject?.kind === 'campaign'
       ? CAMPAIGNS.find((c) => c.id === subject.id)
-      : CAMPAIGNS.find((c) => q.toLowerCase().includes(c.name.toLowerCase().slice(0, 14)));
+      : campaignIn(q);
     const chFor = subject?.kind === 'channel'
       ? (subject.id as ChannelName) : findChannels(q)[0];
 
@@ -429,7 +465,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
        returns only ACCOUNT-level findings -- so "What would you do?" answered
        "One call: review pacing" while "What should I do next?" listed twelve.
        Nothing named = everything. */
-    const mine = tgt.kind === 'account' ? found : decisionsFor(tgt, range);
+    const mine = tgt.kind === 'account' ? found : decisionsFor(tgt, range, undefined, found);
     /* ⚠️ Taken decisions leave the NARRATION, not just the buttons.
        
        The prose used `act` and the buttons used takeable(act), which filters what
@@ -511,7 +547,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
       ? CAMPAIGNS.find((c) => c.id === creativeById(ad.id)?.campaignId)
       : subject?.kind === 'campaign'
         ? CAMPAIGNS.find((c) => c.id === subject.id)
-        : CAMPAIGNS.find((c) => q.toLowerCase().includes(c.name.toLowerCase().slice(0, 14)));
+        : campaignIn(q);
 
     const channel = subject?.kind === 'channel'
       ? (subject.id as ChannelName)
@@ -525,7 +561,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
           ? { kind: 'channel', id: channel, label: CHANNEL_LABEL[channel] }
           : { kind: 'account', id: 'account', label: 'this account' };
 
-    const mine = decisionsFor(target, range);
+    const mine = decisionsFor(target, range, undefined, found);
     /* Taken decisions are on the queue, not suggestions -- the same rule the
        "what would you do" branch follows. */
     const actionable = mine.filter((c) => c.tier !== 3 && !isFlagged('decision', c.id));
@@ -544,8 +580,8 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
     const figures = `${formatMetric('Spend', t.spend)} spend, ${formatMetric('Leads', t.leads)} leads, `
       + (t.leads > 0 ? `${formatMetric('CAC', t.cac)} CAC.` : 'no leads yet, so no CAC.');
     const head = target.kind === 'ad'
-      ? `“${target.label}” — an ad in ${campaign?.name ?? 'this account'}, over the ${period}: ${figures}`
-      : `${target.label} over the ${period}: ${figures}`;
+      ? `“${target.label}” — an ad in ${campaign?.name ?? 'this account'}, over ${periodOver}: ${figures}`
+      : `${target.label} over ${periodOver}: ${figures}`;
 
     const body: string[] = [head];
 
@@ -603,7 +639,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
          defeats the point of a conversational surface. The panel splits on blank
          lines. */
       text: [
-        `${top.length === 1 ? 'One thing' : `${top.length} things`} over the ${period}, strongest evidence first.`,
+        `${top.length === 1 ? 'One thing' : `${top.length} things`} over ${periodOver}, strongest evidence first.`,
         ...top.map((c, i) => `${i + 1}. ${speak(c)}`),
         found.some((c) => c.tier === 3)
           ? `There is also something the numbers raise that I deliberately will not turn into a recommendation — ask me what this data cannot tell you.`
@@ -747,12 +783,63 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
       : '';
     return {
       answered: true,
-      text: `${CHANNEL_LABEL[first]} has the ${superlative} ${metric} over the ${period} at ${formatMetric(metric, valueOf(first, metric, range))}${tail}.`,
+      text: `${CHANNEL_LABEL[first]} has the ${superlative} ${metric} over ${periodOver} at ${formatMetric(metric, valueOf(first, metric, range))}${tail}.`,
       evidence: ranked.slice(0, 3).map((k) => ({
         label: `${CHANNEL_LABEL[k]} ${metric}`,
         value: formatMetric(metric, valueOf(k, metric, range)),
         channel: k,
       })),
+    };
+  }
+
+  /* "how is X trending by week", "last 12 weeks", "month by month" -- the
+     table's Week / Month view, in words. Same function the table reads, so
+     the answer and the columns cannot disagree. What moved, never why. */
+  if (!/\bwhy\b/i.test(q)
+      && /trend|by week|weekly|week by week|by month|monthly|month by month|last \d+ (weeks?|months?)|past \d+ (weeks?|months?)/i.test(q)) {
+    const m: Metric = metric ?? 'Spend';
+    const scope: Scope = channels.length ? channels[0] : subject?.kind === 'channel' ? subject.id as ChannelName : 'all';
+    const name = scope === 'all' ? 'Blended' : CHANNEL_LABEL[scope as ChannelName];
+    const byMonth = /month/i.test(q);
+    const n = Number(q.match(/(?:last|past) (\d+) (?:weeks?|months?)/i)?.[1] ?? 0);
+    /* Named span wins; otherwise the screen's window -- but never so short it
+       answers nothing (two partial months, one partial week). */
+    const days = n ? (byMonth ? n * 31 : n * 7)
+      : byMonth ? Math.max(range, 183) : Math.max(range, 28);
+    const t = trendBy(scope, m, byMonth ? 'month' : 'week', days);
+    const shown = t.points.slice(-12);
+    const unit = byMonth ? 'month' : 'week';
+    const fmt = (v: number | null) => (v === null ? '—' : formatMetric(m, v));
+    const latest = shown[shown.length - 1];
+    const moves = t.points.map((p) => p.change).filter((c): c is number => c !== null);
+    const up = moves.filter((c) => c > 0).length;
+    const down = moves.filter((c) => c < 0).length;
+    const flat = moves.length - up - down;
+    const valued = t.points.filter((p) => p.value !== null && p.full);
+    const hi = valued.reduce<TrendPoint | null>((a2, p) => (!a2 || p.value! > a2.value! ? p : a2), null);
+    const lo = valued.reduce<TrendPoint | null>((a2, p) => (!a2 || p.value! < a2.value! ? p : a2), null);
+    return {
+      answered: true,
+      text: [
+        `${name} ${m} by ${unit}, ${n ? `the last ${n} ${unit}${n === 1 ? '' : 's'}` : `over ${t.days} days`}${t.points.length > shown.length ? ` (the latest ${shown.length} shown)` : ''}:\n`
+          + shown.map((p) => `• ${p.label}: ${fmt(p.value)}${p.full ? '' : ` (${p.days} days)`}`).join('\n'),
+        latest.change === null
+          ? `Latest ${unit} (${latest.label}): ${fmt(latest.value)}.`
+          : `Latest ${unit} (${latest.label}): ${fmt(latest.value)}, ${latest.change === 0 ? `level with the ${unit} before` : `${latest.change > 0 ? 'up' : 'down'} ${Math.abs(latest.change)}% on the ${unit} before`}.`,
+        moves.length
+          ? `Across ${moves.length} ${unit}-to-${unit} move${moves.length === 1 ? '' : 's'}: up ${up}, down ${down}, level ${flat}.`
+            + (hi && lo && hi !== lo ? ` Highest ${fmt(hi.value)} (${hi.label}); lowest ${fmt(lo.value)} (${lo.label}).` : '')
+          : '',
+        'That is what moved. Why it moved is not in this data.',
+      ].filter(Boolean).join('\n\n'),
+      evidence: [
+        { label: `${name} ${m} · ${latest.label}`, value: fmt(latest.value), channel: scope },
+        ...(shown.length > 1 ? [{ label: `${name} ${m} · ${shown[shown.length - 2].label}`, value: fmt(shown[shown.length - 2].value), channel: scope }] : []),
+      ],
+      followUps: [
+        latest.change !== null && latest.change !== 0 ? `Why is ${name} ${m} ${latest.change > 0 ? 'up' : 'down'}?` : 'What should I do next?',
+        byMonth ? `How is ${name} ${m} trending by week?` : `How is ${name} ${m} trending by month?`,
+      ],
     };
   }
 
@@ -762,13 +849,14 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
     const change = delta(scope, metric, range);
     const value = valueOf(scope, metric, range);
     const name = scope === 'all' ? 'Blended' : CHANNEL_LABEL[scope as ChannelName];
-    const dir = change === 0 ? 'flat' : change > 0 ? `up ${change}%` : `down ${Math.abs(change)}%`;
+    const dir = !Number.isFinite(change) ? 'with no earlier period of the same length to compare against'
+      : change === 0 ? 'flat' : change > 0 ? `up ${change}%` : `down ${Math.abs(change)}%`;
     return {
       answered: true,
-      text: `${name} ${metric} is ${formatMetric(metric, value)} over the ${period}, ${dir} against the preceding period. I can tell you that it moved and by how much. I cannot tell you why — this data has no campaign changes, creative refreshes or auction pressure in it, so anything I said about cause would be invention.`,
+      text: `${name} ${metric} is ${formatMetric(metric, value)} over ${periodOver}, ${Number.isFinite(change) ? `${dir} against the preceding period` : dir}. I can tell you that it moved and by how much. I cannot tell you why — this data has no campaign changes, creative refreshes or auction pressure in it, so anything I said about cause would be invention.`,
       evidence: [
         { label: `${name} ${metric}`, value: formatMetric(metric, value), channel: scope },
-        { label: 'Change vs prior period', value: `${change > 0 ? '+' : ''}${change}%`, channel: scope },
+        { label: 'Change vs prior period', value: Number.isFinite(change) ? `${change > 0 ? '+' : ''}${change}%` : '—', channel: scope },
       ],
     };
   }
@@ -779,7 +867,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
     const name = scope === 'all' ? 'All channels' : CHANNEL_LABEL[scope as ChannelName];
     return {
       answered: true,
-      text: `${name} ${metric} over the ${period} is ${formatMetric(metric, valueOf(scope, metric, range))}.`,
+      text: `${name} ${metric} over ${periodOver} is ${formatMetric(metric, valueOf(scope, metric, range))}.`,
       evidence: [{
         label: `${name} ${metric}`,
         value: formatMetric(metric, valueOf(scope, metric, range)),
@@ -837,6 +925,23 @@ function whatIf(q: string, range: Range, subject?: Target): Answer | undefined {
   }
 
   /* "move / shift $X from A to B" */
+  /* A budget move naming a channel this account does not have (off in
+     Settings, or not in the connected account): say so, rather than "I could
+     not turn that into a question". */
+  if (/\b(move|shift|reallocat\w*|transfer|swap|add|put)\b/i.test(q)) {
+    const lower = q.toLowerCase();
+    const missing = CHANNEL_KEYS.filter((k) => !activeChannels().includes(k)
+      && (lower.includes(CHANNEL_LABEL[k].toLowerCase()) || lower.includes(k.toLowerCase())));
+    if (missing.length) {
+      const names = missing.map((k) => CHANNEL_LABEL[k]).join(' and ');
+      return {
+        answered: true,
+        text: `${names} ${missing.length === 1 ? 'is' : 'are'} not part of this account right now — switched off in Settings, or not in the connected ad account — so there is no cost per lead to project from. I can compare the channels you do run: ${activeChannels().map((k) => CHANNEL_LABEL[k]).join(', ')}.`,
+        followUps: ['Where should more budget go?'],
+      };
+    }
+  }
+
   if (/\b(move|shift|reallocat\w*|transfer|swap)\b/i.test(q) && named.length >= 2) {
     const amt = amount ?? Math.round(defaultExtra(range) / 2);
     const [from, to] = named;
@@ -847,7 +952,7 @@ function whatIf(q: string, range: Range, subject?: Target): Answer | undefined {
     return {
       answered: true,
       text: [
-        `Moving ${money(amt)} from ${CHANNEL_LABEL[from]} to ${CHANNEL_LABEL[to]} over the ${rangeLabel(range).toLowerCase()}:`,
+        `Moving ${money(amt)} from ${CHANNEL_LABEL[from]} to ${CHANNEL_LABEL[to]} over ${rangeOver(range)}:`,
         `• ${CHANNEL_LABEL[from]} loses about ${leads(m.lost)} leads.`,
         `• ${CHANNEL_LABEL[to]} gains about ${leads(m.gained)}.`,
         `• ${verdict}`,
@@ -914,7 +1019,7 @@ function whatIf(q: string, range: Range, subject?: Target): Answer | undefined {
   return {
     answered: true,
     text: [
-      `An extra ${money(extra)} over the ${rangeLabel(range).toLowerCase()} buys the most leads here:`,
+      `An extra ${money(extra)} over ${rangeOver(range)} buys the most leads here:`,
       ...go.slice(0, 3).map((o, i) =>
         `${i + 1}. ${CHANNEL_LABEL[o.channel]} — ${cacOf(o.cac)} a lead ≈ ${leads(o.leads)} leads`
         + (o.room === undefined ? '.'
@@ -958,7 +1063,7 @@ function compareAnswer(q: string, range: Range): Answer | undefined {
   const gap = cheaper ? Math.round((Math.abs(ta.cac - tb.cac) / Math.max(ta.cac, tb.cac)) * 100) : 0;
   const lines = [
     `${cmp.a.name} pays ${cac.a ?? '—'} a lead; ${cmp.b.name} pays ${cac.b ?? '—'}.`,
-    ...(cheaper ? [`${cheaper.name} is ${gap}% cheaper per lead over the ${rangeLabel(range).toLowerCase()}.`] : []),
+    ...(cheaper ? [`${cheaper.name} is ${gap}% cheaper per lead over ${rangeOver(range)}.`] : []),
     `ROAS: ${roas.a ?? '—'} against ${roas.b ?? '—'}.`,
     ...(cmp.cacTrend.a >= 15 ? [`${cmp.a.name}'s CAC rose ${cmp.cacTrend.a}% this week — the gap may be moving.`] : []),
     ...(cmp.cacTrend.b >= 15 ? [`${cmp.b.name}'s CAC rose ${cmp.cacTrend.b}% this week — the gap may be moving.`] : []),

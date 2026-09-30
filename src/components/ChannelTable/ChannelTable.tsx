@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './ChannelTable.css';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
-import { formatMetric } from '../../data/metrics';
+import { formatMetric, rangePhrase } from '../../data/metrics';
 import { DeltaBadge } from '../DeltaBadge/DeltaBadge';
 import { Sparkline } from '../Sparkline/Sparkline';
 import { betterHigher, type DerivedMetric } from '../../data/channelMetrics';
@@ -165,7 +165,7 @@ export function ChannelTable({
                 <th key={c.key} scope="col"
                     aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                     title={c.key === 'delta' && range
-                      ? `${metric}, last ${range} days against the ${range} days before` : undefined}>
+                      ? `${metric}, ${rangePhrase(range)} against the ${range} days before` : undefined}>
                   <button type="button"
                           className={`gr-th ${active ? 'is-active' : ''}`}
                           onClick={() => toggleSort(c.key)}>
