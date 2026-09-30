@@ -113,6 +113,8 @@ export interface Takeable {
    * mark; this view-model does not need it, so it does not carry it.
    */
   context?: string;
+  /** Why, in one sentence -- the card's second line. */
+  because: string;
   /** What it is about, so taking it records where to go back to. */
   target?: Target;
 }
@@ -142,6 +144,7 @@ export function takeable(candidates: Candidate[]): Takeable[] {
     .map((c) => ({
       id: c.id,
       action: c.action,
+      because: c.because,
       tier: c.tier,
       channel: c.channel,
       target: c.target,
@@ -502,10 +505,13 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
          buttons cap at three, so `act.length` would announce "5 calls" above
          three of them — the header disagreeing with the list underneath it. */
       text: [
+        /* ⭐ The calls themselves are the CARDS below this line -- each one
+           once, recommendation first (Tommy, Sept 30). Narrating them here as
+           well put every decision on screen twice, the second copy buried in
+           a paragraph. */
         shown.length === 1
           ? `One call on ${tgt.label}:`
           : `${shown.length} calls on ${tgt.label}, best-supported first:`,
-        ...shown.map((c, i) => `${i + 1}. ${speak(c)}`),
         ask3.length > 0
           ? `And one I will not turn into a call: ${ask3[0].action} ${ask3[0].because}`
           : '',
@@ -639,8 +645,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
          defeats the point of a conversational surface. The panel splits on blank
          lines. */
       text: [
-        `${top.length === 1 ? 'One thing' : `${top.length} things`} over ${periodOver}, strongest evidence first.`,
-        ...top.map((c, i) => `${i + 1}. ${speak(c)}`),
+        `${top.length === 1 ? 'One thing' : `${top.length} things`} over ${periodOver}, strongest evidence first:`,
         found.some((c) => c.tier === 3)
           ? `There is also something the numbers raise that I deliberately will not turn into a recommendation — ask me what this data cannot tell you.`
           : '',
@@ -678,8 +683,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
       return {
         answered: true,
         text: [
-          `At the ad level, yes.`,
-          speak(pauses[0]),
+          `At the ad level, yes:`,
           gap ? `At the CHANNEL level I would not answer it. ${gap.because}` : '',
         ].filter(Boolean).join('\n\n'),
         evidence: asEvidence(pauses[0]),

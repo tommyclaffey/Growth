@@ -25,7 +25,7 @@ async function askAndWrite(text: string) {
   const view = render(
     <Assistant open onClose={() => {}} range={30} seed="What should I do next?" />,
   );
-  await screen.findByText(/put (this|any of these) on your queue|decided something anyway/i);
+  await screen.findByRole('button', { name: /make (a|another) decision/i });
   /* The link, whatever it is labelled — it never auto-opens now. */
   fireEvent.click(screen.getByRole('button', { name: /make (a|another) decision/i }));
   fireEvent.change(screen.getByPlaceholderText(/what are you actually going to do/i),
@@ -86,7 +86,7 @@ describe('the write-in offers itself honestly', () => {
   it('⭐ never opens on its own', async () => {
     setChannels([...CHANNEL_KEYS]);
     render(<Assistant open onClose={() => {}} range={30} seed="What should I do next?" />);
-    await screen.findByText(/put (this|any of these) on your queue|decided something anyway/i);
+    await screen.findByRole('button', { name: /make (a|another) decision/i });
     /* 🐛 It used to auto-open when nothing was on offer, putting an empty input
        and an "Add it" button in front of a reader who had asked for neither —
        the panel offering to record a decision before they had decided anything.
@@ -98,7 +98,7 @@ describe('the write-in offers itself honestly', () => {
   it('says "another" only once there has been a first', async () => {
     setChannels([...CHANNEL_KEYS]);
     render(<Assistant open onClose={() => {}} range={30} seed="What should I do next?" />);
-    await screen.findByText(/put (this|any of these) on your queue|decided something anyway/i);
+    await screen.findByRole('button', { name: /make (a|another) decision/i });
     /* This answer carries offers, so a written one would be "another". */
     expect(screen.getByRole('button', { name: /make another decision/i })).toBeTruthy();
   });

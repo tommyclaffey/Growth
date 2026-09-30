@@ -95,8 +95,18 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
   const dialogRef = useRef<HTMLDivElement>(null);
   useOverlay(open, dialogRef, onClose);
 
+  /* While thinking, follow the end. When an answer LANDS, show its TOP: it
+     used to scroll to the bottom, so a decision answer opened on "Figures used"
+     with the recommendation scrolled out of sight above it. The first thing on
+     screen should be the question and the lead card. */
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    if (pending) {
+      endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      return;
+    }
+    const all = dialogRef.current?.querySelectorAll('.gr-assist__turn');
+    const last = all?.[all.length - 1];
+    (last ?? endRef.current)?.scrollIntoView({ behavior: 'smooth', block: last ? 'start' : 'end' });
   }, [turns.length, pending]);
 
   if (!open) return null;
@@ -194,27 +204,18 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                     findings and each one's assumption on its own line; rendered
                     as a single <p> it collapsed into a wall of prose, which is
                     the opposite of what a conversation is for. */}
-                {t.answer.text.split('\n\n').map((para, i) => (
-                  <p key={i} className="gr-type-body gr-assist__para">{para}</p>
-                ))}
-                {/* 🐛 `evidence &&` rendered the panel for an EMPTY array too,
-                    so a refusal -- which uses no figures by definition -- drew a
-                    "Figures used" heading over nothing. An empty labelled box
-                    reads as a thing that failed to load. */}
-                {t.answer.evidence && t.answer.evidence.length > 0 && (
-                  <div className="gr-assist__evidence">
-                    <p className="gr-assist__evidence-head gr-type-overline">Figures used</p>
-                    {t.answer.evidence.map((e, i) => (
-                      <p key={i} className="gr-assist__row gr-type-caption">
-                        {e.channel && e.channel !== 'all' && (
-                          <ChannelMark channel={e.channel} size={14} />
-                        )}
-                        <span className="gr-assist__row-label">{e.label}</span>
-                        <span className="gr-assist__row-value gr-type-caption-med">{e.value}</span>
-                      </p>
-                    ))}
-                  </div>
-                )}
+                {/* ⭐ With decisions on offer, the LEAD line introduces the
+                    cards and sits directly above them; any caveat ("there is
+                    also something I will not recommend") follows them. It sat
+                    between "strongest evidence first:" and the thing it
+                    introduced. */}
+                {(() => {
+                  const paras = t.answer.text.split('\n\n');
+                  const split = t.answer.decisions && t.answer.decisions.length > 0;
+                  return (split ? paras.slice(0, 1) : paras).map((para, i) => (
+                    <p key={i} className="gr-type-body gr-assist__para">{para}</p>
+                  ));
+                })()}
                 {/* ⭐ The conversation ends in a DECISION, not in a good
                     sentence. Agreeing with "pause this ad" and then having to go
                     find the Decisions screen to act is a seam in front of the one
@@ -232,29 +233,39 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                     mattered. */}
                 {t.answer.decisions && (
                   <div className="gr-assist__decisions">
-                    {/* ⭐ The agent ASKS, rather than labelling a control group.
-                    
-                        This was an uppercase overline — "TAKE ANY OF THESE" —
-                        which reads as a form header on a panel where everything
-                        above it is speech. The block appeared beside the answer
-                        without belonging to it, so the buttons arrived out of
-                        nowhere rather than as the next beat of the conversation.
-                        
-                        ⚠️ And the empty state carried TWO prompts: an overline
-                        saying "Decide anyway" above a link saying "Make a
-                        decision". One question, one action. */}
-                    <p className="gr-assist__ask gr-type-body">
-                      {t.answer.decisions.length === 0
-                        ? 'Nothing here I\u2019d suggest \u2014 but if you\u2019ve decided '
-                          + 'something anyway, write it down and I\u2019ll add it to your queue.'
-                        : t.answer.decisions.length === 1
-                          ? 'Want me to put this on your queue?'
-                          : 'Want me to put any of these on your queue?'}
-                    </p>
+                    {/* The empty state still ASKS -- it is the one moment the
+                        write-in is the whole offer. With decisions there is no
+                        question line: the cards ARE the offer, and a sentence
+                        above them was one more thing to read before the action. */}
+                    {t.answer.decisions.length === 0 && (
+                      <p className="gr-assist__ask gr-type-body">
+                        {'Nothing here I\u2019d suggest \u2014 but if you\u2019ve decided '
+                          + 'something anyway, write it down and I\u2019ll add it to your queue.'}
+                      </p>
+                    )}
+                    {/* ⭐ THE RECOMMENDATION LEADS (Sept 30).
+
+                        Tommy: "it's not very clear what the decision that's being
+                        recommended is. That should be very predominant. Everything
+                        should be secondary."
+
+                        It was one caption-sized line -- button, action, context --
+                        truncated to fit, under three paragraphs that narrated the
+                        same decisions in prose. The action was the smallest text in
+                        the answer. Now each one is a card: where (muted) → WHAT
+                        (heading) → why (one muted line) → the button. The prose
+                        above no longer repeats it; each decision is said once. */}
                     {t.answer.decisions.map((d) => {
                       const taken = isFlagged('decision', d.id);
                       return (
-                        <span key={d.id} className="gr-assist__decision">
+                        <div key={d.id} className={`gr-assist__card ${taken ? 'is-taken' : ''}`}>
+                          {/* No channel mark: the context NAMES the channel, and
+                              a logo beside it said it twice. */}
+                          {d.context && (
+                            <p className="gr-assist__card-ctx gr-type-caption">{d.context}</p>
+                          )}
+                          <p className="gr-assist__card-action gr-type-card-heading">{d.action}</p>
+                          <p className="gr-assist__card-why gr-type-caption">{d.because}</p>
                           <button
                             type="button"
                             className={`gr-assist__take gr-type-caption ${taken ? 'is-taken' : ''}`}
@@ -272,28 +283,14 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                           >
                             {taken ? '✓ On your queue' : 'Make the decision'}
                           </button>
-                          <span className="gr-assist__decision-label gr-type-caption">
-                            {/* ⚠️ NO channel mark here, deliberately.
-                                
-                                The context beside it already NAMES the channel —
-                                "Paid Search › Non-brand — High Intent" — so a
-                                logo was the same fact twice in a row that has
-                                room for neither. It also competed with the button
-                                for the eye, in a block whose job is to make one
-                                action obvious.
-                                
-                                The marks stay everywhere they earn their place:
-                                the evidence rows, the tables, and the Decisions
-                                cards, where the breadcrumb has room to carry one
-                                and the layout is not a single tight line. */}
-                            <span className="gr-assist__decision-text">{d.action}</span>
-                            {d.context && (
-                              <span className="gr-assist__decision-ctx">{d.context}</span>
-                            )}
-                          </span>
-                        </span>
+                        </div>
                       );
                     })}
+
+                    {t.answer.decisions.length > 0
+                      && t.answer.text.split('\n\n').slice(1).map((para, i) => (
+                        <p key={i} className="gr-type-body gr-assist__para">{para}</p>
+                      ))}
 
                     {/* ⭐ Or decide something else entirely.
 
@@ -318,6 +315,27 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                   </div>
                 )}
 
+                {/* Figures AFTER the decisions: they are the support, not the
+                    headline.
+
+                    🐛 `evidence &&` rendered the panel for an EMPTY array too,
+                    so a refusal -- which uses no figures by definition -- drew a
+                    "Figures used" heading over nothing. An empty labelled box
+                    reads as a thing that failed to load. */}
+                {t.answer.evidence && t.answer.evidence.length > 0 && (
+                  <div className="gr-assist__evidence">
+                    <p className="gr-assist__evidence-head gr-type-overline">Figures used</p>
+                    {t.answer.evidence.map((e, i) => (
+                      <p key={i} className="gr-assist__row gr-type-caption">
+                        {e.channel && e.channel !== 'all' && (
+                          <ChannelMark channel={e.channel} size={14} />
+                        )}
+                        <span className="gr-assist__row-label">{e.label}</span>
+                        <span className="gr-assist__row-value gr-type-caption-med">{e.value}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
                 {/* Where to go next. The thing that makes this a conversation
                     rather than a search box -- and after a refusal it is the most
                     valuable control on screen, because "so what WOULD tell me?"

@@ -20,7 +20,8 @@ describe('the assistant became a decision agent', () => {
     /* It must report what the engine found, not improvise. The top finding's
        action has to appear verbatim. */
     const top = decisions(30).filter((c) => c.tier !== 3)[0];
-    expect(a.text).toContain(top.action);
+    /* The recommendation is the CARD -- verbatim, with its reason. */
+    expect(a.decisions?.[0]).toMatchObject({ action: top.action, because: top.because });
     expect(a.evidence?.length).toBeGreaterThan(0);
   });
 
@@ -103,10 +104,12 @@ describe('the limitation question is a first-class answer', () => {
     expect(a.text).toMatch(/⚠️ That assumes/);
   });
 
-  it('answers are broken into paragraphs, not one block of prose', () => {
+  it('⭐ each decision appears ONCE -- as its card, not also narrated in the prose above it', () => {
     reset();
-    /* The panel splits on blank lines; an answer with none renders as a wall. */
-    expect(ask('What should I do next?', 30).text.split('\n\n').length).toBeGreaterThan(2);
+    const a = ask('What should I do next?', 30);
+    expect(a.decisions!.length).toBeGreaterThan(1);
+    for (const d of a.decisions!) expect(a.text).not.toContain(d.action);
+    expect(a.text.split('\n\n')[0]).toMatch(/strongest evidence first:$/);
   });
 });
 

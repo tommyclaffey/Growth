@@ -220,14 +220,34 @@
 .gr-assist__decisions {
   display: flex; flex-direction: column; gap: var(--space-8);
   margin: var(--space-12) 0 0;
-  padding: var(--space-12) 0 0;
-  border-top: var(--border-width-sm) solid var(--border-subtle);
 }
 .gr-assist__decisions .gr-assist__evidence-head { margin: 0; }
 
 .gr-assist__decision {
   display: flex; align-items: center; gap: var(--space-8); min-width: 0;
 }
+
+/* ⭐ One decision, as a card: where → WHAT → why → the button (Sept 30).
+   The action is the only primary-weight text in it; everything else is muted. */
+.gr-assist__card {
+  display: grid; gap: var(--space-4);
+  padding: var(--space-12) var(--space-14);
+  border-radius: var(--radius-md);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--surface-page-top);
+}
+.gr-assist__a .gr-assist__card-ctx,
+.gr-assist__card-ctx {
+  color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.gr-assist__a .gr-assist__card-action { color: var(--text-primary); }
+/* Two lines at most -- the full reason is on the Decisions card it becomes. */
+.gr-assist__a .gr-assist__card-why {
+  color: var(--text-secondary);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.gr-assist__a .gr-assist__card .gr-assist__take { justify-self: start; margin-top: var(--space-8); }
 
 /* A real button, not a link — it changes state rather than navigating. */
 .gr-assist__take {
