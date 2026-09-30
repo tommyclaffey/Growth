@@ -197,7 +197,9 @@ function inferSubject(
 ): Subject | undefined {
   const q = question.toLowerCase();
 
-  const campaign = campaigns.find((c) => q.includes(c.name.toLowerCase()));
+  /* Longest full name wins -- real accounts share long prefixes. */
+  const campaign = campaigns.filter((c) => q.includes(c.name.toLowerCase()))
+    .sort((a, b) => b.name.length - a.name.length)[0];
   if (campaign) return { kind: 'campaign', id: campaign.id, label: campaign.name };
 
   for (const [key, label] of Object.entries(channelLabel)) {

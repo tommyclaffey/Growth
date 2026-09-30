@@ -12,7 +12,7 @@ import { campaignTotals } from './campaignSeries';
 import {
   ASSUME_CAC_HOLDS, ASSUME_LAST_TOUCH, defaultExtra, moveBudget, parseAmount, scaleWithin, whereToScale,
 } from './scenario';
-import { CAMPAIGNS } from './campaigns';
+import { CAMPAIGNS, type Campaign } from './campaigns';
 import { creativeById, creativeTotals, creativesFor } from './creative';
 import { trendBy, type TrendPoint } from './trend';
 
@@ -180,17 +180,51 @@ export function resolveSubject(question: string): Target | undefined {
   const q = question.toLowerCase();
 
   /* Most specific first, same order the pull branch uses. */
+  /* Longest headline first, for the same reason as campaigns. */
   const ad = CAMPAIGNS.flatMap((c) => creativesFor(c.id))
-    .find((x) => x.headline.length > 8 && q.includes(x.headline.toLowerCase()));
+    .filter((x) => x.headline.length > 8 && q.includes(x.headline.toLowerCase()))
+    .sort((a, b) => b.headline.length - a.headline.length)[0];
   if (ad) return { kind: 'ad', id: ad.id, label: ad.headline };
 
-  const campaign = CAMPAIGNS.find((c) => q.includes(c.name.toLowerCase()));
+  const campaign = campaignIn(question);
   if (campaign) return { kind: 'campaign', id: campaign.id, label: campaign.name };
 
   const channel = findChannels(question)[0];
   if (channel) return { kind: 'channel', id: channel, label: CHANNEL_LABEL[channel] };
 
   return undefined;
+}
+
+/**
+ * The campaign a question names -- or undefined. ONE rule, used everywhere:
+ *
+ *   1. The LONGEST full name that appears in the question wins.
+ *   2. Else the campaign whose name shares the longest opening with the
+ *      question ("Tax Season" -> "Tax Season — Prospecting"), at least 8
+ *      characters, and only if no other campaign ties -- a tie is ambiguous,
+ *      and a guess is how you answer about the wrong one.
+ *
+ * 🐛 Real accounts name campaigns with long shared prefixes ("CA | Prospecting
+ * | Lookalike 3% | v10" vs "CA | Prospecting | Site Visitors 30d | v6"). The
+ * old first-14-characters match answered 13 of 20 questions about the wrong
+ * campaign, and "Cluster 21" resolved to "Cluster 2".
+ */
+export function campaignIn(question: string): Campaign | undefined {
+  const q = question.toLowerCase();
+  const full = CAMPAIGNS.filter((c) => q.includes(c.name.toLowerCase()))
+    .sort((a, b) => b.name.length - a.name.length);
+  if (full.length) return full[0];
+  let best: Campaign | undefined; let bestK = 0; let tie = false;
+  for (const c of CAMPAIGNS) {
+    const n = c.name.toLowerCase();
+    let k = 0;
+    for (let len = Math.min(n.length, 60); len >= 8; len -= 1) {
+      if (q.includes(n.slice(0, len))) { k = len; break; }
+    }
+    if (k > bestK) { best = c; bestK = k; tie = false; }
+    else if (k > 0 && k === bestK) tie = true;
+  }
+  return bestK >= 8 && !tie ? best : undefined;
 }
 
 /** Decisions a question implies, for whichever engine answered it. */
@@ -417,7 +451,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
   if (/what would you do|what.s the (call|move|decision)|your recommendation|what (should|do|can) i do (about|with|on)\b/i.test(q)) {
     const campaignFor = subject?.kind === 'campaign'
       ? CAMPAIGNS.find((c) => c.id === subject.id)
-      : CAMPAIGNS.find((c) => q.toLowerCase().includes(c.name.toLowerCase().slice(0, 14)));
+      : campaignIn(q);
     const chFor = subject?.kind === 'channel'
       ? (subject.id as ChannelName) : findChannels(q)[0];
 
@@ -512,7 +546,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
       ? CAMPAIGNS.find((c) => c.id === creativeById(ad.id)?.campaignId)
       : subject?.kind === 'campaign'
         ? CAMPAIGNS.find((c) => c.id === subject.id)
-        : CAMPAIGNS.find((c) => q.toLowerCase().includes(c.name.toLowerCase().slice(0, 14)));
+        : campaignIn(q);
 
     const channel = subject?.kind === 'channel'
       ? (subject.id as ChannelName)
