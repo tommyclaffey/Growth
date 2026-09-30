@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CSS_CHANNEL } from '../../styles/tokens';
 import './Chart.css';
 import { channelGradient, type ChannelName } from '../../styles/tokens';
@@ -131,6 +131,13 @@ export function Chart({
   const [tableCols, setTableCols] = useState<Metric[]>(savedCols);
   /* Table rows by Day, or columns by Week / Month -- remembered. */
   const [groupBy, setGroupByState] = useState<GroupBy>(savedGroup);
+  const tableWrap = useRef<HTMLDivElement>(null);
+  /* Weeks read oldest -> newest, so a long run opens at the NEWEST end. */
+  const bucketCount = data.length;
+  useEffect(() => {
+    const w = tableWrap.current;
+    if (w && groupBy !== 'day') w.scrollLeft = w.scrollWidth;
+  }, [groupBy, bucketCount, chosen]);
   const setGroupBy = (g: GroupBy) => {
     setGroupByState(g);
     try { localStorage.setItem(GROUP_KEY, g); } catch { /* quota */ }
@@ -419,7 +426,7 @@ export function Chart({
   const visibleTable = (
     <>
       {controls}
-      <div className={`gr-chart__table-wrap ${grouped ? 'is-pivot' : ''}`} tabIndex={0} aria-label={`${title ?? 'Metrics'} as a table`}>
+      <div ref={tableWrap} className={`gr-chart__table-wrap ${grouped ? 'is-pivot' : ''}`} tabIndex={0} aria-label={`${title ?? 'Metrics'} as a table`}>
         {grouped ? pivotTable : dayTable}
       </div>
     </>

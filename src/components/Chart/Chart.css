@@ -481,3 +481,31 @@
    across loading and empty states; a 3-row week table under it left a band of
    empty card. */
 .gr-chart.is-table { min-height: 0; }
+
+/* ---- Table layout -----------------------------------------------------------
+   Compact, not stretched. At width:100% three metric columns spread across the
+   whole card: the date at the far left, its numbers at the far right, and a
+   gap the eye had to cross on every row. Columns now sit at a reading width,
+   side by side, and the table scrolls only when there are genuinely many.
+
+   And ONE surface: the sticky date column needed an opaque background, so it
+   was white while the card behind the rows is a gradient -- the date column
+   read as a separate white panel. The whole table sits on the card colour. */
+.gr-chart__table-wrap { background: var(--surface-card); }
+.gr-chart__table { width: auto; min-width: 0; }
+.gr-chart__table th,
+.gr-chart__table td { min-width: 112px; }
+.gr-chart__table tr > :first-child { min-width: 96px; }
+/* Week / Month tables fill the card -- twelve weeks fit at 1280 -- and the
+   newest period plus the Total stay in view: Total is pinned to the right, and
+   a long run of periods (52 weeks) opens scrolled to the newest. */
+.gr-chart__table--pivot { width: 100%; }
+.gr-chart__table--pivot th,
+.gr-chart__table--pivot td { min-width: 0; }
+.gr-chart__table--pivot tr > :first-child { min-width: 72px; }
+.gr-chart__table--pivot tr > :last-child {
+  position: sticky; right: 0; z-index: 1;
+  background: var(--surface-card);
+  padding-left: var(--space-16);
+}
+.gr-chart__table--pivot thead tr > :last-child { z-index: 3; }
