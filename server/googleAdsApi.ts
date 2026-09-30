@@ -229,7 +229,9 @@ export function googleApi(): Plugin {
 
           if (req.method === 'GET' && path === '/data') {
             if (!s.customerId) return send(res, 409, { error: 'Choose a Google Ads account in Settings.' });
-            return send(res, 200, await loadGoogle(server));
+            /* Compact on the wire; the client expands it (src/data/sources/wire.ts). */
+            const { compact } = (await server.ssrLoadModule('/src/data/sources/wire.ts')) as unknown as { compact: (d: unknown) => unknown };
+            return send(res, 200, compact(await loadGoogle(server)));
           }
           return send(res, 404, { error: 'Unknown Google Ads endpoint.' });
         } catch (e) {

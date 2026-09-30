@@ -1,4 +1,5 @@
-import type { DataSource, SourceData } from '../source';
+import type { DataSource } from '../source';
+import { fromWire } from './wire';
 
 /**
  * A connected Meta ad account, as a data source.
@@ -15,7 +16,7 @@ export const metaSource: DataSource = {
     const r = await fetch('/api/meta/data', { signal });
     const body = await r.json().catch(() => ({ error: `Meta returned ${r.status}` }));
     if (!r.ok) throw new Error((body as { error?: string }).error ?? `Meta returned ${r.status}`);
-    return body as SourceData;
+    return fromWire(body);   // compact on the wire -- see wire.ts
   },
 };
 

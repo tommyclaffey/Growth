@@ -175,7 +175,10 @@ export function metaApi(): Plugin {
           }
           if (req.method === 'GET' && path === '/data') {
             if (!s.accountId) return send(res, 409, { error: 'Choose a Meta ad account in Settings.' });
-            return send(res, 200, await loadMeta(server));
+            /* Compact on the wire (51 MB -> ~10 MB on a large account); the
+               client expands it back exactly. src/data/sources/wire.ts. */
+            const { compact } = (await server.ssrLoadModule('/src/data/sources/wire.ts')) as unknown as { compact: (d: unknown) => unknown };
+            return send(res, 200, compact(await loadMeta(server)));
           }
           return send(res, 404, { error: 'Unknown Meta endpoint.' });
         } catch (e) {

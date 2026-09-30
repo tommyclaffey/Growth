@@ -1,4 +1,5 @@
-import type { DataSource, SourceData } from '../source';
+import type { DataSource } from '../source';
+import { fromWire } from './wire';
 
 /**
  * A connected Google Ads account, as a data source. Same shape as metaSource:
@@ -12,7 +13,7 @@ export const googleSource: DataSource = {
     const r = await fetch('/api/google/data', { signal });
     const body = await r.json().catch(() => ({ error: `Google Ads returned ${r.status}` }));
     if (!r.ok) throw new Error((body as { error?: string }).error ?? `Google Ads returned ${r.status}`);
-    return body as SourceData;
+    return fromWire(body);   // compact on the wire -- see wire.ts
   },
 };
 
