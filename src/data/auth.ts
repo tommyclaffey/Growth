@@ -107,7 +107,7 @@ export async function signUp(name: string, email: string, password: string) {
 }
 
 /** Straight into the full demo as Maya. This machine only. */
-export async function useDemo() {
+export async function enterDemo() {
   const r = await post('/api/auth/demo', {});
   if (r.ok) await refreshAuth(true);
   return r;
