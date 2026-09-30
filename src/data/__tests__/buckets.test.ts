@@ -33,3 +33,10 @@ describe('weeks and months across a window', () => {
     }
   });
 });
+
+describe('labels', () => {
+  it('🐛 a 1-day week reads "Aug 13", not "Aug 13–13"', () => {
+    const b = bucketsOf(days('2026-08-13', 8), 'week');
+    expect(b[0].label).toBe('Aug 13');
+  });
+});

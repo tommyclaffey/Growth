@@ -4,7 +4,7 @@ import { toggleFlag, useFlags } from '../data/attention';
 import { useChannels } from '../data/channels';
 import { useCampaignStatus } from '../data/campaignStatus';
 import {
-  NOTE_GROUPS, notifications, weekLabels, type Note, type NoteTone,
+  NOTE_GROUPS, notifications, weekLabels, weekSentence, type Note, type NoteTone,
 } from '../data/notifications';
 import type { Target } from '../data/decisions';
 import { decisionEvents } from '../data/decisionEvents';
@@ -60,7 +60,6 @@ export function Notifications({ onOpen, onAsk, onOpenDecisions }: NotificationsP
   /* The numbers' events and the team's -- one feed. */
   useFlags();
   const notes = [...decisionEvents(), ...notifications(channels)];
-  const weeks = weekLabels();
 
   /* Persisted, so a read row stays read after navigating away. */
   const { readAlerts } = usePrefs();
@@ -83,7 +82,7 @@ export function Notifications({ onOpen, onAsk, onOpenDecisions }: NotificationsP
           tone={unread.length > 0 ? 'accent' : 'neutral'}
         />
         <span className="gr-type-caption gr-note-head__window">
-          Week of {weeks.now}, compared with {weeks.before}
+          {weekSentence()}
         </span>
         <span className="gr-spacer" />
         <Chip label={`All ${notes.length}`} pressed={filter === null} onClick={() => setFilter(null)} />
@@ -110,7 +109,7 @@ export function Notifications({ onOpen, onAsk, onOpenDecisions }: NotificationsP
               {/* "This week" is only true of the latest data. Under custom
                   dates it is the window's last week -- said with its dates. */}
               <h3 className="gr-type-card-heading">
-                {group === 'This week' && windowEnd() > 0 ? `Week of ${weekLabels().now}` : group}
+                {group === 'This week' && windowEnd() > 0 && weekLabels().now ? `Week of ${weekLabels().now}` : group}
               </h3>
               <span className="gr-dec__count gr-type-caption-med">{rows.length}</span>
               <span className="gr-type-caption gr-note-group__note">{GROUP_NOTE[group]}</span>

@@ -21,7 +21,8 @@ export function bucketsOf(iso: string[], by: 'week' | 'month'): Bucket[] {
     for (let end = iso.length; end > 0; end -= 7) {
       const start = Math.max(0, end - 7);
       const a = md(iso[start]); const b = md(iso[end - 1]);
-      const label = a.m === b.m ? `${MONTH_SHORT[a.m]} ${a.d}–${b.d}` : `${MONTH_SHORT[a.m]} ${a.d} – ${MONTH_SHORT[b.m]} ${b.d}`;
+      const label = start === end - 1 ? `${MONTH_SHORT[a.m]} ${a.d}`          // a 1-day week: "Aug 13", not "Aug 13–13"
+        : a.m === b.m ? `${MONTH_SHORT[a.m]} ${a.d}–${b.d}` : `${MONTH_SHORT[a.m]} ${a.d} – ${MONTH_SHORT[b.m]} ${b.d}`;
       out.unshift({ start, end, label, days: end - start, full: end - start === 7 });
     }
     return out;

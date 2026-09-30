@@ -811,8 +811,10 @@ export function sparkline(scope: Scope, metric: Metric, range: Range = 30, point
 /** The raw funnel rows behind a view, with their labels. Used by the export. */
 export function rows(scope: Scope, range: Range = 30) {
   /* 🐛 Was DAY_LABELS.slice(-range): under custom dates every CSV row carried
-     the date 12 days AFTER its data. The window owns the labels too. */
-  const labels = windowLabels(range);
+     the date 12 days AFTER its data. The window owns the labels too.
+     ISO dates ("2026-07-01"), not "Jul 1": with two years of history a date
+     without its year is ambiguous, and spreadsheets read ISO as a real date. */
+  const labels = sliceWindow(DAY_ISO, range);
   return rowsFor(scope, range).map((r, i) => ({ label: labels[i], ...r }));
 }
 
