@@ -11,7 +11,11 @@
   flex-direction: column;
   gap: var(--space-4);
   padding: var(--space-24) var(--space-14);
-  background: var(--surface-card);
+  /* ⭐ Depth (Sept 30): the rail sits a shade BELOW the page's cards, and the
+     selected item is a white chip raised off it -- pressed into place rather
+     than tinted. Flat white rail + lavender block read as a highlight; this
+     reads as built. */
+  background: var(--surface-page-bottom);
   border-right: var(--border-width-sm) solid var(--border-default);
 }
 
@@ -59,7 +63,11 @@
   font-variant-numeric: normal;
   letter-spacing: -0.01em;
 }
-.gr-navitem.is-active .gr-navitem__count { background: var(--surface-card); color: var(--accent-text); }
+.gr-navitem.is-active .gr-navitem__count { background: var(--surface-page-top); }
+/* Decisions' count is the one in colour: it is where the work is. Everything
+   else waiting stays grey, so the rail asks for attention in one place. */
+.gr-navitem__count.is-accent,
+.gr-navitem.is-active .gr-navitem__count.is-accent { background: var(--accent-tint); color: var(--accent-text); }
 .gr-sidebar__spacer { flex: 1; }
 
 .gr-navitem {
@@ -82,10 +90,12 @@
   transition: background-color 120ms ease, color 120ms ease;
 }
 .gr-navitem:hover { background: var(--surface-page-top); color: var(--text-primary); }
+.gr-navitem.is-active:hover { background: var(--surface-card); }
 
 .gr-navitem.is-active {
-  background: var(--accent-tint);
+  background: var(--surface-card);
   color: var(--accent-text);
+  box-shadow: 0 1px 2px var(--shadow-key), 0 0 0 var(--border-width-sm) var(--border-subtle);
 }
 .gr-navitem.is-active .gr-navitem__icon { color: var(--icon-active); }
 

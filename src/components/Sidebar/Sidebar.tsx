@@ -123,7 +123,8 @@ function NavButton({ item, active, count, onNavigate }: {
       {/* What is waiting there -- the same number the screen shows. Nothing at
           zero: a "0" badge is one more thing to read that says nothing. */}
       {count !== undefined && count > 0 && (
-        <span className="gr-navitem__count gr-type-caption-med" aria-hidden="true">{count}</span>
+        <span className={`gr-navitem__count gr-type-caption-med ${item.key === 'decisions' ? 'is-accent' : ''}`}
+              aria-hidden="true">{count}</span>
       )}
     </button>
   );
