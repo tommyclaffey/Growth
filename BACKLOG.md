@@ -577,7 +577,30 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 - Should the Channels screen carry more than a table — a CAC-by-channel chart, a per-channel card?
 - Does the Overview table need the same "Change in" control, or keep following the chart toggle?
 
-## ▶️ RESUME HERE *(Sept 30, late — Tommy moved to a new vault)*
+## ▶️ RESUME HERE *(Oct 1 — branch `engine-juice`, NOT merged)*
+
+**State:** 8 commits on `engine-juice`, 734 tests, lint clean, build green. `main` untouched. Waiting on Tommy's "merge".
+
+**Tommy, Oct 1:** *"Really make it a strong decision engine… put some real juice behind it."*
+
+**The decision engine (the juice):**
+- **"Is that real?"** — `evidence.ts` `rateTest`: two Poisson rates (leads per dollar), subject vs the REST. p < 0.05 high · < 0.2 medium · else **held back**, never shown as advice. One line on every comparison card.
+- **"What does the next dollar buy?"** — `responseCurve`: log-log fit of each campaign's own 90 days; measured only when spend moved (sd log-spend ≥ 0.15, ≥ 28 days, r² ≥ 0.1), else **assumed b = 0.8, said on the card**. Demo spend is ±15% → always assumed; real accounts with budget changes get measured.
+- **Raises sized at the margin** — `sizedRaise`: biggest 5% step whose extra money still beats the line the card names. None → held back (Branded Search: beats Paid Search on average, its next dollar would not).
+- **Pacing under plan** → put money where the curve allows, else **"Lower the 30-day plan"** (tier 2, curve stated).
+- **Slow leak** (`slow-leak`, tier 1): CAC creeping over 8 weeks, no week past the alert line → cut 15%. Silent on the demo (no drift in the fixture); tested on a built account.
+- **The plan** (`plan.ts`): every money move carries `effect` per week; Decisions opens on the sum — spend, leads, cost per lead before → after, **Accept all**. Demo 30d: −$968/wk, +68 leads, $41.08 → $37.23.
+- **Held back (N)** button lists what was found and refused, with the reason.
+- Assistant: "what should I do" opens on the plan; every spoken finding says how sure; model gets `howSure` + `plan` (rule 2g).
+
+**Fixes:** chart offers only metrics a channel can produce (no Clicks on Podcasts) · ad-set "% of campaign spend" follows the range · engine memoised on all its inputs (`decisionCache.test.ts`) · one door for the channel list (`channelDoor.test.ts`) · 4 merged branches deleted.
+- Backlog note "creative cards show static totals" was STALE — they were already ranged.
+- `font: inherit` leftovers: checked, each is deliberate; left alone.
+- ⚠️ `Chart.test.tsx › "data does not reach back that far"` failed once under full-suite load, passed on 3 reruns. Watch it.
+
+**🟡 Waiting on Tommy:** merge `engine-juice` · Meta app · Google Ads token · Channels table circle-back · capture where the AI Decision Maker idea came from.
+
+## ⏮ Previous resume point *(Sept 30, late — Tommy moved to a new vault)*
 
 **State:** everything is merged and live (`main` @ `5ebf159`, Pages deploy green). No open branches. 685 tests, lint clean. *(Oct 1: `decision-calls` merged, 688 tests, no open branches.)*
 
