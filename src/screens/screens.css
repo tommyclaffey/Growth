@@ -500,6 +500,9 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
    content packed into the left third -- long lines, a blank right half, and
    only three cards per screen. min() keeps it one column when the chat panel
    narrows the page. */
+/* Under the list, left-aligned with the cards it extends. */
+.gr-dec__more { margin: var(--space-12) 0 0; }
+
 .gr-dec__list {
   display: grid; gap: var(--space-16);
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 32rem), 1fr));

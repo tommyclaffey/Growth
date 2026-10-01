@@ -291,7 +291,14 @@ export function compareShift(p: ComparePeriod): number {
   /* 🐛 setUTCMonth(m - 1) ROLLS OVER when the earlier month is shorter: Mar 31
      became "Feb 31" = Mar 3, so "last month" for Mar 1-31 compared against
      Feb 1 - Mar 3 -- overlapping the window itself. Clamped to the earlier
-     month's last day (and Feb 29 to Feb 28 for a year). */
+     month's last day (and Feb 29 to Feb 28 for a year).
+
+     ✅ DECIDED Oct 1 2026: both windows stay the SAME LENGTH. "Mar 1-31 vs last
+     month" compares against Jan 29 - Feb 28, borrowing three January days,
+     rather than Feb 1-28. Unequal lengths would show 31 days of spend as ~11%
+     "growth" over 28 that nothing caused; the dates are on the label, so the
+     borrowed days are stated, not hidden. Same rule as "previous period" in
+     Meta Ads Manager and GA4. */
   const y = end.getUTCFullYear() - (p === 'year' ? 1 : 0);
   const m = end.getUTCMonth() - (p === 'month' ? 1 : 0);
   const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();

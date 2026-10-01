@@ -47,6 +47,18 @@ export interface DecisionsProps {
  * does not understand why a cheap-looking recommendation is filed under "cannot
  * answer" will override it, and the refusal will have cost nothing.
  */
+/**
+ * ⭐ Cards shown per tier before "Show N more".
+ *
+ * A large account (60 campaigns, 1,200 ads) produces 150-340 proposals. All of
+ * them on one page is not a queue, it is a report nobody finishes. The engine
+ * already sorts each tier best-supported first, so the top six ARE the agenda;
+ * the rest stay one click away and the tier's count still says the full number.
+ * Six = three rows of the two-column grid, and the demo account's largest tier,
+ * so the demo renders exactly as before.
+ */
+export const PER_TIER = 6;
+
 export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps) {
   const channels = useChannels();
   /* Subscribed to both stores, so accepting or dismissing repaints immediately
@@ -60,6 +72,8 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
   const dismissed = useDismissals();
 
   const [showDismissed, setShowDismissed] = useState(false);
+  /* Tiers the reader opened past the first PER_TIER. */
+  const [expanded, setExpanded] = useState<Set<Tier>>(() => new Set());
   const all = decisions(range, channels);
   /* ⭐ Taken decisions LEAVE the proposal list.
 
@@ -237,6 +251,9 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
       {tiers.map((tier) => {
         const mine = live.filter((c) => c.tier === tier);
         if (mine.length === 0) return null;
+        const open = expanded.has(tier);
+        const shown = open ? mine : mine.slice(0, PER_TIER);
+        const rest = mine.length - PER_TIER;
         return (
           <section key={tier} className={`gr-dec__tier is-tier-${tier}`}>
             <header className="gr-dec__tier-head">
@@ -270,10 +287,25 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
             )}
 
             <div className="gr-dec__list">
-              {mine.map((c) => (
+              {shown.map((c) => (
                 <DecisionCard key={c.id} candidate={c} onDiscuss={onDiscuss} onOpen={onOpen} range={range} onShare={onShare} />
               ))}
             </div>
+            {rest > 0 && (
+              <div className="gr-dec__more">
+                <Button
+                  variant="ghost"
+                  aria-expanded={open}
+                  onClick={() => setExpanded((prev) => {
+                    const next = new Set(prev);
+                    if (open) next.delete(tier); else next.add(tier);
+                    return next;
+                  })}
+                >
+                  {open ? 'Show fewer' : `Show ${rest} more`}
+                </Button>
+              </div>
+            )}
           </section>
         );
       })}

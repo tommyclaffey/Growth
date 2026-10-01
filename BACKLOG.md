@@ -579,7 +579,7 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 
 ## ▶️ RESUME HERE *(Sept 30, late — Tommy moved to a new vault)*
 
-**State:** everything is merged and live (`main` @ `5ebf159`, Pages deploy green). No open branches. 685 tests, lint clean.
+**State:** everything is merged and live (`main` @ `5ebf159`, Pages deploy green). No open branches. 685 tests, lint clean. *(Oct 1: `decision-calls` open, 688 tests.)*
 
 **Shipped Sept 30:**
 - **Decisions are actions** — Pause / Cut / Raise / End / Approve / Turn back on / Put $X into…, never "find out why". Weekly moves drill to WHERE (ad/campaign); each card carries the number that says undo it and is graded on it. One action, one card. Tier 3 (Podcasts) stays a question; a tier-1 **2-week regional holdout** sits beside it.
@@ -588,10 +588,13 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 - **Sidebar:** one list (sections were tried and REVERTED — Tommy: cluttered), Lucide-grid icons, `--nav-text` labels, 30px mark, raised white chip for the active page on a tinted rail, counts (Decisions = waiting proposals in accent; Notifications = unread) via `useNavCounts`.
 - **Top bar:** filters | ⤓ Export · Team · ✳ **Ask AI** (primary). Theme toggle removed (still in Settings).
 
+**✅ Decided Oct 1 (Tommy: "go with your gut") — on branch `decision-calls`, not merged:**
+- **Decision queue:** 6 per tier (`PER_TIER` in `Decisions.tsx`), best-supported first, then "Show N more" / "Show fewer". The tier count still shows the full number. Demo's largest tier is 6, so the demo renders unchanged. Tests: `DecisionsLimit.test.tsx`.
+- **Month-end "last month":** keep equal lengths (borrow days, dates on the label). No code change; reasoning recorded in `compareShift`.
+- **`ThemeToggle/` deleted:** nothing imported it. Still in git history.
+
 **🟡 Waiting on Tommy:**
-- Delete the now-unused `src/components/ThemeToggle/`? (kept — deletion needs an explicit yes)
-- Decision-queue length on large accounts (150–340 candidates)
-- "Last month" for month-end windows (borrow days vs unequal lengths)
+- Merge `decision-calls`?
 - Vault: `03 Projects` was renamed `03 Work` — the CLAUDE.md folder maps still say `03 Projects`
 
 **How we work (learned this week):** visual changes go on a branch → before/after screenshots → live only on "merge". Ask before reorganising when he asks "how can this look better" — he wants polish, not restructure. Stage explicit paths; colours via `tokens/tokens.json` + `npm run tokens`; no raw font sizes (type-scale guard). Screenshot rig: `/tmp/visual-audit/shot.mjs` on CDP port **9444** (another session's Chrome holds 9333), preview `vite preview --outDir /tmp/visual-audit/dist-branch --port 5195`.
