@@ -577,7 +577,27 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 - Should the Channels screen carry more than a table — a CAC-by-channel chart, a per-channel card?
 - Does the Overview table need the same "Change in" control, or keep following the chart toggle?
 
-## 🔀 On branch `chart-periods` — awaiting Tommy's "merge" *(Sept 29–30)*
+## ▶️ RESUME HERE *(Sept 30, late — Tommy moved to a new vault)*
+
+**State:** everything is merged and live (`main` @ `5ebf159`, Pages deploy green). No open branches. 685 tests, lint clean.
+
+**Shipped Sept 30:**
+- **Decisions are actions** — Pause / Cut / Raise / End / Approve / Turn back on / Put $X into…, never "find out why". Weekly moves drill to WHERE (ad/campaign); each card carries the number that says undo it and is graded on it. One action, one card. Tier 3 (Podcasts) stays a question; a tier-1 **2-week regional holdout** sits beside it.
+- **The recommendation leads** on Decisions cards and in Ask (cards: where → WHAT → why → button; prose never restates them; new answers scroll to their top). Model prompt 2f: one-line lead, never soften an action.
+- **Table:** periods DOWN (newest first), metrics ACROSS, fills the card, Total pinned, change hugs its figure, colour only past the Needs-attention threshold, all six metrics on by default.
+- **Sidebar:** one list (sections were tried and REVERTED — Tommy: cluttered), Lucide-grid icons, `--nav-text` labels, 30px mark, raised white chip for the active page on a tinted rail, counts (Decisions = waiting proposals in accent; Notifications = unread) via `useNavCounts`.
+- **Top bar:** filters | ⤓ Export · Team · ✳ **Ask AI** (primary). Theme toggle removed (still in Settings).
+
+**🟡 Waiting on Tommy:**
+- Delete the now-unused `src/components/ThemeToggle/`? (kept — deletion needs an explicit yes)
+- Decision-queue length on large accounts (150–340 candidates)
+- "Last month" for month-end windows (borrow days vs unequal lengths)
+- Vault: `03 Projects` was renamed `03 Work` — the CLAUDE.md folder maps still say `03 Projects`
+
+**How we work (learned this week):** visual changes go on a branch → before/after screenshots → live only on "merge". Ask before reorganising when he asks "how can this look better" — he wants polish, not restructure. Stage explicit paths; colours via `tokens/tokens.json` + `npm run tokens`; no raw font sizes (type-scale guard). Screenshot rig: `/tmp/visual-audit/shot.mjs` on CDP port **9444** (another session's Chrome holds 9333), preview `vite preview --outDir /tmp/visual-audit/dist-branch --port 5195`.
+
+<details><summary>Sept 29–30 chart-periods notes (merged)</summary>
+
 
 Everything below is built, tested and screenshotted; nothing is live until merged.
 
@@ -592,6 +612,8 @@ Everything below is built, tested and screenshotted; nothing is live until merge
 - **Overnight Sept 30:** Ask answers trend questions (`trend.ts`, `get_by_period` tool); real-scale stress test (60 campaigns / 1,200 ads / 455 days: tiers reconcile across 1.2M cells) — fixed campaign-name matching (`campaignIn`), compact wire format (`wire.ts`, 51 MB → ~10 MB), ranking built once, engine not run twice, sort totals memoised; full-app dev-mode sweep clean — fixed start-of-data labels, 1-day week label, ISO dates in CSV.
 - 🟡 **Open, for Tommy:** decision-queue length on large accounts (150–340 candidates); "last month" for month-end windows borrows days from two months back (honest, labelled) vs comparing unequal lengths; engine results are not memoised per render (70–115 ms on a very large account; a cache would need eight inputs in its key).
 - ❌ **Tried and retired:** per-column comparison dropdowns (Tommy: sloppy) and Now/Then/Change inside the table (table follows the date picker only).
+
+</details>
 
 ## ✅ Done
 
