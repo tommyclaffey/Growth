@@ -60,8 +60,10 @@ describe('"Go to" lands on the decided item', () => {
   });
 
   it('an account decision opens Overview', () => {
-    setChannels([...CHANNEL_KEYS]);
-    const c = decisions(30, ALL_CHANNELS).find((x) => x.target.kind === 'account')!;
+    /* Pacing names a CAMPAIGN now when one is cheap enough to take the gap
+       (Sept 30). Podcasts alone has none running, so pacing stays account-wide. */
+    setChannels(['podcasts']);
+    const c = decisions(30, ['podcasts']).find((x) => x.target.kind === 'account')!;
     expect(c).toBeDefined();
     window.history.replaceState(null, '', '/?v=decisions');
     const { container } = render(<App />);

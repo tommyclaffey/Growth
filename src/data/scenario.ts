@@ -64,7 +64,7 @@ export function defaultExtra(range: Range, channels = activeChannels()): number 
 function holdFor(ch: ChannelName): string | undefined {
   const wow = delta(ch, 'CAC', LAST_WEEK);
   if (wow >= changeThreshold()) {
-    return `its CAC rose ${wow}% this week — find out why before adding money`;
+    return `its CAC rose ${wow}% this week — hold new money until a week comes back at its usual cost`;
   }
   return undefined;
 }

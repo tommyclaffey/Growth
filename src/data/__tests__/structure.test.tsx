@@ -103,7 +103,8 @@ describe('a campaign that moves on its own is flagged -- one that moves with its
     expect(ns.some((n) => n.id === 'cac:campaign:m2')).toBe(false);
     /* ...and it becomes a decision about THE CAMPAIGN, not the channel. */
     const d = decisions(30, ['meta']).find((c) => c.id === 'weekly:cac:campaign:m1')!;
-    expect(d.action).toBe('Find out why Spring Leads — Broad CAC rose 100% this week');
+    /* An ACTION on the campaign -- not "find out why" (Sept 30). */
+    expect(d.action).toMatch(/^(Pause .+|Cut the budget on “Spring Leads — Broad” 20% until CAC is back under \$[\d.]+)$/);
     expect(d.target).toEqual({ kind: 'campaign', id: 'm1', label: 'Spring Leads — Broad' });
     expect(d.scope).toEqual(['Meta', 'Spring Leads — Broad']);
   });

@@ -17,12 +17,16 @@ const b = (over: Partial<Baseline>): Baseline => ({
 });
 
 describe('a baseline is captured for decisions a number can grade', () => {
-  it('pacing, review and ad-level decisions get one; investigations do not', () => {
+  it('every decision that ends in an action is graded on the number it should move', () => {
     const byKind = (k: string) => all().find((c) => c.kind === k);
     expect(baselineFor(byKind('pacing')!, 30)?.key).toBe('pace:account');
     expect(baselineFor(byKind('stale-review')!, 30)?.better).toBe('state');
-    const beats = byKind('beats-its-channel');
-    if (beats) expect(baselineFor(beats, 30)).toBeUndefined();
+    /* Sept 30: these were investigations, graded by a person. Now they are
+       actions, and each names its number. */
+    expect(baselineFor(byKind('beats-its-channel')!, 30)?.key).toMatch(/^campaign-leads:/);
+    expect(baselineFor(byKind('paused-winner')!, 30)?.key).toMatch(/^ad-leads:/);
+    const pause = all().find((c) => c.id === 'weekly:cac:meta')!;
+    expect(baselineFor(pause, 30)).toMatchObject({ label: 'Campaign CAC', better: 'lower' });
   });
 
   it('the baseline IS the current value, and the check date is the decision’s own', () => {

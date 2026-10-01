@@ -47,6 +47,22 @@ export interface AssistantProps {
  * data functions, and every answer shows the figures it used, so the panel
  * can never state a number the product cannot show.
  */
+
+/**
+ * With cards on offer, the text splits around them: everything up to and
+ * including the line that INTRODUCES them ("…strongest first:", "2 things I
+ * can act on:") goes above; caveats and limits go below. Without cards, all
+ * of it goes above.
+ */
+function splitAt(a: { text: string; decisions?: unknown[] }): number {
+  const paras = a.text.split('\n\n');
+  if (!a.decisions || a.decisions.length === 0) return paras.length;
+  const intro = paras.findIndex((p) => p.trimEnd().endsWith(':'));
+  return intro >= 0 ? intro + 1 : 1;
+}
+const leadOf = (a: { text: string; decisions?: unknown[] }) => a.text.split('\n\n').slice(0, splitAt(a));
+const restOf = (a: { text: string; decisions?: unknown[] }) => a.text.split('\n\n').slice(splitAt(a));
+
 export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsumed }: AssistantProps) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState('');
@@ -209,13 +225,9 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                     also something I will not recommend") follows them. It sat
                     between "strongest evidence first:" and the thing it
                     introduced. */}
-                {(() => {
-                  const paras = t.answer.text.split('\n\n');
-                  const split = t.answer.decisions && t.answer.decisions.length > 0;
-                  return (split ? paras.slice(0, 1) : paras).map((para, i) => (
-                    <p key={i} className="gr-type-body gr-assist__para">{para}</p>
-                  ));
-                })()}
+                {leadOf(t.answer).map((para, i) => (
+                  <p key={i} className="gr-type-body gr-assist__para">{para}</p>
+                ))}
                 {/* ⭐ The conversation ends in a DECISION, not in a good
                     sentence. Agreeing with "pause this ad" and then having to go
                     find the Decisions screen to act is a seam in front of the one
@@ -288,7 +300,7 @@ export function Assistant({ open, onClose, range, seed, seedSubject, onSeedConsu
                     })}
 
                     {t.answer.decisions.length > 0
-                      && t.answer.text.split('\n\n').slice(1).map((para, i) => (
+                      && restOf(t.answer).map((para, i) => (
                         <p key={i} className="gr-type-body gr-assist__para">{para}</p>
                       ))}
 

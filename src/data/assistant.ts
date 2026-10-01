@@ -597,7 +597,11 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
       body.push(shown.length === 1 ? 'One thing I can act on:'
         : actionable.length > shown.length ? `${actionable.length} things I can act on — the ${shown.length} strongest:`
         : `${shown.length} things I can act on:`);
-      body.push(...shown.map((c) => speak(c)));
+      /* Sept 30: the ACTION only, one per line. Each used to be argued in full
+         here -- three paragraphs of because/expect in what is a status answer.
+         The argument and the button live one step on ("What would you do about
+         X?"), where the case is actually made. */
+      body.push(shown.map((c) => `• ${c.action}`).join('\n'));
     } else {
       body.push('Nothing here that this data supports acting on. Not a problem -- just not a finding.');
     }
@@ -637,7 +641,16 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
         followUps: ['What can this data not tell me?'],
       };
     }
-    const top = actionable.slice(0, 3);
+    /* ⭐ What CHANGED THIS WEEK first, then the rest by evidence. A weekly move
+       that ends in a raise is a forecast (tier 2), so in the engine's order it
+       sank below tier-1 housekeeping like "add a second ad group" and this
+       answer stopped opening on the news. The engine keeps its order; this
+       answer leads with the week -- and its header says so. */
+    const weekly = actionable.filter((c) => c.kind === 'weekly-move');
+    const top = [...weekly, ...actionable.filter((c) => c.kind !== 'weekly-move')].slice(0, 3);
+    const lead = weekly.length > 0
+      ? `${top.length === 1 ? 'One thing' : `${top.length} things`}: this week’s moves first, then the strongest evidence over ${periodOver}:`
+      : `${top.length === 1 ? 'One thing' : `${top.length} things`} over ${periodOver}, strongest evidence first:`;
     return {
       answered: true,
       /* ⚠️ Newline-delimited, not one paragraph. The first version returned all
@@ -645,7 +658,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
          defeats the point of a conversational surface. The panel splits on blank
          lines. */
       text: [
-        `${top.length === 1 ? 'One thing' : `${top.length} things`} over ${periodOver}, strongest evidence first:`,
+        lead,
         found.some((c) => c.tier === 3)
           ? `There is also something the numbers raise that I deliberately will not turn into a recommendation — ask me what this data cannot tell you.`
           : '',
@@ -658,6 +671,24 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
         'What should I cut?',
       ],
     };
+  }
+
+  /* "why <an action>" — the argument behind one recommendation.
+     ⚠️ BEFORE the cut branch: actions now start with "Pause", "Cut" and "End",
+     so "Why “Pause …”?" was answered as "what should I cut?". */
+  if (/^why\b/i.test(q)) {
+    const match = found.find((c) =>
+      q.toLowerCase().includes(c.action.toLowerCase().slice(0, 18)));
+    if (match) {
+      return {
+        answered: true,
+        text: [speak(match),
+          match.tier === 3 ? '' : `I am raising it ${tierWord(match)}.`,
+        ].filter(Boolean).join('\n\n'),
+        evidence: asEvidence(match),
+        followUps: ['What should I do next?', 'What can this data not tell me?'],
+      };
+    }
   }
 
   /* 🚨 "what should I cut" — the question most likely to produce a confident,
@@ -676,14 +707,17 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
      "At the ad level, yes. Pause…". With a metric named it is a RANKING
      question, and the ranking branch below owns it. */
   if (/\bcut\b|\bpause\b|\bstop\b|\bkill\b/i.test(q) || (/worst|underperform/i.test(q) && !metric)) {
-    const pauses = found.filter((c) => c.kind === 'spend-return-mismatch');
+    /* Every action that takes money OUT -- a pause, a cut, an end -- at the
+       ad or campaign level. Never a whole channel on cost alone. */
+    const pauses = found.filter((c) => c.tier !== 3 && /^(Pause|Cut|End) /.test(c.action)
+      && c.target.kind !== 'channel');
     const gap = found.find((c) => c.tier === 3);
 
     if (pauses.length > 0) {
       return {
         answered: true,
         text: [
-          `At the ad level, yes:`,
+          `Yes, at the ad and campaign level:`,
           gap ? `At the CHANNEL level I would not answer it. ${gap.because}` : '',
         ].filter(Boolean).join('\n\n'),
         evidence: asEvidence(pauses[0]),
@@ -737,22 +771,6 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
       evidence: asEvidence(c),
       followUps: ['What should I do next?', 'What should I cut?'],
     };
-  }
-
-  /* "why <an action>" — the argument behind one recommendation. */
-  if (/^why\b/i.test(q)) {
-    const match = found.find((c) =>
-      q.toLowerCase().includes(c.action.toLowerCase().slice(0, 18)));
-    if (match) {
-      return {
-        answered: true,
-        text: [speak(match),
-          match.tier === 3 ? '' : `I am raising it ${tierWord(match)}.`,
-        ].filter(Boolean).join('\n\n'),
-        evidence: asEvidence(match),
-        followUps: ['What should I do next?', 'What can this data not tell me?'],
-      };
-    }
   }
 
   /* "which channel has the best/worst X" — a ranking question. */
@@ -977,7 +995,7 @@ function whatIf(q: string, range: Range, subject?: Target): Answer | undefined {
     };
   }
 
-  const scaling = /more (budget|money|spend)|extra (budget|money|spend)|where should (more|extra|the next|another)|\bscale\b|\bgrow\b|get more of|double down|invest more|\badd\w*\s+\$|what if i (add|spend|put)/i;
+  const scaling = /more (budget|money|spend)|extra (budget|money|spend)|where should (more|extra|the next|another)|\bscale\b|\bgrow\b|get more (out )?of|double down|invest more|\badd\w*\s+\$|what if i (add|spend|put)/i;
   if (!scaling.test(q)) return undefined;
 
   const ch = named[0] ?? (subject?.kind === 'channel' ? (subject.id as ChannelName) : undefined);
@@ -999,7 +1017,7 @@ function whatIf(q: string, range: Range, subject?: Target): Answer | undefined {
           `${i + 1}. ${o.name} — ${cacOf(o.cac)} a lead. +25% budget (about ${money(o.spend * 0.25)}) ≈ ${leads(o.plusLeads)} more leads.`),
         ...(w.hold ? [`⚠️ Hold first: ${w.hold}.`] : []),
         ...(!w.hold && jump >= 15
-          ? [`Its leads jumped ${jump}% this week. Find out what drove that before scaling, so you grow the right thing.`]
+          ? [`Its leads jumped ${jump}% this week, so start with ${w.options[0].name}: raise it, and pull back if a week comes in above ${cacOf(w.options[0].cac * 1.15)} a lead.`]
           : []),
         `Assuming ${ASSUME_CAC_HOLDS}`,
       ].join('\n'),
@@ -1018,7 +1036,7 @@ function whatIf(q: string, range: Range, subject?: Target): Answer | undefined {
   const go = s.options.filter((o) => !o.hold);
   const held = s.options.filter((o) => o.hold);
   if (go.length === 0) {
-    return { answered: true, text: 'Every channel with spend has a cost spike this week. Find out why before adding money anywhere.' };
+    return { answered: true, text: 'Hold the extra budget this week: every channel with spend has a cost spike. Add it once a channel has a full week back at its usual cost per lead.' };
   }
   return {
     answered: true,

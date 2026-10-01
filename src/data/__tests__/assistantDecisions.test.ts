@@ -71,7 +71,7 @@ describe('🚨 "what should I cut" no longer takes the bait', () => {
        recommendation, and a caveat at the end does not undo a headline. */
     const a = ask('What should I cut?', 30);
     expect(a.answered).toBe(true);
-    expect(a.text).toMatch(/at the ad level/i);
+    expect(a.text).toMatch(/at the ad and campaign level/i);
     expect(a.text).toMatch(/at the CHANNEL level I would not answer it/i);
     /* It must not name the expensive channel as the thing to cut. */
     expect(a.text).not.toMatch(/cut (podcasts|paid search)/i);
@@ -109,7 +109,11 @@ describe('the limitation question is a first-class answer', () => {
     const a = ask('What should I do next?', 30);
     expect(a.decisions!.length).toBeGreaterThan(1);
     for (const d of a.decisions!) expect(a.text).not.toContain(d.action);
-    expect(a.text.split('\n\n')[0]).toMatch(/strongest evidence first:$/);
+    expect(a.text.split('\n\n')[0]).toMatch(/this week’s moves first, then the strongest evidence over the last 30 days:$/);
+    /* ...and the cards are in the order the header promises. */
+    const weekly = a.decisions!.map((d) => decisions(30).find((c) => c.id === d.id)!.kind === 'weekly-move');
+    expect(weekly.indexOf(false) === -1 || !weekly.slice(weekly.indexOf(false)).includes(true)).toBe(true);
+    expect(weekly[0]).toBe(true);
   });
 });
 
@@ -139,7 +143,7 @@ describe('user-initiated: asking about a specific thing', () => {
     /* Asking about Paid Search should surface an ad-level pause running inside
        it, not only findings whose target id equals "paidSearch". */
     const inside = decisionsFor({ kind: 'channel', id: 'paidSearch' }, 30);
-    expect(inside.some((c) => c.target.kind === 'ad')).toBe(true);
+    expect(inside.some((c) => c.target.kind === 'campaign')).toBe(true);
   });
 
   it('prefers the campaign when a campaign is named', () => {

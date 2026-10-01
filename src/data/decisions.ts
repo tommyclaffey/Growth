@@ -3,12 +3,12 @@ import { CAMPAIGNS } from './campaigns';
 import { campaignRows, campaignTotals } from './campaignSeries';
 import { stageOf } from './campaignStatus';
 import { rankedAds, type RankedAd } from './adRanking';
-import { creativesFor } from './creative';
+import { creativeById, creativeRows, creativesFor } from './creative';
 import { CHANNEL_DEPTH } from './channelDepth';
 import { formatDerived } from './channelMetrics';
 import { budgetForRange } from './profile';
 import {
-  CHANNEL_LABEL, LAST_WEEK, activeChannels, formatMetric, rowsFor, totals, type Range,
+  CHANNEL_LABEL, LAST_WEEK, activeChannels, formatMetric, rowsFor, totals, type DayRow, type Range,
 } from './metrics';
 import { blendedTotal } from './blended';
 import { notifications } from './notifications';
@@ -149,6 +149,12 @@ export interface Candidate {
   atStake?: number;
   /** Within-tier ordering: how strong the finding is, 0–1. Not money. */
   strength: number;
+  /**
+   * The ONE number this decision should move, when the detector knows it
+   * better than its kind does -- a weekly move can end in a pause, a cut or a
+   * raise, and each is graded on a different number. See grading.ts.
+   */
+  measure?: { key: string; label: string; better: 'higher' | 'lower' | 'closer-to-one' | 'state' };
 }
 
 /* ---------------------------------------------------------------- helpers -- */
@@ -169,6 +175,21 @@ const poss = (name: string) => (name.endsWith('s') ? `${name}’` : `${name}’s
 function pct(n: number): string {
   return `${Math.round(n * 100)}%`;
 }
+
+/* One week's spend and leads, and the cost per lead between them. */
+interface Week { spend: number; leads: number }
+const weekOf = (rows: DayRow[]): Week =>
+  rows.reduce((a, r) => ({ spend: a.spend + r.spend, leads: a.leads + r.leads }), { spend: 0, leads: 0 });
+/** Infinity when nothing was bought -- the worst cost there is, never a zero. */
+const cacOf = (w: Week) => (w.leads > 0 ? w.spend / w.leads : Infinity);
+const money = (n: number) => formatMetric('Spend', n);
+const cacText = (n: number) => formatDerived('CAC', n);
+const count = (n: number) => Math.round(n).toLocaleString();
+
+/** "Meta’s budget" / "the budget on “Spring Leads”" -- a possessive on a
+    campaign name full of dashes reads badly, so campaigns get quoted. */
+const budgetOf = (name: string, campaign: boolean) =>
+  (campaign ? `the budget on \u201c${name}\u201d` : `${poss(name)} budget`);
 
 /**
  * How an ad is named in an action.
@@ -336,10 +357,10 @@ function scaleWinner(range: Range, channels: ChannelName[], ranked?: RankedAd[])
  * someone rotated it out on a hunch, and nobody goes back to check what it was
  * doing when it stopped. **The engine noticing is the entire value.**
  *
- * TIER 1, because the claim is purely historical arithmetic: *while it ran, this
- * is what it returned.* It deliberately does NOT say "turn it back on" — that
- * would be a forecast, and a forecast belongs in tier 2. It says review, and it
- * says why.
+ * ⭐ Sept 30: it says TURN IT BACK ON, as a tier-2 projection. It used to say
+ * "review why it is paused" -- tier 1 because it claimed nothing, and useless
+ * for the same reason. That it would do again what it did is an assumption,
+ * so it is stated.
  *
  * ⚠️ And it states the limitation on the card. A paused ad's figures in this
  * dataset still cover the whole window, because the data layer has no per-ad
@@ -374,9 +395,9 @@ function pausedWinner(range: Range, channels: ChannelName[], ranked?: RankedAd[]
       const cac = a.totals.spend / a.totals.leads;
       out.push({
         id: `paused-winner:${a.creative.id}`,
-        tier: 1,
+        tier: 2,
         kind: 'paused-winner',
-        action: `Review why ${adName(a.creative.headline, a.creative.adSetName)} is paused`,
+        action: `Turn ${adName(a.creative.headline, a.creative.adSetName)} back on`,
         because: `When it ran, it brought in ${pct(lShare)} of ${poss(c.name)} leads on `
           + `${pct(sShare)} of its spend. It paid ${formatDerived('CAC', cac)} a lead; the `
           + `campaign pays ${formatDerived('CAC', spend / leads)}. The campaign is still running.`,
@@ -389,16 +410,16 @@ function pausedWinner(range: Range, channels: ChannelName[], ranked?: RankedAd[]
           { label: 'Caveat', value: 'Figures cover the full period, not its live span' },
         ],
         expectation: {
-          /* No assumption, so it stays tier 1 — which is only possible because
-             the action is "review", not "scale". Turning it back on would be a
-             forecast about future performance and belongs in tier 2. */
-          outcome: 'It goes back on, or someone writes down why it stopped. '
-            + 'Neither has happened yet.',
+          outcome: `About ${count(a.totals.leads)} leads over ${range} days at ${cacText(cac)} each `
+            + `— what it brought in before.`,
+          assuming: `it does what it did before it was paused. If it was paused for a reason `
+            + `this data cannot see — an offer that ended, a brand rule — leave it off`,
           checkOn: checkDate(7),
         },
         target: { kind: 'ad', id: a.creative.id, label: a.creative.headline },
         scope: [CHANNEL_LABEL[a.channel], c.name, a.creative.adSetName],
         channel: a.channel,
+        measure: { key: `ad-leads:${a.creative.id}`, label: 'Leads on this ad', better: 'higher' },
         strength: Math.min(1, (ratio - 1.3) / 1.2),
       });
     }
@@ -490,31 +511,69 @@ function reallocateWithinChannel(range: Range, channels: ChannelName[]): Candida
  * no inference at all. Review means a person has to look at it, and a Review that
  * nobody returns to is a decision that silently never got made.
  */
-function staleReview(channels: ChannelName[]): Candidate[] {
+function staleReview(range: Range, channels: ChannelName[]): Candidate[] {
   return CAMPAIGNS
     .filter((c) => channels.includes(c.channel) && stageOf(c.id) === 'Review')
-    .map((c) => ({
-      id: `review:${c.id}`,
-      tier: 1 as Tier,
-      kind: 'stale-review' as DecisionKind,
-      action: `Decide on “${c.name}” — it is in Review`,
-      because: `It is waiting on a person. Nothing changes until someone approves or ends it.`,
-      evidence: [
-        { label: 'Stage', value: 'Review' },
-        { label: 'Channel', value: CHANNEL_LABEL[c.channel] },
-        { label: 'Objective', value: c.objective },
-      ],
-      expectation: {
-        outcome: 'It moves to Active or Ended. Either one is progress.',
-        checkOn: checkDate(7),
-      },
-      target: { kind: 'campaign' as const, id: c.id, label: c.name },
-      scope: [CHANNEL_LABEL[c.channel], c.name],
-      channel: c.channel,
-      /* No atStake. Attaching a dollar figure would rank a decision that costs
-         nothing to make alongside ones that move money. */
-      strength: 0.5,
-    }));
+    .map((c): Candidate => {
+      const base = {
+        id: `review:${c.id}`,
+        tier: 1 as Tier,
+        kind: 'stale-review' as DecisionKind,
+        target: { kind: 'campaign' as const, id: c.id, label: c.name },
+        scope: [CHANNEL_LABEL[c.channel], c.name],
+        channel: c.channel,
+        /* No atStake. Attaching a dollar figure would rank a decision that costs
+           nothing to make alongside ones that move money. */
+        strength: 0.5,
+      };
+      const t = campaignTotals(c.id, range);
+      const ch = totals(c.channel, range);
+      const chCac = ch.leads > 0 ? ch.spend / ch.leads : 0;
+      const label = CHANNEL_LABEL[c.channel];
+
+      /* ⭐ Sept 30: the engine says WHICH way, from its own cost against its
+         channel's. "Decide on it" left the decision with the reader. Only a
+         campaign with no figures to judge still asks. */
+      if (t.leads >= 10 && chCac > 0) {
+        const approve = t.cac <= chCac * 1.1;
+        return {
+          ...base,
+          action: approve
+            ? `Approve \u201c${c.name}\u201d — it pays ${cacText(t.cac)} a lead`
+            : `End \u201c${c.name}\u201d — it pays ${cacText(t.cac)} a lead`,
+          because: approve
+            ? `That is in line with ${poss(label)} ${cacText(chCac)} average. It is waiting on a person to go live.`
+            : `${label} averages ${cacText(chCac)}. It has spent ${money(t.spend)} on `
+              + `${count(t.leads)} leads while waiting on a person.`,
+          evidence: [
+            { label: 'Stage', value: 'Review' },
+            { label: 'Its CAC', value: cacText(t.cac) },
+            { label: `${label} CAC`, value: cacText(chCac) },
+            { label: 'Spend', value: money(t.spend) },
+          ],
+          expectation: {
+            outcome: approve
+              ? 'It runs at a cost in line with the rest of the channel.'
+              : `Frees ${money(t.spend)} over the next ${range} days.`,
+            checkOn: checkDate(7),
+          },
+        };
+      }
+      return {
+        ...base,
+        action: `Decide on \u201c${c.name}\u201d — it is in Review`,
+        because: `It is waiting on a person, and it has too few leads to call either way.`,
+        evidence: [
+          { label: 'Stage', value: 'Review' },
+          { label: 'Channel', value: label },
+          { label: 'Objective', value: c.objective },
+        ],
+        expectation: {
+          outcome: 'It moves to Active or Ended. Either one is progress.',
+          checkOn: checkDate(7),
+        },
+      };
+    });
 }
 
 /**
@@ -667,7 +726,9 @@ function noVariant(range: Range, channels: ChannelName[]): Candidate[] {
  * reallocation tier 2 rather than tier 3. Comparing it to the ACCOUNT would be the
  * podcast trap in miniature.
  *
- * The action is to find out WHY, not to scale it. Scaling is a forecast.
+ * ⭐ Sept 30: the action is to GIVE IT MORE, as a stated projection. It was "find
+ * out why it beats the channel" -- homework, not a decision. Scaling is a
+ * forecast, so this is tier 2 and says the number at which to pull back.
  */
 function beatsItsChannel(range: Range, channels: ChannelName[]): Candidate[] {
   const out: Candidate[] = [];
@@ -699,14 +760,13 @@ function beatsItsChannel(range: Range, channels: ChannelName[]): Candidate[] {
       const better = (chCac - t.cac) / chCac;
       if (better < 0.1) continue;
 
+      const raise = (t.spend / range) * 7 * 0.2;
       out.push({
         id: `beats-channel:${c.id}`,
-        tier: 1,
+        tier: 2,
         kind: 'beats-its-channel',
-        action: `Find out why \u201c${c.name}\u201d beats ${CHANNEL_LABEL[channel]}`,
-        /* Names the channel rather than saying "the channel". The card can be
-           scanned without reading the action above it, and "the channel's
-           $85.98" leaves the reader to work out which channel that was. */
+        action: `Raise ${budgetOf(c.name, true)} 20% (+${money(raise)} a week)`,
+        /* Names the channel rather than saying "the channel". */
         because: `It pays ${formatDerived('CAC', t.cac)} a lead. The ${CHANNEL_LABEL[channel]} `
           + `average is ${formatDerived('CAC', chCac)}, so it is ${Math.round(better * 100)}% `
           + `better, on ${formatMetric('Spend', t.spend)}.`,
@@ -717,13 +777,16 @@ function beatsItsChannel(range: Range, channels: ChannelName[]): Candidate[] {
           { label: 'Spend', value: formatMetric('Spend', t.spend) },
         ],
         expectation: {
-          outcome: `Find out what it does differently (audience, creative, match type) `
-            + `before copying it anywhere else.`,
+          outcome: `About ${count(raise / t.cac)} more leads a week.`,
+          assuming: `it holds about ${cacText(t.cac)} a lead on 20% more budget. If a week comes `
+            + `in above the ${CHANNEL_LABEL[channel]} average of ${cacText(chCac)}, put it back`,
           checkOn: checkDate(range),
         },
         target: { kind: 'campaign', id: c.id, label: c.name },
         scope: [CHANNEL_LABEL[channel], c.name],
         channel,
+        atStake: raise,
+        measure: { key: `campaign-leads:${c.id}`, label: 'Campaign leads', better: 'higher' },
         strength: Math.min(1, better / 0.4),
       });
     }
@@ -739,14 +802,10 @@ function beatsItsChannel(range: Range, channels: ChannelName[]): Candidate[] {
  * do is tell you to spend more because you are under — whether the remaining
  * budget is worth spending is a different question entirely.
  */
-function pacing(range: Range, channels: ChannelName[]): Candidate[] {
-  /* 🐛 Scoped to the channels passed in, which it was NOT.
-
-     It read totals('all'), which resolves through activeChannels() rather than
-     the list handed to it -- so an account with every channel switched off still
-     produced a pacing finding, and a caller asking about one channel got the
-     whole account's pace back under that channel's name. Found by the
-     empty-account test, which is what that test is for. */
+function pacing(range: Range, channels: ChannelName[], raised: Set<string> = new Set()): Candidate[] {
+  /* 🐛 Scoped to the channels passed in, which it was NOT -- it read
+     totals('all'), so an account with every channel off still produced a
+     pacing finding. Found by the empty-account test. */
   if (channels.length === 0) return [];
   const planned = budgetForRange(range);
   if (planned <= 0) return [];
@@ -757,34 +816,104 @@ function pacing(range: Range, channels: ChannelName[]): Candidate[] {
   if (ratio > 0.85 && ratio < 1.15) return [];
 
   const over = ratio >= 1.15;
-  return [{
+  const off = Math.round(Math.abs(ratio - 1) * 100);
+  const evidence = [
+    { label: 'Spent', value: money(spent) },
+    { label: 'Planned', value: money(planned) },
+    { label: 'Pace', value: `${Math.round(ratio * 100)}%` },
+  ];
+  const base = {
     id: `pacing:${range}:${over ? 'over' : 'under'}`,
-    tier: 1,
-    kind: 'pacing',
-    action: over
-      ? `Review pacing — spend is ${Math.round((ratio - 1) * 100)}% above plan`
-      : `Review pacing — spend is ${Math.round((1 - ratio) * 100)}% below plan`,
-    because: `${formatMetric('Spend', spent)} spent of ${formatMetric('Spend', planned)} planned `
-      + `for ${range} days.`,
-    evidence: [
-      { label: 'Spent', value: formatMetric('Spend', spent) },
-      { label: 'Planned', value: formatMetric('Spend', planned) },
-      { label: 'Pace', value: `${Math.round(ratio * 100)}%` },
-    ],
+    kind: 'pacing' as DecisionKind,
+    strength: Math.min(1, Math.abs(ratio - 1) / 0.5),
+    measure: { key: 'pace:account', label: 'Pace to plan', better: 'closer-to-one' as const },
+  };
+  const checkOn = checkDate(7);
+  const running = CAMPAIGNS
+    .filter((c) => channels.includes(c.channel) && stageOf(c.id) === 'Active')
+    .map((c) => ({ c, t: campaignTotals(c.id, range) }))
+    .filter((x) => x.t.leads >= 20 && x.t.spend > 0);
+  const totalLeads = channels.reduce((a, ch) => a + totals(ch, range).leads, 0);
+  const blended = totalLeads > 0 ? spent / totalLeads : Infinity;
+
+  /* ⭐ Sept 30: pacing says WHAT TO DO about the gap. "Review pacing" was a
+     fact with a verb in front of it. */
+  if (over) {
+    /* Over plan: take the excess out of the dearest running campaign. Cutting
+       needs no forecast, so this stays tier 1. */
+    const dearest = [...running].sort((a, b) => b.t.cac - a.t.cac)[0];
+    if (dearest) {
+      const cut = Math.min(spent - planned, dearest.t.spend * 0.5);
+      return [{
+        ...base, tier: 1,
+        action: `Cut ${money(cut)} from “${dearest.c.name}” — spend is ${off}% over plan`,
+        because: `${money(spent)} spent of ${money(planned)} planned for ${range} days. `
+          + `“${dearest.c.name}” pays ${cacText(dearest.t.cac)} a lead, the most of any running campaign.`,
+        evidence,
+        expectation: { outcome: `Brings spend to ${pct((spent - cut) / planned)} of plan.`, checkOn },
+        target: { kind: 'campaign', id: dearest.c.id, label: dearest.c.name },
+        scope: [CHANNEL_LABEL[dearest.c.channel], dearest.c.name],
+        channel: dearest.c.channel,
+        atStake: cut,
+      }];
+    }
+  } else {
+    /* Under plan: put the gap where leads are cheapest -- a running campaign
+       already cheaper than the account, and not one another card is raising.
+       Adding money is a forecast, so this is tier 2 and says so. */
+    const cheapest = [...running]
+      .filter((x) => x.t.cac <= blended && !raised.has(x.c.id))
+      .sort((a, b) => a.t.cac - b.t.cac)[0];
+    const gap = planned - spent;
+    if (cheapest) {
+      const add = Math.min(gap, cheapest.t.spend * 0.25);
+      return [{
+        ...base, tier: 2,
+        action: `Put ${money(add)} of the unspent budget into “${cheapest.c.name}”`,
+        because: `Spend is ${off}% under plan: ${money(spent)} of ${money(planned)} for ${range} days. `
+          + `“${cheapest.c.name}” pays ${cacText(cheapest.t.cac)} a lead; the account averages ${cacText(blended)}.`,
+        evidence,
+        expectation: {
+          outcome: `About ${count(add / cheapest.t.cac)} more leads, closing ${pct(add / gap)} of the gap.`,
+          assuming: `it holds about ${cacText(cheapest.t.cac)} a lead on `
+            + `${pct(add / cheapest.t.spend)} more budget`,
+          checkOn,
+        },
+        target: { kind: 'campaign', id: cheapest.c.id, label: cheapest.c.name },
+        scope: [CHANNEL_LABEL[cheapest.c.channel], cheapest.c.name],
+        channel: cheapest.c.channel,
+        atStake: add,
+      }];
+    }
+    if (running.length > 0) {
+      /* Nothing cheap enough to push: the plan is what is wrong. */
+      return [{
+        ...base, tier: 1,
+        action: `Lower the ${range}-day plan to ${money(spent)}`,
+        because: `Spend is ${off}% under plan, and no running campaign is cheaper than the account’s `
+          + `${cacText(blended)} average without already having more budget proposed.`,
+        evidence,
+        expectation: { outcome: 'The plan matches what the account spends, so pacing means something again.', checkOn },
+        target: { kind: 'account', id: 'account', label: 'All channels' },
+        scope: ['All channels'],
+      }];
+    }
+  }
+
+  /* No running campaign with figures: say the gap, and nothing more. */
+  return [{
+    ...base, tier: 1,
+    action: `Bring spend back to plan — it is ${off}% ${over ? 'over' : 'under'}`,
+    because: `${money(spent)} spent of ${money(planned)} planned for ${range} days.`,
+    evidence,
     expectation: {
-      outcome: over
-        ? 'Bring spending back on plan, or change the plan on purpose.'
+      outcome: over ? 'Spending back on plan, or the plan changed on purpose.'
         : 'Either the plan is wrong or the budget isn’t being spent. Both are worth knowing.',
-      checkOn: checkDate(7),
+      checkOn,
     },
-    /* The account is a scope, not the absence of one. Saying so beats an empty
-       breadcrumb, which reads as missing data rather than as "everything".
-       ⚠️ "All channels", the words the switcher, chat and export already use.
-       It said "This account", which Tommy read as meaning nothing -- one more
-       name for one thing. */
+    /* "All channels", the words the switcher, chat and export already use. */
     target: { kind: 'account', id: 'account', label: 'All channels' },
     scope: ['All channels'],
-    strength: Math.min(1, Math.abs(ratio - 1) / 0.5),
   }];
 }
 
@@ -889,83 +1018,213 @@ export function validate(c: Candidate): string | null {
  * 🐛 The engine looked only at the selected window's shape -- pacing, ad
  * shares, missing variants -- and had no rule for "something just changed".
  * So Meta's cost per lead jumping 42% in a week sat on Notifications and the
- * Overview strip, and "what should I do next?" never mentioned it. A thought
- * partner that misses the thing the whole team is looking at is not one.
+ * Overview strip, and "what should I do next?" never mentioned it.
  *
  * Reads the SAME rules as the notification feed (`notifications()`), so the
- * two can never disagree about what counts as news -- a second threshold here
- * is how the strip and the agenda would drift.
+ * two can never disagree about what counts as news.
  *
- * Tier 1, because the move itself is arithmetic. The ACTION is to find out
- * why, never to react to it: the data knows that CAC rose, not what caused it,
- * and "cut Meta" off one week is exactly the overreaction the tiers exist to
- * stop. A cost move asks what broke; a leads move asks what worked, so it can
- * be repeated.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * 🚨 Sept 30 -- "FIND OUT WHY" WAS NOT A DECISION. Tommy: *"It's more of saying,
+ * 'Hey, you go figure it out.' Based on the machine's decision-making, what do
+ * you think they should do? That's what makes this product worth it."*
+ *
+ * He is right, and the rule it hid behind was misapplied. The data cannot say
+ * WHY a number moved -- that still holds. But it can say WHERE (which ad, which
+ * campaign carried the move: arithmetic, not inference) and it can say what a
+ * careful buyer does next while the cause is unknown. Neither needs a cause:
+ *
+ *   cost rose, one ad stands out    → PAUSE that ad              (tier 1: frees spend)
+ *   cost rose, nothing stands out   → CUT 20% until it recovers  (tier 1: limits exposure)
+ *   leads fell because spend fell   → PUT the spend back         (tier 2: assumes last week's cost)
+ *   leads rose / cost fell          → RAISE the campaign that led it 20%, with a
+ *                                     stated point at which to pull back (tier 2)
+ *
+ * Every one names the thing, the amount, and the number that says undo it.
  */
+
+/** The live ads under a channel or a campaign, with this week and last. */
+function liveAds(target: Target, channel: ChannelName) {
+  const campaigns = target.kind === 'campaign'
+    ? CAMPAIGNS.filter((c) => c.id === target.id)
+    : CAMPAIGNS.filter((c) => c.channel === channel && stageOf(c.id) === 'Active');
+  return campaigns.flatMap((c) => creativesFor(c.id)
+    .filter((a) => a.stage === 'Active')
+    .map((a) => ({
+      c, a,
+      now: weekOf(creativeRows(a.id, LAST_WEEK)),
+      prev: weekOf(creativeRows(a.id, LAST_WEEK, 1)),
+    })));
+}
 
 function weeklyMove(channels: ChannelName[]): Candidate[] {
   return notifications(channels)
     .filter((n) => n.group === 'This week' && n.channel && n.change !== undefined && n.metric)
-    .map((n) => {
+    .map((n): Candidate | null => {
       const ch = n.channel!;
-      /* A campaign's own move is about the campaign: its figures, its name,
-         and a scope that says which channel it sits in. */
       const isCampaign = n.target.kind === 'campaign';
       const name = isCampaign ? n.target.label : CHANNEL_LABEL[ch];
-      const now = isCampaign ? campaignTotals(n.target.id, LAST_WEEK) : totals(ch, LAST_WEEK);
-      const cur = isCampaign ? campaignRows(n.target.id, LAST_WEEK) : rowsFor(ch, LAST_WEEK);
-      const prev = isCampaign ? campaignRows(n.target.id, LAST_WEEK, 1) : rowsFor(ch, LAST_WEEK, 1);
-      const sum = (rs: typeof cur, f: 'spend' | 'leads') => rs.reduce((a, r) => a + r[f], 0);
-      const prevCac = sum(prev, 'leads') > 0 ? sum(prev, 'spend') / sum(prev, 'leads') : 0;
+      const target: Target = isCampaign ? n.target : { kind: 'channel', id: ch, label: name };
+      const scope = isCampaign ? [CHANNEL_LABEL[ch], name] : [name];
+      const now = weekOf(isCampaign ? campaignRows(n.target.id, LAST_WEEK) : rowsFor(ch, LAST_WEEK));
+      const prev = weekOf(isCampaign ? campaignRows(n.target.id, LAST_WEEK, 1) : rowsFor(ch, LAST_WEEK, 1));
+      const nowCac = cacOf(now);
+      const prevCac = cacOf(prev);
       const bad = n.tone === 'bad';
-      const pct = Math.abs(n.change!);
-      const up = n.change! > 0;
-      const prevLeads = sum(prev, 'leads');
+      const pctMoved = Math.abs(n.change!);
       const isCac = n.metric === 'CAC';
-      /* The sentence names the metric that moved, with both weeks' figures. */
-      const action = isCac
-        ? (bad ? `Find out why ${name} CAC ${up ? 'rose' : 'fell'} ${pct}% this week`
-               : `Find out what cut ${poss(name)} CAC ${pct}% this week — and repeat it`)
-        : (bad ? `Find out why ${name} leads fell ${pct}% this week`
-               : `Find out what drove ${poss(name)} ${pct}% jump in leads — and repeat it`);
-      const because = isCac
-        ? `${name} paid ${formatDerived('CAC', now.cac)} a lead this week, against `
-          + `${formatDerived('CAC', prevCac)} the week before. The move is in the numbers; the cause is not.`
-        : `${name} brought in ${Math.round(now.leads).toLocaleString()} leads this week, against `
-          + `${Math.round(prevLeads).toLocaleString()} the week before. The move is in the numbers; the cause is not.`;
-      return {
+
+      /* The move itself, both weeks -- the first half of every "because". */
+      const moved = isCac
+        ? `${name}’s cost per lead went from ${cacText(prevCac)} to ${cacText(nowCac)} this week.`
+        : `${name} brought in ${count(now.leads)} leads this week, against ${count(prev.leads)} the week before.`;
+
+      /* The figures of the metric that MOVED come first. */
+      const evidence: Evidence[] = isCac ? [
+        { label: 'This week CAC', value: cacText(nowCac) },
+        { label: 'Last week CAC', value: cacText(prevCac) },
+        { label: 'Leads this week', value: count(now.leads) },
+        { label: 'Change', value: `${n.change! > 0 ? '+' : ''}${n.change}% CAC` },
+      ] : [
+        { label: 'Leads this week', value: count(now.leads) },
+        { label: 'Leads last week', value: count(prev.leads) },
+        { label: 'CAC this week', value: cacText(nowCac) },
+        { label: 'Change', value: `${n.change! > 0 ? '+' : ''}${n.change}% leads` },
+      ];
+      const base = {
         id: `weekly:${n.id}`,
-        tier: 1 as Tier,
         kind: 'weekly-move' as DecisionKind,
-        action,
-        because,
-        /* The figures of the metric that MOVED come first -- a leads story
-           opened on two CAC figures, and the reader had to hunt for the jump. */
-        evidence: isCac ? [
-          { label: 'This week CAC', value: formatDerived('CAC', now.cac) },
-          { label: 'Last week CAC', value: formatDerived('CAC', prevCac) },
-          { label: 'Leads this week', value: Math.round(now.leads).toLocaleString() },
-          { label: 'Change', value: `${n.change! > 0 ? '+' : ''}${n.change}% CAC` },
-        ] : [
-          { label: 'Leads this week', value: Math.round(now.leads).toLocaleString() },
-          { label: 'Leads last week', value: Math.round(prevLeads).toLocaleString() },
-          { label: 'CAC this week', value: formatDerived('CAC', now.cac) },
-          { label: 'Change', value: `${n.change! > 0 ? '+' : ''}${n.change}% leads` },
-        ],
-        expectation: {
-          outcome: bad
-            ? 'You know whether it is the audience, the creative or the auction before the next budget change.'
-            : 'You know what changed, so it can be done again on purpose.',
-          checkOn: checkDate(LAST_WEEK),
-        },
-        target: isCampaign ? n.target : { kind: 'channel' as const, id: ch, label: name },
-        scope: isCampaign ? [CHANNEL_LABEL[ch], name] : [name],
         channel: ch,
         atStake: now.spend,
         /* Ahead of the slow structural findings: this is what changed. */
-        strength: Math.min(1, 0.7 + pct / 100),
+        strength: Math.min(1, 0.7 + pctMoved / 100),
       };
-    });
+      const checkOn = checkDate(LAST_WEEK);
+      const leadsMeasure = isCampaign
+        ? { key: `campaign-leads:${n.target.id}`, label: 'Campaign leads', better: 'higher' as const }
+        : { key: `channel-leads:${ch}`, label: 'Channel leads', better: 'higher' as const };
+
+      if (bad) {
+        /* ── Fewer leads because LESS WENT OUT. Spend fell and the price did
+           not rise: the fix is the budget, not the ads. */
+        const spendFell = prev.spend > 0 && now.spend < prev.spend * 0.9;
+        if (!isCac && spendFell && Number.isFinite(prevCac) && nowCac <= prevCac * 1.15) {
+          const back = (prev.spend - now.spend) / prevCac;
+          return {
+            ...base, tier: 2,
+            action: `Put ${budgetOf(name, isCampaign)} back to ${money(prev.spend)} a week`,
+            because: `${moved} Spend fell with them, from ${money(prev.spend)} to ${money(now.spend)}, `
+              + `while each lead cost about the same. Less went out, so less came back.`,
+            evidence,
+            expectation: {
+              outcome: `About ${count(back)} leads a week back.`,
+              assuming: `the restored spend buys leads at last week’s ${cacText(prevCac)}`,
+              checkOn,
+            },
+            target, scope, measure: leadsMeasure,
+          };
+        }
+
+        /* ── Cost rose. If one live ad is clearly the dearest, pause it. */
+        const floor = Math.max(100, now.spend * 0.03);
+        const ads = liveAds(target, ch).filter((x) => x.now.spend >= floor);
+        if (ads.length >= 2 && Number.isFinite(nowCac)) {
+          const worst = ads.reduce((a, b) => (cacOf(b.now) > cacOf(a.now) ? b : a));
+          const worstCac = cacOf(worst.now);
+          if (worstCac >= nowCac * 1.3) {
+            const restLeads = now.leads - worst.now.leads;
+            const rest = restLeads > 0 ? (now.spend - worst.now.spend) / restLeads : undefined;
+            return {
+              ...base, tier: 1,
+              action: `Pause ${adName(worst.a.headline, worst.a.adSetName)}`,
+              because: `${moved} This ad paid ${Number.isFinite(worstCac) ? cacText(worstCac) : 'for no leads'}`
+                + `${Number.isFinite(worstCac) ? ' a lead' : ''} — the most of any live ad on ${name}.`,
+              evidence: [
+                { label: 'This ad’s CAC', value: Number.isFinite(worstCac) ? cacText(worstCac) : 'No leads' },
+                { label: `${name} CAC`, value: cacText(nowCac) },
+                { label: 'Last week', value: cacText(prevCac) },
+                { label: 'Its spend this week', value: money(worst.now.spend) },
+              ],
+              expectation: {
+                outcome: `Frees ${money(worst.now.spend)} a week.`
+                  + (rest !== undefined ? ` Without it, the rest of ${name} paid ${cacText(rest)} a lead this week.` : ''),
+                checkOn,
+              },
+              target: { kind: 'ad', id: worst.a.id, label: worst.a.headline },
+              scope: [CHANNEL_LABEL[ch], worst.c.name, worst.a.adSetName],
+              atStake: worst.now.spend,
+              measure: { key: `campaign-cac:${worst.c.id}`, label: 'Campaign CAC', better: 'lower' },
+            };
+          }
+        }
+
+        /* ── Cost rose everywhere at once. Nothing to single out, so limit
+           the exposure until a week comes back under the old price. */
+        const cut = now.spend * 0.2;
+        const rose = Number.isFinite(prevCac) && Number.isFinite(nowCac)
+          ? Math.round((nowCac / prevCac - 1) * 100) : pctMoved;
+        return {
+          ...base, tier: 1,
+          action: Number.isFinite(prevCac)
+            ? `Cut ${budgetOf(name, isCampaign)} 20% until CAC is back under ${cacText(prevCac)}`
+            : `Cut ${budgetOf(name, isCampaign)} 20% for a week`,
+          because: `${moved} It rose across ${name} rather than in one ad, so there is nothing to `
+            + `single out — only how much to keep spending at the higher price.`,
+          evidence,
+          expectation: {
+            outcome: `Saves about ${money(cut)} a week while each lead costs ${rose}% more. `
+              + `Put it back after a full week under ${cacText(prevCac)}.`,
+            checkOn,
+          },
+          target, scope,
+          measure: isCampaign
+            ? { key: `campaign-cac:${n.target.id}`, label: 'Campaign CAC', better: 'lower' }
+            : { key: `channel-cac:${ch}`, label: 'Channel CAC', better: 'lower' },
+        };
+      }
+
+      /* ── Something worked. Give more to the campaign that led it, with the
+         number that says pull back. */
+      const pool = (isCampaign
+        ? CAMPAIGNS.filter((c) => c.id === n.target.id)
+        : CAMPAIGNS.filter((c) => c.channel === ch))
+        .filter((c) => stageOf(c.id) === 'Active')
+        .map((c) => ({ c, now: weekOf(campaignRows(c.id, LAST_WEEK)), prev: weekOf(campaignRows(c.id, LAST_WEEK, 1)) }))
+        .filter((x) => x.now.leads > 0);
+      if (pool.length === 0) return null;
+      const lead = pool.reduce((a, b) => {
+        const da = a.now.leads - a.prev.leads;
+        const db = b.now.leads - b.prev.leads;
+        return db > da || (db === da && cacOf(b.now) < cacOf(a.now)) ? b : a;
+      });
+      const cac = cacOf(lead.now);
+      const raise = lead.now.spend * 0.2;
+      /* The pull-back line: last week's cost if it was worse, else 15% over
+         this week's. Never Infinity -- a week with no leads is no benchmark. */
+      const stop = Number.isFinite(cacOf(lead.prev)) ? Math.max(cacOf(lead.prev), cac * 1.15) : cac * 1.15;
+      const who = isCampaign ? ''
+        : pool.length === 1 && CAMPAIGNS.filter((c) => c.channel === ch && stageOf(c.id) === 'Active').length === 1
+          ? ` It all ran through \u201c${lead.c.name}\u201d, at ${cacText(cac)} a lead.`
+          : ` \u201c${lead.c.name}\u201d led it: ${count(lead.now.leads)} leads at ${cacText(cac)} each, `
+            + `up from ${count(lead.prev.leads)}.`;
+      return {
+        ...base, tier: 2,
+        action: `Raise ${budgetOf(lead.c.name, true)} 20% (+${money(raise)} a week)`,
+        because: `${moved}${who}`,
+        evidence,
+        expectation: {
+          outcome: `About ${count(raise / cac)} more leads a week.`,
+          assuming: `it keeps paying about ${cacText(cac)} a lead on 20% more budget. `
+            + `If a week comes in above ${cacText(stop)}, put the budget back`,
+          checkOn,
+        },
+        target: { kind: 'campaign', id: lead.c.id, label: lead.c.name },
+        scope: [CHANNEL_LABEL[ch], lead.c.name],
+        atStake: raise,
+        measure: { key: `campaign-leads:${lead.c.id}`, label: 'Campaign leads', better: 'higher' },
+      };
+    })
+    .filter((c): c is Candidate => c !== null);
 }
 
 /**
@@ -982,19 +1241,24 @@ export function decisions(
   /* The ad ranking, ONCE -- four detectors read it. Built four times it was
      ~42 of 70ms on a 1,200-ad account at a year's range. */
   const ranked = rankedAds('Leads', 'absolute', range, channels);
-  const all = [
+  const found = [
     ...weeklyMove(channels),
     ...spendReturnMismatch(range, channels, ranked),
     ...pausedWinner(range, channels, ranked),
     ...scaleWinner(range, channels, ranked),
     ...reallocateWithinChannel(range, channels),
-    ...staleReview(channels),
+    ...staleReview(range, channels),
     ...noVariant(range, channels),
     ...beatsItsChannel(range, channels),
     ...concentrationRisk(range, channels, ranked),
-    ...pacing(range, channels),
     ...crossChannelCostGap(range, channels),
   ];
+  /* Pacing LAST, so it puts unspent budget somewhere no other card is already
+     raising -- two cards adding money to one campaign is one decision twice. */
+  const raised = new Set(found
+    .filter((c) => c.target.kind === 'campaign' && /^Raise /.test(c.action))
+    .map((c) => c.target.id));
+  const all = [...found, ...pacing(range, channels, raised)];
 
   /* A malformed candidate is dropped, not rendered. In dev it complains, because
      silently showing fewer decisions than the engine found is the kind of thing
@@ -1005,11 +1269,30 @@ export function decisions(
     return !err;
   });
 
-  return ok.sort((a, b) =>
+  const sorted = ok.sort((a, b) =>
     (a.tier - b.tier)
     || (b.strength - a.strength)
     /* A TOTAL order, so the queue cannot reshuffle between renders. */
     || a.id.localeCompare(b.id));
+
+  /* ⭐ Now that findings END in actions, two detectors can reach the same one:
+     the weekly move and the spend share can both say "Pause this ad"; the
+     weekly move and "beats its channel" can both raise one campaign. One
+     action, one card -- the better-supported one, which is why this runs
+     AFTER the sort. And nothing inside a campaign the engine says to END:
+     pausing an ad in a campaign you are closing is the same money twice. */
+  const ending = new Set(sorted
+    .filter((c) => c.kind === 'stale-review' && /^End /.test(c.action))
+    .map((c) => c.target.id));
+  const seen = new Set<string>();
+  return sorted.filter((c) => {
+    if (c.target.kind === 'ad' && ending.has(creativeById(c.target.id)?.campaignId ?? '')) return false;
+    if (c.target.kind === 'campaign' && c.kind !== 'stale-review' && ending.has(c.target.id)) return false;
+    const key = `${c.action.split(' ')[0]}|${c.target.kind}|${c.target.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**
