@@ -577,9 +577,9 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 - Should the Channels screen carry more than a table — a CAC-by-channel chart, a per-channel card?
 - Does the Overview table need the same "Change in" control, or keep following the chart toggle?
 
-## ▶️ RESUME HERE *(Oct 1 — branch `engine-juice`, NOT merged)*
+## ▶️ RESUME HERE *(Oct 1 — `engine-juice` merged and LIVE)*
 
-**State:** 8 commits on `engine-juice`, 734 tests, lint clean, build green. `main` untouched. Waiting on Tommy's "merge".
+**State:** merged to `main` and deployed Oct 1. 734 tests, lint clean. No open branches except the empty `assistant-and-slack`.
 
 **Tommy, Oct 1:** *"Really make it a strong decision engine… put some real juice behind it."*
 
@@ -598,7 +598,7 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 - `font: inherit` leftovers: checked, each is deliberate; left alone.
 - ⚠️ `Chart.test.tsx › "data does not reach back that far"` failed once under full-suite load, passed on 3 reruns. Watch it.
 
-**🟡 Waiting on Tommy:** merge `engine-juice` · Meta app · Google Ads token · Channels table circle-back · capture where the AI Decision Maker idea came from.
+**🟡 Waiting on Tommy:** Meta app · Google Ads token · Channels table circle-back · capture where the AI Decision Maker idea came from.
 
 ## ⏮ Previous resume point *(Sept 30, late — Tommy moved to a new vault)*
 
