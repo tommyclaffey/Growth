@@ -16,18 +16,10 @@ afterEach(() => {
 });
 
 describe('the sidebar (Sept 30)', () => {
-  it('two labelled sections -- Analyze, then Act -- and Settings at the foot', () => {
+  it('one list, in the original order, Settings included', () => {
     render(<Sidebar active="overview" onNavigate={vi.fn()} />);
-    const analyze = screen.getByRole('list', { name: 'Analyze' });
-    const act = screen.getByRole('list', { name: 'Act' });
-    expect(within(analyze).getAllByRole('button').map((b) => b.textContent))
-      .toEqual(['Overview', 'Channels', 'Campaigns', 'Ads']);
-    expect(within(act).getAllByRole('button').map((b) => b.textContent))
-      .toEqual(['Decisions', 'Reports', 'Notifications']);
-    /* Settings is in neither section -- it sits with the account. */
-    expect(within(analyze).queryByText('Settings')).toBeNull();
-    expect(within(act).queryByText('Settings')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Settings' })).toBeTruthy();
+    const items = within(screen.getByRole('list')).getAllByRole('button').map((b) => b.textContent);
+    expect(items).toEqual(['Overview', 'Channels', 'Campaigns', 'Ads', 'Decisions', 'Reports', 'Notifications', 'Settings']);
   });
 
   it('a count shows what is waiting; zero shows nothing', () => {

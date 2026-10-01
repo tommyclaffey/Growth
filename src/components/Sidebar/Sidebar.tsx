@@ -29,17 +29,6 @@ const NAV: Item[] = [
   { key: 'settings', label: 'Settings', icon: <IconSliders /> },
 ];
 
-/* ⭐ Two sections, not one flat list of eight (Tommy, Sept 30). Eight equal
-   rows had to be READ; two labelled groups can be scanned -- and they follow
-   how the product is used: look at the numbers, then act on them. Settings
-   leaves the list for the foot of the rail, beside the account it configures,
-   where every app with an account puts it. The order inside each group is
-   unchanged: the analysis tiers are still the hierarchy. */
-const SECTIONS: { label: string; keys: NavKey[] }[] = [
-  { label: 'Analyze', keys: ['overview', 'channels', 'campaigns', 'ads'] },
-  { label: 'Act', keys: ['decisions', 'reports', 'notifications'] },
-];
-const byKey = (k: NavKey) => NAV.find((n) => n.key === k)!;
 
 /**
  * Sidebar — 232 wide, full height, surface/card.
@@ -84,28 +73,22 @@ export function Sidebar({ active, onNavigate, counts = {} }: SidebarProps) {
         </span>
       </div>
 
-      {SECTIONS.map((sec) => (
-        <div key={sec.label} className="gr-sidebar__section">
-          <p className="gr-sidebar__section-label gr-type-overline" id={`nav-${sec.label}`}>{sec.label}</p>
-          <ul className="gr-sidebar__list" aria-labelledby={`nav-${sec.label}`}>
-            {sec.keys.map((k) => (
-              <li key={k}><NavButton item={byKey(k)} active={active} count={counts[k]} onNavigate={onNavigate} /></li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {/* ONE list, Settings included (Tommy, Sept 30): Analyze / Act sections
+          and Settings at the foot were tried and reverted -- "too cluttered,
+          I liked the layout better before." The counts stayed. */}
+      <ul className="gr-sidebar__list">
+        {NAV.map((item) => (
+          <li key={item.key}><NavButton item={item} active={active} count={counts[item.key]} onNavigate={onNavigate} /></li>
+        ))}
+      </ul>
 
       <div className="gr-sidebar__spacer" />
-
-      <div className="gr-sidebar__foot">
-        <NavButton item={byKey('settings')} active={active} onNavigate={onNavigate} />
-      </div>
 
       {/* Goes to Settings. It was a button with no handler — the same dead
           control as a switch that flips nothing. */}
       <button
         type="button"
-        className="gr-navitem gr-navitem--account gr-type-label-button"
+        className={`gr-navitem gr-navitem--account gr-type-label-button ${active === 'settings' ? 'is-active' : ''}`}
         onClick={() => onNavigate('settings')}
       >
         {/* The real avatar component rather than a gradient circle standing in
