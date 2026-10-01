@@ -108,8 +108,8 @@ describe('Google Ads', () => {
     vi.stubGlobal('fetch', f);
     const r = await call(mount(googleApi(), '/api/google'), 'GET', '/accounts');
     expect(r.status).toBe(200);
-    const ads = f.mock.calls.find((c) => String(c[0]).includes('googleads'))!;
-    expect((ads[1] as { headers: Record<string, string> }).headers['developer-token']).toBeUndefined();
+    const ads = (f.mock.calls as unknown as [string, { headers: Record<string, string> }][]).find((c) => String(c[0]).includes('googleads'))!;
+    expect(ads[1].headers['developer-token']).toBeUndefined();
   });
 
   it('reconnecting clears the expired flag', async () => {

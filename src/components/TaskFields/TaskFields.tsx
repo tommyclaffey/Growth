@@ -3,6 +3,7 @@ import { Avatar } from '../Avatar/Avatar';
 import { MEMBERS } from '../../data/chat';
 import { isOverdue, setTask, type Flag } from '../../data/attention';
 import { notifyAssignment } from '../../data/teamMessages';
+import { formatDue } from '../../data/dates';
 
 export interface TaskFieldsProps {
   flag: Flag;
@@ -10,13 +11,8 @@ export interface TaskFieldsProps {
   today?: Date;
 }
 
-/** "Sep 30" -- a date-only ISO string, read as a calendar date, not a moment. */
-export function formatDue(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(undefined, {
-    month: 'short', day: 'numeric', timeZone: 'UTC',
-  });
-}
+/* formatDue lives in data/dates.ts -- a component file that also exports
+   helpers breaks Fast Refresh. */
 
 /**
  * Who owns a decision, and by when.
