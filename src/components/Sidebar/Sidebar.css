@@ -38,10 +38,9 @@
 }
 .gr-sidebar__wordmark {
   color: var(--text-primary);
-  /* A touch smaller, a touch more open: capitals need tracking to read as a
-     wordmark rather than as shouting, and at 16px/0.02em they out-weighed
-     everything under them. */
-  font-size: 15px; letter-spacing: 0.06em;
+  /* More open: capitals need tracking to read as a wordmark rather than as
+     shouting -- at 0.02em they out-weighed everything under them. */
+  letter-spacing: 0.06em;
 }
 
 .gr-sidebar__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); }
