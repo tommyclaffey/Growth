@@ -43,6 +43,9 @@ function read(): Overrides {
 
 let cache: Overrides = read();
 
+/** Every override, as one comparable value -- the decision engine's cache keys on it. */
+export function stageFingerprint(): string { return JSON.stringify(cache); }
+
 export function stageOf(id: string): Stage {
   const seeded = CAMPAIGNS.find((c) => c.id === id)?.stage ?? 'Active';
   return cache[id] ?? seeded;

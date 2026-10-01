@@ -1,17 +1,18 @@
 import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS } from './campaigns';
 import { campaignRows, campaignTotals } from './campaignSeries';
-import { stageOf } from './campaignStatus';
+import { stageFingerprint, stageOf } from './campaignStatus';
 import { rankedAds, type RankedAd } from './adRanking';
 import { creativeById, creativeRows, creativesFor } from './creative';
 import { CHANNEL_DEPTH } from './channelDepth';
 import { formatDerived } from './channelMetrics';
-import { budgetForRange } from './profile';
+import { budgetForRange, channelBudgets } from './profile';
+import { structureVersion } from './structure';
 import {
-  CHANNEL_LABEL, LAST_WEEK, activeChannels, formatMetric, rowsFor, totals, type DayRow, type Range,
+  CHANNEL_LABEL, LAST_WEEK, activeChannels, dataVersion, formatMetric, rowsFor, totals, windowEnd, type DayRow, type Range,
 } from './metrics';
 import { blendedTotal } from './blended';
-import { notifications } from './notifications';
+import { changeThreshold, notifications } from './notifications';
 
 /**
  * The decision engine.
@@ -1274,6 +1275,29 @@ export function decisions(
   range: Range = 30,
   channels: ChannelName[] = activeChannels(),
 ): Candidate[] {
+  /* ⭐ Memoised on EVERYTHING the engine reads. It was recomputed on every
+     render -- 70-115 ms on a 1,200-ad account, several times per screen (the
+     page, the sidebar count, Ask). A cache with a missing input is worse than
+     no cache: it shows yesterday's decisions with today's numbers. So the key
+     lists every input, and decisionCache.test.ts changes each one and asserts
+     the result moves. A copy is returned so no caller can edit the cache. */
+  const key = [
+    range, channels.join(','), dataVersion(), windowEnd(), structureVersion(),
+    stageFingerprint(), budgetForRange(30), JSON.stringify(channelBudgets()), changeThreshold(),
+    checkDate(0), CAMPAIGNS.length,
+  ].join('|');
+  if (memo && memo.key === key) return [...memo.value];
+  const value = compute(range, channels);
+  memo = { key, value };
+  return [...value];
+}
+
+let memo: { key: string; value: Candidate[] } | null = null;
+
+/** Forget the cached result. Tests only -- every real input is in the key. */
+export function clearDecisionCache(): void { memo = null; }
+
+function compute(range: Range, channels: ChannelName[]): Candidate[] {
   /* The ad ranking, ONCE -- four detectors read it. Built four times it was
      ~42 of 70ms on a 1,200-ad account at a year's range. */
   const ranked = rankedAds('Leads', 'absolute', range, channels);
