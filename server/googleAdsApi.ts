@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { deadline, pathOf, readJson, send } from './http.js';
+import { requester } from './auth.js';
 import { resolve } from 'node:path';
 import type { Plugin, ViteDevServer } from 'vite';
 /* The normaliser is app code (src/data/sources/googleNormalize.ts), loaded
@@ -228,6 +229,8 @@ export function googleApi(): Plugin {
           }
 
           if (req.method === 'POST' && path === '/account') {
+            /* 🔒 Which account everyone reads is the owner's choice. */
+            if (requester(req)?.role !== 'owner') return send(res, 403, { error: 'Only the owner can change the ad account.' });
             const { id, loginCustomerId } = await readJson(req);
             const digits = (v: unknown) => typeof v === 'string' && /^\d{6,12}$/.test(v);
             if (!digits(id) || !digits(loginCustomerId)) return send(res, 400, { error: 'An account id and the manager it was reached through are required.' });

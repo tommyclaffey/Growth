@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { deadline, pathOf, readJson, send } from './http.js';
+import { requester } from './auth.js';
 import { resolve } from 'node:path';
 import type { Plugin, ViteDevServer } from 'vite';
 /* The normaliser is app code (src/data/sources/metaNormalize.ts), loaded
@@ -192,6 +193,8 @@ export function metaApi(): Plugin {
             return send(res, 200, { accounts });
           }
           if (req.method === 'POST' && path === '/account') {
+            /* 🔒 Which account everyone reads is the owner's choice. */
+            if (requester(req)?.role !== 'owner') return send(res, 403, { error: 'Only the owner can change the ad account.' });
             const { id } = await readJson(req);
             if (typeof id !== 'string' || !id.startsWith('act_')) return send(res, 400, { error: 'An ad account id (act_…) is required.' });
             store({ accountId: id });

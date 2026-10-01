@@ -247,13 +247,26 @@ export function authApi(): Plugin {
             const b = await readJson(req, 10_000);
             const email = typeof b.email === 'string' ? normEmail(b.email) : '';
             const password = typeof b.password === 'string' ? b.password : '';
-            const key = `${req.socket.remoteAddress}|${email}`;
-            if (tooMany(key)) return send(res, 429, { error: 'Too many attempts. Wait 15 minutes and try again.' });
+            /* 🔒 Behind the tunnel every request arrives from loopback, so keying on
+               the socket address let a stranger lock the owner out on his own Mac
+               and spray guesses across emails unbounded. Local and remote are now
+               separate buckets (remote keyed by the tunnel's client IP), and all
+               remote failures share one cap -- a one-person app has no business
+               taking more than ten wrong passwords in 15 minutes from outside. */
+            const local = isLocal(req);
+            const who = local ? 'local'
+              : String(req.headers['cf-connecting-ip'] ?? String(req.headers['x-forwarded-for'] ?? '').split(',')[0]).trim() || 'remote';
+            const key = `${who}|${email}`;
+            const REMOTE = 'remote|*';
+            if (tooMany(key) || (!local && tooMany(REMOTE))) {
+              return send(res, 429, { error: 'Too many attempts. Wait 15 minutes and try again.' });
+            }
             const user = userByEmail(email);
             /* One message for both failures -- which one it was is exactly what
                someone guessing accounts wants to learn. */
             if (!checkPassword(password, user?.password) || !user) {
               failed(key);
+              if (!local) failed(REMOTE);
               return send(res, 401, { error: 'That email and password do not match.' });
             }
             succeeded(key);

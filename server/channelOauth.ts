@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
 import { escapeHtml, originOf, pathOf } from './http.js';
+import { requester } from './auth.js';
 import { exchangeGoogleCode } from './googleAdsApi.js';
 import { META_VERSION, exchangeMetaCode } from './metaApi.js';
 
@@ -155,7 +156,8 @@ export const PROVIDERS: Record<string, Provider> = {
 
 /* state → which provider it was minted for, and when it expires. A state is
    only good for the provider that started it. */
-const states = new Map<string, { exp: number; id: string }>();
+/* `user`: who started it -- the callback must land in that same signed-in session. */
+const states = new Map<string, { exp: number; id: string; user: string }>();
 const TTL = 10 * 60 * 1000;
 
 /**
@@ -235,6 +237,13 @@ export function channelOauth(): Plugin {
               '<p class="lede">The connection request was not recognised or is over ten minutes old. Start again from Settings.</p>');
           }
           states.delete(state);
+          /* 🔒 The return trip must arrive in the session that started it. A
+             callback link opened by someone else (or in another browser) would
+             otherwise attach THEIR ad account to this Growth. */
+          if (requester(req)?.id !== minted!.user) {
+            return page(res, 'Finish where you started',
+              '<p class="lede">This connection was started by a different Growth sign-in. Open Settings in the browser you started from and connect again.</p>');
+          }
           if (url.searchParams.get('error')) {
             return page(res, `${p.label} was not connected`,
               `<p class="lede">${p.label} said: ${escapeHtml(url.searchParams.get('error_description') ?? url.searchParams.get('error'))}</p>`);
@@ -270,6 +279,15 @@ product to it.</p></div>`);
 <div class="card"><p class="label">Not built yet</p>
 <p style="margin:0">Exchanging that code for a token and storing the connection is the next
 step (Beta B). Nothing was saved, and Growth cannot read ${p.label} yet.</p></div>`);
+        }
+
+        /* 🔒 OWNER ONLY. One ad-account connection serves everyone signed in to
+           this Growth, so connecting or replacing it is the owner's call -- a
+           member reconnecting with their own Meta account would overwrite it. */
+        const me = requester(req);
+        if (!me || me.role !== 'owner') {
+          return page(res, 'Only the owner connects ad accounts',
+            '<p class="lede">The ad-account connection is shared by everyone in this Growth, so only the owner can make or change it.</p>');
         }
 
         const key = path.replace(/^\//, '');
@@ -310,7 +328,7 @@ ${steps ? `<div class="card"><p class="label">What to do there</p><ol>${steps}</
         }
 
         const state = randomBytes(16).toString('hex');
-        states.set(state, { exp: Date.now() + TTL, id: provider.id });
+        states.set(state, { exp: Date.now() + TTL, id: provider.id, user: me.id });
         for (const [k, v] of states) if (v.exp < Date.now()) states.delete(k);
 
         const auth = new URL(provider.authorizeUrl);
