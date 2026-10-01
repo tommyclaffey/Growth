@@ -213,6 +213,7 @@
   --focus-ring:               var(--violet-500);
   --focus-ring-offset:        var(--neutral-0);
   --icon-default:             var(--neutral-550);
+  --nav-text:                 var(--neutral-700);   /* Sidebar labels and their icons: one step darker than secondary text */
   --icon-muted:               var(--neutral-500);   /* 4.83:1 on a card (was neutral-400, 2.78:1 -- under the 3:1 icon minimum) */
   --icon-active:              var(--violet-500);
   --icon-active-soft:         var(--violet-400);
@@ -298,6 +299,7 @@
   --focus-ring:               var(--violet-300);
   --focus-ring-offset:        var(--neutral-900);
   --icon-default:             var(--neutral-350);
+  --nav-text:                 var(--neutral-200);
   --icon-muted:               var(--neutral-400);   /* 6.40:1 on a card (was neutral-500, 3.71:1 -- passed as an icon, failed as the × glyph it is drawn with) */
   --icon-active:              var(--violet-300);
   --icon-active-soft:         var(--violet-300);

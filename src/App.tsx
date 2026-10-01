@@ -7,7 +7,6 @@ import { InfoStrip } from './components/InfoStrip/InfoStrip';
 import { ChannelTable, type ChannelRow } from './components/ChannelTable/ChannelTable';
 import { CampaignTable } from './components/CampaignTable/CampaignTable';
 import { CampaignPreview } from './components/CampaignPreview/CampaignPreview';
-import { ThemeToggle } from './components/ThemeToggle/ThemeToggle';
 import { ChannelSwitcher } from './components/ChannelSwitcher/ChannelSwitcher';
 import { ChannelWordmark } from './components/ChannelWordmark/ChannelWordmark';
 import { useChannels } from './data/channels';
@@ -360,9 +359,6 @@ export default function App() {
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* quota */ }
   }, [theme]);
 
-  function toggleTheme() {
-    setTheme(theme === 'light' ? 'dark' : 'light');
-  }
 
   const scope: Scope = channel ?? 'all';
 
@@ -642,12 +638,20 @@ export default function App() {
                 }}
               />
               <RangePicker value={range} onChange={(r, e) => setWindow(r, e ?? 0)} />
-              <ThemeToggle theme={theme} onToggle={toggleTheme} />
             </div>
-            <div className="gr-toolbar__group">
-              <Button variant="ghost" onClick={() => setAssistOpen(true)}>Ask</Button>
-              <Button variant="ghost" onClick={() => setChatOpen(!chatOpen)}>Chat</Button>
-              <Button variant="primary" onClick={() => downloadCsv(scope, range)}>Export</Button>
+            {/* ⭐ Sept 30 (Tommy: "is this the proper order? should this all be here?")
+                - The theme toggle left: a set-once preference, already in
+                  Settings, and it sat inside the FILTER group.
+                - Ask AI is the primary: purple is the loudest thing on screen
+                  and it was on Export, the least-used action. The AI telling you
+                  what to do is what the product is for.
+                - "Ask" / "Chat" both read as "talk to something": now Ask AI
+                  (the assistant's own mark) and Team (the people).
+                - Primary at the far right, where the eye ends. */}
+            <div className="gr-toolbar__group gr-toolbar__group--actions">
+              <Button variant="ghost" icon={<IconDownload />} onClick={() => downloadCsv(scope, range)}>Export</Button>
+              <Button variant="ghost" onClick={() => setChatOpen(!chatOpen)}>Team</Button>
+              <Button variant="primary" icon={<IconAsk />} onClick={() => setAssistOpen(true)}>Ask AI</Button>
             </div>
           </div>
         </header>
@@ -985,4 +989,22 @@ function kpiLabel(m: DerivedMetric, onChannelScreen: boolean): string {
 
 function navTitle(nav: NavKey): string {
   return nav === 'overview' ? 'Overview' : nav[0].toUpperCase() + nav.slice(1);
+}
+
+/* The assistant's mark -- the same asterisk its panel header wears, so the AI
+   has one symbol wherever it appears. */
+function IconAsk() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+      <path d="M7 1.5v11M1.5 7h11M3.2 3.2l7.6 7.6M10.8 3.2l-7.6 7.6" />
+    </svg>
+  );
+}
+function IconDownload() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+         strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />
+    </svg>
+  );
 }

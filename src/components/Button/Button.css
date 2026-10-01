@@ -96,3 +96,6 @@
 @media (prefers-reduced-motion: reduce) {
   .gr-button { transition: none; }
 }
+
+/* A leading icon, 14px, in the label's colour. The button's 8px gap spaces it. */
+.gr-button__icon { display: inline-grid; place-items: center; width: 14px; height: 14px; flex: none; }
