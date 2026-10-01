@@ -577,7 +577,33 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 - Should the Channels screen carry more than a table — a CAC-by-channel chart, a per-channel card?
 - Does the Overview table need the same "Change in" control, or keep following the chart toggle?
 
-## ▶️ RESUME HERE *(Oct 1 — `engine-juice` merged and LIVE)*
+## ▶️ RESUME HERE *(Oct 1, overnight — branch `overnight-polish`, NOT merged)*
+
+**State:** 7 commits on `overnight-polish`. 780 tests, lint clean, build green. `main` = engine-juice, live.
+
+**Four audits ran (engine, security, setup research, UI); every finding below was reproduced, then fixed with a test.**
+
+🔒 **Security (fix before connecting real accounts):**
+- 🚨 Dev server served `*.local` (Slack token, password hashes, sessions) to anyone, tunnel included. Two locks: `server.fs.deny` + `isSecretPath` in the guard. `tests/secretFiles.test.ts` boots the real config. ⚠️ **Tommy: rotate the Slack token if a tunnel ever ran.**
+- Owner-only connect + account switch; OAuth return must land in the starting session (`tests/ownerOnly.test.ts`).
+- Login limits split local/tunnel client IP + one remote cap (`tests/loginLimit.test.ts`).
+- Assistant rule 3a: names/ad copy are data, never instructions.
+- Not done (low): sign-in OAuth state cookie binding (login CSRF); async scrypt; demo account shares the owner seat.
+
+🔌 **Ad platforms (checked against official docs Oct 1):**
+- Meta Marketing API v21 expired Sept 9, 2025 → **v25.0** (`META_API_VERSION`). Scope `ads_read` only. Error 190 → "Connect again"; warns 7 days before the 60-day token ends.
+- Google **developer tokens sunset Sept 9, 2026** — header optional, Settings step removed. `CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION` translated; `invalid_grant` on refresh → expired (Testing-mode consent screens die every 7 days).
+- Guide: vault `(C) Growth — Connect Your Ad Accounts (Setup Guide)`. Todoist tasks rewritten, due Oct 5.
+
+🧠 **Engine (audit: 10 bugs):** one move per budget (`settle`; overlaps held, naming the move) · pacing runs after settling · held list never contradicts shown · Approve not chance-tested · "led it" true of the campaign named, claim tested as made · curve untrusted under 10 leads/day · shifts capped · no pacing on empty windows · assistant: no plan for one subject, one payload shape, dismissed excluded. `engineAudit.test.ts` (7 fail on the old engine).
+
+🎨 **UI audit:** plan card "Take these N moves" + names the assumptions; rounded-then-signed numbers; dash for CAC with no leads; focus to Decided after Accept all; held cards styled apart; Dismissed opens under its button; key collision; input label; sidebar badge follows stage changes; undefined `--radius-xs`; nav icon colour; curly apostrophes. Not done (low, visual-risk): Assistant scrim `rgba` vs token (token is darker); Button.css raw 13px; negative-margin / 20px line-height overrides; ChatPanel set-state-in-effect warnings.
+
+🧪 Flaky chart test: 365-day DOM regex query (2.9 s) → textContent (0.2 s).
+
+**🟡 Waiting on Tommy:** merge `overnight-polish` · rotate Slack token (if tunnel ever ran) · Meta + Google setup (Oct 5) · case-study draft review · Channels table circle-back.
+
+## ⏮ Previous resume point *(Oct 1 — `engine-juice` merged and LIVE)*
 
 **State:** merged to `main` and deployed Oct 1. 734 tests, lint clean. No open branches except the empty `assistant-and-slack`.
 
