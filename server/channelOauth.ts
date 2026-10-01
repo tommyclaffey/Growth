@@ -2,8 +2,9 @@ import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
 import { escapeHtml, originOf, pathOf } from './http.js';
+import { requester } from './auth.js';
 import { exchangeGoogleCode } from './googleAdsApi.js';
-import { exchangeMetaCode } from './metaApi.js';
+import { META_VERSION, exchangeMetaCode } from './metaApi.js';
 
 /**
  * Connecting an ad account.
@@ -41,16 +42,18 @@ export const PROVIDERS: Record<string, Provider> = {
   meta: {
     id: 'meta',
     label: 'Meta',
-    authorizeUrl: 'https://www.facebook.com/v21.0/dialog/oauth',
-    scopes: 'ads_read,read_insights',
+    authorizeUrl: `https://www.facebook.com/${META_VERSION}/dialog/oauth`,
+    /* ads_read covers ad-account insights. read_insights was PAGE insights --
+       nothing here reads a Page, and use-case apps may refuse the scope. */
+    scopes: 'ads_read',
     clientIdEnv: 'META_CLIENT_ID',
     consoleUrl: 'https://developers.facebook.com/apps',
     consoleLabel: 'Meta for Developers',
     steps: [
-      'Create an app, type <b>Business</b>.',
-      'Add the <b>Marketing API</b> product.',
-      'Under Facebook Login → Settings, add the redirect URI below.',
-      'Copy the <b>App ID</b> from Settings → Basic.',
+      '<b>Create app</b> → name it Growth → choose the ads use case (<b>Create &amp; manage ads with Marketing API</b>).',
+      'Use cases → Customize → make sure <b>ads_read</b> is added. Leave the app in <b>Development</b> mode: it reads your own ad accounts without App Review.',
+      'App settings → Basic: copy the <b>App ID</b> and the <b>App secret</b> into <code>.env.local</code> as <code>META_CLIENT_ID</code> and <code>META_CLIENT_SECRET</code>, then restart.',
+      'Only if Meta says “URL blocked”: Facebook Login for Business → Settings → Valid OAuth Redirect URIs → add the redirect URI below.',
     ],
   },
   youtube: {
@@ -83,8 +86,9 @@ export const PROVIDERS: Record<string, Provider> = {
       'Same OAuth client as YouTube — one <code>GOOGLE_CLIENT_ID</code> covers both. It also needs <code>GOOGLE_CLIENT_SECRET</code>.',
       'Enable the <b>Google Ads API</b> for the project.',
       'Add the redirect URI below to Authorised redirect URIs.',
-      'Google Ads also needs a <b>developer token</b>: a manager account → Admin → <b>API Center</b>. Put it in <code>.env.local</code> as <code>GOOGLE_ADS_DEVELOPER_TOKEN</code>.',
-      'A new token has <b>test access</b> — it reads test accounts only. Apply for <b>Basic access</b> there to read real ones.',
+      'No developer token: Google retired them on Sept 9, 2026. Access belongs to this Cloud project.',
+      'A new project has <b>Test access</b> (test accounts only). Google Ads API → <b>Upgrade access level</b> → apply for <b>Explorer</b> access to read real accounts.',
+      'OAuth consent screen → Audience → <b>Publish app</b> (In production). In Testing mode Google ends the sign-in every 7 days.',
     ],
     extra: { response_type: 'code', access_type: 'offline', prompt: 'consent' },
   },
@@ -152,7 +156,8 @@ export const PROVIDERS: Record<string, Provider> = {
 
 /* state → which provider it was minted for, and when it expires. A state is
    only good for the provider that started it. */
-const states = new Map<string, { exp: number; id: string }>();
+/* `user`: who started it -- the callback must land in that same signed-in session. */
+const states = new Map<string, { exp: number; id: string; user: string }>();
 const TTL = 10 * 60 * 1000;
 
 /**
@@ -232,6 +237,13 @@ export function channelOauth(): Plugin {
               '<p class="lede">The connection request was not recognised or is over ten minutes old. Start again from Settings.</p>');
           }
           states.delete(state);
+          /* 🔒 The return trip must arrive in the session that started it. A
+             callback link opened by someone else (or in another browser) would
+             otherwise attach THEIR ad account to this Growth. */
+          if (requester(req)?.id !== minted!.user) {
+            return page(res, 'Finish where you started',
+              '<p class="lede">This connection was started by a different Growth sign-in. Open Settings in the browser you started from and connect again.</p>');
+          }
           if (url.searchParams.get('error')) {
             return page(res, `${p.label} was not connected`,
               `<p class="lede">${p.label} said: ${escapeHtml(url.searchParams.get('error_description') ?? url.searchParams.get('error'))}</p>`);
@@ -267,6 +279,15 @@ product to it.</p></div>`);
 <div class="card"><p class="label">Not built yet</p>
 <p style="margin:0">Exchanging that code for a token and storing the connection is the next
 step (Beta B). Nothing was saved, and Growth cannot read ${p.label} yet.</p></div>`);
+        }
+
+        /* 🔒 OWNER ONLY. One ad-account connection serves everyone signed in to
+           this Growth, so connecting or replacing it is the owner's call -- a
+           member reconnecting with their own Meta account would overwrite it. */
+        const me = requester(req);
+        if (!me || me.role !== 'owner') {
+          return page(res, 'Only the owner connects ad accounts',
+            '<p class="lede">The ad-account connection is shared by everyone in this Growth, so only the owner can make or change it.</p>');
         }
 
         const key = path.replace(/^\//, '');
@@ -307,7 +328,7 @@ ${steps ? `<div class="card"><p class="label">What to do there</p><ol>${steps}</
         }
 
         const state = randomBytes(16).toString('hex');
-        states.set(state, { exp: Date.now() + TTL, id: provider.id });
+        states.set(state, { exp: Date.now() + TTL, id: provider.id, user: me.id });
         for (const [k, v] of states) if (v.exp < Date.now()) states.delete(k);
 
         const auth = new URL(provider.authorizeUrl);

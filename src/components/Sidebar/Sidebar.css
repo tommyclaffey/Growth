@@ -63,7 +63,6 @@
   font-variant-numeric: normal;
   letter-spacing: -0.01em;
 }
-.gr-navitem.is-active .gr-navitem__count { background: var(--surface-page-top); }
 /* Decisions' count is the one in colour: it is where the work is. Everything
    else waiting stays grey, so the rail asks for attention in one place. */
 .gr-navitem__count.is-accent,
@@ -97,7 +96,8 @@
   color: var(--accent-text);
   box-shadow: 0 1px 2px var(--shadow-key), 0 0 0 var(--border-width-sm) var(--border-subtle);
 }
-.gr-navitem.is-active .gr-navitem__icon { color: var(--icon-active); }
+/* No icon override on the active item: the icon inherits the label's accent,
+   as the rule below promises (it was violet-500 beside a violet-700 label). */
 
 /* The icon wears its label's colour -- they were two different greys. */
 .gr-navitem__icon { display: grid; place-items: center; width: 18px; height: 18px; color: currentColor; flex: none; }

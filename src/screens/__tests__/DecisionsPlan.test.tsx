@@ -18,8 +18,10 @@ describe('⭐ the plan card', () => {
   it('leads with the sum: leads, spend and cost per lead, before → after', () => {
     setChannels([...CHANNEL_KEYS]);
     render(<Decisions range={30} />);
-    const plan = screen.getByRole('region', { name: "This week's plan" });
-    expect(plan.textContent).toMatch(/Take the \d+ ready moves: \+\d+ leads a week on \$[\d,]+ less/);
+    const plan = screen.getByRole('region', { name: 'This week’s plan' });
+    expect(plan.textContent).toMatch(/Take these \d+ moves: \+\d+ leads a week on \$[\d,]+ less/);
+    /* Projections are in the sum, so the card says they rest on assumptions. */
+    expect(plan.textContent).toMatch(/\d+ of them rest on assumptions stated on their cards/);
     expect(plan.textContent).toMatch(/Cost per lead\$41\.08 → \$\d+\.\d\d/);
     expect(plan.textContent).toMatch(/assumed where its spend has not moved enough to measure/);
   });
@@ -27,13 +29,22 @@ describe('⭐ the plan card', () => {
   it('"Accept all" takes every move with money in it, and the plan empties', () => {
     setChannels([...CHANNEL_KEYS]);
     const { container } = render(<Decisions range={30} />);
-    const plan = screen.getByRole('region', { name: "This week's plan" });
-    const n = Number(plan.textContent!.match(/Take the (\d+) ready moves/)![1]);
+    const plan = screen.getByRole('region', { name: 'This week’s plan' });
+    const n = Number(plan.textContent!.match(/Take these (\d+) moves/)![1]);
     fireEvent.click(within(plan).getByRole('button', { name: `Accept all ${n}` }));
     expect(flags().filter((f) => f.kind === 'decision')).toHaveLength(n);
-    expect(screen.queryByRole('region', { name: "This week's plan" })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'This week’s plan' })).toBeNull();
     const decided = [...container.querySelectorAll('.gr-dec__tier')].find((s) => /Decided/.test(s.querySelector('h3')?.textContent ?? ''));
     expect(decided?.querySelectorAll('.gr-dec__card').length).toBe(n);
+  });
+
+  it('focus follows the moves to the Decided heading -- it does not fall to the page', async () => {
+    setChannels([...CHANNEL_KEYS]);
+    render(<Decisions range={30} />);
+    const plan = screen.getByRole('region', { name: 'This week’s plan' });
+    fireEvent.click(within(plan).getByRole('button', { name: /^Accept all/ }));
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    expect(document.activeElement?.id).toBe('gr-dec-decided');
   });
 });
 
@@ -57,5 +68,17 @@ describe('confidence on the card', () => {
     const lines = [...container.querySelectorAll('.gr-dec__confidence')];
     expect(lines.length).toBeGreaterThan(0);
     for (const l of lines) expect(l.textContent).toMatch(/^(High|Medium) confidence \S.* leads/);
+  });
+});
+
+describe('the plan card never prints a number that reads wrong', () => {
+  it('no "+0", no "−$0", no "$∞"', async () => {
+    const { planFrom } = await import('../../data/plan');
+    const { decisions } = await import('../../data/decisions');
+    setChannels([...CHANNEL_KEYS]);
+    render(<Decisions range={30} />);
+    const plan = screen.getByRole('region', { name: 'This week’s plan' });
+    expect(plan.textContent).not.toMatch(/[+−]0\b|−\$0\b|\$∞/);
+    expect(planFrom(decisions(30, ALL_CHANNELS), 30, ALL_CHANNELS).moves.length).toBeGreaterThan(1);
   });
 });

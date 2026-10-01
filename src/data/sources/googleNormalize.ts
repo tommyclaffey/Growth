@@ -327,6 +327,9 @@ export function googleErrorMessage(body: unknown, status: number): string {
   const first = e?.error?.details?.find((d) => d.errors?.length)?.errors?.[0];
   const code = first?.errorCode ? Object.values(first.errorCode)[0] : undefined;
   switch (code) {
+    /* Since Sept 9, 2026 access belongs to the Cloud project, not a token. */
+    case 'CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION':
+      return 'Your Google Cloud project only has Test access, which reads test accounts. In Cloud Console open Google Ads API → Upgrade access level and apply for Explorer access.';
     case 'DEVELOPER_TOKEN_NOT_APPROVED':
       return 'Your Google Ads developer token is approved for test accounts only. Apply for Basic access in the API Center, or choose a test account.';
     case 'DEVELOPER_TOKEN_PROHIBITED':

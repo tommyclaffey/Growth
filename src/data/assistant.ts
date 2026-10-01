@@ -7,6 +7,7 @@ import type { ChannelName } from '../styles/tokens';
 import { decisions, decisionsFor, limitsFor, type Candidate, type Target } from './decisions';
 import { planFrom } from './plan';
 import { isFlagged } from './attention';
+import { isDismissed } from './dismissedDecisions';
 import { compareCampaigns } from './compare';
 import { commitments, recordOf, type Commitment } from './commitments';
 import { MEMBERS } from './chat';
@@ -635,7 +636,8 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
 
   /* "what should I do" — the agenda, best-supported first. */
   if (/what should i do|what.s next|recommend|suggest|where should|advice|priorit/i.test(q)) {
-    const actionable = found.filter((c) => c.tier !== 3 && !isFlagged('decision', c.id));
+    /* Dismissed is the reader's "no", with a reason -- the screen leaves them out, so the agenda does too. */
+    const actionable = found.filter((c) => c.tier !== 3 && !isFlagged('decision', c.id) && !isDismissed(c.id));
     if (actionable.length === 0) {
       return {
         answered: true,

@@ -287,7 +287,7 @@ function sizedRaise(rows: DayRow[], base: Sample, most: number, ceiling: number,
 }
 
 /** Why a finding was found and not shown. */
-export type HeldReason = 'chance' | 'marginal';
+export type HeldReason = 'chance' | 'marginal' | 'overlap';
 
 /** Range totals → one week. */
 const perWeek = (x: Sample, range: number): Sample => ({ spend: (x.spend / range) * 7, leads: (x.leads / range) * 7 });
@@ -583,7 +583,10 @@ function reallocateWithinChannel(range: Range, channels: ChannelName[]): Candida
 
     /* A quarter of the worse campaign's spend. Not all of it: recommending a
        campaign be emptied is a different and much larger decision. */
-    const move = worst.t.spend * 0.25;
+    /* A quarter of the worse one's spend -- capped at half the better one's,
+       so the projection stays near the curve it was measured on ("134% more
+       budget" was far off it). */
+    const move = Math.min(worst.t.spend * 0.25, best.t.spend * 0.5);
     /* The receiving campaign's extra leads come off its CURVE, not its average
        -- the money it gets is its marginal money. */
     const gain = onTheCurve(campaignRows(best.c.id, 90), best.t, move / best.t.spend, `over ${range} days`);
@@ -677,7 +680,10 @@ function staleReview(range: Range, channels: ChannelName[]): Candidate[] {
               : `Frees ${money(t.spend)} over the next ${range} days.`,
             checkOn: checkDate(7),
           },
-          compare: [t, restOf(ch, t)],
+          /* 🐛 Only END is a "these differ" claim. Approve says "in line with the
+             channel" -- testing it for a difference held it back exactly when
+             the evidence agreed (p = 1.0 on 1,125 leads). */
+          ...(approve ? {} : { compare: [t, restOf(ch, t)] as [Sample, Sample] }),
           /* Approve: it is already spending while it waits, so going live
              changes nothing in the week. End: its spend and leads stop. */
           ...(approve ? {} : { effect: { spend: -perWeek(t, range).spend, leads: -perWeek(t, range).leads } }),
@@ -932,7 +938,9 @@ function beatsItsChannel(range: Range, channels: ChannelName[]): Candidate[] {
  * do is tell you to spend more because you are under — whether the remaining
  * budget is worth spending is a different question entirely.
  */
-function pacing(range: Range, channels: ChannelName[], raised: Set<string> = new Set()): Candidate[] {
+/* `busy`: budgets other SHOWN cards already move ("campaign:<id>") -- pacing
+   neither adds to nor cuts from those. One move per budget. */
+function pacing(range: Range, channels: ChannelName[], busy: Set<string> = new Set()): Candidate[] {
   /* 🐛 Scoped to the channels passed in, which it was NOT -- it read
      totals('all'), so an account with every channel off still produced a
      pacing finding. Found by the empty-account test. */
@@ -941,6 +949,9 @@ function pacing(range: Range, channels: ChannelName[], raised: Set<string> = new
   if (planned <= 0) return [];
 
   const spent = blendedTotal('Spend', channels, range);
+  /* 🐛 A window reaching past the start of the data has no spend at all, and
+     read as "100% under plan". No data is not under-spending. */
+  if (!(spent > 0)) return [];
   const ratio = spent / planned;
   /* A 15% band either side. Inside it, pacing is not a finding. */
   if (ratio > 0.85 && ratio < 1.15) return [];
@@ -971,7 +982,9 @@ function pacing(range: Range, channels: ChannelName[], raised: Set<string> = new
   if (over) {
     /* Over plan: take the excess out of the dearest running campaign. Cutting
        needs no forecast, so this stays tier 1. */
-    const dearest = [...running].sort((a, b) => b.t.cac - a.t.cac)[0];
+    /* 🐛 Not one another card is raising: "Cut $15,350 from X" sat beside
+       "Raise X 20%". */
+    const dearest = [...running].filter((x) => !busy.has(`campaign:${x.c.id}`)).sort((a, b) => b.t.cac - a.t.cac)[0];
     if (dearest) {
       const cut = Math.min(spent - planned, dearest.t.spend * 0.5);
       return [{
@@ -998,7 +1011,7 @@ function pacing(range: Range, channels: ChannelName[], raised: Set<string> = new
        averaging $41 should put more. */
     const gap = planned - spent;
     const candidates = [...running]
-      .filter((x) => x.t.cac <= blended && !raised.has(x.c.id))
+      .filter((x) => x.t.cac <= blended && !busy.has(`campaign:${x.c.id}`))
       .sort((a, b) => a.t.cac - b.t.cac);
     for (const x of candidates) {
       const most = Math.min(gap, x.t.spend * 0.25) / x.t.spend;
@@ -1038,7 +1051,7 @@ function pacing(range: Range, channels: ChannelName[], raised: Set<string> = new
       return [{
         ...base, tier: 2,
         action: `Lower the ${range}-day plan to ${money(spent)}`,
-        because: `Spend is ${off}% under plan, and no running campaign${raised.size > 0 ? ' beyond the ones already being raised' : ''} `
+        because: `Spend is ${off}% under plan, and no running campaign${running.some((x) => busy.has(`campaign:${x.c.id}`)) ? ' that another move does not already act on' : ''} `
           + `can take more money for less than the account’s ${cacText(blended)} a lead. The cheapest, “${best.c.name}”, `
           + `pays ${cacText(best.t.cac)} on average, but its next dollar would buy leads at about ${cacText(floor)}.`,
         evidence,
@@ -1485,9 +1498,16 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
         : CAMPAIGNS.filter((c) => c.channel === ch))
         .filter((c) => stageOf(c.id) === 'Active')
         .map((c) => ({ c, now: weekOf(campaignRows(c.id, LAST_WEEK)), prev: weekOf(campaignRows(c.id, LAST_WEEK, 1)) }))
-        .filter((x) => x.now.leads > 0);
+        /* 🐛 The campaign that LED the good news must have done the good thing.
+           Spend −40% and leads −20% is a cheaper week, and the card read
+           "“F” led it: 112 leads, up from 140". Leads news → leads that rose;
+           cost news → a cost per lead that fell. */
+        .filter((x) => x.now.leads > 0 && (isCac
+          ? Number.isFinite(cacOf(x.prev)) && cacOf(x.now) < cacOf(x.prev)
+          : x.now.leads > x.prev.leads));
       if (pool.length === 0) return null;
       const lead = pool.reduce((a, b) => {
+        if (isCac) return cacOf(b.now) / cacOf(b.prev) < cacOf(a.now) / cacOf(a.prev) ? b : a;
         const da = a.now.leads - a.prev.leads;
         const db = b.now.leads - b.prev.leads;
         return db > da || (db === da && cacOf(b.now) < cacOf(a.now)) ? b : a;
@@ -1503,8 +1523,10 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
       const who = isCampaign ? ''
         : pool.length === 1 && CAMPAIGNS.filter((c) => c.channel === ch && stageOf(c.id) === 'Active').length === 1
           ? ` It all ran through \u201c${lead.c.name}\u201d, at ${cacText(cac)} a lead.`
-          : ` \u201c${lead.c.name}\u201d led it: ${count(lead.now.leads)} leads at ${cacText(cac)} each, `
-            + `up from ${count(lead.prev.leads)}.`;
+          : isCac
+            ? ` \u201c${lead.c.name}\u201d led it: ${cacText(cac)} a lead, down from ${cacText(cacOf(lead.prev))}.`
+            : ` \u201c${lead.c.name}\u201d led it: ${count(lead.now.leads)} leads at ${cacText(cac)} each, `
+              + `up from ${count(lead.prev.leads)}.`;
       return {
         ...base, tier: 2,
         action: `Raise ${budgetOf(lead.c.name, true)} ${pct(proj.r)} (+${money(raise)} a week)`,
@@ -1518,8 +1540,9 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
         target: { kind: 'campaign', id: lead.c.id, label: lead.c.name },
         scope: [CHANNEL_LABEL[ch], lead.c.name],
         atStake: raise,
-        /* The claim is "leads rose" -- tested as two counts over equal weeks. */
-        compare: [{ spend: 1, leads: lead.now.leads }, { spend: 1, leads: lead.prev.leads }],
+        /* Test the claim MADE: "leads rose" as two counts over equal weeks;
+           "cost fell" as leads per dollar, this week against last. */
+        compare: isCac ? [lead.now, lead.prev] : [{ spend: 1, leads: lead.now.leads }, { spend: 1, leads: lead.prev.leads }],
         effect: { spend: raise, leads: proj.extraLeads },
         ...(sized ? {} : { held: marginalHeld(floorMarginal(campaignRows(lead.c.id, 90), lead.now), stop, 'its pull-back line') }),
         measure: { key: `campaign-leads:${lead.c.id}`, label: 'Campaign leads', better: 'higher' },
@@ -1588,30 +1611,62 @@ function compute(range: Range, channels: ChannelName[]): Candidate[] {
     ...crossChannelCostGap(range, channels),
     ...slowLeak(channels),
   ];
-  /* Pacing LAST, so it puts unspent budget somewhere no other card is already
-     raising -- two cards adding money to one campaign is one decision twice. */
-  const raised = new Set(found
-    .filter((c) => c.target.kind === 'campaign' && /^Raise /.test(c.action))
-    .map((c) => c.target.id));
-  const all = [...found, ...pacing(range, channels, raised)];
 
+  const first = settle(assess(found), new Set(), new Map());
+  /* ⭐ Pacing LAST, and only after the others are SETTLED -- so it never puts
+     unspent money into, or cuts the excess from, a campaign another shown card
+     already moves. 🐛 It used to read the raises BEFORE holding, so a raise
+     held back for its marginal price still counted as "being raised", and
+     pacing sent the money to the next campaign -- the one a Shift card was
+     taking money FROM. */
+  const pace = settle(assess(pacing(range, channels, first.claimed)), first.claimed, first.by);
+
+  const shown = [...first.shown, ...pace.shown].sort(byRank);
+  /* 🐛 The held list never went through the same filters, so it could hold a
+     duplicate of a shown card ("Raise B" shown AND held) or an ad inside a
+     campaign the engine says to end. Held is what was found and refused; it
+     must not contradict what is shown. */
+  const shownKeys = new Set(shown.map(dedupeKey));
+  const ending = endingCampaigns(shown);
+  HELD = [...first.held, ...pace.held]
+    .filter((c) => !shownKeys.has(dedupeKey(c)) && !insideEnding(c, ending))
+    .sort(byRank);
+  return shown;
+}
+
+/** Tier, then strength, then id -- a TOTAL order, so nothing reshuffles between renders. */
+const byRank = (a: Candidate, b: Candidate) =>
+  (a.tier - b.tier) || (b.strength - a.strength) || a.id.localeCompare(b.id);
+
+/** The same verb on the same thing is the same decision. */
+const dedupeKey = (c: Candidate) => `${c.action.split(' ')[0]}|${c.target.kind}|${c.target.id}`;
+
+const endingCampaigns = (cs: Candidate[]) => new Set(cs
+  .filter((c) => c.kind === 'stale-review' && /^End /.test(c.action))
+  .map((c) => c.target.id));
+
+/** Pausing an ad in a campaign you are closing is the same money twice. */
+function insideEnding(c: Candidate, ending: Set<string>): boolean {
+  if (c.target.kind === 'ad') return ending.has(creativeById(c.target.id)?.campaignId ?? '');
+  return c.target.kind === 'campaign' && c.kind !== 'stale-review' && ending.has(c.target.id);
+}
+
+/**
+ * Validate, then ask "is that real?" of every claim that compares two things.
+ *
+ * A finding the data cannot tell apart from chance is HELD BACK, not shown with
+ * a small-print caveat: a recommendation is an instruction to move money, and
+ * moving money on a coin flip is the failure a decision engine exists to
+ * prevent. Tier 3 is a question and is never held. Medium ranks below high.
+ */
+function assess(cs: Candidate[]): Candidate[] {
   /* A malformed candidate is dropped, not rendered. In dev it complains, because
-     silently showing fewer decisions than the engine found is the kind of thing
-     that goes unnoticed for a month. */
-  const ok = all.filter((c) => {
+     silently showing fewer decisions than the engine found goes unnoticed. */
+  const ok = cs.filter((c) => {
     const err = validate(c);
     if (err && import.meta.env?.DEV) console.warn(`[decisions] ${err}`);
     return !err;
   });
-
-  /* ⭐ "IS THAT REAL?" -- asked of every claim that compares two things.
-     A finding the data cannot tell apart from chance is HELD BACK, not shown
-     with a small-print caveat: a recommendation is an instruction to move
-     money, and moving money on a coin flip is the failure a decision engine
-     exists to prevent. Held-back findings are kept (`heldBack()`), so the
-     screen can say how many there are and why. Tier 3 is a question and is
-     never held back -- a question is not acted on. Medium confidence ranks
-     below high within its tier. */
   for (const c of ok) {
     if (c.compare) c.confidence = rateTest(c.compare[0], c.compare[1]);
     if (c.confidence?.level === 'medium') c.strength *= 0.75;
@@ -1619,34 +1674,68 @@ function compute(range: Range, channels: ChannelName[]): Candidate[] {
       c.held = { reason: 'chance', sentence: c.confidence.sentence };
     }
   }
-  const held = ok.filter((c) => c.held);
-  HELD = held;
-  const sure = ok.filter((c) => !held.includes(c));
+  return ok;
+}
 
-  const sorted = sure.sort((a, b) =>
-    (a.tier - b.tier)
-    || (b.strength - a.strength)
-    /* A TOTAL order, so the queue cannot reshuffle between renders. */
-    || a.id.localeCompare(b.id));
+/**
+ * The budgets a card moves, as units: a campaign, or a single ad.
+ *
+ * A channel-wide cut moves every running campaign on the channel. A Shift moves
+ * two -- the one it takes from and the one it gives to (parsed from its id,
+ * the one place both are recorded). Cards with no money in them move nothing.
+ */
+function unitsOf(c: Candidate): string[] {
+  if (!c.effect || (c.effect.spend === 0 && c.effect.leads === 0)) return [];
+  if (c.kind === 'reallocate-within-channel') {
+    const [, , from, to] = c.id.split(':');
+    return [`campaign:${from}`, `campaign:${to}`];
+  }
+  if (c.target.kind === 'ad') return [`ad:${c.target.id}`];
+  if (c.target.kind === 'campaign') return [`campaign:${c.target.id}`];
+  if (c.target.kind === 'channel') {
+    return CAMPAIGNS.filter((x) => x.channel === c.target.id && stageOf(x.id) === 'Active').map((x) => `campaign:${x.id}`);
+  }
+  return [];
+}
 
-  /* ⭐ Now that findings END in actions, two detectors can reach the same one:
-     the weekly move and the spend share can both say "Pause this ad"; the
-     weekly move and "beats its channel" can both raise one campaign. One
-     action, one card -- the better-supported one, which is why this runs
-     AFTER the sort. And nothing inside a campaign the engine says to END:
-     pausing an ad in a campaign you are closing is the same money twice. */
-  const ending = new Set(sorted
-    .filter((c) => c.kind === 'stale-review' && /^End /.test(c.action))
-    .map((c) => c.target.id));
+/**
+ * ⭐ ONE MOVE PER BUDGET.
+ *
+ * 🐛 Duplicates were only caught when the first word AND the target matched,
+ * so different verbs on the same money all got through: "Cut Meta 20%",
+ * "Cut A 20%" and "Shift $22,500 from A to B" side by side -- A cut three ways
+ * -- and the plan added all three. Or "Put G's budget back", "Raise G 20%" and
+ * "Shift money to G", each projected from the same starting point.
+ *
+ * Now, best-supported first, each money move CLAIMS the budgets it touches,
+ * and a later move on a claimed budget is held back as an overlap, naming the
+ * move that already acts on it. A channel-wide cut claims every campaign on the
+ * channel, so it covers their campaign-level cuts too.
+ */
+function settle(cs: Candidate[], claimedIn: Set<string>, byIn: Map<string, string>) {
+  const claimed = new Set(claimedIn);
+  const by = new Map(byIn);
+  const held: Candidate[] = cs.filter((c) => c.held);
+  const sure = cs.filter((c) => !c.held).sort(byRank);
+  const ending = endingCampaigns(sure);
   const seen = new Set<string>();
-  return sorted.filter((c) => {
-    if (c.target.kind === 'ad' && ending.has(creativeById(c.target.id)?.campaignId ?? '')) return false;
-    if (c.target.kind === 'campaign' && c.kind !== 'stale-review' && ending.has(c.target.id)) return false;
-    const key = `${c.action.split(' ')[0]}|${c.target.kind}|${c.target.id}`;
-    if (seen.has(key)) return false;
+  const shown: Candidate[] = [];
+  for (const c of sure) {
+    if (insideEnding(c, ending)) continue;
+    const key = dedupeKey(c);
+    if (seen.has(key)) continue;
+    const units = unitsOf(c);
+    const clash = units.find((u) => claimed.has(u));
+    if (clash) {
+      c.held = { reason: 'overlap', sentence: `Another move already acts on this budget: “${by.get(clash)}”. One move per budget.` };
+      held.push(c);
+      continue;
+    }
     seen.add(key);
-    return true;
-  });
+    for (const u of units) { claimed.add(u); by.set(u, c.action); }
+    shown.push(c);
+  }
+  return { shown, held, claimed, by };
 }
 
 /**

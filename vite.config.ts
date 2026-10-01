@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
     'ANTHROPIC_API_KEY', 'GROWTH_ALLOWED_EMAILS', 'PUBLIC_ORIGIN',
     'SLACK_APP_TOKEN', 'SLACK_CLIENT_ID', 'SLACK_CLIENT_SECRET', 'SLACK_REDIRECT_URI', 'SLACK_SIGNING_SECRET',
     'META_CLIENT_ID', 'META_CLIENT_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET',
-    'GOOGLE_ADS_DEVELOPER_TOKEN', 'GOOGLE_ADS_API_VERSION',
+    'GOOGLE_ADS_DEVELOPER_TOKEN', 'GOOGLE_ADS_API_VERSION', 'META_API_VERSION',
     'TIKTOK_APP_ID', 'MS_CLIENT_ID', 'MS_CLIENT_SECRET',
   ]) {
       if (env[k]) process.env[k] = env[k]
@@ -41,6 +41,10 @@ export default defineConfig(({ mode }) => {
          403 rather than the app. The tunnel is a legitimate front door, so name
          it. Scoped to the tunnel domain, not opened to everything. */
       allowedHosts: ['.trycloudflare.com'],
+      /* 🚨 Vite's default deny list blocks .env but not *.local -- where every
+         token, password hash and session lives. Second lock: isSecretPath in
+         server/guard.ts. Test: tests/secretFiles.test.ts. */
+      fs: { deny: ['.env', '.env.*', '*.local', '*.local.tmp', '*.{crt,pem,key,p12}', '**/.git/**'] },
     },
   }
 })

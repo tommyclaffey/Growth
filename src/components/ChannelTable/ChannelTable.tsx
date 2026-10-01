@@ -287,7 +287,7 @@ export function ChannelTable({
                         /* The row navigates. This must not, or asking about a
                            channel would also leave the screen you asked from. */
                         e.stopPropagation();
-                        onAskAbout(`What's going on with ${r.name}?`,
+                        onAskAbout(`What’s going on with ${r.name}?`,
                           { kind: 'channel', id: r.key, label: r.name });
                       }}
                     >

@@ -18,10 +18,12 @@ import {
 
 interface Status {
   configured: boolean;
-  /** Google only: its developer token. Meta has no equivalent. */
+  /** Retired by Google on Sept 9, 2026. Still in older servers' replies; ignored. */
   developerToken?: boolean;
   connected: boolean;
   expired: boolean;
+  /** Meta only: days until the long-lived token runs out. */
+  expiresInDays?: number | null;
   accountId: string | null;
 }
 interface Choice { id: string; name: string; currency: string }
@@ -32,7 +34,6 @@ interface Platform<A extends Choice> {
   short: string;          // "Meta"
   connectHref: string;
   missingApp: string;
-  missingToken?: string;
   status: () => Promise<Status | null>;
   accounts: () => Promise<A[]>;
   choose: (a: A) => Promise<void>;
@@ -57,7 +58,6 @@ const GOOGLE: Platform<Awaited<ReturnType<typeof googleAccounts>>[number]> = {
   short: 'Google Ads',
   connectHref: '/api/connect/paidSearch',
   missingApp: 'Needs a Google OAuth client: add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env.local, then restart.',
-  missingToken: 'Needs a developer token from a Google Ads manager account (API Center): add GOOGLE_ADS_DEVELOPER_TOKEN to .env.local, then restart.',
   status: googleStatus,
   accounts: googleAccounts,
   choose: chooseGoogleAccount,
@@ -78,7 +78,7 @@ function PlatformRow<A extends Choice>({ p }: { p: Platform<A> }) {
     return () => { live = false; };
   }, [backend, p]);
 
-  const canList = Boolean(status?.connected && status.developerToken !== false);
+  const canList = Boolean(status?.connected && !status.expired);
   useEffect(() => {
     if (!canList) return;
     let live = true;
@@ -89,7 +89,6 @@ function PlatformRow<A extends Choice>({ p }: { p: Platform<A> }) {
   const step = backend === false ? 'static'
     : !status ? 'checking'
     : !status.configured ? 'no-app'
-    : status.developerToken === false ? 'no-token'
     : !status.connected || status.expired ? 'connect'
     : !status.accountId ? 'choose'
     : 'ready';
@@ -105,10 +104,12 @@ function PlatformRow<A extends Choice>({ p }: { p: Platform<A> }) {
           {step === 'static' && 'Real accounts need the local build — this public demo has no server.'}
           {step === 'checking' && 'Checking…'}
           {step === 'no-app' && p.missingApp}
-          {step === 'no-token' && p.missingToken}
           {step === 'connect' && (status?.expired ? `Your ${p.short} sign-in expired. Connect again.` : `Connect ${p.short} to read the accounts you have access to.`)}
           {step === 'choose' && 'Connected. Choose the account to read.'}
           {step === 'ready' && `Connected to ${current?.name ?? status?.accountId}.`}
+          {step === 'ready' && typeof status?.expiresInDays === 'number' && status.expiresInDays < 7 && (
+            ` Sign-in ends in ${status.expiresInDays === 0 ? 'less than a day' : `${status.expiresInDays} day${status.expiresInDays === 1 ? '' : 's'}`}. Connect again to renew it.`
+          )}
         </span>
         {error && <span className="gr-type-caption gr-source__error" role="alert">{error}</span>}
       </span>

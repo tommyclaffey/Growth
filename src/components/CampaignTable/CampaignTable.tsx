@@ -142,7 +142,7 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
                                 /* The row expands on click; this must not also
                                    toggle it open behind the panel. */
                                 e.stopPropagation();
-                                onAskAbout(`What's going on with ${c.name}?`,
+                                onAskAbout(`What’s going on with ${c.name}?`,
                                   { kind: 'campaign', id: c.id, label: c.name });
                               }}>
                         Ask

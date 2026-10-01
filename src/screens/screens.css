@@ -224,7 +224,9 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
   color: inherit;
   cursor: pointer;
   text-align: left;
-  border-radius: var(--radius-xs);
+  /* Was --radius-xs, a token that does not exist -- so the declaration was
+     dropped and the focus ring drew square. */
+  border-radius: var(--radius-sm);
 }
 .gr-campaign__adset-open:hover { color: var(--accent-base); text-decoration: underline; }
 .gr-campaign__adset-open:focus-visible {
@@ -537,6 +539,13 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
   padding: var(--space-20);
 }
 .gr-dec__card.is-dismissed { opacity: 0.6; }
+/* Held back is not dismissed: the engine refused it, the reader did not. Quieter
+   by colour, not opacity -- 0.6 on already-muted text fell below readable. */
+.gr-dec__card.is-held { background: var(--surface-page-top); box-shadow: none; }
+.gr-dec__card.is-held .gr-type-body-medium { color: var(--text-secondary); }
+/* The two read-only lists: line up the text, no stray paragraph margins. */
+.gr-dec__card.is-held, .gr-dec__card.is-dismissed { gap: var(--space-6); }
+.gr-dec__card.is-held p, .gr-dec__card.is-dismissed p { margin: 0; }
 /* 🐛 No coloured left edge any more. A 3px border-left on a rounded card bends
    around the corner -- the curved green line at the top of every card -- and
    the section heading already names the tier. Overdue is the exception that
@@ -547,14 +556,13 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
   display: flex; align-items: baseline; gap: var(--space-12);
   margin: 0 0 var(--space-6);
 }
-.gr-dec__action { margin: 0; flex: 1; color: var(--text-primary); }
+.gr-dec__action { margin: 0; flex: 1; color: var(--text-primary); letter-spacing: -0.005em; }
 .gr-dec__stake {
   flex: none; padding: var(--space-2) var(--space-8);
   border-radius: var(--radius-pill);
   color: var(--text-secondary); background: var(--surface-page-top);
 }
 
-.gr-dec__action { letter-spacing: -0.005em; }
 /* The reason: one quieter step down from the recommendation it supports. */
 .gr-dec__because { margin: 0 0 var(--space-14); color: var(--text-secondary); }
 
@@ -591,14 +599,13 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 /* The assumption is set apart on purpose. Folded in with the expectation, a
    projection starts reading as a promise -- which is the one thing tier 2 must
    not do. */
-.gr-dec__assuming { color: var(--semantic-warn); }
+.gr-dec__assuming,
 .gr-dec__expect p.gr-dec__assuming { color: var(--semantic-warn); }
 
 .gr-dec__actions {
   display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap;
   margin-top: auto; padding-top: var(--space-4);
 }
-.gr-dec__dismiss { margin-left: auto; }
 /* Talk about this · Share · Dismiss -- text, at the far edge. */
 .gr-dec__minor {
   /* Its own reset, not .gr-unbutton: that one sets font: inherit, which would
@@ -610,7 +617,6 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 .gr-dec__minor:hover { color: var(--text-primary); background: var(--surface-page-top); }
 .gr-dec__minor:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }
 .gr-dec__minor--first { margin-left: auto; }
-.gr-dec__accepted { color: var(--semantic-good); }
 .gr-dec__why { color: var(--text-muted); margin: var(--space-4) 0 var(--space-8); }
 
 .gr-dec__dismiss-form { display: flex; gap: var(--space-8); flex: 1 1 100%; }

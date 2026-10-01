@@ -202,7 +202,7 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
                               card" exists in several campaigns. Name matching
                               returned whichever matched first. */
                           onClick={() => onAskAbout(
-                            `What's going on with “${r.creative.headline}”?`,
+                            `What’s going on with “${r.creative.headline}”?`,
                             { kind: 'ad', id: r.creative.id, label: r.creative.headline })}>
                     Ask
                   </button>
