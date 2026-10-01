@@ -21,7 +21,7 @@ describe('⭐ the plan card', () => {
     const plan = screen.getByRole('region', { name: "This week's plan" });
     expect(plan.textContent).toMatch(/Take the \d+ ready moves: \+\d+ leads a week on \$[\d,]+ less/);
     expect(plan.textContent).toMatch(/Cost per lead\$41\.08 → \$\d+\.\d\d/);
-    expect(plan.textContent).toMatch(/assumed, not measured/);
+    expect(plan.textContent).toMatch(/assumed where its spend has not moved enough to measure/);
   });
 
   it('"Accept all" takes every move with money in it, and the plan empties', () => {

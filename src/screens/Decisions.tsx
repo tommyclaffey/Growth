@@ -458,9 +458,9 @@ function PlanCard({ plan, range }: { plan: Plan; range: Range }) {
 
       <p className="gr-type-caption gr-dec__plan-note">
         Frees {formatMetric('Spend', plan.freed)} a week from {cutters} move{cutters === 1 ? '' : 's'} and
-        puts {formatMetric('Spend', plan.added)} into {adders}. Leads gained come off each campaign’s curve
-        {plan.assumed ? ' — assumed, not measured, where its spend has not moved enough to show it' : ''}.
-        {' '}Figures are this window scaled to a week ({range} days → 7).
+        puts {formatMetric('Spend', plan.added)} into {adders}. The extra leads come off each campaign’s curve
+        {plan.assumed ? ', assumed where its spend has not moved enough to measure' : ''}. Figures
+        are a week at the selected dates’ pace.
       </p>
 
       <footer className="gr-dec__actions">

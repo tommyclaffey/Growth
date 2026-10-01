@@ -1038,8 +1038,8 @@ function pacing(range: Range, channels: ChannelName[], raised: Set<string> = new
       return [{
         ...base, tier: 2,
         action: `Lower the ${range}-day plan to ${money(spent)}`,
-        because: `Spend is ${off}% under plan, and no running campaign can take more money for less `
-          + `than the account’s ${cacText(blended)} a lead. The cheapest, “${best.c.name}”, `
+        because: `Spend is ${off}% under plan, and no running campaign${raised.size > 0 ? ' beyond the ones already being raised' : ''} `
+          + `can take more money for less than the account’s ${cacText(blended)} a lead. The cheapest, “${best.c.name}”, `
           + `pays ${cacText(best.t.cac)} on average, but its next dollar would buy leads at about ${cacText(floor)}.`,
         evidence,
         expectation: {
