@@ -14,6 +14,9 @@ import {
 import { blendedTotal } from './blended';
 import { changeThreshold, notifications } from './notifications';
 import { projectRaise, rateTest, responseCurve, type Confidence, type Curve, type Sample } from './evidence';
+/* Re-exported so the server's one ssrLoadModule of the engine also gets the
+   plan. plan.ts imports only TYPES from here, so there is no runtime cycle. */
+export { planFrom } from './plan';
 
 /**
  * The decision engine.

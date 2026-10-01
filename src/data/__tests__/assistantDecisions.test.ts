@@ -109,7 +109,10 @@ describe('the limitation question is a first-class answer', () => {
     const a = ask('What should I do next?', 30);
     expect(a.decisions!.length).toBeGreaterThan(1);
     for (const d of a.decisions!) expect(a.text).not.toContain(d.action);
-    expect(a.text.split('\n\n')[0]).toMatch(/this week’s moves first, then the strongest evidence over the last 30 days:$/);
+    /* Oct 1: the PLAN opens it -- the sum before the parts -- then the header. */
+    const paras = a.text.split('\n\n');
+    expect(paras[0]).toMatch(/^If you take all \d+ ready moves, a week goes from \$[\d,]+ to \$[\d,]+ of spend/);
+    expect(paras[1]).toMatch(/this week’s moves first, then the strongest evidence over the last 30 days:$/);
     /* ...and the cards are in the order the header promises. */
     const weekly = a.decisions!.map((d) => decisions(30).find((c) => c.id === d.id)!.kind === 'weekly-move');
     expect(weekly.indexOf(false) === -1 || !weekly.slice(weekly.indexOf(false)).includes(true)).toBe(true);

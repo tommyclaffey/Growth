@@ -5,6 +5,7 @@ import {
 } from './metrics';
 import type { ChannelName } from '../styles/tokens';
 import { decisions, decisionsFor, limitsFor, type Candidate, type Target } from './decisions';
+import { planFrom } from './plan';
 import { isFlagged } from './attention';
 import { compareCampaigns } from './compare';
 import { commitments, recordOf, type Commitment } from './commitments';
@@ -401,6 +402,8 @@ function speak(c: Candidate): string {
     }
   }
   if (c.needs) lines.push(`To answer it you would need ${c.needs}`);
+  /* "Is that real?" -- answered before the reader has to ask. */
+  if (c.confidence) lines.push(`How sure: ${c.confidence.sentence}`);
   return lines.join('\n');
 }
 
@@ -651,6 +654,15 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
     const lead = weekly.length > 0
       ? `${top.length === 1 ? 'One thing' : `${top.length} things`}: this week’s moves first, then the strongest evidence over ${periodOver}:`
       : `${top.length === 1 ? 'One thing' : `${top.length} things`} over ${periodOver}, strongest evidence first:`;
+    /* ⭐ The sum before the parts -- the same plan the Decisions screen opens on. */
+    const p = planFrom(actionable, range, activeChannels());
+    const planLine = p.moves.length >= 2
+      ? `If you take all ${p.moves.length} ready moves, a week goes from ${formatMetric('Spend', p.before.spend)} `
+        + `to ${formatMetric('Spend', p.after.spend)} of spend, ${Math.round(p.before.leads).toLocaleString()} to `
+        + `${Math.round(p.after.leads).toLocaleString()} leads, and ${formatMetric('CAC', p.before.cac)} to `
+        + `${formatMetric('CAC', p.after.cac)} a lead.`
+        + (p.assumed ? ' The extra leads come off each campaign’s curve, assumed where its spend has not moved enough to measure.' : '')
+      : '';
     return {
       answered: true,
       /* ⚠️ Newline-delimited, not one paragraph. The first version returned all
@@ -658,6 +670,7 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
          defeats the point of a conversational surface. The panel splits on blank
          lines. */
       text: [
+        planLine,
         lead,
         found.some((c) => c.tier === 3)
           ? `There is also something the numbers raise that I deliberately will not turn into a recommendation — ask me what this data cannot tell you.`
