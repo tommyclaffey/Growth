@@ -377,6 +377,24 @@ export function canProduce(channel: ChannelName, field: 'clicks' | 'impressions'
 }
 
 /**
+ * The chart metrics a scope can honestly plot.
+ *
+ * 🐛 The chart's toggle offered all six everywhere, so the Podcasts screen could
+ * draw a Clicks line that was zero every day -- a chart of a thing the medium
+ * cannot produce. The KPI row already asked; the chart now asks too. "All
+ * channels" keeps Clicks while ANY active channel can produce them.
+ */
+export function chartMetricsFor(scope: ChannelName | 'all'): Metric[] {
+  const pool = scope === 'all' ? activeChannels() : [scope];
+  return METRICS.filter((m) => m !== 'Clicks' || pool.some((c) => canProduce(c, 'clicks')));
+}
+
+/** The metric to plot: the one picked, or Leads where the picked one cannot exist. */
+export function plottable(scope: ChannelName | 'all', picked: Metric): Metric {
+  return chartMetricsFor(scope).includes(picked) ? picked : 'Leads';
+}
+
+/**
  * Things that HAPPENED in the last week, written into the data rather than into
  * a notification.
  *
