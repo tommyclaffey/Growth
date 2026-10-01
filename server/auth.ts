@@ -1,8 +1,8 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
 import {
-  MIN_PASSWORD, checkPassword, createSession, createUser, demoUser, endSession, failed, mayJoin, normEmail,
+  MIN_PASSWORD, verifyPassword, createSession, createUser, demoUser, endSession, failed, mayJoin, normEmail,
   sessionUser, succeeded, tooMany, updateUser, userByEmail, userByIdentity, userById,
   type Provider, type User,
 } from './authStore.js';
@@ -127,6 +127,8 @@ export const configured = (p: Provider) =>
   Boolean(process.env[PROVIDERS[p].idEnv] && process.env[PROVIDERS[p].secretEnv]);
 
 const COOKIE = 'growth_session';
+/** The sign-in round trip's state, held by the browser that started it. */
+const STATE_COOKIE = 'growth_oauth_state';
 
 /** The signed-in person for this request, or undefined. Used by the gate and by Slack. */
 export function requester(req: IncomingMessage): User | undefined {
@@ -136,7 +138,10 @@ export function requester(req: IncomingMessage): User | undefined {
 function setSession(req: IncomingMessage, res: ServerResponse, user: User) {
   const { token, maxAge } = createSession(user.id);
   const secure = originOf(req).startsWith('https:') ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
+  /* Appended, not replaced: the sign-in callback has already cleared its state cookie. */
+  const prev = res.getHeader?.('Set-Cookie');
+  const kept = prev === undefined ? [] : Array.isArray(prev) ? prev : [String(prev)];
+  res.setHeader('Set-Cookie', [...kept, `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`]);
 }
 
 const publicUser = (u: User) => ({ id: u.id, seat: u.seat, name: u.name, email: u.email, avatar: u.avatar, role: u.role, demo: Boolean(u.demo) });
@@ -264,7 +269,7 @@ export function authApi(): Plugin {
             const user = userByEmail(email);
             /* One message for both failures -- which one it was is exactly what
                someone guessing accounts wants to learn. */
-            if (!checkPassword(password, user?.password) || !user) {
+            if (!(await verifyPassword(password, user?.password)) || !user) {
               failed(key);
               if (!local) failed(REMOTE);
               return send(res, 401, { error: 'That email and password do not match.' });
@@ -319,6 +324,14 @@ export function authApi(): Plugin {
             const state = randomBytes(16).toString('hex');
             const nonce = randomBytes(16).toString('hex');
             pending.set(state, { provider: p, nonce, exp: Date.now() + 10 * 60_000, link: me?.id });
+            /* 🔒 Ties the round trip to THIS browser. Without it, someone could
+               start a sign-in with their own Google account, stop at the
+               callback, and send you that link: you would land signed in as
+               them, and anything you did would go to their account (login
+               CSRF -- security review, Oct 1). Lax is sent on the provider's
+               top-level redirect back; HttpOnly keeps it from page scripts. */
+            const secure = originOf(req).startsWith('https:') ? '; Secure' : '';
+            res.setHeader('Set-Cookie', `${STATE_COOKIE}=${state}; Path=/api/auth; HttpOnly; SameSite=Lax; Max-Age=600${secure}`);
             for (const [k, v] of pending) if (v.exp < Date.now()) pending.delete(k);
             const cfg = PROVIDERS[p];
             const auth = new URL(cfg.authorize);
@@ -339,6 +352,11 @@ export function authApi(): Plugin {
             const p = pending.get(state);
             pending.delete(state);
             if (!p || p.exp < Date.now()) return page(res, 400, 'That sign-in link expired', 'Start again from Growth.');
+            const mine = cookieOf(req, STATE_COOKIE);
+            res.setHeader('Set-Cookie', `${STATE_COOKIE}=; Path=/api/auth; HttpOnly; SameSite=Lax; Max-Age=0`);
+            if (!mine || mine.length !== state.length || !timingSafeEqual(Buffer.from(mine), Buffer.from(state))) {
+              return page(res, 400, 'Finish where you started', 'This sign-in was started in a different browser. Start again from Growth.');
+            }
             const cfg = PROVIDERS[p.provider];
             if (url.searchParams.get('error')) {
               return page(res, 400, `${cfg.label} did not sign you in`, url.searchParams.get('error_description') ?? url.searchParams.get('error') ?? '');
