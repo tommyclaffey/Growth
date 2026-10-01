@@ -79,12 +79,17 @@ describe('the chart: table view and earlier periods', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Line chart' }));
     expect(screen.getByLabelText(/Compare with another metric or an earlier period/)).toBeTruthy();
   });
+  /* ⚠️ A 365-day chart is a big DOM, and getByText walks every node with a
+     regex -- ~2.9 s alone, past the 5 s default under full-suite load (it
+     flaked once on Oct 1). The chart renders in ~0.2 s; the QUERY was slow. A
+     plain textContent check asserts the same thing, and the timeout is the
+     belt to its braces. */
   it('when the data does not reach back that far, it SAYS so -- never draws zeros', () => {
     setWindowEnd(10);          // a year ending 10 days back: last year starts before the data
-    renderChart(365);
+    const { container } = renderChart(365);
     pick('year');
-    expect(screen.getByText(/No data for the same days last year/)).toBeTruthy();
-  });
+    expect(container.textContent).toMatch(/No data for the same days last year/);
+  }, 15_000);
 
   /* ⭐ Sept 30: PERIODS DOWN, METRICS ACROSS -- for Day, Week and Month alike.
      It was a column per week; the eye compares down a column far more easily,
