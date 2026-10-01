@@ -132,11 +132,11 @@ export function Chart({
   /* Table rows by Day, or columns by Week / Month -- remembered. */
   const [groupBy, setGroupByState] = useState<GroupBy>(savedGroup);
   const tableWrap = useRef<HTMLDivElement>(null);
-  /* Weeks read oldest -> newest, so a long run opens at the NEWEST end. */
+  /* Newest is the TOP row, so a regroup or a new window opens at the top. */
   const bucketCount = data.length;
   useEffect(() => {
     const w = tableWrap.current;
-    if (w && groupBy !== 'day') w.scrollLeft = w.scrollWidth;
+    if (w) w.scrollTop = 0;
   }, [groupBy, bucketCount, chosen]);
   const setGroupBy = (g: GroupBy) => {
     setGroupByState(g);
@@ -352,71 +352,68 @@ export function Chart({
     </div>
   );
 
-  const dayTable = (
-    <table className="gr-chart__table">
+  /* ⭐ ONE LAYOUT for Day, Week and Month (Tommy, Sept 30): a ROW per period,
+     newest first, a COLUMN per ticked metric, the window's Total pinned under
+     the header.
+
+     It was a column per week, oldest -> newest. Two reasons it flipped:
+       - The eye compares DOWN a column -- digits stack -- far more easily than
+         across a row of thirteen differently-wide cells. "How did spend move
+         week to week?" is now a straight scan.
+       - Periods are the long list (52 weeks, 365 days) and metrics the short
+         one (six at most). Long lists scroll down; across, Day view was a
+         sideways-scrolling strip.
+     Each figure carries its change against the period BELOW it (the one
+     before) -- only between two WHOLE periods: a 3-day week against a 7-day
+     one is a smaller number, not a worse week. Day rows carry none: a day
+     against the day before is noise. */
+  const periods = grouped
+    ? buckets
+    : data.map((d, i) => ({ start: i, end: i + 1, label: d.label, full: true, days: 1 }));
+  const rows = periods.map((b, j) => ({ b, prev: j > 0 ? periods[j - 1] : null })).reverse();
+  const periodNoun = groupBy === 'day' ? 'Date' : groupBy === 'week' ? 'Week' : 'Month';
+
+  const periodTable = (
+    <table className={`gr-chart__table gr-chart__table--periods ${grouped ? 'has-change' : ''}`}>
       <thead>
         <tr className="gr-type-overline">
-          <th scope="col">Date</th>
+          <th scope="col">{periodNoun}</th>
           {cols.map((c) => <th key={c.m} scope="col">{c.m}</th>)}
+        </tr>
+        {/* The answer first: the window's total, pinned while the periods
+            scroll under it. */}
+        <tr className="gr-chart__total gr-type-body-medium">
+          <th scope="row">Total</th>
+          {cols.map((c) => (
+            <td key={c.m}>
+              <span className="gr-chart__value">{cell(c.m, totalOf(c.m))}</span>
+              {grouped && <span className="gr-chart__change" aria-hidden="true" />}
+            </td>
+          ))}
         </tr>
       </thead>
       <tbody className="gr-type-body">
-        {data.map((d, i) => (
-          <tr key={i}>
-            <th scope="row">{d.label}</th>
-            {cols.map((c) => <td key={c.m}>{cell(c.m, c.now[i]?.value)}</td>)}
-          </tr>
-        ))}
-      </tbody>
-      <tfoot className="gr-type-body-medium">
-        <tr>
-          <th scope="row">Total</th>
-          {cols.map((c) => <td key={c.m}>{cell(c.m, totalOf(c.m))}</td>)}
-        </tr>
-      </tfoot>
-    </table>
-  );
-
-  /* ⭐ A column per week (or month), oldest -> newest, then the window's
-     Total. Each figure carries its change against the column before -- but
-     only between two WHOLE periods: a 3-day week against a 7-day one is a
-     smaller number, not a worse week. */
-  const pivotTable = (
-    <table className="gr-chart__table gr-chart__table--pivot">
-      <thead>
-        <tr className="gr-type-overline">
-          <th scope="col">{groupBy === 'week' ? 'Week' : 'Month'}</th>
-          {buckets.map((b) => (
-            <th key={b.start} scope="col">
+        {rows.map(({ b, prev }) => (
+          <tr key={b.start}>
+            <th scope="row">
               {b.label}
               {!b.full && <span className="gr-chart__partial gr-type-micro">{b.days} day{b.days === 1 ? '' : 's'}</span>}
             </th>
-          ))}
-          <th scope="col" className="gr-chart__table-start">Total</th>
-        </tr>
-      </thead>
-      <tbody className="gr-type-body">
-        {cols.map((c) => (
-          <tr key={c.m}>
-            <th scope="row">{c.m}</th>
-            {buckets.map((b, j) => {
+            {cols.map((c) => {
               const v = over(c.m, b.start, b.end);
-              const prev = j > 0 ? buckets[j - 1] : null;
               const pv = prev ? over(c.m, prev.start, prev.end) : null;
-              const ch = prev && b.full && prev.full && v !== null && pv !== null ? pct(v, pv) : null;
+              const ch = grouped && prev && b.full && prev.full && v !== null && pv !== null ? pct(v, pv) : null;
               return (
-                <td key={b.start}>
-                  <span className="gr-chart__pivot-value">{cell(c.m, v)}</span>
-                  {ch !== null && (
-                    <span className={`gr-chart__pivot-change gr-type-micro ${tone(c.m, ch)}`}>
-                      {signed(ch)}
-                      <span className="gr-sr-only"> vs the {groupBy} before</span>
+                <td key={c.m}>
+                  <span className="gr-chart__value">{cell(c.m, v)}</span>
+                  {grouped && (
+                    <span className={`gr-chart__change gr-type-micro ${tone(c.m, ch)}`}>
+                      {ch !== null && <>{signed(ch)}<span className="gr-sr-only"> vs the {groupBy} before</span></>}
                     </span>
                   )}
                 </td>
               );
             })}
-            <td className="gr-chart__table-start gr-type-body-medium">{cell(c.m, totalOf(c.m))}</td>
           </tr>
         ))}
       </tbody>
@@ -426,8 +423,8 @@ export function Chart({
   const visibleTable = (
     <>
       {controls}
-      <div ref={tableWrap} className={`gr-chart__table-wrap ${grouped ? 'is-pivot' : ''}`} tabIndex={0} aria-label={`${title ?? 'Metrics'} as a table`}>
-        {grouped ? pivotTable : dayTable}
+      <div ref={tableWrap} className="gr-chart__table-wrap" tabIndex={0} aria-label={`${title ?? 'Metrics'} as a table`}>
+        {periodTable}
       </div>
     </>
   );
