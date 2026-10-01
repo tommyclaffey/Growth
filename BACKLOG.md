@@ -579,7 +579,12 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 
 ## ▶️ RESUME HERE *(Oct 1, morning)*
 
-**`overnight-polish` merged and LIVE.** Branch **`signin-hardening`** (1 commit, 784 tests) is NOT merged: sign-in state cookie (login CSRF closed) + async scrypt on login. No visual change.
+**`overnight-polish` merged and LIVE.** Branch **`signin-hardening`** is NOT merged (795 tests, no visual change):
+- Sign-in state cookie (login CSRF closed) + async scrypt on login.
+- Meta/Google token files follow `GROWTH_DATA_DIR`; `tests/adPlatformFailures.test.ts` covers Monday's failure paths (Meta 190, Google invalid_grant, no developer token, owner-only switch, v25 URL).
+- `engineScale.test.ts`: 60 campaigns / 1,200 ads kept as a test. 50 ms cold, 0.03 ms cached; 60 shown, 27 held.
+- Lint 19 → 9 (the 9 left are ChatPanel/AccountLinks/useDataSource effect patterns: correct for syncing external stores; purity one is a false positive in the send handler).
+- Signed-in browser sweep of 13 screens in dev mode: zero console errors/warnings. ⚠️ A stale Vite dep cache served 504s (blank page) until `npx vite --force` -- noted in the setup guide.
 **Still open (Tommy's call):** demo account shares the owner's seat (own seat, or off once a real owner exists) · style leftovers (Ask scrim, Button 13px).
 
 ## ⏮ Overnight notes *(Oct 1 — `overnight-polish`, now merged)*
