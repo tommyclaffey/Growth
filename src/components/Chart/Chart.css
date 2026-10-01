@@ -468,26 +468,43 @@
 .gr-chart__table--periods thead th,
 .gr-chart__table--periods thead td { background: var(--surface-card); }
 .gr-chart__table--periods tr > :first-child { min-width: 132px; }
-.gr-chart__table--periods tbody th { color: var(--text-primary); }
+/* ---- Readability (Sept 30) -------------------------------------------------
+   Tommy: "a lot of numbers kind of compile on top of each other."
+   The cause was PAIRING, not missing lines: each change floated in the gap
+   between its own figure and the NEXT column's, as near to one as the other,
+   so a row read as eight loose numbers instead of four pairs. Fixed by
+   proximity, not decoration:
+     - the change hugs its figure (left-aligned, a hair after it)
+     - a wide gutter separates one metric's pair from the next
+     - the figures are the strongest ink in the row; dates and changes recede
+     - rows are banded instead of ruled, so the eye can run along one week
+       without a line under every number. */
+.gr-chart__table--periods tbody th { color: var(--text-secondary); }
 .gr-chart__total th,
 .gr-chart__total td {
   color: var(--text-primary);
   border-bottom: var(--border-width-sm) solid var(--border-default);
 }
 .gr-chart__value { color: var(--text-primary); }
-.gr-chart__table--periods tbody .gr-chart__value { color: var(--text-secondary); }
-/* The change sits BESIDE its figure, in a slot of fixed width, so every
-   figure in a column ends on the same edge whether or not it has one. */
+.gr-chart__table--periods tbody th,
+.gr-chart__table--periods tbody td { border-bottom: 0; }
+.gr-chart__table--periods tbody tr:nth-child(even) > * { background: var(--surface-page-top); }
+.gr-chart__table--periods tbody tr > :first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); padding-left: var(--space-8); }
+.gr-chart__table--periods tbody tr > :last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.gr-chart__table--periods thead tr > :first-child { padding-left: var(--space-8); }
+/* The change: tight to its figure, in a fixed slot so the next gutter starts
+   on the same edge in every row. Quiet unless it is news. */
 .gr-chart__change {
-  display: inline-block; width: 3.25rem; margin-left: var(--space-6);
-  text-align: right; color: var(--text-muted);
+  display: inline-block; width: 3rem; margin-left: var(--space-4);
+  text-align: left; color: var(--text-muted);
 }
+.gr-chart__change.is-news { font-weight: 600; }
 .gr-chart__table--periods.has-change th:not(:first-child),
-.gr-chart__table--periods.has-change td { min-width: 152px; }
+.gr-chart__table--periods.has-change td { min-width: 0; padding-left: var(--space-40); }
 .gr-chart__table--periods.has-change thead th:not(:first-child) {
   /* Headers right-align over the FIGURE, not over the change slot. */
-  padding-right: calc(var(--space-12) + 3.25rem + var(--space-6));
+  padding-right: calc(var(--space-12) + 3rem + var(--space-4));
 }
-.gr-chart__table--periods.has-change thead th:last-child { padding-right: calc(3.25rem + var(--space-6)); }
+.gr-chart__table--periods.has-change thead th:last-child { padding-right: calc(3rem + var(--space-4)); }
 /* "6 days" beside a partial week, quiet. */
 .gr-chart__partial { margin-left: var(--space-6); color: var(--text-muted); }

@@ -11,6 +11,7 @@ import { smoothPath } from './smoothPath';
 import { MetricToggle } from '../MetricToggle/MetricToggle';
 import { betterHigher } from '../../data/channelMetrics';
 import { bucketsOf } from '../../data/buckets';
+import { changeThreshold } from '../../data/notifications';
 
 export { METRICS };
 export type { Metric };
@@ -308,6 +309,14 @@ export function Chart({
   const totalOf = (m: Metric) => over(m, 0, data.length);
   const cell = (m: Metric, v: number | null | undefined) => (v === null || v === undefined ? '—' : formatMetric(m, v));
   const tone = (m: Metric, ch: number | null) => (ch === null ? '' : `is-${deltaTone(ch, betterHigher(m))}`);
+  /* ⭐ Colour is for NEWS. Every +1% was green and every -2% red, so ~30 cells
+     shouted and the -29% that mattered was one more coloured number. Only a
+     move past the line the Needs-attention strip uses (Settings, 15% by
+     default) is coloured; the rest stay quiet grey. One definition of "worth
+     noticing" across the product. */
+  const newsy = changeThreshold();
+  const changeTone = (m: Metric, ch: number | null) =>
+    (ch !== null && Math.abs(ch) >= newsy ? `${tone(m, ch)} is-news` : '');
 
   const grouped = groupBy !== 'day';
   const buckets = grouped ? bucketsOf(nowIso, groupBy) : [];
@@ -407,7 +416,7 @@ export function Chart({
                 <td key={c.m}>
                   <span className="gr-chart__value">{cell(c.m, v)}</span>
                   {grouped && (
-                    <span className={`gr-chart__change gr-type-micro ${tone(c.m, ch)}`}>
+                    <span className={`gr-chart__change gr-type-micro ${changeTone(c.m, ch)}`}>
                       {ch !== null && <>{signed(ch)}<span className="gr-sr-only"> vs the {groupBy} before</span></>}
                     </span>
                   )}
