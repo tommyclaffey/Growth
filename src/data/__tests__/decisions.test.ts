@@ -310,13 +310,12 @@ describe('the detectors that the default fixture cannot exercise', () => {
     expect(found.length).toBeGreaterThan(0);
 
     for (const c of found) {
-      expect(c.tier).toBe(1);
-      /* "Review", never "turn it back on" — the latter is a forecast and would
-         have to be tier 2. */
-      expect(c.action).toMatch(/^Review why /);
-      expect(c.action).not.toMatch(/\b(scale|increase|resume|turn)\b/i);
-      /* Tier 1, so no assumption. */
-      expect(c.expectation?.assuming).toBeUndefined();
+      /* ⭐ Sept 30: it says TURN IT BACK ON -- "review why it is paused" was
+         homework, not a decision. Turning it on is a forecast, so it is tier 2
+         and the assumption is on the card. */
+      expect(c.tier).toBe(2);
+      expect(c.action).toMatch(/^Turn .+ back on$/);
+      expect(c.expectation?.assuming).toMatch(/does what it did/);
       /* And the limitation is stated on the card rather than left implied: a
          paused ad's figures here cover the whole window, not its live span. */
       expect(c.evidence.some((e) => /caveat/i.test(e.label))).toBe(true);
@@ -446,15 +445,16 @@ describe('⭐ the engine finds opportunities, not only faults', () => {
     }
   });
 
-  it('spots a campaign beating its own channel, and asks WHY not "scale it"', () => {
+  it('spots a campaign beating its own channel, and GIVES IT MORE -- as a stated projection', () => {
     reset();
     const found = all().filter((c) => c.kind === 'beats-its-channel');
     expect(found.length).toBeGreaterThan(0);
     for (const c of found) {
-      expect(c.tier).toBe(1);
-      /* Scaling is a forecast and would be tier 2. Learning is arithmetic. */
-      expect(c.action).toMatch(/^Find out why /);
-      expect(c.action).not.toMatch(/\b(scale|increase|shift|move)\b/i);
+      /* ⭐ Sept 30: "find out why it beats the channel" was not a decision.
+         Raising it is a forecast, so tier 2, with the pull-back line stated. */
+      expect(c.tier).toBe(2);
+      expect(c.action).toMatch(/^Raise the budget on “.+” 20% \(\+\$[\d,]+ a week\)$/);
+      expect(c.expectation?.assuming).toMatch(/put it back/);
     }
   });
 

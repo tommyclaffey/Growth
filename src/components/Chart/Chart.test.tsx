@@ -36,22 +36,26 @@ describe('the chart: table view and earlier periods', () => {
   it('⭐ a ratio’s total is REBUILT from its parts -- total spend over total leads, never a sum of daily CACs', () => {
     renderChart(30, 'CAC');
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
-    expect(screen.getByRole('table').querySelector('tfoot')!.textContent).toContain(formatMetric('CAC', totals('all', 30).cac));
+    expect(screen.getByRole('table').querySelector('.gr-chart__total')!.textContent).toContain(formatMetric('CAC', totals('all', 30).cac));
   });
 
   it('⭐ tick metrics to show them side by side; the choice is remembered; every total is the dashboard’s', () => {
     localStorage.clear();
     const { unmount } = renderChart(30);
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
-    /* Starts with the chart's metric; the last one ticked cannot be unticked. */
-    expect((screen.getByRole('checkbox', { name: 'Spend' }) as HTMLInputElement).disabled).toBe(true);
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Leads' }));
+    /* ⭐ Every metric starts ON, until someone turns one off (Sept 30). */
+    for (const m of ['Spend', 'Clicks', 'Leads', 'Sales', 'CAC', 'ROAS']) {
+      expect((screen.getByRole('checkbox', { name: m }) as HTMLInputElement).checked, m).toBe(true);
+    }
+    for (const m of ['Spend', 'Clicks', 'Sales', 'CAC']) fireEvent.click(screen.getByRole('checkbox', { name: m }));
+    /* The last one ticked cannot be unticked: an empty table answers nothing. */
     fireEvent.click(screen.getByRole('checkbox', { name: 'ROAS' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Spend' }));         // any of them can go now
-    const head = screen.getByRole('table').querySelector('thead')!.textContent!;
+    expect((screen.getByRole('checkbox', { name: 'Leads' }) as HTMLInputElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'ROAS' }));
+    const head = screen.getByRole('table').querySelector('thead tr')!.textContent!;
     expect(head).toMatch(/Date.*Leads.*ROAS/);
     expect(head).not.toMatch(/Spend/);
-    const foot = screen.getByRole('table').querySelector('tfoot')!.textContent!;
+    const foot = screen.getByRole('table').querySelector('.gr-chart__total')!.textContent!;
     const t = totals('all', 30);
     expect(foot).toContain(formatMetric('Leads', t.leads));
     expect(foot).toContain(formatMetric('ROAS', t.roas));
@@ -59,6 +63,8 @@ describe('the chart: table view and earlier periods', () => {
     renderChart(30);
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     expect((screen.getByRole('checkbox', { name: 'Leads' }) as HTMLInputElement).checked).toBe(true);
+    /* A choice made is remembered -- it does not snap back to everything. */
+    expect((screen.getByRole('checkbox', { name: 'Spend' }) as HTMLInputElement).checked).toBe(false);
     localStorage.clear();
   });
 
@@ -80,24 +86,33 @@ describe('the chart: table view and earlier periods', () => {
     expect(screen.getByText(/No data for the same days last year/)).toBeTruthy();
   });
 
-  it('⭐ By Week: a column per week, oldest to newest, then the Total -- metrics are the rows', () => {
+  /* ⭐ Sept 30: PERIODS DOWN, METRICS ACROSS -- for Day, Week and Month alike.
+     It was a column per week; the eye compares down a column far more easily,
+     and periods are the long list (52 weeks, 365 days) while metrics are six. */
+  const periodRows = (table: HTMLElement) =>
+    [...table.querySelectorAll('tbody tr')].map((r) => r.querySelector('th')!.textContent);
+
+  it('⭐ By Week: a ROW per week, newest first, the Total pinned above them -- metrics are the columns', () => {
     localStorage.setItem('growth.tableColumns', JSON.stringify(['Leads', 'CAC']));
     renderChart(84);                       // twelve whole weeks
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     fireEvent.click(screen.getByRole('button', { name: 'Week' }));
     const table = screen.getByRole('table');
-    const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent);
-    expect(heads[0]).toBe('Week');
-    expect(heads).toHaveLength(1 + 12 + 1);
-    expect(heads.at(-2)).toBe('Aug 6–12');                 // the newest week, whole
-    expect(heads.at(-1)).toBe('Total');
-    const rows = [...table.querySelectorAll('tbody tr')].map((r) => r.querySelector('th')!.textContent);
-    expect(rows).toEqual(['Leads', 'CAC']);
-    /* The Total column is the window's own total -- the dashboard's figure. */
-    const cac = table.querySelectorAll('tbody tr')[1].querySelectorAll('td');
-    expect(cac[cac.length - 1].textContent).toBe(formatMetric('CAC', totals('all', 84).cac));
-    /* Each week (after the first) carries its change against the week before. */
-    expect(table.querySelectorAll('tbody tr')[0].querySelectorAll('.gr-chart__pivot-change')).toHaveLength(11);
+    const heads = [...table.querySelector('thead tr')!.querySelectorAll('th')].map((th) => th.textContent);
+    expect(heads).toEqual(['Week', 'Leads', 'CAC']);
+    const rows = periodRows(table);
+    expect(rows).toHaveLength(12);
+    expect(rows[0]).toBe('Aug 6–12');                       // the newest week on top
+    /* The Total row is the window's own total -- the dashboard's figure. */
+    const total = table.querySelector('.gr-chart__total')!;
+    expect(total.querySelector('th')!.textContent).toBe('Total');
+    expect(total.querySelectorAll('td')[1].textContent).toBe(formatMetric('CAC', totals('all', 84).cac));
+    /* Each week except the oldest carries its change against the week before,
+       BESIDE the figure. */
+    const changed = [...table.querySelectorAll('tbody tr')]
+      .map((r) => r.querySelectorAll('td')[0].querySelector('.gr-chart__change')!.textContent);
+    expect(changed.filter(Boolean)).toHaveLength(11);
+    expect(changed.at(-1)).toBe('');
     localStorage.clear();
   });
 
@@ -106,18 +121,27 @@ describe('the chart: table view and earlier periods', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     fireEvent.click(screen.getByRole('button', { name: 'Week' }));
     const table = screen.getByRole('table');
-    expect(table.querySelectorAll('thead th')[1].textContent).toMatch(/2 days/);
-    const first = table.querySelectorAll('tbody tr')[0].querySelectorAll('td');
-    expect(first[1].querySelector('.gr-chart__pivot-change')).toBeNull();   // week 2 vs a 2-day week: no change shown
+    const body = [...table.querySelectorAll('tbody tr')];
+    expect(body.at(-1)!.querySelector('th')!.textContent).toMatch(/2 days/);   // oldest, at the bottom
+    /* The week above it is whole, but its "before" is 2 days: no change shown. */
+    expect(body.at(-2)!.querySelector('.gr-chart__change')!.textContent).toBe('');
     localStorage.clear();
   });
 
-  it('By Month: calendar months, the partial ones marked', () => {
+  it('By Month: calendar months, newest first, the partial ones marked', () => {
     renderChart(90);
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     fireEvent.click(screen.getByRole('button', { name: 'Month' }));
-    const heads = [...screen.getByRole('table').querySelectorAll('thead th')].map((th) => th.textContent);
-    expect(heads).toEqual(['Month', 'May 202617 days', 'Jun 2026', 'Jul 2026', 'Aug 202612 days', 'Total']);
+    expect(periodRows(screen.getByRole('table'))).toEqual(['Aug 202612 days', 'Jul 2026', 'Jun 2026', 'May 202617 days']);
     localStorage.clear();
+  });
+
+  it('By Day: newest day first, no change column -- a day against the day before is noise', () => {
+    localStorage.clear();
+    renderChart(30);
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    const table = screen.getByRole('table');
+    expect(periodRows(table)[0]).toBe(series('all', 'Spend', 30).at(-1)!.label);
+    expect(table.querySelector('.gr-chart__change')).toBeNull();
   });
 });

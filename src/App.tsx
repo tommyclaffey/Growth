@@ -50,6 +50,7 @@ import {
 import {
   dismissAlert, dismissAll, markAllRead, setPref, undismissAlert, usePrefs,
 } from './data/prefs';
+import { useNavCounts } from './data/navCounts';
 import { onAttentionStrip, removeFlag, restoreFlag, useFlags, type Flag } from './data/attention';
 import { readUrlState, writeUrlState } from './data/urlState';
 import type { ChannelName } from './styles/tokens';
@@ -133,6 +134,9 @@ export default function App() {
     setAssistOpen(true);
   }, []);
   const enabled = useChannels();
+  /* The sidebar's counts -- the same numbers the Decisions and Notifications
+     screens show. */
+  const navCounts = useNavCounts(range, enabled);
   /* Drives the loading/error/empty states, which are otherwise unreachable —
      the data layer is synchronous, so nothing here can be slow or fail. */
   const simulated = useDemoState();
@@ -585,7 +589,7 @@ export default function App() {
           render checks `adId` first -- so you stayed on the ad, now with no
           campaign behind it and a breadcrumb reading "Campaign". Every tier has
           to clear, not just the first one that was noticed. */}
-      <Sidebar active={nav} onNavigate={(k) => {
+      <Sidebar active={nav} counts={navCounts} onNavigate={(k) => {
         setNav(k); setChannel(null); setCampaignId(null); setAdSetId(null); setAdId(null);
       }} />
 

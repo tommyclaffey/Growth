@@ -51,6 +51,8 @@ type Measure = { key: string; label: string; better: Baseline['better'] };
 
 /** What a decision is meant to move -- or undefined when no number can say. */
 function measureOf(c: Candidate): Measure | undefined {
+  /* The detector knows best when one kind can end in different actions. */
+  if (c.measure) return c.measure;
   switch (c.kind) {
     case 'spend-return-mismatch': {
       /* Pausing a weak ad should bring the CAMPAIGN's cost per lead down. */
@@ -90,6 +92,12 @@ function measureNow(key: string, range: Range): number | undefined {
      the list read as Active and graded "done". Gone is undefined: the person
      is asked how it went, which is the honest state. */
   if (kind === 'campaign-cac') return campaignById(id) ? campaignTotals(id, range).cac || undefined : undefined;
+  if (kind === 'campaign-leads') return campaignById(id) ? campaignTotals(id, range).leads : undefined;
+  if (kind === 'channel-cac') {
+    if (!suppliedChannels().includes(id as ChannelName)) return undefined;
+    const t = totals(id as ChannelName, range);
+    return t.leads > 0 ? t.spend / t.leads : undefined;
+  }
   if (kind === 'ad-leads') return creativeById(id) ? creativeTotals(id, range).leads : undefined;
   if (kind === 'channel-leads') return suppliedChannels().includes(id as ChannelName) ? totals(id as ChannelName, range).leads : undefined;
   if (kind === 'pace:account' || kind === 'pace') {
@@ -137,7 +145,7 @@ const localDay = (d: Date) => {
 };
 
 function show(b: Baseline, v: number): string {
-  if (b.key.startsWith('campaign-cac')) return formatMetric('CAC', v);
+  if (b.key.startsWith('campaign-cac') || b.key.startsWith('channel-cac')) return formatMetric('CAC', v);
   if (b.key.startsWith('pace')) return `${Math.round(v * 100)}%`;
   return Math.round(v).toLocaleString();
 }

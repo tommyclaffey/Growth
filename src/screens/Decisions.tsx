@@ -186,7 +186,7 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
                 )}
 
                 <header className="gr-dec__card-head">
-                  <h4 className="gr-type-card-heading gr-dec__action">{f.label}</h4>
+                  <h4 className="gr-type-section gr-dec__action">{f.label}</h4>
                   <span className="gr-type-caption gr-dec__stake">
                     {isOwnDecision(f) ? 'Your decision' : 'Accepted'}
                   </span>
@@ -197,7 +197,7 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
                     {f.evidence.map((e) => (
                       <div key={e.label}>
                         <dt className="gr-type-caption">{e.label}</dt>
-                        <dd className="gr-type-card-heading">{e.value}</dd>
+                        <dd className="gr-type-body-medium">{e.value}</dd>
                       </div>
                     ))}
                   </dl>
@@ -209,13 +209,15 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
                 <footer className="gr-dec__actions">
                   <GoTo target={targetOfDecision(f, all)} channel={f.channel} onOpen={onOpen} />
                   {onShare && (
-                    <Button variant="ghost" onClick={() => onShare({
-                      refId: f.refId, label: f.label, scope: f.scope?.join(' › '), owner: f.owner, due: f.due,
-                    })}>Share</Button>
+                    <button type="button" className="gr-dec__minor gr-dec__minor--first gr-type-caption-med"
+                            onClick={() => onShare({
+                              refId: f.refId, label: f.label, scope: f.scope?.join(' › '), owner: f.owner, due: f.due,
+                            })}>Share</button>
                   )}
-                  <Button variant="ghost" onClick={() => removeFlag('decision', f.refId)}>
+                  <button type="button" className={`gr-dec__minor gr-type-caption-med ${onShare ? '' : 'gr-dec__minor--first'}`}
+                          onClick={() => removeFlag('decision', f.refId)}>
                     Remove
-                  </Button>
+                  </button>
                 </footer>
               </article>
             )))}
@@ -365,7 +367,11 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range, onShare }:
       </p>
 
       <header className="gr-dec__card-head">
-        <h4 className="gr-type-card-heading gr-dec__action">{c.action}</h4>
+        {/* ⭐ THE RECOMMENDATION LEADS (Tommy, Sept 30: "it's not very clear
+            what the decision is ... that should be very predominant; everything
+            else secondary"). The largest type on the card; the figures below
+            dropped to body size so they support it instead of competing. */}
+        <h4 className="gr-type-section gr-dec__action">{c.action}</h4>
         {c.atStake !== undefined && (
           <span className="gr-type-caption gr-dec__stake">
             {formatMetric('Spend', c.atStake)} in play
@@ -379,7 +385,7 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range, onShare }:
         {c.evidence.map((e) => (
           <div key={e.label}>
             <dt className="gr-type-caption">{e.label}</dt>
-            <dd className="gr-type-card-heading">{e.value}</dd>
+            <dd className="gr-type-body-medium">{e.value}</dd>
           </div>
         ))}
       </dl>
@@ -437,29 +443,29 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range, onShare }:
         {/* ⭐ Into the conversation the team is having -- the decision staged in
             chat, like "Discuss" stages a chart. A decision that stays on one
             person's screen does not reach the people who act on it. */}
+        {/* Secondary actions: text, not buttons, pushed right -- two strong
+            controls (do it / go look) and the rest out of the way. */}
+        {onDiscuss && (
+          <button type="button" className="gr-dec__minor gr-dec__minor--first gr-type-caption-med"
+                  onClick={() => onDiscuss(`Why “${c.action}”?`)}>
+            Talk about this
+          </button>
+        )}
         {onShare && (
-          <Button variant="ghost" onClick={() => onShare({
-            refId: c.id, label: c.action, scope: c.scope.join(' › '), owner: flag?.owner, due: flag?.due,
-          })}>Share</Button>
+          <button type="button" className={`gr-dec__minor gr-type-caption-med ${onDiscuss ? '' : 'gr-dec__minor--first'}`}
+                  onClick={() => onShare({
+                    refId: c.id, label: c.action, scope: c.scope.join(' › '), owner: flag?.owner, due: flag?.due,
+                  })}>Share</button>
         )}
 
-        {/* ⭐ The route from the queue into the conversation. A card states a
-            finding; this is how you argue with it. Tier 3 gets it too -- in fact
-            it needs it most, because "why won't you answer that?" is exactly the
-            question a refusal provokes. */}
-        {onDiscuss && (
-          <Button variant="ghost" onClick={() => onDiscuss(`Why “${c.action}”?`)}>
-            Talk about this
-          </Button>
-        )}
 
         {accepted ? (
           /* Undo takes Dismiss's place at the far edge. Dismissing something
              you already committed to is not a thing -- you take it back. */
-          <Button variant="ghost" className="gr-dec__dismiss"
+          <button type="button" className={`gr-dec__minor gr-type-caption-med ${onDiscuss || onShare ? '' : 'gr-dec__minor--first'}`}
                   onClick={() => removeFlag('decision', c.id)}>
             Undo
-          </Button>
+          </button>
         ) : dismissing ? (
           <form
             className="gr-dec__dismiss-form"
@@ -477,9 +483,10 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range, onShare }:
         ) : (
           /* Pushed to the far edge, away from Accept. Four equal buttons in a
              row gave "throw this away" the same weight as "do it". */
-          <Button variant="ghost" className="gr-dec__dismiss" onClick={() => setDismissing(true)}>
+          <button type="button" className={`gr-dec__minor gr-type-caption-med ${onDiscuss || onShare ? '' : 'gr-dec__minor--first'}`}
+                  onClick={() => setDismissing(true)}>
             Dismiss
-          </Button>
+          </button>
         )}
       </footer>
     </article>

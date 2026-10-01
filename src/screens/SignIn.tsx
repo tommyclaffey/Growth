@@ -3,7 +3,7 @@ import './SignIn.css';
 import { Button } from '../components/Button/Button';
 import { FormField } from '../components/FormField/FormField';
 import { SlackMark } from '../components/SlackMark/SlackMark';
-import { signIn, signUp, startProvider, useDemo, type Provider } from '../data/auth';
+import { signIn, signUp, startProvider, enterDemo, type Provider } from '../data/auth';
 import googleG from '../assets/brand/google-g.svg';
 import microsoftMark from '../assets/brand/microsoft.svg';
 import teamsMark from '../assets/brand/microsoft-teams.svg';
@@ -136,7 +136,7 @@ export function SignIn({ providers, firstRun, canCreateOwner, canUseDemo = false
             <Button variant="ghost" className="gr-signin__submit" disabled={busy}
                     onClick={async () => {
                       setBusy(true); setError(null);
-                      const r = await useDemo();
+                      const r = await enterDemo();
                       setBusy(false);
                       if (!r.ok) setError(r.error ?? 'The demo account did not open.');
                     }}>

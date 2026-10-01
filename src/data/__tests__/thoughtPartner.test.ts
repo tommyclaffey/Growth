@@ -15,9 +15,13 @@ afterEach(() => {
 });
 
 describe('the engine knows what moved this week', () => {
-  it('⭐ Meta’s 42% CAC jump is the FIRST thing to act on', () => {
+  it('⭐ Meta’s 42% CAC jump is the FIRST thing to act on -- as an ACTION', () => {
     const top = decisions(30, ALL_CHANNELS)[0];
-    expect(top.action).toBe('Find out why Meta CAC rose 42% this week');
+    /* Sept 30: it was "Find out why Meta CAC rose 42%". The engine now finds
+       WHERE (the live ad paying the most per lead) and says what to do. */
+    expect(top.id).toBe('weekly:cac:meta');
+    expect(top.action).toBe('Pause “Join 400,000 people” (Broad — US 25-54)');
+    expect(top.because).toMatch(/from \$33\.85 to \$48\.04/);
     expect(top.tier).toBe(1);
   });
 
@@ -28,14 +32,17 @@ describe('the engine knows what moved this week', () => {
     }
   });
 
-  it('a good move asks what WORKED, so it can be repeated', () => {
+  it('a good move gives more to what led it -- with the line at which to pull back', () => {
     const aff = decisions(30, ALL_CHANNELS).find((c) => c.id === 'weekly:leads:affiliates')!;
-    expect(aff.action).toMatch(/what drove Affiliates’ 31% jump in leads — and repeat it/);
+    expect(aff.action).toBe('Raise the budget on “Partner Network — Tier 1” 20% (+$887 a week)');
+    expect(aff.tier).toBe(2);
+    expect(aff.expectation?.assuming).toMatch(/If a week comes in above \$38\.89, put the budget back/);
   });
 
-  it('it asks why -- it never tells you to cut the channel that spiked', () => {
+  it('a cost spike acts on the ad that stands out -- never the whole channel on cost alone', () => {
     const meta = decisions(30, ALL_CHANNELS).find((c) => c.id === 'weekly:cac:meta')!;
-    expect(meta.action).not.toMatch(/cut|pause|stop/i);
+    expect(meta.target.kind).toBe('ad');
+    expect(meta.action).not.toMatch(/Meta’s budget/);
   });
 });
 

@@ -371,8 +371,7 @@
   position: sticky; left: 0; z-index: 1;
   min-width: 64px; background: var(--surface-card);
 }
-.gr-chart__table thead tr > :first-child,
-.gr-chart__table tfoot tr > :first-child { z-index: 3; }
+.gr-chart__table thead tr > :first-child { z-index: 3; }
 .gr-chart__table th,
 .gr-chart__table td {
   padding: var(--space-6) var(--space-12);
@@ -391,14 +390,6 @@
   color: var(--text-muted); font-weight: 500;
 }
 .gr-chart__table tbody th { color: var(--text-primary); font-weight: 400; }
-.gr-chart__table tfoot th,
-.gr-chart__table tfoot td {
-  position: sticky; bottom: 0;
-  background: var(--surface-card);
-  color: var(--text-primary);
-  border-top: var(--border-width-sm) solid var(--border-default);
-  border-bottom: 0;
-}
 .gr-chart__table .is-good { color: var(--semantic-good); }
 .gr-chart__table .is-bad { color: var(--semantic-bad); }
 
@@ -421,7 +412,6 @@
 .gr-chart__col input { margin: 0; width: 13px; height: 13px; accent-color: var(--accent-fill); cursor: inherit; }
 .gr-chart__col:has(input:focus-visible) { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
 
-.gr-chart__table .gr-chart__table-start { border-left: var(--border-width-sm) solid var(--border-subtle); }
 /* The tooltip turns inward near the edges -- centred, it ran past the card at
    either end and the content area clipped it ("$4,70"). */
 .gr-chart__tip.is-near-right { transform: translateX(-100%); }
@@ -449,15 +439,6 @@
 .gr-chart__by-btn:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }
 
 /* ---- Week / Month: a column per period, oldest -> newest ------------------- */
-.gr-chart__table-wrap.is-pivot { height: auto; max-height: 360px; }
-.gr-chart__table--pivot td { vertical-align: top; padding-top: var(--space-10); padding-bottom: var(--space-10); }
-.gr-chart__table--pivot tbody th { vertical-align: top; padding-top: var(--space-10); color: var(--text-primary); font-weight: 500; }
-.gr-chart__pivot-value { display: block; color: var(--text-primary); }
-.gr-chart__pivot-change { display: block; margin-top: 2px; color: var(--text-muted); }
-.gr-chart__partial { display: block; margin-top: 2px; color: var(--text-muted); text-transform: none; letter-spacing: 0; font-weight: 400; }
-.gr-chart__table--pivot thead th { vertical-align: bottom; }
-/* The window's total reads as the answer, not as a footnote. */
-.gr-chart__table--pivot tbody td:last-child { color: var(--text-primary); }
 
 /* A table is as tall as its rows. The chart's min-height holds the card steady
    across loading and empty states; a 3-row week table under it left a band of
@@ -478,16 +459,57 @@
 .gr-chart__table th,
 .gr-chart__table td { min-width: 112px; }
 .gr-chart__table tr > :first-child { min-width: 96px; }
-/* Week / Month tables fill the card -- twelve weeks fit at 1280 -- and the
-   newest period plus the Total stay in view: Total is pinned to the right, and
-   a long run of periods (52 weeks) opens scrolled to the newest. */
-.gr-chart__table--pivot { width: 100%; }
-.gr-chart__table--pivot th,
-.gr-chart__table--pivot td { min-width: 0; }
-.gr-chart__table--pivot tr > :first-child { min-width: 72px; }
-.gr-chart__table--pivot tr > :last-child {
-  position: sticky; right: 0; z-index: 1;
-  background: var(--surface-card);
-  padding-left: var(--space-16);
+/* ---- Periods down, metrics across (Sept 30) ---------------------------------
+   The header AND the Total row stick together: one sticky <thead>, so the
+   answer stays on screen while the periods scroll beneath it. */
+.gr-chart__table--periods thead { position: sticky; top: 0; z-index: 2; }
+.gr-chart__table--periods thead th { position: static; }
+.gr-chart__table--periods thead tr > :first-child { position: sticky; left: 0; z-index: 3; }
+.gr-chart__table--periods thead th,
+.gr-chart__table--periods thead td { background: var(--surface-card); }
+/* ⭐ Fills the card (Sept 30). Compact, it stopped halfway and the banded rows
+   ended in the middle of the card -- "it has to fit the form." Fixed layout:
+   the period column takes a set width and the metrics share the rest equally,
+   so columns land on the same edges at every width. */
+.gr-chart__table--periods { width: 100%; table-layout: fixed; }
+.gr-chart__table--periods tr > :first-child { width: 148px; min-width: 0; }
+/* ---- Readability (Sept 30) -------------------------------------------------
+   Tommy: "a lot of numbers kind of compile on top of each other."
+   The cause was PAIRING, not missing lines: each change floated in the gap
+   between its own figure and the NEXT column's, as near to one as the other,
+   so a row read as eight loose numbers instead of four pairs. Fixed by
+   proximity, not decoration:
+     - the change hugs its figure (left-aligned, a hair after it)
+     - a wide gutter separates one metric's pair from the next
+     - the figures are the strongest ink in the row; dates and changes recede
+     - rows are banded instead of ruled, so the eye can run along one week
+       without a line under every number. */
+.gr-chart__table--periods tbody th { color: var(--text-secondary); }
+.gr-chart__total th,
+.gr-chart__total td {
+  color: var(--text-primary);
+  border-bottom: var(--border-width-sm) solid var(--border-default);
 }
-.gr-chart__table--pivot thead tr > :last-child { z-index: 3; }
+.gr-chart__value { color: var(--text-primary); }
+.gr-chart__table--periods tbody th,
+.gr-chart__table--periods tbody td { border-bottom: 0; }
+.gr-chart__table--periods tbody tr:nth-child(even) > * { background: var(--surface-page-top); }
+.gr-chart__table--periods tbody tr > :first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); padding-left: var(--space-8); }
+.gr-chart__table--periods tbody tr > :last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.gr-chart__table--periods thead tr > :first-child { padding-left: var(--space-8); }
+/* The change: tight to its figure, in a fixed slot so the next gutter starts
+   on the same edge in every row. Quiet unless it is news. */
+.gr-chart__change {
+  display: inline-block; width: 3rem; margin-left: var(--space-4);
+  text-align: left; color: var(--text-muted);
+}
+.gr-chart__change.is-news { font-weight: 600; }
+.gr-chart__table--periods.has-change th:not(:first-child),
+.gr-chart__table--periods.has-change td { min-width: 0; padding-left: var(--space-40); }
+.gr-chart__table--periods.has-change thead th:not(:first-child) {
+  /* Headers right-align over the FIGURE, not over the change slot. */
+  padding-right: calc(var(--space-12) + 3rem + var(--space-4));
+}
+.gr-chart__table--periods.has-change thead th:last-child { padding-right: calc(3rem + var(--space-4)); }
+/* "6 days" beside a partial week, quiet. */
+.gr-chart__partial { margin-left: var(--space-6); color: var(--text-muted); }

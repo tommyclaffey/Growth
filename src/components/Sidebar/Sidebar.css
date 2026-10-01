@@ -36,6 +36,33 @@
 .gr-sidebar__wordmark { color: var(--text-primary); letter-spacing: 0.02em; }
 
 .gr-sidebar__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+
+/* Sections: a quiet label, then its items. The gap between sections is what
+   groups them -- no rules, no boxes. */
+.gr-sidebar__section + .gr-sidebar__section { margin-top: var(--space-20); }
+.gr-sidebar__section-label {
+  margin: 0 0 var(--space-6);
+  padding: 0 var(--space-12);
+  color: var(--text-muted);
+}
+
+/* The foot: Settings, then the account it configures, under one hairline. */
+.gr-sidebar__foot {
+  padding-top: var(--space-8);
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+}
+
+/* A count of what is waiting, pushed to the row's end. */
+.gr-navitem__count {
+  margin-left: auto;
+  min-width: 20px; height: 20px; padding: 0 var(--space-6);
+  display: inline-grid; place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--surface-page-top);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.gr-navitem.is-active .gr-navitem__count { background: var(--surface-card); color: var(--accent-text); }
 .gr-sidebar__spacer { flex: 1; }
 
 .gr-navitem {
