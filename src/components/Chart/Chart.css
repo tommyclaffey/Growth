@@ -467,7 +467,12 @@
 .gr-chart__table--periods thead tr > :first-child { position: sticky; left: 0; z-index: 3; }
 .gr-chart__table--periods thead th,
 .gr-chart__table--periods thead td { background: var(--surface-card); }
-.gr-chart__table--periods tr > :first-child { min-width: 132px; }
+/* ⭐ Fills the card (Sept 30). Compact, it stopped halfway and the banded rows
+   ended in the middle of the card -- "it has to fit the form." Fixed layout:
+   the period column takes a set width and the metrics share the rest equally,
+   so columns land on the same edges at every width. */
+.gr-chart__table--periods { width: 100%; table-layout: fixed; }
+.gr-chart__table--periods tr > :first-child { width: 148px; min-width: 0; }
 /* ---- Readability (Sept 30) -------------------------------------------------
    Tommy: "a lot of numbers kind of compile on top of each other."
    The cause was PAIRING, not missing lines: each change floated in the gap

@@ -43,11 +43,15 @@ describe('the chart: table view and earlier periods', () => {
     localStorage.clear();
     const { unmount } = renderChart(30);
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
-    /* Starts with the chart's metric; the last one ticked cannot be unticked. */
-    expect((screen.getByRole('checkbox', { name: 'Spend' }) as HTMLInputElement).disabled).toBe(true);
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Leads' }));
+    /* ⭐ Every metric starts ON, until someone turns one off (Sept 30). */
+    for (const m of ['Spend', 'Clicks', 'Leads', 'Sales', 'CAC', 'ROAS']) {
+      expect((screen.getByRole('checkbox', { name: m }) as HTMLInputElement).checked, m).toBe(true);
+    }
+    for (const m of ['Spend', 'Clicks', 'Sales', 'CAC']) fireEvent.click(screen.getByRole('checkbox', { name: m }));
+    /* The last one ticked cannot be unticked: an empty table answers nothing. */
     fireEvent.click(screen.getByRole('checkbox', { name: 'ROAS' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Spend' }));         // any of them can go now
+    expect((screen.getByRole('checkbox', { name: 'Leads' }) as HTMLInputElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'ROAS' }));
     const head = screen.getByRole('table').querySelector('thead tr')!.textContent!;
     expect(head).toMatch(/Date.*Leads.*ROAS/);
     expect(head).not.toMatch(/Spend/);
@@ -59,6 +63,8 @@ describe('the chart: table view and earlier periods', () => {
     renderChart(30);
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     expect((screen.getByRole('checkbox', { name: 'Leads' }) as HTMLInputElement).checked).toBe(true);
+    /* A choice made is remembered -- it does not snap back to everything. */
+    expect((screen.getByRole('checkbox', { name: 'Spend' }) as HTMLInputElement).checked).toBe(false);
     localStorage.clear();
   });
 

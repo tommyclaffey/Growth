@@ -52,11 +52,17 @@ const PERIODS: { key: ComparePeriod; label: string; noun: string }[] = [
 ];
 /* Which extra metrics the table shows, remembered in this browser. */
 const COLS_KEY = 'growth.tableColumns';
+/* ⭐ Every metric is ON until someone turns one off (Tommy, Sept 30). The
+   table is where you go to see everything at once; starting it on one column
+   made the first thing to do a round of clicking. A saved choice still wins. */
 function savedCols(): Metric[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(COLS_KEY) ?? '[]');
-    return Array.isArray(raw) ? METRICS.filter((m) => raw.includes(m)) : [];
-  } catch { return []; }
+    const stored = localStorage.getItem(COLS_KEY);
+    if (stored === null) return [...METRICS];
+    const raw = JSON.parse(stored);
+    const picked = Array.isArray(raw) ? METRICS.filter((m) => raw.includes(m)) : [];
+    return picked.length ? picked : [...METRICS];
+  } catch { return [...METRICS]; }
 }
 /* How the table groups days. Day = a row per day (the Compare control adds
    Now | Then | Change). Week / Month = a COLUMN per week or month across the
