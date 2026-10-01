@@ -77,12 +77,34 @@ function page(res: ServerResponse, status: number, title: string, body: string) 
 <p><a href="/Growth/" style="color:#635BFF">Back to Growth</a></p>`);
 }
 
+/** A request for a file that holds secrets: *.local stores, .env files, keys. */
+export function isSecretPath(raw: string): boolean {
+  let path = raw.split(/[?#]/)[0];
+  try { path = decodeURIComponent(path); } catch { return true; }   // malformed escapes: refuse
+  const base = path.split('/').pop() ?? '';
+  return /\.local(\.tmp)?$/i.test(base)
+    || /^\.env(\..*)?$/i.test(base)
+    || /\.(pem|key|crt|p12)$/i.test(base);
+}
+
 export function accessGuard(): Plugin {
   return {
     name: 'growth-access-guard',
     apply: 'serve',
     /* Registered FIRST in vite.config, so it runs before every other /api route. */
     configureServer(server: ViteDevServer) {
+      /* 🚨 SECRETS ARE NOT STATIC FILES. Vite serves anything under the project
+         root, and its default deny list covers .env but NOT *.local -- so
+         .slack-tokens.local, the password hashes and the sessions came back 200
+         to anyone, through the tunnel included (found Oct 1, before a single
+         ad-platform token existed). `server.fs.deny` in vite.config is the first
+         lock; this is the second, and it does not depend on Vite's path
+         handling: any request naming a secret file is refused, whatever prefix,
+         encoding or query string it arrives with. */
+      server.middlewares.use((req, res, next) => {
+        if (isSecretPath(req.url ?? '')) return send(res, 404, { error: 'Not found.' });
+        next();
+      });
       server.middlewares.use('/api', (req, res, next) => {
         const url = pathOf(req);
         if (!url) return send(res, 400, { error: 'Bad request.' });

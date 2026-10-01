@@ -41,6 +41,10 @@ export default defineConfig(({ mode }) => {
          403 rather than the app. The tunnel is a legitimate front door, so name
          it. Scoped to the tunnel domain, not opened to everything. */
       allowedHosts: ['.trycloudflare.com'],
+      /* 🚨 Vite's default deny list blocks .env but not *.local -- where every
+         token, password hash and session lives. Second lock: isSecretPath in
+         server/guard.ts. Test: tests/secretFiles.test.ts. */
+      fs: { deny: ['.env', '.env.*', '*.local', '*.local.tmp', '*.{crt,pem,key,p12}', '**/.git/**'] },
     },
   }
 })
