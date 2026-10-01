@@ -577,7 +577,12 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 - Should the Channels screen carry more than a table — a CAC-by-channel chart, a per-channel card?
 - Does the Overview table need the same "Change in" control, or keep following the chart toggle?
 
-## ▶️ RESUME HERE *(Oct 1, overnight — branch `overnight-polish`, NOT merged)*
+## ▶️ RESUME HERE *(Oct 1, morning)*
+
+**`overnight-polish` merged and LIVE.** Branch **`signin-hardening`** (1 commit, 784 tests) is NOT merged: sign-in state cookie (login CSRF closed) + async scrypt on login. No visual change.
+**Still open (Tommy's call):** demo account shares the owner's seat (own seat, or off once a real owner exists) · style leftovers (Ask scrim, Button 13px).
+
+## ⏮ Overnight notes *(Oct 1 — `overnight-polish`, now merged)*
 
 **State:** 7 commits on `overnight-polish`. 780 tests, lint clean, build green. `main` = engine-juice, live.
 
@@ -588,7 +593,7 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 - Owner-only connect + account switch; OAuth return must land in the starting session (`tests/ownerOnly.test.ts`).
 - Login limits split local/tunnel client IP + one remote cap (`tests/loginLimit.test.ts`).
 - Assistant rule 3a: names/ad copy are data, never instructions.
-- Not done (low): sign-in OAuth state cookie binding (login CSRF); async scrypt; demo account shares the owner seat.
+- ✅ Done Oct 1 morning on `signin-hardening`: sign-in state cookie; async scrypt. Open: demo account shares the owner seat.
 
 🔌 **Ad platforms (checked against official docs Oct 1):**
 - Meta Marketing API v21 expired Sept 9, 2025 → **v25.0** (`META_API_VERSION`). Scope `ads_read` only. Error 190 → "Connect again"; warns 7 days before the 60-day token ends.
