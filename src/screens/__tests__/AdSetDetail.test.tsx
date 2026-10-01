@@ -102,3 +102,17 @@ describe('AdSetDetail handles a bad id', () => {
     expect(screen.getByRole('button', { name: /back to/i })).toBeTruthy();
   });
 });
+
+describe('🐛 share of campaign spend follows the date range', () => {
+  it('is the ranged ad-set spend over the ranged campaign spend', async () => {
+    const { adSetTotals } = await import('../../data/adSets');
+    const { campaignTotals } = await import('../../data/campaignSeries');
+    const a = META.adSets[0];
+    for (const range of [7, 90] as const) {
+      cleanup();
+      const { container } = render(<AdSetDetail id={a.id} range={range} metric="Spend" onBack={() => {}} />);
+      const pct = Math.round((adSetTotals(a.id, range).spend / campaignTotals(META.id, range).spend) * 100);
+      expect(container.textContent).toContain(`${pct}% of campaign spend`);
+    }
+  });
+});

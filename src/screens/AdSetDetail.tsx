@@ -8,6 +8,7 @@ import { ChannelWordmark } from '../components/ChannelWordmark/ChannelWordmark';
 import { CreativeSection } from '../components/CreativeCard/CreativeSection';
 import { adSetById, adSetDelta, adSetSeries, adSetSparkline, adSetTotals } from '../data/adSets';
 import { creativesFor } from '../data/creative';
+import { campaignTotals } from '../data/campaignSeries';
 import { groupNoun } from '../data/channelDepth';
 import {
   betterHigher, formatDerived, headlineFor, kpisFor, trendMark, valueOf,
@@ -78,8 +79,12 @@ export function AdSetDetail({
   /* Share of the campaign, from the same function the numbers come from -- not
      recomputed here from the static totals, which would let the caption and the
      figures disagree the moment the range moved. */
-  const campaignSpend = campaign.adSets.reduce((a, x) => a + x.spend, 0);
-  const share = campaignSpend > 0 ? adSet.spend / campaignSpend : 0;
+  /* 🐛 The comment above was true of the intent and false of the code: this read
+     the STATIC adSet.spend over the static campaign sum, so the caption said
+     the same share at every range. Seeded ad sets hold a constant share, which
+     hid it; a real Meta ad set that ramped up mid-month would not. */
+  const campaignSpend = campaignTotals(campaign.id, range).spend;
+  const share = campaignSpend > 0 ? t.spend / campaignSpend : 0;
 
   return (
     <>
