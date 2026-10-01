@@ -39,7 +39,9 @@ interface Normalizer {
 const VERSION = process.env.GOOGLE_ADS_API_VERSION || 'v25';
 const API = `https://googleads.googleapis.com/${VERSION}`;
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const FILE = resolve(process.cwd(), '.google-ads-tokens.local');
+/* Resolved per call, and GROWTH_DATA_DIR wins -- the same rule as the sign-in
+   stores, so tests use a throwaway folder and can never overwrite a real token. */
+const file = () => resolve(process.env.GROWTH_DATA_DIR ?? process.cwd(), '.google-ads-tokens.local');
 /* ~15 months: a year back plus the longest preset window (90), so year-over-year
    works on a real account. The product pads anything shorter as "no data". */
 const DAYS = 455;
@@ -55,14 +57,16 @@ interface Stored {
 }
 
 function load(): Stored | null {
-  try { return existsSync(FILE) ? (JSON.parse(readFileSync(FILE, 'utf8')) as Stored) : null; } catch { return null; }
+  const f = file();
+  try { return existsSync(f) ? (JSON.parse(readFileSync(f, 'utf8')) as Stored) : null; } catch { return null; }
 }
 /* Merged into what is on disk now (a callback may have written since this
    request read the file), private (0600), atomic (temp + rename). */
 function store(patch: Partial<Stored>) {
   const next = { ...(load() ?? {}), ...patch };
-  writeFileSync(`${FILE}.tmp`, JSON.stringify(next, null, 2), { mode: 0o600 });
-  renameSync(`${FILE}.tmp`, FILE);
+  const f = file();
+  writeFileSync(`${f}.tmp`, JSON.stringify(next, null, 2), { mode: 0o600 });
+  renameSync(`${f}.tmp`, f);
 }
 
 function client() {
