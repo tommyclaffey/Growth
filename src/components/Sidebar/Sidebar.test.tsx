@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, renderHook, screen, within } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen, within } from '@testing-library/react';
 import { Sidebar } from './Sidebar';
 import { useNavCounts } from '../../data/navCounts';
 import { decisions } from '../../data/decisions';
@@ -38,5 +38,18 @@ describe('the sidebar (Sept 30)', () => {
     addFlag('decision', waiting[0].id, waiting[0].action);
     rerender();
     expect(result.current.decisions).toBe(waiting.length - 1);
+  });
+
+  it('🐛 approving a campaign moves the badge too -- not only the screen', async () => {
+    const { setStage } = await import('../../data/campaignStatus');
+    const ch = [...CHANNEL_KEYS];
+    const { result } = renderHook(() => useNavCounts(30, ch));
+    const before = result.current.decisions;
+    /* "End Non-brand" is a waiting proposal; activating it removes that card. */
+    act(() => setStage('c8', 'Active'));
+    try {
+      expect(result.current.decisions).toBe(decisions(30, ch).filter((c) => c.tier !== 3).length);
+      expect(result.current.decisions).not.toBe(before);
+    } finally { act(() => setStage('c8', 'Review')); }
   });
 });

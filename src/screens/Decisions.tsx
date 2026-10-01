@@ -138,8 +138,8 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
           </Button>
         )}
         {hidden.length > 0 && (
-          <Button variant="ghost" onClick={() => setShowDismissed(!showDismissed)}>
-            {showDismissed ? 'Hide' : `Dismissed (${hidden.length})`}
+          <Button variant="ghost" aria-expanded={showDismissed} onClick={() => setShowDismissed(!showDismissed)}>
+            {showDismissed ? 'Hide dismissed' : `Dismissed (${hidden.length})`}
           </Button>
         )}
       </header>
@@ -156,11 +156,35 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
           </p>
           <div className="gr-dec__list">
             {held.map((c) => (
-              <div key={c.id} className="gr-card gr-dec__card is-dismissed">
+              <div key={c.id} className="gr-card gr-dec__card is-held">
                 <p className="gr-type-body-medium">{c.action}</p>
                 <p className="gr-type-caption gr-dec__why">{c.held!.sentence}</p>
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Held back and Dismissed open right under the buttons that reveal them --
+          asked-for, not proposed. Dismissed used to open at the very bottom,
+          a screen away from its own toggle. */}
+      {showDismissed && hidden.length > 0 && (
+        <section className="gr-dec__tier" aria-label="Dismissed">
+          <header className="gr-dec__tier-head">
+            <h3 className="gr-type-card-heading">Dismissed</h3>
+            <span className="gr-dec__count gr-type-caption-med">{hidden.length}</span>
+          </header>
+          <div className="gr-dec__list">
+            {hidden.map((c) => {
+              const why = dismissed.find((d) => d.id === c.id)?.reason;
+              return (
+                <div key={c.id} className="gr-card gr-dec__card is-dismissed">
+                  <p className="gr-type-body-medium">{c.action}</p>
+                  {why && <p className="gr-type-caption gr-dec__why">Dismissed: “{why}”</p>}
+                  <Button variant="ghost" onClick={() => restore(c.id)}>Restore</Button>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -177,7 +201,7 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
                 was PROPOSED — the one distinction the whole screen is built on.
                 The headings say it now, so the badges do not have to carry it
                 alone. */}
-            <h3 className="gr-type-card-heading">Decided</h3>
+            <h3 className="gr-type-card-heading" id="gr-dec-decided" tabIndex={-1}>Decided</h3>
             <Badge label="You committed to these" tone="good" />
             <span className="gr-dec__count gr-type-caption-med">{queue.length}</span>
             {/* ⭐ The track record. A decision maker that never checks whether
@@ -281,7 +305,11 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
         </div>
       )}
 
-      {plan.moves.length > 1 && <PlanCard plan={plan} range={range} />}
+      {plan.moves.length > 1 && (
+        <PlanCard plan={plan} range={range}
+                  /* The card unmounts on accept; focus follows the moves to where they went. */
+                  onAccepted={() => requestAnimationFrame(() => document.getElementById('gr-dec-decided')?.focus())} />
+      )}
 
       {tiers.map((tier) => {
         const mine = live.filter((c) => c.tier === tier);
@@ -345,26 +373,6 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
         );
       })}
 
-      {showDismissed && hidden.length > 0 && (
-        <section className="gr-dec__tier">
-          <header className="gr-dec__tier-head">
-            <h3 className="gr-type-card-heading">Dismissed</h3>
-            <span className="gr-dec__count gr-type-caption-med">{hidden.length}</span>
-          </header>
-          <div className="gr-dec__list">
-            {hidden.map((c) => {
-              const why = dismissed.find((d) => d.id === c.id)?.reason;
-              return (
-                <div key={c.id} className="gr-card gr-dec__card is-dismissed">
-                  <p className="gr-type-body-medium">{c.action}</p>
-                  {why && <p className="gr-type-caption gr-dec__why">Dismissed: “{why}”</p>}
-                  <Button variant="ghost" onClick={() => restore(c.id)}>Restore</Button>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
     </>
   );
 }
@@ -400,8 +408,17 @@ function GoTo({ target, channel, onOpen }: {
   );
 }
 
-const signedMoney = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatMetric('Spend', Math.abs(n))}`;
-const signedCount = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(Math.round(n)).toLocaleString()}`;
+/* ⚠️ Rounded FIRST, then signed, coloured and pluralised from what is SHOWN --
+   "+0 leads", "−$0" and "+1 leads" were all possible, and DeltaBadge's own
+   rule is "toned on what is shown". */
+const wholeMoney = (n: number) => Math.round(n);
+const wholeCount = (n: number) => Math.round(n);
+const sign = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '');
+const signedMoney = (n: number) => `${sign(wholeMoney(n))}${formatMetric('Spend', Math.abs(wholeMoney(n)))}`;
+const signedCount = (n: number) => `${sign(wholeCount(n))}${Math.abs(wholeCount(n)).toLocaleString()}`;
+/** A cost per lead with no leads under it is a dash, never "$∞". */
+const cacOrDash = (n: number) => (Number.isFinite(n) ? formatMetric('CAC', n) : '—');
+const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 /**
  * ⭐ "If I take all of it, where does my week land?"
@@ -411,19 +428,32 @@ const signedCount = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.ab
  * every move with money in it. Questions, held-back findings and moves with no
  * money in them are named as left out, never silently dropped.
  */
-function PlanCard({ plan, range }: { plan: Plan; range: Range }) {
-  const net = plan.after.spend - plan.before.spend;
-  const leads = plan.after.leads - plan.before.leads;
+function PlanCard({ plan, range, onAccepted }: { plan: Plan; range: Range; onAccepted?: () => void }) {
+  const net = wholeMoney(plan.after.spend - plan.before.spend);
+  const leads = wholeCount(plan.after.leads - plan.before.leads);
   const cacChange = Number.isFinite(plan.before.cac) && Number.isFinite(plan.after.cac)
     ? Math.round((plan.after.cac / plan.before.cac - 1) * 100) : null;
   const cutters = plan.moves.filter((c) => c.effect!.spend < 0).length;
   const adders = plan.moves.filter((c) => c.effect!.spend > 0).length;
+  /* Shifts move money between two campaigns: no net spend, so neither of the above. */
+  const shifters = plan.moves.length - cutters - adders;
+  /* 🐛 It said "ready moves" while counting projections the screen files under
+     "needs a judgement call". Accept all takes them too, so the card says so. */
+  const judgement = plan.moves.filter((c) => c.tier === 2).length;
+  const money = [
+    cutters > 0 ? `frees ${formatMetric('Spend', plan.freed)} a week from ${plural(cutters, 'move')}` : '',
+    adders > 0 ? `puts ${formatMetric('Spend', plan.added)} into ${plural(adders, 'move')}` : '',
+    shifters > 0 ? `shifts money within ${plural(shifters, 'channel')}` : '',
+  ].filter(Boolean);
+  const moneyLine = money.length
+    ? `${money.join(money.length > 2 ? ', ' : ' and ').replace(/^./, (x) => x.toUpperCase())}. ` : '';
   return (
-    <section className="gr-card gr-dec__plan" aria-label="This week's plan">
+    <section className="gr-card gr-dec__plan" aria-labelledby="gr-dec-plan-kicker">
       <header className="gr-dec__plan-head">
-        <p className="gr-type-overline gr-dec__plan-kicker">This week’s plan</p>
+        <p className="gr-type-overline gr-dec__plan-kicker" id="gr-dec-plan-kicker">This week’s plan</p>
         <h3 className="gr-type-section gr-dec__action">
-          Take the {plan.moves.length} ready moves: {signedCount(leads)} leads a week
+          Take these {plural(plan.moves.length, 'move')}
+          {leads !== 0 ? `: ${signedCount(leads)} ${Math.abs(leads) === 1 ? 'lead' : 'leads'} a week` : ''}
           {net < 0 ? ` on ${formatMetric('Spend', -net)} less` : net > 0 ? ` for ${formatMetric('Spend', net)} more` : ''}
         </h3>
       </header>
@@ -432,21 +462,21 @@ function PlanCard({ plan, range }: { plan: Plan; range: Range }) {
         <div>
           <dt className="gr-type-caption">Spend a week</dt>
           <dd className="gr-type-body-medium">
-            {formatMetric('Spend', plan.before.spend)} → {formatMetric('Spend', plan.after.spend)}{' '}
-            <span className="gr-dec__plan-delta">{signedMoney(net)}</span>
+            {formatMetric('Spend', plan.before.spend)} → {formatMetric('Spend', plan.after.spend)}
+            {net !== 0 && <>{' '}<span className="gr-dec__plan-delta">{signedMoney(net)}</span></>}
           </dd>
         </div>
         <div>
           <dt className="gr-type-caption">Leads a week</dt>
           <dd className="gr-type-body-medium">
-            {Math.round(plan.before.leads).toLocaleString()} → {Math.round(plan.after.leads).toLocaleString()}{' '}
-            <span className={`gr-dec__plan-delta ${leads > 0 ? 'is-good' : leads < 0 ? 'is-bad' : ''}`}>{signedCount(leads)}</span>
+            {Math.round(plan.before.leads).toLocaleString()} → {Math.round(plan.after.leads).toLocaleString()}
+            {leads !== 0 && <>{' '}<span className={`gr-dec__plan-delta ${leads > 0 ? 'is-good' : 'is-bad'}`}>{signedCount(leads)}</span></>}
           </dd>
         </div>
         <div>
           <dt className="gr-type-caption">Cost per lead</dt>
           <dd className="gr-type-body-medium">
-            {formatMetric('CAC', plan.before.cac)} → {formatMetric('CAC', plan.after.cac)}
+            {cacOrDash(plan.before.cac)} → {cacOrDash(plan.after.cac)}
             {cacChange !== null && cacChange !== 0 && (
               <>{' '}<span className={`gr-dec__plan-delta ${cacChange < 0 ? 'is-good' : 'is-bad'}`}>
                 {cacChange > 0 ? '+' : '−'}{Math.abs(cacChange)}%
@@ -457,8 +487,9 @@ function PlanCard({ plan, range }: { plan: Plan; range: Range }) {
       </dl>
 
       <p className="gr-type-caption gr-dec__plan-note">
-        Frees {formatMetric('Spend', plan.freed)} a week from {cutters} move{cutters === 1 ? '' : 's'} and
-        puts {formatMetric('Spend', plan.added)} into {adders}. The extra leads come off each campaign’s curve
+        {moneyLine}
+        {judgement > 0 && `${judgement === plan.moves.length ? 'Each one rests' : `${plural(judgement, 'of them rests', 'of them rest')}`} on an assumption stated on its card. `}
+        The extra leads come off each campaign’s curve
         {plan.assumed ? ', assumed where its spend has not moved enough to measure' : ''}. Figures
         are a week at the selected dates’ pace.
       </p>
@@ -469,12 +500,13 @@ function PlanCard({ plan, range }: { plan: Plan; range: Range }) {
                   for (const c of plan.moves) {
                     addFlag('decision', c.id, c.action, { target: c.target, baseline: baselineFor(c, range) });
                   }
+                  onAccepted?.();
                 }}>
           Accept all {plan.moves.length}
         </Button>
         {plan.also.length > 0 && (
           <span className="gr-type-caption gr-dec__plan-left">
-            Not in the sum: {plan.also.length} move{plan.also.length === 1 ? '' : 's'} with no money in
+            Not in the sum: {plural(plan.also.length, 'move')} with no money in
             {plan.also.length === 1 ? ' it' : ' them'}, below. Questions are never in it.
           </span>
         )}
@@ -509,7 +541,7 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range, onShare }:
       <p className="gr-dec__scope gr-type-caption">
         {c.channel && <ChannelMark channel={c.channel} size={14} />}
         {c.scope.map((part, i) => (
-          <span key={part}>
+          <span key={`${part}-${i}`}>
             {i > 0 && <span className="gr-dec__crumb" aria-hidden="true"> › </span>}
             {part}
           </span>
@@ -635,6 +667,7 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range, onShare }:
           >
             <input
               className="gr-dec__reason gr-type-body"
+              aria-label="Why not?"
               placeholder="Why not? (this is the only feedback the engine gets)"
               value={reason}
               onChange={(e) => setReason(e.target.value)}

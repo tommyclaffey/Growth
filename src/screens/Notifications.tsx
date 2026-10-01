@@ -156,10 +156,10 @@ function NoteRow({ note: n, isRead, flagged, onOpen, onAsk }: {
   /* Phrased the way the assistant's "why is X up" path reads a question, so
      Ask lands on the answer about THIS change rather than a generic summary. */
   const question = n.opensDecisions
-    ? (n.id.startsWith('dec:overdue') ? "What's overdue?" : 'How are my decisions going?')
+    ? (n.id.startsWith('dec:overdue') ? 'What’s overdue?' : 'How are my decisions going?')
     : n.metric && n.channel && n.change !== undefined
     ? `Why is ${CHANNEL_LABEL[n.channel]} ${n.metric} ${n.change > 0 ? 'up' : 'down'}?`
-    : `What's going on with ${n.target.kind === 'account' ? 'all channels' : n.target.label}?`;
+    : `What’s going on with ${n.target.kind === 'account' ? 'all channels' : n.target.label}?`;
 
   return (
     <li className={`gr-note ${isRead ? '' : 'is-unread'} tone-${n.tone}`}>
