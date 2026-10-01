@@ -4,7 +4,8 @@ import { Button } from '../components/Button/Button';
 import { Badge } from '../components/Badge/Badge';
 import { ChannelMark } from '../components/ChannelMark/ChannelMark';
 import type { ChannelName } from '../styles/tokens';
-import { decisions, targetOfDecision, TIER_LABEL, type Candidate, type Target, type Tier } from '../data/decisions';
+import { decisions, heldBack, targetOfDecision, TIER_LABEL, type Candidate, type Target, type Tier } from '../data/decisions';
+import { planFrom, type Plan } from '../data/plan';
 import { addFlag, isFlagged, isOverdue, isOwnDecision, removeFlag, useFlags, type Flag } from '../data/attention';
 import { TaskFields, formatDue } from '../components/TaskFields/TaskFields';
 import type { DecisionRef } from '../data/chat';
@@ -72,6 +73,7 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
   const dismissed = useDismissals();
 
   const [showDismissed, setShowDismissed] = useState(false);
+  const [showHeld, setShowHeld] = useState(false);
   /* Tiers the reader opened past the first PER_TIER. */
   const [expanded, setExpanded] = useState<Set<Tier>>(() => new Set());
   const all = decisions(range, channels);
@@ -111,6 +113,11 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
 
   const live = all.filter((c) => !isDismissed(c.id) && !isFlagged('decision', c.id));
   const hidden = all.filter((c) => isDismissed(c.id));
+  /* Found and not shown -- could be chance, or not worth the marginal price. */
+  const held = heldBack(range, channels);
+  /* ⭐ The proposals still waiting, added up. Accepting moves cards out of
+     `live`, so the plan shrinks to what is left. */
+  const plan = planFrom(live, range, channels);
 
   const tiers: Tier[] = [1, 2, 3];
 
@@ -125,12 +132,38 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
           Computed from the same numbers the charts use — no model wrote these. Grouped
           by <strong>how well the data supports them</strong>, not by dollar size.
         </p>
+        {held.length > 0 && (
+          <Button variant="ghost" aria-expanded={showHeld} onClick={() => setShowHeld(!showHeld)}>
+            {showHeld ? 'Hide held back' : `Held back (${held.length})`}
+          </Button>
+        )}
         {hidden.length > 0 && (
           <Button variant="ghost" onClick={() => setShowDismissed(!showDismissed)}>
             {showDismissed ? 'Hide' : `Dismissed (${hidden.length})`}
           </Button>
         )}
       </header>
+
+      {showHeld && held.length > 0 && (
+        <section className="gr-dec__tier" aria-label="Held back">
+          <header className="gr-dec__tier-head">
+            <h3 className="gr-type-card-heading">Held back</h3>
+            <span className="gr-dec__count gr-type-caption-med">{held.length}</span>
+          </header>
+          <p className="gr-type-caption gr-dec__tier-note">
+            The engine found these and chose <strong>not</strong> to recommend them. Each says why.
+            They come back on their own when the numbers can carry them.
+          </p>
+          <div className="gr-dec__list">
+            {held.map((c) => (
+              <div key={c.id} className="gr-card gr-dec__card is-dismissed">
+                <p className="gr-type-body-medium">{c.action}</p>
+                <p className="gr-type-caption gr-dec__why">{c.held!.sentence}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ⚠️ FIRST, above everything the engine is still proposing. What you have
           decided outranks what you are being offered — burying it under three
@@ -247,6 +280,8 @@ export function Decisions({ range, onDiscuss, onOpen, onShare }: DecisionsProps)
           </p>
         </div>
       )}
+
+      {plan.moves.length > 1 && <PlanCard plan={plan} range={range} />}
 
       {tiers.map((tier) => {
         const mine = live.filter((c) => c.tier === tier);
@@ -365,6 +400,89 @@ function GoTo({ target, channel, onOpen }: {
   );
 }
 
+const signedMoney = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatMetric('Spend', Math.abs(n))}`;
+const signedCount = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(Math.round(n)).toLocaleString()}`;
+
+/**
+ * ⭐ "If I take all of it, where does my week land?"
+ *
+ * The cards one at a time are a pile; this is the sum. Three figures -- spend,
+ * leads, cost per lead, each before → after -- then the one button that takes
+ * every move with money in it. Questions, held-back findings and moves with no
+ * money in them are named as left out, never silently dropped.
+ */
+function PlanCard({ plan, range }: { plan: Plan; range: Range }) {
+  const net = plan.after.spend - plan.before.spend;
+  const leads = plan.after.leads - plan.before.leads;
+  const cacChange = Number.isFinite(plan.before.cac) && Number.isFinite(plan.after.cac)
+    ? Math.round((plan.after.cac / plan.before.cac - 1) * 100) : null;
+  const cutters = plan.moves.filter((c) => c.effect!.spend < 0).length;
+  const adders = plan.moves.filter((c) => c.effect!.spend > 0).length;
+  return (
+    <section className="gr-card gr-dec__plan" aria-label="This week's plan">
+      <header className="gr-dec__plan-head">
+        <p className="gr-type-overline gr-dec__plan-kicker">This week’s plan</p>
+        <h3 className="gr-type-section gr-dec__action">
+          Take the {plan.moves.length} ready moves: {signedCount(leads)} leads a week
+          {net < 0 ? ` on ${formatMetric('Spend', -net)} less` : net > 0 ? ` for ${formatMetric('Spend', net)} more` : ''}
+        </h3>
+      </header>
+
+      <dl className="gr-dec__evidence gr-dec__plan-figures">
+        <div>
+          <dt className="gr-type-caption">Spend a week</dt>
+          <dd className="gr-type-body-medium">
+            {formatMetric('Spend', plan.before.spend)} → {formatMetric('Spend', plan.after.spend)}{' '}
+            <span className="gr-dec__plan-delta">{signedMoney(net)}</span>
+          </dd>
+        </div>
+        <div>
+          <dt className="gr-type-caption">Leads a week</dt>
+          <dd className="gr-type-body-medium">
+            {Math.round(plan.before.leads).toLocaleString()} → {Math.round(plan.after.leads).toLocaleString()}{' '}
+            <span className={`gr-dec__plan-delta ${leads > 0 ? 'is-good' : leads < 0 ? 'is-bad' : ''}`}>{signedCount(leads)}</span>
+          </dd>
+        </div>
+        <div>
+          <dt className="gr-type-caption">Cost per lead</dt>
+          <dd className="gr-type-body-medium">
+            {formatMetric('CAC', plan.before.cac)} → {formatMetric('CAC', plan.after.cac)}
+            {cacChange !== null && cacChange !== 0 && (
+              <>{' '}<span className={`gr-dec__plan-delta ${cacChange < 0 ? 'is-good' : 'is-bad'}`}>
+                {cacChange > 0 ? '+' : '−'}{Math.abs(cacChange)}%
+              </span></>
+            )}
+          </dd>
+        </div>
+      </dl>
+
+      <p className="gr-type-caption gr-dec__plan-note">
+        Frees {formatMetric('Spend', plan.freed)} a week from {cutters} move{cutters === 1 ? '' : 's'} and
+        puts {formatMetric('Spend', plan.added)} into {adders}. Leads gained come off each campaign’s curve
+        {plan.assumed ? ' — assumed, not measured, where its spend has not moved enough to show it' : ''}.
+        {' '}Figures are this window scaled to a week ({range} days → 7).
+      </p>
+
+      <footer className="gr-dec__actions">
+        <Button variant="primary"
+                onClick={() => {
+                  for (const c of plan.moves) {
+                    addFlag('decision', c.id, c.action, { target: c.target, baseline: baselineFor(c, range) });
+                  }
+                }}>
+          Accept all {plan.moves.length}
+        </Button>
+        {plan.also.length > 0 && (
+          <span className="gr-type-caption gr-dec__plan-left">
+            Not in the sum: {plan.also.length} move{plan.also.length === 1 ? '' : 's'} with no money in
+            {plan.also.length === 1 ? ' it' : ' them'}, below. Questions are never in it.
+          </span>
+        )}
+      </footer>
+    </section>
+  );
+}
+
 function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range, onShare }: {
   range: Range;
   onShare?: (d: DecisionRef) => void;
@@ -421,6 +539,18 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range, onShare }:
           </div>
         ))}
       </dl>
+
+      {/* ⭐ "Is that real?" -- answered on the card, in one line, for every
+          claim that compares two things. Structural findings have no line:
+          a count of ad groups has no chance in it. */}
+      {c.confidence && (
+        <p className={`gr-type-caption gr-dec__confidence is-${c.confidence.level}`}>
+          <span className="gr-type-overline">
+            {c.confidence.level === 'high' ? 'High confidence' : c.confidence.level === 'medium' ? 'Medium confidence' : 'Low confidence'}
+          </span>{' '}
+          {c.confidence.sentence}
+        </p>
+      )}
 
       {c.expectation && (
         <div className="gr-dec__expect">

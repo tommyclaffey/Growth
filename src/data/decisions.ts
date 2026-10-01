@@ -80,7 +80,8 @@ export type DecisionKind =
   | 'pacing'
   | 'cross-channel-cost-gap'
   | 'holdout-test'
-  | 'weekly-move';
+  | 'weekly-move'
+  | 'slow-leak';
 
 export interface Evidence {
   label: string;
@@ -168,6 +169,13 @@ export interface Candidate {
   compare?: [Sample, Sample];
   /** Computed from `compare` in assembly -- see evidence.ts. */
   confidence?: Confidence;
+  /**
+   * ⭐ What taking it does to a WEEK: spend and leads, signed. A pause is
+   * negative on both; a raise positive on both, with the leads off the curve.
+   * The plan (plan.ts) adds these up into one "if you take all of it" line.
+   * Absent on moves with no money in them -- add a variant, run a test.
+   */
+  effect?: Sample;
   /** Set when the engine found this and held it back; the sentence says why. */
   held?: { reason: HeldReason; sentence: string };
 }
@@ -278,6 +286,19 @@ function sizedRaise(rows: DayRow[], base: Sample, most: number, ceiling: number,
 /** Why a finding was found and not shown. */
 export type HeldReason = 'chance' | 'marginal';
 
+/** Range totals → one week. */
+const perWeek = (x: Sample, range: number): Sample => ({ spend: (x.spend / range) * 7, leads: (x.leads / range) * 7 });
+
+/**
+ * What cutting spend by `r` gives up, on the curve: leads × (1 − (1−r)^b).
+ * The money cut is the MARGINAL money -- the dearest leads go first -- so a
+ * 20% cut costs well under 20% of the leads. Same curve as a raise, run backwards.
+ */
+function cutEffect(rows: DayRow[], base: Sample, r: number): Sample {
+  const b = responseCurve(rows).b;
+  return { spend: -base.spend * r, leads: -base.leads * (1 - (1 - r) ** b) };
+}
+
 /** What the smallest step (5%) would pay per extra lead -- the floor of any raise. */
 function floorMarginal(rows: DayRow[], base: Sample): number {
   return onTheCurve(rows, base, 0.05, '').marginalCac;
@@ -353,6 +374,7 @@ function spendReturnMismatch(range: Range, channels: ChannelName[], ranked?: Ran
         channel: a.channel,
         atStake: a.totals.spend,
         compare: [a.totals, restOf({ spend, leads }, a.totals)],
+        effect: { spend: -perWeek(a.totals, range).spend, leads: -perWeek(a.totals, range).leads },
         /* How lopsided it is, capped — a 9x ratio is not nine times more
            actionable than a 3x one. */
         strength: Math.min(1, (ratio - 1.6) / 2.4),
@@ -423,6 +445,7 @@ function scaleWinner(range: Range, channels: ChannelName[], ranked?: RankedAd[])
         channel: a.channel,
         atStake: a.totals.spend * proj.r,
         compare: [a.totals, restOf({ spend, leads }, a.totals)],
+        effect: perWeek({ spend: a.totals.spend * proj.r, leads: proj.extraLeads }, range),
         ...(sized ? {} : { held: marginalHeld(floorMarginal(creativeRows(a.creative.id, 90), a.totals), campCac, `${poss(c.name)} average`) }),
         strength: Math.min(1, (ratio - 1.4) / 1.6),
       });
@@ -508,6 +531,7 @@ function pausedWinner(range: Range, channels: ChannelName[], ranked?: RankedAd[]
         channel: a.channel,
         measure: { key: `ad-leads:${a.creative.id}`, label: 'Leads on this ad', better: 'higher' },
         compare: [a.totals, restOf({ spend, leads }, a.totals)],
+        effect: perWeek(a.totals, range),
         strength: Math.min(1, (ratio - 1.3) / 1.2),
       });
     }
@@ -589,6 +613,7 @@ function reallocateWithinChannel(range: Range, channels: ChannelName[]): Candida
       channel,
       atStake: move,
       compare: [worst.t, best.t],
+      effect: perWeek({ spend: 0, leads: gained - lost }, range),
       strength: Math.min(1, (worstCac / bestCac - 1.3) / 1.7),
     });
   }
@@ -650,6 +675,9 @@ function staleReview(range: Range, channels: ChannelName[]): Candidate[] {
             checkOn: checkDate(7),
           },
           compare: [t, restOf(ch, t)],
+          /* Approve: it is already spending while it waits, so going live
+             changes nothing in the week. End: its spend and leads stop. */
+          ...(approve ? {} : { effect: { spend: -perWeek(t, range).spend, leads: -perWeek(t, range).leads } }),
         };
       }
       return {
@@ -883,6 +911,7 @@ function beatsItsChannel(range: Range, channels: ChannelName[]): Candidate[] {
         channel,
         atStake: raise,
         compare: [t, restOf(ch, t)],
+        effect: { spend: raise, leads: proj.extraLeads },
         ...(sized ? {} : { held: marginalHeld(floorMarginal(campaignRows(c.id, 90), week), chCac, `the ${CHANNEL_LABEL[channel]} average`) }),
         measure: { key: `campaign-leads:${c.id}`, label: 'Campaign leads', better: 'higher' },
         strength: Math.min(1, better / 0.4),
@@ -953,6 +982,7 @@ function pacing(range: Range, channels: ChannelName[], raised: Set<string> = new
         scope: [CHANNEL_LABEL[dearest.c.channel], dearest.c.name],
         channel: dearest.c.channel,
         atStake: cut,
+        effect: perWeek(cutEffect(campaignRows(dearest.c.id, 90), dearest.t, cut / dearest.t.spend), range),
       }];
     }
   } else {
@@ -989,6 +1019,7 @@ function pacing(range: Range, channels: ChannelName[], raised: Set<string> = new
         channel: x.c.channel,
         atStake: add,
         compare: [x.t, restOf(account, x.t)],
+        effect: perWeek({ spend: add, leads: proj.extraLeads }, range),
       }];
     }
     if (candidates.length > 0) {
@@ -1153,6 +1184,91 @@ function crossChannelCostGap(range: Range, channels: ChannelName[]): Candidate[]
   return [test, question];
 }
 
+/**
+ * ⭐ THE SLOW LEAK -- what a week-over-week alert is built to miss.
+ *
+ * Notifications fire when a week moves past the threshold (15% by default).
+ * A campaign whose cost per lead rises 6% a week never trips it: every single
+ * week is "just a week", and after two months it is paying a third more per
+ * lead than it was, with nobody told. The weekly-move detector cannot see it
+ * either, because it reads the same alerts.
+ *
+ * So this looks across EIGHT weeks: the last four against the four before.
+ * It fires when the recent four cost at least 15% more per lead, at least
+ * three of those four weeks sit above the earlier average (a drift, not one
+ * bad week), and the most recent week did NOT already raise an alert (that
+ * one belongs to the weekly move). The two four-week blocks are what get
+ * tested for chance.
+ *
+ * TIER 1: the action is a cut, and cutting needs no forecast -- the same rule
+ * pacing uses. It does not say WHY (audience saturation, creative wear and a
+ * competitor bidding up are all possible, and none is in this data); it says
+ * how much to keep spending at the higher price, and the price to come back at.
+ */
+export function leakOf(weeks: Sample[]): { early: Sample; recent: Sample; rise: number } | null {
+  if (weeks.length < 8) return null;
+  const sum = (w: Sample[]) => w.reduce((a, x) => ({ spend: a.spend + x.spend, leads: a.leads + x.leads }), { spend: 0, leads: 0 });
+  const early = sum(weeks.slice(0, 4));
+  const recent = sum(weeks.slice(4, 8));
+  if (early.leads <= 0 || recent.leads <= 0) return null;
+  const earlyCac = early.spend / early.leads;
+  const rise = (recent.spend / recent.leads) / earlyCac - 1;
+  if (rise < 0.15) return null;
+  const above = weeks.slice(4, 8).filter((w) => w.leads > 0 && w.spend / w.leads > earlyCac).length;
+  if (above < 3) return null;
+  return { early, recent, rise };
+}
+
+function slowLeak(channels: ChannelName[]): Candidate[] {
+  const out: Candidate[] = [];
+  const news = changeThreshold() / 100;
+  for (const c of CAMPAIGNS) {
+    if (!channels.includes(c.channel) || stageOf(c.id) !== 'Active') continue;
+    const rows = campaignRows(c.id, LAST_WEEK * 8);
+    if (rows.length < LAST_WEEK * 8) continue;
+    const weeks = Array.from({ length: 8 }, (_, i) => weekOf(rows.slice(i * 7, i * 7 + 7)));
+    const leak = leakOf(weeks);
+    if (!leak) continue;
+    /* The last week on its own past the alert line? Then the weekly move has it. */
+    const last = cacOf(weeks[7]); const before = cacOf(weeks[6]);
+    if (Number.isFinite(last) && Number.isFinite(before) && Math.abs(last / before - 1) >= news) continue;
+
+    const earlyCac = leak.early.spend / leak.early.leads;
+    const recentCac = leak.recent.spend / leak.recent.leads;
+    const weekly = leak.recent.spend / 4;
+    const cut = weekly * 0.15;
+    out.push({
+      id: `leak:${c.id}`,
+      tier: 1,
+      kind: 'slow-leak',
+      action: `Cut ${budgetOf(c.name, true)} 15% until a week comes in under ${cacText(earlyCac)}`,
+      because: `Its cost per lead has crept from ${cacText(earlyCac)} to ${cacText(recentCac)} over `
+        + `eight weeks (+${Math.round(leak.rise * 100)}%). No single week moved enough to raise an alert, `
+        + `so nothing flagged it.`,
+      evidence: [
+        { label: 'CAC, 8–5 weeks ago', value: cacText(earlyCac) },
+        { label: 'CAC, last 4 weeks', value: cacText(recentCac) },
+        { label: 'Rise', value: `+${Math.round(leak.rise * 100)}%` },
+        { label: 'Spend a week', value: money(weekly) },
+      ],
+      expectation: {
+        outcome: `Saves about ${money(cut)} a week while each lead costs ${Math.round(leak.rise * 100)}% `
+          + `more than two months ago. Put it back after a week under ${cacText(earlyCac)}.`,
+        checkOn: checkDate(14),
+      },
+      target: { kind: 'campaign', id: c.id, label: c.name },
+      scope: [CHANNEL_LABEL[c.channel], c.name],
+      channel: c.channel,
+      atStake: cut,
+      compare: [leak.recent, leak.early],
+      effect: cutEffect(campaignRows(c.id, 90), { spend: weekly, leads: leak.recent.leads / 4 }, 0.15),
+      measure: { key: `campaign-cac:${c.id}`, label: 'Campaign CAC', better: 'lower' },
+      strength: Math.min(1, 0.5 + leak.rise),
+    });
+  }
+  return out;
+}
+
 /* ---------------------------------------------------------------- assembly -- */
 
 /**
@@ -1293,6 +1409,7 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
               checkOn,
             },
             target, scope, measure: leadsMeasure,
+            effect: { spend: prev.spend - now.spend, leads: back },
           };
         }
 
@@ -1325,6 +1442,7 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
               scope: [CHANNEL_LABEL[ch], worst.c.name, worst.a.adSetName],
               atStake: worst.now.spend,
               compare: [worst.now, restOf(now, worst.now)],
+              effect: { spend: -worst.now.spend, leads: -worst.now.leads },
               measure: { key: `campaign-cac:${worst.c.id}`, label: 'Campaign CAC', better: 'lower' },
             };
           }
@@ -1350,6 +1468,7 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
           },
           target, scope,
           compare: [now, prev],
+          effect: cutEffect(isCampaign ? campaignRows(n.target.id, 90) : rowsFor(ch, 90), now, 0.2),
           measure: isCampaign
             ? { key: `campaign-cac:${n.target.id}`, label: 'Campaign CAC', better: 'lower' }
             : { key: `channel-cac:${ch}`, label: 'Channel CAC', better: 'lower' },
@@ -1398,6 +1517,7 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
         atStake: raise,
         /* The claim is "leads rose" -- tested as two counts over equal weeks. */
         compare: [{ spend: 1, leads: lead.now.leads }, { spend: 1, leads: lead.prev.leads }],
+        effect: { spend: raise, leads: proj.extraLeads },
         ...(sized ? {} : { held: marginalHeld(floorMarginal(campaignRows(lead.c.id, 90), lead.now), stop, 'its pull-back line') }),
         measure: { key: `campaign-leads:${lead.c.id}`, label: 'Campaign leads', better: 'higher' },
       };
@@ -1463,6 +1583,7 @@ function compute(range: Range, channels: ChannelName[]): Candidate[] {
     ...beatsItsChannel(range, channels),
     ...concentrationRisk(range, channels, ranked),
     ...crossChannelCostGap(range, channels),
+    ...slowLeak(channels),
   ];
   /* Pacing LAST, so it puts unspent budget somewhere no other card is already
      raising -- two cards adding money to one campaign is one decision twice. */

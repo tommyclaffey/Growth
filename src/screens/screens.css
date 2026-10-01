@@ -500,6 +500,28 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
    content packed into the left third -- long lines, a blank right half, and
    only three cards per screen. min() keeps it one column when the chat panel
    narrows the page. */
+/* ⭐ The plan: the cards, added up. A card like the others with one more
+   step of emphasis -- the accent edge -- because it is the summary of them. */
+.gr-dec__plan {
+  display: flex; flex-direction: column;
+  padding: var(--space-20); margin: 0 0 var(--space-28);
+  border-color: var(--accent-base);
+}
+.gr-dec__plan-head { margin: 0 0 var(--space-12); }
+.gr-dec__plan-kicker { margin: 0 0 var(--space-4); color: var(--accent-base); }
+.gr-dec__plan-figures { gap: var(--space-8) var(--space-28); }
+.gr-dec__plan-delta { color: var(--text-muted); }
+.gr-dec__plan-delta.is-good { color: var(--semantic-good); }
+.gr-dec__plan-delta.is-bad { color: var(--semantic-bad); }
+.gr-dec__plan-note { margin: 0 0 var(--space-16); color: var(--text-secondary); line-height: 20px; max-width: 90ch; }
+.gr-dec__plan-left { color: var(--text-muted); }
+
+/* "Is that real?" -- one line under the figures. */
+.gr-dec__confidence { margin: calc(var(--space-4) * -1) 0 var(--space-14); color: var(--text-secondary); line-height: 20px; }
+.gr-dec__confidence span { color: var(--text-muted); }
+.gr-dec__confidence.is-high span { color: var(--semantic-good); }
+.gr-dec__confidence.is-medium span { color: var(--semantic-warn); }
+
 /* Under the list, left-aligned with the cards it extends. */
 .gr-dec__more { margin: var(--space-12) 0 0; }
 
