@@ -25,10 +25,11 @@ interface Normalizer {
  * The OAuth handshake starts at /api/connect/paidSearch (channelOauth.ts) and
  * returns to /api/connect/callback, which calls `exchangeGoogleCode` below.
  *
- * ⚠️ THREE credentials, not two. Google Ads needs the OAuth client (id +
- * secret) AND a developer token from a manager account's API Center. A new
- * token is "test access" -- it can only read TEST accounts until Google grants
- * Basic access. The error for that is translated into plain words.
+ * ⚠️ Oct 1, 2026: developer tokens were SUNSET on Sept 9, 2026 -- access levels
+ * now belong to the Google Cloud project that owns the OAuth client (Test →
+ * Explorer → Basic). The header is optional and ignored by Google; this still
+ * sends one if GOOGLE_ADS_DEVELOPER_TOKEN is set, and no longer refuses to run
+ * without it (it did -- a hard stop on a credential that no longer exists).
  *
  * ⚠️ Access tokens last an hour. What is stored is the REFRESH token; a fresh
  * access token is minted per load. Same local-file compromise as Meta and Slack.
@@ -44,6 +45,8 @@ const DAYS = 455;
 
 interface Stored {
   refreshToken: string;
+  /** Google refused the refresh token (revoked, or a Testing-mode consent screen's 7-day limit). */
+  expired?: boolean;
   accessToken?: string;
   accessExpiresAt?: number;
   customerId?: string;
@@ -77,6 +80,10 @@ async function tokenCall(params: Record<string, string>) {
   });
   const body = await r.json() as { access_token?: string; refresh_token?: string; expires_in?: number; error?: string; error_description?: string };
   if (body.error === 'invalid_grant') {
+    /* Remembered, so Settings says "Connect again" instead of "Connected"
+       above a load that fails. The commonest cause on a one-person app is a
+       consent screen left in Testing mode: Google ends those every 7 days. */
+    if (params.grant_type === 'refresh_token') store({ expired: true });
     throw new Error('Your Google sign-in was revoked or has expired. Connect Google Ads again in Settings.');
   }
   if (!r.ok || !body.access_token) throw new Error(body.error_description ?? body.error ?? `Google returned ${r.status}`);
@@ -94,6 +101,7 @@ export async function exchangeGoogleCode(code: string, redirectUri: string): Pro
   if (!t.refresh_token) throw new Error('Google did not return a refresh token. Remove Growth from your Google account’s third-party access and connect again.');
   store({
     refreshToken: t.refresh_token,
+    expired: false,
     accessToken: t.access_token,
     accessExpiresAt: Date.now() + (t.expires_in ?? 3600) * 1000,
   });
@@ -112,11 +120,10 @@ const normalizer = async (server: ViteDevServer) =>
   (norm ??= (await server.ssrLoadModule('/src/data/sources/googleNormalize.ts')) as unknown as Normalizer);
 
 async function call(server: ViteDevServer, path: string, token: string, init: { method?: string; body?: unknown; login?: string } = {}) {
+  /* Optional since Sept 9, 2026 -- sent if present, ignored by Google either way. */
   const dev = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
-  if (!dev) throw new Error('GOOGLE_ADS_DEVELOPER_TOKEN is not set in .env.local.');
-  const headers: Record<string, string> = {
-    authorization: `Bearer ${token}`, 'developer-token': dev, 'content-type': 'application/json',
-  };
+  const headers: Record<string, string> = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+  if (dev) headers['developer-token'] = dev;
   if (init.login) headers['login-customer-id'] = init.login;
   const r = await fetch(`${API}/${path}`, {
     method: init.method ?? 'GET', headers, body: init.body ? JSON.stringify(init.body) : undefined,
@@ -194,9 +201,10 @@ export function googleApi(): Plugin {
           if (req.method === 'GET' && path === '/status') {
             return send(res, 200, {
               configured: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-              developerToken: Boolean(process.env.GOOGLE_ADS_DEVELOPER_TOKEN),
+              /* Retired by Google; kept in the shape so older clients do not stall on it. */
+              developerToken: true,
               connected: Boolean(s?.refreshToken),
-              expired: false,
+              expired: Boolean(s?.expired),
               accountId: s?.customerId ?? null,
             });
           }

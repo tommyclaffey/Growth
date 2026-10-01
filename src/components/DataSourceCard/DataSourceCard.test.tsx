@@ -24,14 +24,25 @@ const respond = (routes: Record<string, unknown>) => vi.fn((input: RequestInfo |
 describe('Settings → Data source, Google row', () => {
   const meta = { configured: false, connected: false, expired: false, accountId: null };
 
-  it('names the missing developer token -- the credential Meta does not need', async () => {
+  it('⚠️ asks for no developer token -- Google retired them Sept 9, 2026', async () => {
+    /* Even an older server still reporting developerToken:false gets Connect. */
     vi.stubGlobal('fetch', respond({
       '/api/meta/status': meta,
       '/api/google/status': { configured: true, developerToken: false, connected: false, expired: false, accountId: null },
     }));
     render(<DataSourceCard />);
-    await waitFor(() => expect(screen.getByText(/GOOGLE_ADS_DEVELOPER_TOKEN/)).toBeTruthy());
-    expect(screen.queryByRole('link', { name: 'Connect Google Ads' })).toBeNull();
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Connect Google Ads' })).toBeTruthy());
+    expect(screen.queryByText(/GOOGLE_ADS_DEVELOPER_TOKEN/)).toBeNull();
+  });
+
+  it('a Meta sign-in ending within a week says so, with the way to renew it', async () => {
+    vi.stubGlobal('fetch', respond({
+      '/api/meta/status': { configured: true, connected: true, expired: false, expiresInDays: 3, accountId: 'act_1' },
+      '/api/meta/accounts': { accounts: [{ id: 'act_1', name: 'Northbank', currency: 'USD' }] },
+      '/api/google/status': { configured: false, connected: false, expired: false, accountId: null },
+    }));
+    render(<DataSourceCard />);
+    await waitFor(() => expect(screen.getByText(/Sign-in ends in 3 days\. Connect again to renew it\./)).toBeTruthy());
   });
 
   it('connected: lists accounts with Google’s dashed ids, and switches the product on choosing', async () => {

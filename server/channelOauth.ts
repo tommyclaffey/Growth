@@ -3,7 +3,7 @@ import type { ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
 import { escapeHtml, originOf, pathOf } from './http.js';
 import { exchangeGoogleCode } from './googleAdsApi.js';
-import { exchangeMetaCode } from './metaApi.js';
+import { META_VERSION, exchangeMetaCode } from './metaApi.js';
 
 /**
  * Connecting an ad account.
@@ -41,16 +41,18 @@ export const PROVIDERS: Record<string, Provider> = {
   meta: {
     id: 'meta',
     label: 'Meta',
-    authorizeUrl: 'https://www.facebook.com/v21.0/dialog/oauth',
-    scopes: 'ads_read,read_insights',
+    authorizeUrl: `https://www.facebook.com/${META_VERSION}/dialog/oauth`,
+    /* ads_read covers ad-account insights. read_insights was PAGE insights --
+       nothing here reads a Page, and use-case apps may refuse the scope. */
+    scopes: 'ads_read',
     clientIdEnv: 'META_CLIENT_ID',
     consoleUrl: 'https://developers.facebook.com/apps',
     consoleLabel: 'Meta for Developers',
     steps: [
-      'Create an app, type <b>Business</b>.',
-      'Add the <b>Marketing API</b> product.',
-      'Under Facebook Login → Settings, add the redirect URI below.',
-      'Copy the <b>App ID</b> from Settings → Basic.',
+      '<b>Create app</b> → name it Growth → choose the ads use case (<b>Create &amp; manage ads with Marketing API</b>).',
+      'Use cases → Customize → make sure <b>ads_read</b> is added. Leave the app in <b>Development</b> mode: it reads your own ad accounts without App Review.',
+      'App settings → Basic: copy the <b>App ID</b> and the <b>App secret</b> into <code>.env.local</code> as <code>META_CLIENT_ID</code> and <code>META_CLIENT_SECRET</code>, then restart.',
+      'Only if Meta says “URL blocked”: Facebook Login for Business → Settings → Valid OAuth Redirect URIs → add the redirect URI below.',
     ],
   },
   youtube: {
@@ -83,8 +85,9 @@ export const PROVIDERS: Record<string, Provider> = {
       'Same OAuth client as YouTube — one <code>GOOGLE_CLIENT_ID</code> covers both. It also needs <code>GOOGLE_CLIENT_SECRET</code>.',
       'Enable the <b>Google Ads API</b> for the project.',
       'Add the redirect URI below to Authorised redirect URIs.',
-      'Google Ads also needs a <b>developer token</b>: a manager account → Admin → <b>API Center</b>. Put it in <code>.env.local</code> as <code>GOOGLE_ADS_DEVELOPER_TOKEN</code>.',
-      'A new token has <b>test access</b> — it reads test accounts only. Apply for <b>Basic access</b> there to read real ones.',
+      'No developer token: Google retired them on Sept 9, 2026. Access belongs to this Cloud project.',
+      'A new project has <b>Test access</b> (test accounts only). Google Ads API → <b>Upgrade access level</b> → apply for <b>Explorer</b> access to read real accounts.',
+      'OAuth consent screen → Audience → <b>Publish app</b> (In production). In Testing mode Google ends the sign-in every 7 days.',
     ],
     extra: { response_type: 'code', access_type: 'offline', prompt: 'consent' },
   },

@@ -24,6 +24,8 @@ export interface MetaStatus {
   configured: boolean;
   connected: boolean;
   expired: boolean;
+  /** Days until the long-lived token runs out; null when Meta did not say. */
+  expiresInDays?: number | null;
   accountId: string | null;
 }
 

@@ -35,14 +35,27 @@ interface Normalizer {
  * as the Slack tokens: fine on one machine, a database before anyone else.
  */
 
-const GRAPH = 'https://graph.facebook.com/v21.0';
+/* 🐛 Was v21.0 -- whose MARKETING API side expired Sept 9, 2025 (the Graph
+   side lives to Jan 2027, which is why nothing looked wrong). Ads endpoints
+   follow the shorter Marketing API schedule: an expired version is either
+   auto-upgraded or FAILS, endpoint by endpoint. v25.0 is the current Marketing
+   API (checked Oct 1, 2026 against developers.facebook.com/docs/graph-api/
+   changelog/versions). Override with META_API_VERSION when Meta moves on. */
+export const META_VERSION = process.env.META_API_VERSION || 'v25.0';
+const GRAPH = `https://graph.facebook.com/${META_VERSION}`;
 const FILE = resolve(process.cwd(), '.meta-tokens.local');
 /** The product's full history: 90 selectable days + 90 to compare against. */
 /* ~15 months: a year back plus the longest preset window (90), so year-over-year
    works on a real account. The product pads anything shorter as "no data". */
 const DAYS = 455;
 
-interface Stored { accessToken: string; expiresAt?: number; accountId?: string }
+interface Stored {
+  accessToken: string;
+  expiresAt?: number;
+  accountId?: string;
+  /** Meta said the token is no longer valid (error 190): password changed, access removed, expired early. */
+  revoked?: boolean;
+}
 
 function load(): Stored | null {
   try { return existsSync(FILE) ? (JSON.parse(readFileSync(FILE, 'utf8')) as Stored) : null; } catch { return null; }
@@ -61,11 +74,19 @@ async function graph<T>(path: string, token: string, params: Record<string, stri
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   url.searchParams.set('access_token', token);
   const r = await fetch(url, { signal: deadline() });
-  return check<T>(r);
+  return check<T>(r, Boolean(token));
 }
 
-async function check<T>(r: Response): Promise<T> {
-  const body = await r.json().catch(() => ({})) as T & { error?: { message: string } };
+/* ⭐ Error 190 is Meta's "this token is no longer valid" -- a password change,
+   access removed from the Business, or the 60 days running out early. It used
+   to surface as Meta's raw sentence through a 502; now it is remembered, so
+   Settings says "Connect again" -- the one thing that fixes it. */
+async function check<T>(r: Response, withToken = true): Promise<T> {
+  const body = await r.json().catch(() => ({})) as T & { error?: { message: string; code?: number } };
+  if (withToken && body.error?.code === 190) {
+    store({ revoked: true });
+    throw new Error('Your Meta sign-in is no longer valid. Connect Meta again in Settings.');
+  }
   if (!r.ok || body.error) throw new Error(body.error?.message ?? `Meta returned ${r.status}`);
   return body;
 }
@@ -104,6 +125,7 @@ export async function exchangeMetaCode(code: string, redirectUri: string): Promi
   /* The chosen ad account survives reconnecting. */
   store({
     accessToken: long.access_token,
+    revoked: false,
     expiresAt: long.expires_in ? Date.now() + long.expires_in * 1000 : undefined,
   });
 }
@@ -156,7 +178,9 @@ export function metaApi(): Plugin {
             return send(res, 200, {
               configured: Boolean(process.env.META_CLIENT_ID && process.env.META_CLIENT_SECRET),
               connected: Boolean(s?.accessToken),
-              expired: Boolean(s?.expiresAt && s.expiresAt < Date.now()),
+              expired: Boolean(s?.revoked || (s?.expiresAt && s.expiresAt < Date.now())),
+              /* So Settings can warn a week ahead instead of failing on day 61. */
+              expiresInDays: s?.expiresAt ? Math.max(0, Math.floor((s.expiresAt - Date.now()) / 86_400_000)) : null,
               accountId: s?.accountId ?? null,
             });
           }
