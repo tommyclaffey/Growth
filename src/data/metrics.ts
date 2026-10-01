@@ -624,11 +624,23 @@ export function activeChannels(): ChannelName[] {
   return ACTIVE;
 }
 
+/**
+ * ⚠️ ONE DOOR. Only `channels.ts` calls this -- it owns the saved choice, and
+ * this is where it lands. Called from anywhere else, the product would compute
+ * on one channel list while Settings showed another and no component was told
+ * (`channelDoor.test.ts` fails the build if a second caller appears). To
+ * change channels, call `setChannels()`; to read them in a component,
+ * `useChannels()`.
+ */
 export function setActiveChannels(keys: ChannelName[]) {
   /* Ordered by CHANNEL_KEYS rather than by the caller, so a channel switched
      off and on again returns to its place instead of the end of the list. */
-  ACTIVE = CHANNEL_KEYS.filter((k) => keys.includes(k));
+  const next = CHANNEL_KEYS.filter((k) => keys.includes(k));
+  if (next.join() === ACTIVE.join()) return;
+  ACTIVE = next;
   blendCache = null;
+  /* Different channels are different data to every cache keyed on the version. */
+  VERSION += 1;
 }
 
 export function isActive(scope: Scope): boolean {

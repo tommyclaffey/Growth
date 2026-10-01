@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useMenu } from '../../data/useMenu';
 import './ChannelSwitcher.css';
 import { ChannelMark } from '../ChannelMark/ChannelMark';
-import { CHANNEL_LABEL, activeChannels } from '../../data/metrics';
+import { CHANNEL_LABEL } from '../../data/metrics';
 import { useChannels } from '../../data/channels';
 import type { ChannelName } from '../../styles/tokens';
 
@@ -26,9 +26,10 @@ export interface ChannelSwitcherProps {
  * which is what keeps channel identity out of colour-only territory.
  */
 export function ChannelSwitcher({ value, onChange }: ChannelSwitcherProps) {
-  /* Subscribed so the list re-renders when a channel is switched off —
-     activeChannels() is read at render time and would otherwise go stale. */
-  useChannels();
+  /* The subscribed list IS the list -- reading the module list beside a bare
+     useChannels() call was the "two doors" pattern: correct only while both
+     happened to agree. */
+  const live = useChannels();
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
 
@@ -72,7 +73,7 @@ export function ChannelSwitcher({ value, onChange }: ChannelSwitcherProps) {
             {value === null && <span className="gr-switcher__check" aria-hidden="true">✓</span>}
           </button>
 
-          {activeChannels().map((key) => (
+          {live.map((key) => (
             <button
               key={key} type="button" role="option" aria-selected={value === key}
               className={`gr-switcher__row gr-type-body ${value === key ? 'is-selected' : ''}`}
