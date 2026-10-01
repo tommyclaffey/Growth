@@ -13,7 +13,12 @@ import type { SourceCampaign } from './source';
  * seed fakes campaign days). Real campaigns arrive without ad sets or ads --
  * that level is a later load -- and every screen already handles "none".
  */
+let STRUCTURE = 0;
+/** Bumped on every applyStructure() -- ads and ad sets change with it. */
+export function structureVersion(): number { return STRUCTURE; }
+
 export function applyStructure(campaigns: SourceCampaign[] | undefined): void {
+  STRUCTURE += 1;
   if (!campaigns) {
     setCampaigns(null);
     setCampaignRows(null);

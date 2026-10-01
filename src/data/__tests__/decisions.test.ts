@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import {
+import { heldBack,
   TIER_LABEL, decisions, decisionsByTier, validate, type Candidate,
 } from '../decisions';
 import { ALL_CHANNELS } from '../blended';
@@ -278,7 +278,7 @@ describe('the detectors that the default fixture cannot exercise', () => {
     expect(ps.tier).toBe(2);
     /* It must state the assumption — that is what makes it tier 2 rather than a
        promise. */
-    expect(ps.expectation?.assuming).toMatch(/holds/);
+    expect(ps.expectation?.assuming).toMatch(/extra dollar/);
     /* And it must move money FROM the expensive one TO the cheap one, not the
        reverse. Getting this backwards is the CAC inversion in a new costume. */
     expect(ps.action).toMatch(/from “Non-brand — High Intent” to “Branded Search Defense”/);
@@ -447,13 +447,15 @@ describe('⭐ the engine finds opportunities, not only faults', () => {
 
   it('spots a campaign beating its own channel, and GIVES IT MORE -- as a stated projection', () => {
     reset();
-    const found = all().filter((c) => c.kind === 'beats-its-channel');
+    /* Oct 1: found and HELD count -- Branded Search beats Paid Search on average,
+       but its NEXT dollar would not (see the marginal test in decisionsJuice). */
+    const found = [...all(), ...heldBack(30, ALL_CHANNELS)].filter((c) => c.kind === 'beats-its-channel');
     expect(found.length).toBeGreaterThan(0);
     for (const c of found) {
       /* ⭐ Sept 30: "find out why it beats the channel" was not a decision.
          Raising it is a forecast, so tier 2, with the pull-back line stated. */
       expect(c.tier).toBe(2);
-      expect(c.action).toMatch(/^Raise the budget on “.+” 20% \(\+\$[\d,]+ a week\)$/);
+      expect(c.action).toMatch(/^Raise the budget on “.+” \d+% \(\+\$[\d,]+ a week\)$/);
       expect(c.expectation?.assuming).toMatch(/put it back/);
     }
   });

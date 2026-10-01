@@ -145,3 +145,27 @@ describe('the chart: table view and earlier periods', () => {
     expect(table.querySelector('.gr-chart__change')).toBeNull();
   });
 });
+
+describe('🐛 the chart only offers what the channel can produce', () => {
+  it('Podcasts: no Clicks in the toggle, the compare list or the table', async () => {
+    const { chartMetricsFor, plottable } = await import('../../data/metrics');
+    const ms = chartMetricsFor('podcasts');
+    expect(ms).not.toContain('Clicks');
+    expect(plottable('podcasts', 'Clicks')).toBe('Leads');
+    expect(plottable('podcasts', 'CAC')).toBe('CAC');
+    render(
+      <Chart channel="podcasts" metric="Leads" metrics={ms} data={series('podcasts', 'Leads', 30)}
+             compareSeries={(m) => series('podcasts', m, 30)} />,
+    );
+    expect(screen.queryByRole('tab', { name: 'Clicks' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Clicks' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    expect(screen.queryByRole('checkbox', { name: 'Clicks' })).toBeNull();
+  });
+
+  it('a channel with clicks keeps them, and so does All channels', async () => {
+    const { chartMetricsFor } = await import('../../data/metrics');
+    expect(chartMetricsFor('meta')).toContain('Clicks');
+    expect(chartMetricsFor('all')).toContain('Clicks');
+  });
+});

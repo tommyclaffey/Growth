@@ -62,7 +62,9 @@ describe('scoping', () => {
     const q = 'How is Paid Search doing?';
     const before = ask(q, 30).text;
     const n = Number(before.match(/(\d+) things I can act on/)?.[1] ?? (/One thing/.test(before) ? 1 : 0));
-    const listed = before.split('\n\n').filter((l) => /—/.test(l) && !/over the/.test(l)).length;
+    /* Counted as bullets. It counted lines containing an em dash, which held
+       only while every action happened to contain one. */
+    const listed = before.split('\n').filter((l) => l.startsWith('•')).length;
     if (!/the \d+ strongest/.test(before)) expect(listed).toBeGreaterThanOrEqual(Math.min(n, 3));
     for (const c of decisions(30, ALL_CHANNELS).filter((x) => x.channel === 'paidSearch' && x.tier !== 3)) {
       addFlag('decision', c.id, c.action);

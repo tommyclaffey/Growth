@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
 import { baselineFor, grade, tally, type Baseline } from '../grading';
-import { decisions } from '../decisions';
+import { heldBack, decisions } from '../decisions';
 import { ALL_CHANNELS } from '../blended';
 import { CAMPAIGNS } from '../campaigns';
 import { setStage } from '../campaignStatus';
@@ -23,7 +23,8 @@ describe('a baseline is captured for decisions a number can grade', () => {
     expect(baselineFor(byKind('stale-review')!, 30)?.better).toBe('state');
     /* Sept 30: these were investigations, graded by a person. Now they are
        actions, and each names its number. */
-    expect(baselineFor(byKind('beats-its-channel')!, 30)?.key).toMatch(/^campaign-leads:/);
+    const beats = [...all(), ...heldBack(30, ALL_CHANNELS)].find((c) => c.kind === 'beats-its-channel')!;
+    expect(baselineFor(beats, 30)?.key).toMatch(/^campaign-leads:/);
     expect(baselineFor(byKind('paused-winner')!, 30)?.key).toMatch(/^ad-leads:/);
     const pause = all().find((c) => c.id === 'weekly:cac:meta')!;
     expect(baselineFor(pause, 30)).toMatchObject({ label: 'Campaign CAC', better: 'lower' });

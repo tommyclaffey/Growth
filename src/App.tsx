@@ -32,7 +32,7 @@ import { CAMPAIGNS } from './data/campaigns';
 import { useMonthlyBudget } from './data/profile';
 import {
   CHANNEL_LABEL, activeChannels, dataVersion, delta, endBackFor, isoForEndBack, setWindowEnd, formatMetric, isActive, series, sparkline, totals,
-  rangePhrase, METRICS,
+  rangePhrase, METRICS, chartMetricsFor, plottable,
   type Metric, type Range, type Scope,
 } from './data/metrics';
 import { campaignById } from './data/campaignSeries';
@@ -361,6 +361,10 @@ export default function App() {
 
 
   const scope: Scope = channel ?? 'all';
+  /* What the chart can plot here. The PICK is kept: Clicks on Overview, then
+     Podcasts (shows Leads), then back to Overview shows Clicks again. */
+  const chartMetrics = chartMetricsFor(scope);
+  const shown = plottable(scope, metric);
 
   /* Clicking a KPI card stages that metric in the chat composer and opens the
      panel. This is what makes the card clickable — it was a <button> with no
@@ -398,7 +402,7 @@ export default function App() {
   const version = dataVersion();
   const view = useMemo(() => {
     const t = totals(scope, range);
-    const data = series(scope, metric, range);
+    const data = series(scope, shown, range);
     return {
       totals: t,
       data,
@@ -411,7 +415,7 @@ export default function App() {
           leads: ct.leads,
           cac: ct.cac,
           roas: ct.roas,
-          delta: delta(key, metric, range),
+          delta: delta(key, shown, range),
           /* Always ROAS -- the one trend that means the same thing on every
              visit, whatever the change column is set to. */
           trend: sparkline(key, 'ROAS', range),
@@ -432,7 +436,7 @@ export default function App() {
        row for a channel Settings said was removed, and an Export that wrote 5
        channels next to a table showing 6. Nothing recovered it but a reload or
        a range change. */
-  }, [scope, metric, range, enabled, version]);
+  }, [scope, shown, range, enabled, version]);
 
   /* The channels a KPI card is computed over: one on a channel screen, every
      active one on Overview. Deriving the list here rather than inside the row
@@ -776,9 +780,9 @@ export default function App() {
               {!onChannelScreen && (
                 <ChannelTable
                   rows={view.rows}
-                  metric={metric}
+                  metric={shown}
                   range={range}
-                  total={{ delta: delta('all', metric, range), trend: sparkline('all', 'ROAS', range) }}
+                  total={{ delta: delta('all', shown, range), trend: sparkline('all', 'ROAS', range) }}
                   wideColumns={!chatOpen}
                   onRowClick={(k) => { setNav('channels'); setChannel(k); }}
                 />
@@ -786,7 +790,8 @@ export default function App() {
 
               <Chart
                 channel={scope}
-                metric={metric}
+                metric={shown}
+                metrics={chartMetrics}
                 onMetricChange={setMetric}
                 data={view.data}
                 compareSeries={(m) => series(scope, m, range)}

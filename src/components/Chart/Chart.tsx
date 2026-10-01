@@ -21,6 +21,8 @@ export interface ChartProps {
   title?: string;
   channel: ChannelName | 'all';
   metric: Metric;
+  /** The metrics this scope can plot (`chartMetricsFor`). Default: all six. */
+  metrics?: Metric[];
   onMetricChange?: (m: Metric) => void;
   data: { label: string; value: number }[];
   /** Override the mark. Default 'auto' applies the rule below. */
@@ -84,6 +86,7 @@ export function Chart({
   title,
   channel,
   metric,
+  metrics = METRICS,
   onMetricChange,
   data,
   mark = 'auto',
@@ -106,7 +109,8 @@ export function Chart({
      after picking a metric. A mouse pick lets go of focus; a keyboard pick
      keeps it, because a keyboard user still needs to see where they are. */
   const pickedByPointer = useRef(false);
-  const compare = compareSeries && comparePick && !isPeriod(comparePick) && comparePick !== metric ? comparePick : null;
+  const compare = compareSeries && comparePick && !isPeriod(comparePick) && comparePick !== metric
+    && metrics.includes(comparePick) ? comparePick : null;
   const cData = compare ? compareSeries!(compare) : [];
   const period = periodSeries && isPeriod(comparePick) ? comparePick : null;
   const periodInfo = period ? PERIODS.find((p) => p.key === period)! : null;
@@ -288,7 +292,7 @@ export function Chart({
        - WHICH days: the date picker, and nothing else. Compare is hidden here
          -- a second set of dates inside the table would override the main
          one. The trend across weeks IS the comparison. */
-  const saved = METRICS.filter((m) => tableCols.includes(m) && (compareSeries || m === metric));
+  const saved = metrics.filter((m) => tableCols.includes(m) && (compareSeries || m === metric));
   const tableMetrics: Metric[] = saved.length ? saved : [metric];
   const seriesOf = (m: Metric) => (m === metric ? data : compareSeries!(m));
   const cols = tableMetrics.map((m) => ({ m, now: seriesOf(m) }));
@@ -332,7 +336,7 @@ export function Chart({
       {compareSeries && (
         <fieldset className="gr-chart__cols">
           <legend className="gr-chart__cols-label gr-type-caption-med">Show</legend>
-          {METRICS.map((m) => {
+          {metrics.map((m) => {
             const on = tableMetrics.includes(m);
             /* At least one: an empty table answers nothing. */
             const last = on && tableMetrics.length === 1;
@@ -342,7 +346,7 @@ export function Chart({
                 <input type="checkbox" checked={on} disabled={last}
                        onChange={(e) => {
                          const next = e.target.checked
-                           ? METRICS.filter((x) => x === m || tableMetrics.includes(x))
+                           ? metrics.filter((x) => x === m || tableMetrics.includes(x))
                            : tableMetrics.filter((x) => x !== m);
                          setTableCols(next);
                          try { localStorage.setItem(COLS_KEY, JSON.stringify(next)); } catch { /* quota */ }
@@ -453,7 +457,7 @@ export function Chart({
           {isTable ? `By ${groupBy}` : (title ?? `${metric} over time`)}
         </h3>
         {/* Hidden in the table: its checkboxes choose the metrics. */}
-        {!isTable && <MetricToggle value={metric} onChange={(m) => onMetricChange?.(m)} />}
+        {!isTable && <MetricToggle value={metric} options={metrics} onChange={(m) => onMetricChange?.(m)} />}
 
         {/* A native select, not a second segmented control: two rows of six
             identical pills would make "which one is the main metric" a
@@ -485,7 +489,7 @@ export function Chart({
                 )}
                 {compareSeries && (
                   <optgroup label="Another metric">
-                    {METRICS.filter((m) => m !== metric).map((m) => (
+                    {metrics.filter((m) => m !== metric).map((m) => (
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </optgroup>

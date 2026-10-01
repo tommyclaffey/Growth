@@ -377,6 +377,24 @@ export function canProduce(channel: ChannelName, field: 'clicks' | 'impressions'
 }
 
 /**
+ * The chart metrics a scope can honestly plot.
+ *
+ * 🐛 The chart's toggle offered all six everywhere, so the Podcasts screen could
+ * draw a Clicks line that was zero every day -- a chart of a thing the medium
+ * cannot produce. The KPI row already asked; the chart now asks too. "All
+ * channels" keeps Clicks while ANY active channel can produce them.
+ */
+export function chartMetricsFor(scope: ChannelName | 'all'): Metric[] {
+  const pool = scope === 'all' ? activeChannels() : [scope];
+  return METRICS.filter((m) => m !== 'Clicks' || pool.some((c) => canProduce(c, 'clicks')));
+}
+
+/** The metric to plot: the one picked, or Leads where the picked one cannot exist. */
+export function plottable(scope: ChannelName | 'all', picked: Metric): Metric {
+  return chartMetricsFor(scope).includes(picked) ? picked : 'Leads';
+}
+
+/**
  * Things that HAPPENED in the last week, written into the data rather than into
  * a notification.
  *
@@ -606,11 +624,23 @@ export function activeChannels(): ChannelName[] {
   return ACTIVE;
 }
 
+/**
+ * ⚠️ ONE DOOR. Only `channels.ts` calls this -- it owns the saved choice, and
+ * this is where it lands. Called from anywhere else, the product would compute
+ * on one channel list while Settings showed another and no component was told
+ * (`channelDoor.test.ts` fails the build if a second caller appears). To
+ * change channels, call `setChannels()`; to read them in a component,
+ * `useChannels()`.
+ */
 export function setActiveChannels(keys: ChannelName[]) {
   /* Ordered by CHANNEL_KEYS rather than by the caller, so a channel switched
      off and on again returns to its place instead of the end of the list. */
-  ACTIVE = CHANNEL_KEYS.filter((k) => keys.includes(k));
+  const next = CHANNEL_KEYS.filter((k) => keys.includes(k));
+  if (next.join() === ACTIVE.join()) return;
+  ACTIVE = next;
   blendCache = null;
+  /* Different channels are different data to every cache keyed on the version. */
+  VERSION += 1;
 }
 
 export function isActive(scope: Scope): boolean {

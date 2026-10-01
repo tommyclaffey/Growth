@@ -73,6 +73,13 @@ RULES, IN ORDER OF IMPORTANCE:
    on last-touch. Cutting it is exactly what the data cannot justify, because
    last touch always flatters whichever channel sits nearest the conversion.
 
+2g. "WHAT SHOULD I DO" OPENS ON THE PLAN when get_decisions returns one: one
+   sentence with its three before -> after figures (spend a week, leads a week,
+   cost per lead) and its assumption. A finding's 'howSure' says whether its gap
+   could be chance; when a reader asks "are you sure?", quote it -- never
+   invent a percentage. Findings the engine held back never arrive; do not
+   speculate about them.
+
 2f. THE PANEL SHOWS THE DECISIONS AS CARDS. Every provable or projection finding
    from get_decisions (the top three not already taken) renders below your answer
    as a card with its action, its reason, and a button. So open with ONE short
@@ -175,6 +182,7 @@ interface Decisions {
   decisionsFor: (
     target: { kind: string; id: string }, range: number, channels?: string[],
   ) => DecisionCandidate[];
+  planFrom: (found: DecisionCandidate[], range: number, channels: string[]) => PlanSummary;
 }
 
 /** What the reader was pointing at when they asked, if a control told us. */
@@ -229,6 +237,20 @@ interface DecisionCandidate {
   expectation?: { outcome: string; assuming?: string; checkOn: string };
   needs?: string;
   channel?: string;
+  /** "Is that real?" -- see src/data/evidence.ts. */
+  confidence?: { level: 'high' | 'medium' | 'low'; sentence: string };
+  /** What taking it does to a week. */
+  effect?: { spend: number; leads: number };
+  held?: { reason: string; sentence: string };
+}
+
+/** The engine's cards, added up -- src/data/plan.ts. */
+interface PlanSummary {
+  moves: DecisionCandidate[];
+  freed: number; added: number; leadsLost: number; leadsGained: number;
+  before: { spend: number; leads: number; cac: number };
+  after: { spend: number; leads: number; cac: number };
+  assumed: boolean;
 }
 
 /** Blended coverage, so the model can say which channels a rate excludes. */
@@ -468,12 +490,33 @@ function buildTools(
            mistaken for part of a name. The model cannot echo a number it is
            never given. */
         const WORD = { 1: 'provable', 2: 'projection', 3: 'unanswerable' } as const;
-        return JSON.stringify(mine.map((c) => ({
+        const items = mine.map((c) => ({
           confidence: WORD[c.tier], action: c.action, because: c.because,
           expect: c.expectation?.outcome,
           assuming: c.expectation?.assuming,
           needsToAnswer: c.needs,
-        })));
+          /* ⭐ "Is that real?" as the engine answered it -- a sentence, never a p-value. */
+          howSure: c.confidence?.sentence,
+        }));
+        /* ⭐ The plan rides along only for the whole account: "if I take every
+           ready move, where does the week land?" A channel-filtered sum would
+           read as the account's. */
+        if (channel && channel !== 'all') return JSON.stringify(items);
+        const p = d.planFrom(found, range, m.activeChannels());
+        if (p.moves.length < 2) return JSON.stringify(items);
+        const usd = (n: number) => m.formatMetric('Spend', n);
+        return JSON.stringify({
+          findings: items,
+          plan: {
+            moves: p.moves.length,
+            spendPerWeek: `${usd(p.before.spend)} -> ${usd(p.after.spend)}`,
+            leadsPerWeek: `${Math.round(p.before.leads)} -> ${Math.round(p.after.leads)}`,
+            costPerLead: `${m.formatMetric('CAC', p.before.cac)} -> ${m.formatMetric('CAC', p.after.cac)}`,
+            assumption: p.assumed
+              ? 'Leads gained come off each campaign\'s response curve; where spend has not moved enough to measure it, the curve is ASSUMED (the next dollar buys ~80% as much). Say so.'
+              : 'Leads gained come off each campaign\'s measured response curve.',
+          },
+        });
       },
     }),
 

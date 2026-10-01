@@ -1,17 +1,22 @@
 import type { ChannelName } from '../styles/tokens';
 import { CAMPAIGNS } from './campaigns';
 import { campaignRows, campaignTotals } from './campaignSeries';
-import { stageOf } from './campaignStatus';
+import { stageFingerprint, stageOf } from './campaignStatus';
 import { rankedAds, type RankedAd } from './adRanking';
 import { creativeById, creativeRows, creativesFor } from './creative';
 import { CHANNEL_DEPTH } from './channelDepth';
 import { formatDerived } from './channelMetrics';
-import { budgetForRange } from './profile';
+import { budgetForRange, channelBudgets } from './profile';
+import { structureVersion } from './structure';
 import {
-  CHANNEL_LABEL, LAST_WEEK, activeChannels, formatMetric, rowsFor, totals, type DayRow, type Range,
+  CHANNEL_LABEL, LAST_WEEK, activeChannels, dataVersion, formatMetric, rowsFor, totals, windowEnd, type DayRow, type Range,
 } from './metrics';
 import { blendedTotal } from './blended';
-import { notifications } from './notifications';
+import { changeThreshold, notifications } from './notifications';
+import { projectRaise, rateTest, responseCurve, type Confidence, type Curve, type Sample } from './evidence';
+/* Re-exported so the server's one ssrLoadModule of the engine also gets the
+   plan. plan.ts imports only TYPES from here, so there is no runtime cycle. */
+export { planFrom } from './plan';
 
 /**
  * The decision engine.
@@ -78,7 +83,8 @@ export type DecisionKind =
   | 'pacing'
   | 'cross-channel-cost-gap'
   | 'holdout-test'
-  | 'weekly-move';
+  | 'weekly-move'
+  | 'slow-leak';
 
 export interface Evidence {
   label: string;
@@ -156,6 +162,25 @@ export interface Candidate {
    * raise, and each is graded on a different number. See grading.ts.
    */
   measure?: { key: string; label: string; better: 'higher' | 'lower' | 'closer-to-one' | 'state' };
+  /**
+   * ⭐ The two sides of the comparison the claim rests on -- subject first, the
+   * thing it is measured against second (NOT containing the subject). Set by
+   * every detector whose claim is "A costs more/less than B". Structural
+   * findings (one ad group, one ad carrying a channel) have none: they are
+   * counts, not estimates, and there is no chance in them to test.
+   */
+  compare?: [Sample, Sample];
+  /** Computed from `compare` in assembly -- see evidence.ts. */
+  confidence?: Confidence;
+  /**
+   * ⭐ What taking it does to a WEEK: spend and leads, signed. A pause is
+   * negative on both; a raise positive on both, with the leads off the curve.
+   * The plan (plan.ts) adds these up into one "if you take all of it" line.
+   * Absent on moves with no money in them -- add a variant, run a test.
+   */
+  effect?: Sample;
+  /** Set when the engine found this and held it back; the sentence says why. */
+  held?: { reason: HeldReason; sentence: string };
 }
 
 /* ---------------------------------------------------------------- helpers -- */
@@ -207,6 +232,87 @@ const budgetOf = (name: string, campaign: boolean) =>
  */
 function adName(headline: string, adSetName: string): string {
   return `“${headline}” (${adSetName})`;
+}
+
+/** B minus A: the reference a subject is compared against, without the subject in it. */
+const restOf = (all: Sample, part: Sample): Sample =>
+  ({ spend: Math.max(0, all.spend - part.spend), leads: Math.max(0, all.leads - part.leads) });
+
+/**
+ * What a budget raise buys, on the thing's own response curve -- and the
+ * sentence and stated assumption that go with it.
+ *
+ * ⭐ Every raise used to promise leads at today's AVERAGE price: "+$887 buys 29
+ * more leads at $30.51". The next dollar in an auction buys the next-cheapest
+ * impression, which is dearer than the last. So the projection is now made on
+ * the curve, and the card names the MARGINAL price -- what the extra money
+ * pays -- next to the average it is usually confused with.
+ */
+function onTheCurve(rows: DayRow[], base: Sample, r: number, per: string): {
+  curve: Curve; r: number; extraLeads: number; marginalCac: number; outcome: string; assuming: string;
+} {
+  const curve = responseCurve(rows);
+  const proj = projectRaise(base, r, curve);
+  const avg = base.leads > 0 ? base.spend / base.leads : Infinity;
+  const outcome = `About ${count(proj.extraLeads)} more leads ${per}, at about `
+    + `${cacText(proj.marginalCac)} each for the extra money (today’s average: ${cacText(avg)}).`;
+  const assuming = curve.measured
+    ? `its last ${curve.days} days hold: each extra dollar has bought about `
+      + `${Math.round(curve.b * 100)}% as much as the average one`
+    : `the extra dollar buys about ${Math.round(curve.b * 100)}% as much as the average one. `
+      + `Assumed, not measured: its spend has not moved enough to show how it responds`;
+  return { curve, r, extraLeads: proj.extraLeads, marginalCac: proj.marginalCac, outcome, assuming };
+}
+
+/**
+ * ⭐ HOW MUCH to raise -- not just whether.
+ *
+ * Every raise was a flat 20%. On the curve, the marginal price climbs with the
+ * size of the raise, so "20%" could buy its last leads dearer than the very
+ * benchmark the card praised it against: Branded Search "beat Paid Search's
+ * $85.98" and its extra 20% would have paid ~$97 a lead.
+ *
+ * So: the biggest step (in 5% steps, up to `most`) whose extra money still
+ * pays less than `ceiling` -- the number the card already names as the line.
+ * None? Then no raise is worth making, and the finding is held back with
+ * that reason instead of being shown as advice the arithmetic contradicts.
+ */
+function sizedRaise(rows: DayRow[], base: Sample, most: number, ceiling: number, per: string) {
+  if (!(base.spend > 0 && base.leads > 0 && Number.isFinite(ceiling))) return null;
+  for (let r = most; r >= 0.05 - 1e-9; r = Math.round((r - 0.05) * 100) / 100) {
+    const p = onTheCurve(rows, base, r, per);
+    if (p.marginalCac <= ceiling) return p;
+  }
+  return null;
+}
+
+/** Why a finding was found and not shown. */
+export type HeldReason = 'chance' | 'marginal';
+
+/** Range totals → one week. */
+const perWeek = (x: Sample, range: number): Sample => ({ spend: (x.spend / range) * 7, leads: (x.leads / range) * 7 });
+
+/**
+ * What cutting spend by `r` gives up, on the curve: leads × (1 − (1−r)^b).
+ * The money cut is the MARGINAL money -- the dearest leads go first -- so a
+ * 20% cut costs well under 20% of the leads. Same curve as a raise, run backwards.
+ */
+function cutEffect(rows: DayRow[], base: Sample, r: number): Sample {
+  const b = responseCurve(rows).b;
+  return { spend: -base.spend * r, leads: -base.leads * (1 - (1 - r) ** b) };
+}
+
+/** What the smallest step (5%) would pay per extra lead -- the floor of any raise. */
+function floorMarginal(rows: DayRow[], base: Sample): number {
+  return onTheCurve(rows, base, 0.05, '').marginalCac;
+}
+
+function marginalHeld(marginal: number, ceiling: number, what: string): { reason: HeldReason; sentence: string } {
+  return {
+    reason: 'marginal',
+    sentence: `Even a 5% raise would buy its extra leads at about ${cacText(marginal)}, `
+      + `above ${what} of ${cacText(ceiling)}. More budget here costs more than it is worth.`,
+  };
 }
 
 /* ------------------------------------------------------------- detectors -- */
@@ -270,6 +376,8 @@ function spendReturnMismatch(range: Range, channels: ChannelName[], ranked?: Ran
         scope: [CHANNEL_LABEL[a.channel], c.name, a.creative.adSetName],
         channel: a.channel,
         atStake: a.totals.spend,
+        compare: [a.totals, restOf({ spend, leads }, a.totals)],
+        effect: { spend: -perWeek(a.totals, range).spend, leads: -perWeek(a.totals, range).leads },
         /* How lopsided it is, capped — a 9x ratio is not nine times more
            actionable than a 3x one. */
         strength: Math.min(1, (ratio - 1.6) / 2.4),
@@ -314,11 +422,14 @@ function scaleWinner(range: Range, channels: ChannelName[], ranked?: RankedAd[])
       if (ratio < 1.4 || a.totals.leads < 20) continue;
 
       const cac = a.totals.spend / a.totals.leads;
+      const campCac = spend / leads;
+      const sized = sizedRaise(creativeRows(a.creative.id, 90), a.totals, 0.25, campCac, `over ${range} days`);
+      const proj = sized ?? onTheCurve(creativeRows(a.creative.id, 90), a.totals, 0.25, `over ${range} days`);
       out.push({
         id: `scale:${a.creative.id}`,
         tier: 2,
         kind: 'scale-winner',
-        action: `Increase budget on ${adName(a.creative.headline, a.creative.adSetName)}`,
+        action: `Raise the budget on ${adName(a.creative.headline, a.creative.adSetName)} ${pct(proj.r)}`,
         because: `It brings in ${pct(lShare)} of ${poss(c.name)} leads on just ${pct(sShare)} of its spend.`,
         evidence: [
           { label: 'Share of campaign leads', value: pct(lShare) },
@@ -327,17 +438,18 @@ function scaleWinner(range: Range, channels: ChannelName[], ranked?: RankedAd[])
           { label: `${c.name} CAC`, value: formatDerived('CAC', spend / leads) },
         ],
         expectation: {
-          outcome: `Raising its budget 25% (about ${formatMetric('Spend', a.totals.spend * 0.25)}) `
-            + `should buy about ${Math.round((a.totals.spend * 0.25) / cac)} more leads.`,
+          outcome: `+${formatMetric('Spend', a.totals.spend * proj.r)}: ${proj.outcome}`,
           /* The condition that makes this tier 2. Stated, not implied. */
-          assuming: `its ${formatDerived('CAC', cac)} CAC holds at the higher budget. `
-            + `It usually rises as the audience gets used up`,
+          assuming: proj.assuming,
           checkOn: checkDate(range),
         },
         target: { kind: 'ad', id: a.creative.id, label: a.creative.headline },
         scope: [CHANNEL_LABEL[a.channel], c.name, a.creative.adSetName],
         channel: a.channel,
-        atStake: a.totals.spend * 0.25,
+        atStake: a.totals.spend * proj.r,
+        compare: [a.totals, restOf({ spend, leads }, a.totals)],
+        effect: perWeek({ spend: a.totals.spend * proj.r, leads: proj.extraLeads }, range),
+        ...(sized ? {} : { held: marginalHeld(floorMarginal(creativeRows(a.creative.id, 90), a.totals), campCac, `${poss(c.name)} average`) }),
         strength: Math.min(1, (ratio - 1.4) / 1.6),
       });
     }
@@ -421,6 +533,8 @@ function pausedWinner(range: Range, channels: ChannelName[], ranked?: RankedAd[]
         scope: [CHANNEL_LABEL[a.channel], c.name, a.creative.adSetName],
         channel: a.channel,
         measure: { key: `ad-leads:${a.creative.id}`, label: 'Leads on this ad', better: 'higher' },
+        compare: [a.totals, restOf({ spend, leads }, a.totals)],
+        effect: perWeek(a.totals, range),
         strength: Math.min(1, (ratio - 1.3) / 1.2),
       });
     }
@@ -470,8 +584,12 @@ function reallocateWithinChannel(range: Range, channels: ChannelName[]): Candida
     /* A quarter of the worse campaign's spend. Not all of it: recommending a
        campaign be emptied is a different and much larger decision. */
     const move = worst.t.spend * 0.25;
-    const gained = move / bestCac;
+    /* The receiving campaign's extra leads come off its CURVE, not its average
+       -- the money it gets is its marginal money. */
+    const gain = onTheCurve(campaignRows(best.c.id, 90), best.t, move / best.t.spend, `over ${range} days`);
+    const gained = gain.extraLeads;
     const lost = move / worstCac;
+    if (gained <= lost) continue;
 
     out.push({
       id: `realloc:${channel}:${worst.c.id}:${best.c.id}`,
@@ -490,14 +608,15 @@ function reallocateWithinChannel(range: Range, channels: ChannelName[]): Candida
       expectation: {
         outcome: `About ${Math.round(gained - lost)} more leads over ${range} days `
           + `(${Math.round(gained)} gained, ${Math.round(lost)} given up).`,
-        assuming: `${best.c.name} holds ${formatDerived('CAC', bestCac)} on `
-          + `${Math.round((move / best.t.spend) * 100)}% more budget`,
+        assuming: `on ${Math.round((move / best.t.spend) * 100)}% more budget, for ${best.c.name}, ${gain.assuming}`,
         checkOn: checkDate(range),
       },
       target: { kind: 'campaign', id: worst.c.id, label: worst.c.name },
       scope: [CHANNEL_LABEL[channel], worst.c.name],
       channel,
       atStake: move,
+      compare: [worst.t, best.t],
+      effect: perWeek({ spend: 0, leads: gained - lost }, range),
       strength: Math.min(1, (worstCac / bestCac - 1.3) / 1.7),
     });
   }
@@ -558,6 +677,10 @@ function staleReview(range: Range, channels: ChannelName[]): Candidate[] {
               : `Frees ${money(t.spend)} over the next ${range} days.`,
             checkOn: checkDate(7),
           },
+          compare: [t, restOf(ch, t)],
+          /* Approve: it is already spending while it waits, so going live
+             changes nothing in the week. End: its spend and leads stop. */
+          ...(approve ? {} : { effect: { spend: -perWeek(t, range).spend, leads: -perWeek(t, range).leads } }),
         };
       }
       return {
@@ -761,12 +884,15 @@ function beatsItsChannel(range: Range, channels: ChannelName[]): Candidate[] {
       const better = (chCac - t.cac) / chCac;
       if (better < 0.1) continue;
 
-      const raise = (t.spend / range) * 7 * 0.2;
+      const week = { spend: (t.spend / range) * 7, leads: (t.leads / range) * 7 };
+      const sized = sizedRaise(campaignRows(c.id, 90), week, 0.2, chCac, 'a week');
+      const proj = sized ?? onTheCurve(campaignRows(c.id, 90), week, 0.2, 'a week');
+      const raise = week.spend * proj.r;
       out.push({
         id: `beats-channel:${c.id}`,
         tier: 2,
         kind: 'beats-its-channel',
-        action: `Raise ${budgetOf(c.name, true)} 20% (+${money(raise)} a week)`,
+        action: `Raise ${budgetOf(c.name, true)} ${pct(proj.r)} (+${money(raise)} a week)`,
         /* Names the channel rather than saying "the channel". */
         because: `It pays ${formatDerived('CAC', t.cac)} a lead. The ${CHANNEL_LABEL[channel]} `
           + `average is ${formatDerived('CAC', chCac)}, so it is ${Math.round(better * 100)}% `
@@ -778,15 +904,18 @@ function beatsItsChannel(range: Range, channels: ChannelName[]): Candidate[] {
           { label: 'Spend', value: formatMetric('Spend', t.spend) },
         ],
         expectation: {
-          outcome: `About ${count(raise / t.cac)} more leads a week.`,
-          assuming: `it holds about ${cacText(t.cac)} a lead on 20% more budget. If a week comes `
-            + `in above the ${CHANNEL_LABEL[channel]} average of ${cacText(chCac)}, put it back`,
+          outcome: proj.outcome,
+          assuming: `${proj.assuming}. If a week comes in above the ${CHANNEL_LABEL[channel]} `
+            + `average of ${cacText(chCac)}, put it back`,
           checkOn: checkDate(range),
         },
         target: { kind: 'campaign', id: c.id, label: c.name },
         scope: [CHANNEL_LABEL[channel], c.name],
         channel,
         atStake: raise,
+        compare: [t, restOf(ch, t)],
+        effect: { spend: raise, leads: proj.extraLeads },
+        ...(sized ? {} : { held: marginalHeld(floorMarginal(campaignRows(c.id, 90), week), chCac, `the ${CHANNEL_LABEL[channel]} average`) }),
         measure: { key: `campaign-leads:${c.id}`, label: 'Campaign leads', better: 'higher' },
         strength: Math.min(1, better / 0.4),
       });
@@ -856,34 +985,70 @@ function pacing(range: Range, channels: ChannelName[], raised: Set<string> = new
         scope: [CHANNEL_LABEL[dearest.c.channel], dearest.c.name],
         channel: dearest.c.channel,
         atStake: cut,
+        effect: perWeek(cutEffect(campaignRows(dearest.c.id, 90), dearest.t, cut / dearest.t.spend), range),
       }];
     }
   } else {
     /* Under plan: put the gap where leads are cheapest -- a running campaign
        already cheaper than the account, and not one another card is raising.
        Adding money is a forecast, so this is tier 2 and says so. */
-    const cheapest = [...running]
-      .filter((x) => x.t.cac <= blended && !raised.has(x.c.id))
-      .sort((a, b) => a.t.cac - b.t.cac)[0];
+    /* ⭐ On the CURVE, not the average: the first campaign (cheapest first)
+       whose extra money still pays less than the account average. A campaign
+       at $33 a lead whose next dollar costs $43 is not where an account
+       averaging $41 should put more. */
     const gap = planned - spent;
-    if (cheapest) {
-      const add = Math.min(gap, cheapest.t.spend * 0.25);
+    const candidates = [...running]
+      .filter((x) => x.t.cac <= blended && !raised.has(x.c.id))
+      .sort((a, b) => a.t.cac - b.t.cac);
+    for (const x of candidates) {
+      const most = Math.min(gap, x.t.spend * 0.25) / x.t.spend;
+      const proj = sizedRaise(campaignRows(x.c.id, 90), x.t, Math.max(0.05, Math.floor(most * 20) / 20), blended, `over ${range} days`);
+      if (!proj) continue;
+      const add = x.t.spend * proj.r;
+      const account = { spend: spent, leads: totalLeads };
       return [{
         ...base, tier: 2,
-        action: `Put ${money(add)} of the unspent budget into “${cheapest.c.name}”`,
+        action: `Put ${money(add)} of the unspent budget into “${x.c.name}”`,
         because: `Spend is ${off}% under plan: ${money(spent)} of ${money(planned)} for ${range} days. `
-          + `“${cheapest.c.name}” pays ${cacText(cheapest.t.cac)} a lead; the account averages ${cacText(blended)}.`,
+          + `“${x.c.name}” pays ${cacText(x.t.cac)} a lead; the account averages ${cacText(blended)}.`,
         evidence,
         expectation: {
-          outcome: `About ${count(add / cheapest.t.cac)} more leads, closing ${pct(add / gap)} of the gap.`,
-          assuming: `it holds about ${cacText(cheapest.t.cac)} a lead on `
-            + `${pct(add / cheapest.t.spend)} more budget`,
+          outcome: `${proj.outcome} Closes ${pct(add / gap)} of the gap.`,
+          assuming: `on ${pct(proj.r)} more budget, ${proj.assuming}`,
           checkOn,
         },
-        target: { kind: 'campaign', id: cheapest.c.id, label: cheapest.c.name },
-        scope: [CHANNEL_LABEL[cheapest.c.channel], cheapest.c.name],
-        channel: cheapest.c.channel,
+        target: { kind: 'campaign', id: x.c.id, label: x.c.name },
+        scope: [CHANNEL_LABEL[x.c.channel], x.c.name],
+        channel: x.c.channel,
         atStake: add,
+        compare: [x.t, restOf(account, x.t)],
+        effect: perWeek({ spend: add, leads: proj.extraLeads }, range),
+      }];
+    }
+    if (candidates.length > 0) {
+      /* ⭐ Cheap campaigns exist, but none can take more money for less than the
+         account already pays: on their curves the next dollar is dearer. That
+         IS the answer -- the unspent budget has no good home, so the plan is
+         what is wrong. A decision, not a shrug. */
+      const best = candidates[0];
+      const step = onTheCurve(campaignRows(best.c.id, 90), best.t, 0.05, '');
+      const floor = step.marginalCac;
+      /* Tier 2: "the next dollar is dearer" rests on the curve, which may be
+         the stated default rather than a measurement -- so it is said. */
+      return [{
+        ...base, tier: 2,
+        action: `Lower the ${range}-day plan to ${money(spent)}`,
+        because: `Spend is ${off}% under plan, and no running campaign${raised.size > 0 ? ' beyond the ones already being raised' : ''} `
+          + `can take more money for less than the account’s ${cacText(blended)} a lead. The cheapest, “${best.c.name}”, `
+          + `pays ${cacText(best.t.cac)} on average, but its next dollar would buy leads at about ${cacText(floor)}.`,
+        evidence,
+        expectation: {
+          outcome: `Keeps ${money(gap)} out of spend that would cost more per lead than it is worth.`,
+          assuming: `for “${best.c.name}”, ${step.assuming}`,
+          checkOn,
+        },
+        target: { kind: 'account', id: 'account', label: 'All channels' },
+        scope: ['All channels'],
       }];
     }
     if (running.length > 0) {
@@ -975,6 +1140,9 @@ function crossChannelCostGap(range: Range, channels: ChannelName[]): Candidate[]
     target: { kind: 'channel', id: dear.c, label: CHANNEL_LABEL[dear.c] },
     scope: [CHANNEL_LABEL[dear.c]],
     channel: dear.c,
+    /* The GAP can be tested; its cause cannot. Confidence here says the gap is
+       real -- which is exactly why it needs a holdout and not a guess. */
+    compare: [dear.t, cheap.t],
     /* ⚠️ atStake deliberately OMITTED. The dear channel's spend is the biggest
        number this engine could attach to anything, and attaching it here is
        exactly how the least supportable finding climbs to the top of a list
@@ -1012,10 +1180,96 @@ function crossChannelCostGap(range: Range, channels: ChannelName[]): Candidate[]
     target: { kind: 'channel', id: dear.c, label: D },
     scope: [D],
     channel: dear.c,
+    compare: [dear.t, cheap.t],
     strength: 0.55,
   };
 
   return [test, question];
+}
+
+/**
+ * ⭐ THE SLOW LEAK -- what a week-over-week alert is built to miss.
+ *
+ * Notifications fire when a week moves past the threshold (15% by default).
+ * A campaign whose cost per lead rises 6% a week never trips it: every single
+ * week is "just a week", and after two months it is paying a third more per
+ * lead than it was, with nobody told. The weekly-move detector cannot see it
+ * either, because it reads the same alerts.
+ *
+ * So this looks across EIGHT weeks: the last four against the four before.
+ * It fires when the recent four cost at least 15% more per lead, at least
+ * three of those four weeks sit above the earlier average (a drift, not one
+ * bad week), and the most recent week did NOT already raise an alert (that
+ * one belongs to the weekly move). The two four-week blocks are what get
+ * tested for chance.
+ *
+ * TIER 1: the action is a cut, and cutting needs no forecast -- the same rule
+ * pacing uses. It does not say WHY (audience saturation, creative wear and a
+ * competitor bidding up are all possible, and none is in this data); it says
+ * how much to keep spending at the higher price, and the price to come back at.
+ */
+export function leakOf(weeks: Sample[]): { early: Sample; recent: Sample; rise: number } | null {
+  if (weeks.length < 8) return null;
+  const sum = (w: Sample[]) => w.reduce((a, x) => ({ spend: a.spend + x.spend, leads: a.leads + x.leads }), { spend: 0, leads: 0 });
+  const early = sum(weeks.slice(0, 4));
+  const recent = sum(weeks.slice(4, 8));
+  if (early.leads <= 0 || recent.leads <= 0) return null;
+  const earlyCac = early.spend / early.leads;
+  const rise = (recent.spend / recent.leads) / earlyCac - 1;
+  if (rise < 0.15) return null;
+  const above = weeks.slice(4, 8).filter((w) => w.leads > 0 && w.spend / w.leads > earlyCac).length;
+  if (above < 3) return null;
+  return { early, recent, rise };
+}
+
+function slowLeak(channels: ChannelName[]): Candidate[] {
+  const out: Candidate[] = [];
+  const news = changeThreshold() / 100;
+  for (const c of CAMPAIGNS) {
+    if (!channels.includes(c.channel) || stageOf(c.id) !== 'Active') continue;
+    const rows = campaignRows(c.id, LAST_WEEK * 8);
+    if (rows.length < LAST_WEEK * 8) continue;
+    const weeks = Array.from({ length: 8 }, (_, i) => weekOf(rows.slice(i * 7, i * 7 + 7)));
+    const leak = leakOf(weeks);
+    if (!leak) continue;
+    /* The last week on its own past the alert line? Then the weekly move has it. */
+    const last = cacOf(weeks[7]); const before = cacOf(weeks[6]);
+    if (Number.isFinite(last) && Number.isFinite(before) && Math.abs(last / before - 1) >= news) continue;
+
+    const earlyCac = leak.early.spend / leak.early.leads;
+    const recentCac = leak.recent.spend / leak.recent.leads;
+    const weekly = leak.recent.spend / 4;
+    const cut = weekly * 0.15;
+    out.push({
+      id: `leak:${c.id}`,
+      tier: 1,
+      kind: 'slow-leak',
+      action: `Cut ${budgetOf(c.name, true)} 15% until a week comes in under ${cacText(earlyCac)}`,
+      because: `Its cost per lead has crept from ${cacText(earlyCac)} to ${cacText(recentCac)} over `
+        + `eight weeks (+${Math.round(leak.rise * 100)}%). No single week moved enough to raise an alert, `
+        + `so nothing flagged it.`,
+      evidence: [
+        { label: 'CAC, 8–5 weeks ago', value: cacText(earlyCac) },
+        { label: 'CAC, last 4 weeks', value: cacText(recentCac) },
+        { label: 'Rise', value: `+${Math.round(leak.rise * 100)}%` },
+        { label: 'Spend a week', value: money(weekly) },
+      ],
+      expectation: {
+        outcome: `Saves about ${money(cut)} a week while each lead costs ${Math.round(leak.rise * 100)}% `
+          + `more than two months ago. Put it back after a week under ${cacText(earlyCac)}.`,
+        checkOn: checkDate(14),
+      },
+      target: { kind: 'campaign', id: c.id, label: c.name },
+      scope: [CHANNEL_LABEL[c.channel], c.name],
+      channel: c.channel,
+      atStake: cut,
+      compare: [leak.recent, leak.early],
+      effect: cutEffect(campaignRows(c.id, 90), { spend: weekly, leads: leak.recent.leads / 4 }, 0.15),
+      measure: { key: `campaign-cac:${c.id}`, label: 'Campaign CAC', better: 'lower' },
+      strength: Math.min(1, 0.5 + leak.rise),
+    });
+  }
+  return out;
 }
 
 /* ---------------------------------------------------------------- assembly -- */
@@ -1158,6 +1412,7 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
               checkOn,
             },
             target, scope, measure: leadsMeasure,
+            effect: { spend: prev.spend - now.spend, leads: back },
           };
         }
 
@@ -1189,6 +1444,8 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
               target: { kind: 'ad', id: worst.a.id, label: worst.a.headline },
               scope: [CHANNEL_LABEL[ch], worst.c.name, worst.a.adSetName],
               atStake: worst.now.spend,
+              compare: [worst.now, restOf(now, worst.now)],
+              effect: { spend: -worst.now.spend, leads: -worst.now.leads },
               measure: { key: `campaign-cac:${worst.c.id}`, label: 'Campaign CAC', better: 'lower' },
             };
           }
@@ -1213,6 +1470,8 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
             checkOn,
           },
           target, scope,
+          compare: [now, prev],
+          effect: cutEffect(isCampaign ? campaignRows(n.target.id, 90) : rowsFor(ch, 90), now, 0.2),
           measure: isCampaign
             ? { key: `campaign-cac:${n.target.id}`, label: 'Campaign CAC', better: 'lower' }
             : { key: `channel-cac:${ch}`, label: 'Channel CAC', better: 'lower' },
@@ -1234,10 +1493,13 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
         return db > da || (db === da && cacOf(b.now) < cacOf(a.now)) ? b : a;
       });
       const cac = cacOf(lead.now);
-      const raise = lead.now.spend * 0.2;
       /* The pull-back line: last week's cost if it was worse, else 15% over
          this week's. Never Infinity -- a week with no leads is no benchmark. */
       const stop = Number.isFinite(cacOf(lead.prev)) ? Math.max(cacOf(lead.prev), cac * 1.15) : cac * 1.15;
+      /* Sized so the extra money stays under the pull-back line it names. */
+      const sized = sizedRaise(campaignRows(lead.c.id, 90), lead.now, 0.2, stop, 'a week');
+      const proj = sized ?? onTheCurve(campaignRows(lead.c.id, 90), lead.now, 0.2, 'a week');
+      const raise = lead.now.spend * proj.r;
       const who = isCampaign ? ''
         : pool.length === 1 && CAMPAIGNS.filter((c) => c.channel === ch && stageOf(c.id) === 'Active').length === 1
           ? ` It all ran through \u201c${lead.c.name}\u201d, at ${cacText(cac)} a lead.`
@@ -1245,18 +1507,21 @@ function weeklyMove(channels: ChannelName[]): Candidate[] {
             + `up from ${count(lead.prev.leads)}.`;
       return {
         ...base, tier: 2,
-        action: `Raise ${budgetOf(lead.c.name, true)} 20% (+${money(raise)} a week)`,
+        action: `Raise ${budgetOf(lead.c.name, true)} ${pct(proj.r)} (+${money(raise)} a week)`,
         because: `${moved}${who}`,
         evidence,
         expectation: {
-          outcome: `About ${count(raise / cac)} more leads a week.`,
-          assuming: `it keeps paying about ${cacText(cac)} a lead on 20% more budget. `
-            + `If a week comes in above ${cacText(stop)}, put the budget back`,
+          outcome: proj.outcome,
+          assuming: `${proj.assuming}. If a week comes in above ${cacText(stop)}, put the budget back`,
           checkOn,
         },
         target: { kind: 'campaign', id: lead.c.id, label: lead.c.name },
         scope: [CHANNEL_LABEL[ch], lead.c.name],
         atStake: raise,
+        /* The claim is "leads rose" -- tested as two counts over equal weeks. */
+        compare: [{ spend: 1, leads: lead.now.leads }, { spend: 1, leads: lead.prev.leads }],
+        effect: { spend: raise, leads: proj.extraLeads },
+        ...(sized ? {} : { held: marginalHeld(floorMarginal(campaignRows(lead.c.id, 90), lead.now), stop, 'its pull-back line') }),
         measure: { key: `campaign-leads:${lead.c.id}`, label: 'Campaign leads', better: 'higher' },
       };
     })
@@ -1274,6 +1539,39 @@ export function decisions(
   range: Range = 30,
   channels: ChannelName[] = activeChannels(),
 ): Candidate[] {
+  /* ⭐ Memoised on EVERYTHING the engine reads. It was recomputed on every
+     render -- 70-115 ms on a 1,200-ad account, several times per screen (the
+     page, the sidebar count, Ask). A cache with a missing input is worse than
+     no cache: it shows yesterday's decisions with today's numbers. So the key
+     lists every input, and decisionCache.test.ts changes each one and asserts
+     the result moves. A copy is returned so no caller can edit the cache. */
+  const key = [
+    range, channels.join(','), dataVersion(), windowEnd(), structureVersion(),
+    stageFingerprint(), budgetForRange(30), JSON.stringify(channelBudgets()), changeThreshold(),
+    checkDate(0), CAMPAIGNS.length,
+  ].join('|');
+  if (memo && memo.key === key) return [...memo.value];
+  const value = compute(range, channels);
+  memo = { key, value, held: HELD };
+  return [...value];
+}
+
+let memo: { key: string; value: Candidate[]; held: Candidate[] } | null = null;
+let HELD: Candidate[] = [];
+
+/**
+ * Findings the engine found and did NOT show, because the gap behind them
+ * could be chance. Same inputs as `decisions()`.
+ */
+export function heldBack(range: Range = 30, channels: ChannelName[] = activeChannels()): Candidate[] {
+  decisions(range, channels);
+  return [...(memo?.held ?? [])];
+}
+
+/** Forget the cached result. Tests only -- every real input is in the key. */
+export function clearDecisionCache(): void { memo = null; }
+
+function compute(range: Range, channels: ChannelName[]): Candidate[] {
   /* The ad ranking, ONCE -- four detectors read it. Built four times it was
      ~42 of 70ms on a 1,200-ad account at a year's range. */
   const ranked = rankedAds('Leads', 'absolute', range, channels);
@@ -1288,6 +1586,7 @@ export function decisions(
     ...beatsItsChannel(range, channels),
     ...concentrationRisk(range, channels, ranked),
     ...crossChannelCostGap(range, channels),
+    ...slowLeak(channels),
   ];
   /* Pacing LAST, so it puts unspent budget somewhere no other card is already
      raising -- two cards adding money to one campaign is one decision twice. */
@@ -1305,7 +1604,26 @@ export function decisions(
     return !err;
   });
 
-  const sorted = ok.sort((a, b) =>
+  /* ⭐ "IS THAT REAL?" -- asked of every claim that compares two things.
+     A finding the data cannot tell apart from chance is HELD BACK, not shown
+     with a small-print caveat: a recommendation is an instruction to move
+     money, and moving money on a coin flip is the failure a decision engine
+     exists to prevent. Held-back findings are kept (`heldBack()`), so the
+     screen can say how many there are and why. Tier 3 is a question and is
+     never held back -- a question is not acted on. Medium confidence ranks
+     below high within its tier. */
+  for (const c of ok) {
+    if (c.compare) c.confidence = rateTest(c.compare[0], c.compare[1]);
+    if (c.confidence?.level === 'medium') c.strength *= 0.75;
+    if (!c.held && c.tier !== 3 && c.confidence?.level === 'low') {
+      c.held = { reason: 'chance', sentence: c.confidence.sentence };
+    }
+  }
+  const held = ok.filter((c) => c.held);
+  HELD = held;
+  const sure = ok.filter((c) => !held.includes(c));
+
+  const sorted = sure.sort((a, b) =>
     (a.tier - b.tier)
     || (b.strength - a.strength)
     /* A TOTAL order, so the queue cannot reshuffle between renders. */
