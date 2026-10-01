@@ -104,3 +104,18 @@ it('one action, one card -- no two proposals do the same thing to the same targe
   const keys = decisions(30, ALL_CHANNELS).map((c) => `${c.action.split(' ')[0]}|${c.target.kind}|${c.target.id}`);
   expect(new Set(keys).size).toBe(keys.length);
 });
+
+describe('the podcast question gets a decision beside it, not instead of it', () => {
+  it('the question stays a question; the TEST is the thing you can take', () => {
+    const all = decisions(30, ALL_CHANNELS);
+    const q = all.find((c) => c.kind === 'cross-channel-cost-gap')!;
+    const t = all.find((c) => c.kind === 'holdout-test')!;
+    expect(q.tier).toBe(3);
+    expect(q.action.endsWith('?')).toBe(true);
+    expect(t.tier).toBe(1);
+    expect(t.action).toBe('Test Podcasts before touching its budget: a 2-week regional holdout');
+    /* It never tells you to cut the channel -- it tells you how to find out. */
+    expect(t.action).not.toMatch(/\b(cut|reduce|kill|drop)\b/i);
+    expect(t.expectation?.outcome).toMatch(/keep it/);
+  });
+});

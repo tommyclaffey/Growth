@@ -77,6 +77,7 @@ export type DecisionKind =
   | 'concentration-risk'
   | 'pacing'
   | 'cross-channel-cost-gap'
+  | 'holdout-test'
   | 'weekly-move';
 
 export interface Evidence {
@@ -949,7 +950,7 @@ function crossChannelCostGap(range: Range, channels: ChannelName[]): Candidate[]
   const dear = sorted[sorted.length - 1];
   if (dear.cac < cheap.cac * 2) return [];
 
-  return [{
+  const question: Candidate = {
     id: `causal-gap:${dear.c}:${cheap.c}`,
     tier: 3,
     kind: 'cross-channel-cost-gap',
@@ -979,7 +980,42 @@ function crossChannelCostGap(range: Range, channels: ChannelName[]): Candidate[]
        exactly how the least supportable finding climbs to the top of a list
        sorted by money. */
     strength: Math.min(1, (dear.cac / cheap.cac - 2) / 3),
-  }];
+  };
+
+  /* ⭐ Sept 30 -- and the DECISION that answers it. Tommy: "what do you think
+     they should do?" The question above stays a question: cutting the dear
+     channel is exactly what this data cannot justify. But running the test that
+     WOULD justify it (or clear it) is a decision with no forecast in it, so it
+     is tier 1 and takeable. Graded by the person -- no number in this data can
+     say how a test came out. */
+  const D = CHANNEL_LABEL[dear.c];
+  const C = CHANNEL_LABEL[cheap.c];
+  const test: Candidate = {
+    id: `holdout:${dear.c}:${cheap.c}`,
+    tier: 1,
+    kind: 'holdout-test',
+    action: `Test ${D} before touching its budget: a 2-week regional holdout`,
+    because: `${D} looks ${(dear.cac / cheap.cac).toFixed(1)}x dearer per lead than ${C}, but the `
+      + `data only sees the last touch. Turn ${D} off in half your regions for two weeks and `
+      + `compare ${C} leads across the two halves.`,
+    evidence: [
+      { label: `${D} CAC`, value: formatDerived('CAC', dear.cac) },
+      { label: `${C} CAC`, value: formatDerived('CAC', cheap.cac) },
+      { label: 'Test length', value: '2 weeks' },
+      { label: 'Split', value: 'Half your regions' },
+    ],
+    expectation: {
+      outcome: `If ${C} leads drop where ${D} is off, ${D} is feeding them — keep it. `
+        + `If they hold, its budget is safe to move.`,
+      checkOn: checkDate(14),
+    },
+    target: { kind: 'channel', id: dear.c, label: D },
+    scope: [D],
+    channel: dear.c,
+    strength: 0.55,
+  };
+
+  return [test, question];
 }
 
 /* ---------------------------------------------------------------- assembly -- */

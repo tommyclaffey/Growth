@@ -712,20 +712,23 @@ export function ask(question: string, range: Range, subject?: Target): Answer {
     const pauses = found.filter((c) => c.tier !== 3 && /^(Pause|Cut|End) /.test(c.action)
       && c.target.kind !== 'channel');
     const gap = found.find((c) => c.tier === 3);
+    /* The refusal comes with the way to settle it: the holdout test. */
+    const test = found.find((c) => c.kind === 'holdout-test' && !isFlagged('decision', c.id));
 
     if (pauses.length > 0) {
       return {
         answered: true,
         text: [
           `Yes, at the ad and campaign level:`,
-          gap ? `At the CHANNEL level I would not answer it. ${gap.because}` : '',
+          gap ? `At the CHANNEL level I would not answer it. ${gap.because}`
+            + (test ? ` Test it before touching its budget — the last card above.` : '') : '',
         ].filter(Boolean).join('\n\n'),
         evidence: asEvidence(pauses[0]),
         /* ⚠️ The pauses only. `gap` is the tier-3 cross-channel question and it
            is deliberately NOT takeable -- this branch names it in the same
            breath as the pauses, which is exactly where a button on it would do
            the most damage. */
-        decisions: takeable(pauses),
+        decisions: [...takeable(pauses), ...(test ? takeable([test]) : [])],
         followUps: gap
           ? ['What can this data not tell me?', 'What should I do next?']
           : ['What should I do next?'],
