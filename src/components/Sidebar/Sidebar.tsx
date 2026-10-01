@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import './Sidebar.css';
 import { Avatar } from '../Avatar/Avatar';
 import { ME, ME_ROLE } from '../../data/chat';
@@ -49,7 +49,7 @@ export function Sidebar({ active, onNavigate, counts = {} }: SidebarProps) {
     <nav className="gr-sidebar" aria-label="Main">
       <div className="gr-sidebar__logo">
         <span className="gr-sidebar__mark" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 14 14">
+          <svg width="16" height="16" viewBox="0 0 14 14">
             <path d="M1 10L5 6L8 9L13 3" fill="none" stroke="currentColor" strokeWidth="2"
                   strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -129,48 +129,50 @@ function NavButton({ item, active, count, onNavigate }: {
   );
 }
 
-/* 18x18 icons, 1.5 stroke, currentColor so they inherit the nav item state. */
+/* ⭐ ONE ICON SET, drawn to one grid (Sept 30).
+
+   The originals were drawn one at a time, and side by side it showed: the
+   Channels bars were three thin strokes (the lightest thing in the column),
+   the Campaigns target a heavy double ring, the bell visibly smaller than its
+   neighbours, Settings the only one with filled dots. Each fine alone; in a
+   column the uneven ink is what read as unfinished.
+
+   These follow Lucide's grid (ISC/MIT licence, lucide.dev): a 24-unit box, a
+   2-unit stroke drawn at 18px -- so 1.5px on screen, the weight the rest of
+   the product uses -- round caps and joins, outline only. Same concepts as
+   before, so nothing has to be relearned. */
+const Ic = ({ children }: { children: ReactNode }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
+);
 function IconGrid() {
-  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <rect x="2" y="2" width="6" height="6" rx="1.5" /><rect x="10" y="2" width="6" height="6" rx="1.5" />
-    <rect x="2" y="10" width="6" height="6" rx="1.5" /><rect x="10" y="10" width="6" height="6" rx="1.5" />
-  </svg>;
+  return <Ic><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" />
+    <rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></Ic>;
 }
 function IconBars() {
-  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-    <path d="M3 15V9M9 15V3M15 15v-4" />
-  </svg>;
+  return <Ic><path d="M3 3v16a2 2 0 0 0 2 2h16" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></Ic>;
 }
 function IconTarget() {
-  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <circle cx="9" cy="9" r="6.5" /><circle cx="9" cy="9" r="2.5" />
-  </svg>;
+  /* Two rings, not Lucide's three: at 18px the third made it the densest
+     icon in the column -- the unevenness this set exists to remove. */
+  return <Ic><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="4" /></Ic>;
 }
 function IconCompass() {
-  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
-    <circle cx="9" cy="9" r="6.5" />
-    <path d="M11.5 6.5l-1.6 3.4L6.5 11.5l1.6-3.4z" />
-  </svg>;
+  return <Ic><circle cx="12" cy="12" r="10" />
+    <path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z" /></Ic>;
 }
 function IconFrame() {
-  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
-    <rect x="2.5" y="3.5" width="13" height="11" rx="1.5" />
-    <path d="M2.5 11.5l3.5-3 3 2.5 2.5-2 4 3.5" />
-  </svg>;
+  return <Ic><rect width="18" height="18" x="3" y="3" rx="2" /><circle cx="9" cy="9" r="2" />
+    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></Ic>;
 }
 function IconDoc() {
-  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
-    <path d="M4 2.5h6l4 4v9H4z" /><path d="M10 2.5v4h4" />
-  </svg>;
+  return <Ic><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" />
+    <path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></Ic>;
 }
 function IconBell() {
-  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
-    <path d="M4.5 7a4.5 4.5 0 019 0c0 3 1 4.5 1 4.5h-11S4.5 10 4.5 7z" /><path d="M7.5 14a1.5 1.5 0 003 0" />
-  </svg>;
+  return <Ic><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></Ic>;
 }
 function IconSliders() {
-  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-    <path d="M3 5.5h12M3 12.5h12" /><circle cx="7" cy="5.5" r="1.75" fill="currentColor" stroke="none" />
-    <circle cx="12" cy="12.5" r="1.75" fill="currentColor" stroke="none" />
-  </svg>;
+  return <Ic><path d="M21 4h-7" /><path d="M10 4H3" /><path d="M21 12h-9" /><path d="M8 12H3" />
+    <path d="M21 20h-5" /><path d="M12 20H3" /><path d="M14 2v4" /><path d="M8 10v4" /><path d="M16 18v4" /></Ic>;
 }
