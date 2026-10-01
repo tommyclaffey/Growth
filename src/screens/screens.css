@@ -543,6 +543,9 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
    by colour, not opacity -- 0.6 on already-muted text fell below readable. */
 .gr-dec__card.is-held { background: var(--surface-page-top); box-shadow: none; }
 .gr-dec__card.is-held .gr-type-body-medium { color: var(--text-secondary); }
+/* The two read-only lists: line up the text, no stray paragraph margins. */
+.gr-dec__card.is-held, .gr-dec__card.is-dismissed { gap: var(--space-6); }
+.gr-dec__card.is-held p, .gr-dec__card.is-dismissed p { margin: 0; }
 /* 🐛 No coloured left edge any more. A 3px border-left on a rounded card bends
    around the corner -- the curved green line at the top of every card -- and
    the section heading already names the tier. Overdue is the exception that

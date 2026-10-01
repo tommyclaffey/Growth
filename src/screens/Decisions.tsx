@@ -488,7 +488,9 @@ function PlanCard({ plan, range, onAccepted }: { plan: Plan; range: Range; onAcc
 
       <p className="gr-type-caption gr-dec__plan-note">
         {moneyLine}
-        {judgement > 0 && `${judgement === plan.moves.length ? 'Each one rests' : `${plural(judgement, 'of them rests', 'of them rest')}`} on an assumption stated on its card. `}
+        {judgement > 0 && (judgement === 1
+          ? `${plan.moves.length === 1 ? 'It rests' : '1 of them rests'} on an assumption stated on its card. `
+          : `${judgement === plan.moves.length ? 'Each rests' : `${judgement} of them rest`} on assumptions stated on their cards. `)}
         The extra leads come off each campaign’s curve
         {plan.assumed ? ', assumed where its spend has not moved enough to measure' : ''}. Figures
         are a week at the selected dates’ pace.

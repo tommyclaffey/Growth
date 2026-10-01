@@ -21,7 +21,7 @@ describe('⭐ the plan card', () => {
     const plan = screen.getByRole('region', { name: 'This week’s plan' });
     expect(plan.textContent).toMatch(/Take these \d+ moves: \+\d+ leads a week on \$[\d,]+ less/);
     /* Projections are in the sum, so the card says they rest on assumptions. */
-    expect(plan.textContent).toMatch(/\d+ of them rests? on an assumption stated on its card/);
+    expect(plan.textContent).toMatch(/\d+ of them rest on assumptions stated on their cards/);
     expect(plan.textContent).toMatch(/Cost per lead\$41\.08 → \$\d+\.\d\d/);
     expect(plan.textContent).toMatch(/assumed where its spend has not moved enough to measure/);
   });
