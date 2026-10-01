@@ -9,9 +9,12 @@ export type NavKey = 'overview' | 'channels' | 'campaigns' | 'ads' | 'decisions'
 export interface SidebarProps {
   active: NavKey;
   onNavigate: (key: NavKey) => void;
+  /** Waiting items, shown as a count on the item. Zero or absent = no badge. */
+  counts?: Partial<Record<NavKey, number>>;
 }
 
-const NAV: { key: NavKey; label: string; icon: ReactElement }[] = [
+type Item = { key: NavKey; label: string; icon: ReactElement };
+const NAV: Item[] = [
   { key: 'overview', label: 'Overview', icon: <IconGrid /> },
   { key: 'channels', label: 'Channels', icon: <IconBars /> },
   { key: 'campaigns', label: 'Campaigns', icon: <IconTarget /> },
@@ -26,6 +29,18 @@ const NAV: { key: NavKey; label: string; icon: ReactElement }[] = [
   { key: 'settings', label: 'Settings', icon: <IconSliders /> },
 ];
 
+/* ⭐ Two sections, not one flat list of eight (Tommy, Sept 30). Eight equal
+   rows had to be READ; two labelled groups can be scanned -- and they follow
+   how the product is used: look at the numbers, then act on them. Settings
+   leaves the list for the foot of the rail, beside the account it configures,
+   where every app with an account puts it. The order inside each group is
+   unchanged: the analysis tiers are still the hierarchy. */
+const SECTIONS: { label: string; keys: NavKey[] }[] = [
+  { label: 'Analyze', keys: ['overview', 'channels', 'campaigns', 'ads'] },
+  { label: 'Act', keys: ['decisions', 'reports', 'notifications'] },
+];
+const byKey = (k: NavKey) => NAV.find((n) => n.key === k)!;
+
 /**
  * Sidebar — 232 wide, full height, surface/card.
  *
@@ -36,7 +51,7 @@ const NAV: { key: NavKey; label: string; icon: ReactElement }[] = [
  * selection — an item can be active AND focused — and modelling it as a State
  * would take Nav item from 28 variants to 56 for zero added expressiveness.
  */
-export function Sidebar({ active, onNavigate }: SidebarProps) {
+export function Sidebar({ active, onNavigate, counts = {} }: SidebarProps) {
   const avatarFor = useAvatarFor();
   /* Read once at the top rather than inline in the JSX -- a hook call buried in
      an attribute is a hook whose ordering nobody can check at a glance. */
@@ -69,29 +84,28 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
         </span>
       </div>
 
-      <ul className="gr-sidebar__list">
-        {NAV.map((item) => (
-          <li key={item.key}>
-            <button
-              type="button"
-              className={`gr-navitem gr-type-label-button ${active === item.key ? 'is-active' : ''}`}
-              aria-current={active === item.key ? 'page' : undefined}
-              onClick={() => onNavigate(item.key)}
-            >
-              <span className="gr-navitem__icon" aria-hidden="true">{item.icon}</span>
-              {item.label}
-            </button>
-          </li>
-        ))}
-      </ul>
+      {SECTIONS.map((sec) => (
+        <div key={sec.label} className="gr-sidebar__section">
+          <p className="gr-sidebar__section-label gr-type-overline" id={`nav-${sec.label}`}>{sec.label}</p>
+          <ul className="gr-sidebar__list" aria-labelledby={`nav-${sec.label}`}>
+            {sec.keys.map((k) => (
+              <li key={k}><NavButton item={byKey(k)} active={active} count={counts[k]} onNavigate={onNavigate} /></li>
+            ))}
+          </ul>
+        </div>
+      ))}
 
       <div className="gr-sidebar__spacer" />
+
+      <div className="gr-sidebar__foot">
+        <NavButton item={byKey('settings')} active={active} onNavigate={onNavigate} />
+      </div>
 
       {/* Goes to Settings. It was a button with no handler — the same dead
           control as a switch that flips nothing. */}
       <button
         type="button"
-        className={`gr-navitem gr-navitem--account gr-type-label-button ${active === 'settings' ? 'is-active' : ''}`}
+        className="gr-navitem gr-navitem--account gr-type-label-button"
         onClick={() => onNavigate('settings')}
       >
         {/* The real avatar component rather than a gradient circle standing in
@@ -104,6 +118,31 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
         </span>
       </button>
     </nav>
+  );
+}
+
+function NavButton({ item, active, count, onNavigate }: {
+  item: Item; active: NavKey; count?: number; onNavigate: (key: NavKey) => void;
+}) {
+  const on = active === item.key;
+  return (
+    <button
+      type="button"
+      className={`gr-navitem gr-type-label-button ${on ? 'is-active' : ''}`}
+      aria-current={on ? 'page' : undefined}
+      /* Spoken "Decisions, 4 waiting" -- explicit, because a visible count
+         beside the label otherwise reads as "Decisions4". */
+      aria-label={count ? `${item.label}, ${count} waiting` : undefined}
+      onClick={() => onNavigate(item.key)}
+    >
+      <span className="gr-navitem__icon" aria-hidden="true">{item.icon}</span>
+      {item.label}
+      {/* What is waiting there -- the same number the screen shows. Nothing at
+          zero: a "0" badge is one more thing to read that says nothing. */}
+      {count !== undefined && count > 0 && (
+        <span className="gr-navitem__count gr-type-caption-med" aria-hidden="true">{count}</span>
+      )}
+    </button>
   );
 }
 
