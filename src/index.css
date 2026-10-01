@@ -103,6 +103,9 @@ body {
 .gr-toolbar__spacer { flex: 1; }
 /* A group holds together on one line; the toolbar wraps between groups. */
 .gr-toolbar__group { display: flex; align-items: center; gap: var(--space-12); }
+/* Filters and actions are two groups: a wider gap between them than inside
+   either, so the row reads as two things rather than one long strip. */
+.gr-toolbar__group--actions { margin-left: var(--space-16); }
 
 .gr-crumb {
   border: none; background: none; padding: 0;

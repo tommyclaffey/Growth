@@ -7,6 +7,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   /** Trailing caret, used where the button opens a menu. */
   caret?: boolean;
+  /** A leading 14px icon, drawn in currentColor. */
+  icon?: ReactNode;
   children: ReactNode;
 }
 
@@ -31,6 +33,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export function Button({
   variant = 'primary',
   caret = false,
+  icon,
   children,
   className,
   type = 'button',
@@ -42,6 +45,7 @@ export function Button({
       className={['gr-button', `gr-button--${variant}`, className].filter(Boolean).join(' ')}
       {...rest}
     >
+      {icon && <span className="gr-button__icon" aria-hidden="true">{icon}</span>}
       <span className="gr-button__label">{children}</span>
       {caret && (
         <svg className="gr-button__caret" width="8" height="5" viewBox="0 0 8 5" aria-hidden="true">

@@ -78,8 +78,8 @@ describe('Escape closes one layer', () => {
   it('🐛 Escape inside Ask does not also close Chat', () => {
     window.history.replaceState(null, '', '/?v=overview');
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Chat' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Team' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ask AI' }));
     const ask = document.activeElement as HTMLElement;
     fireEvent.keyDown(ask, { key: 'Escape' });
     expect(document.querySelector('.gr-chat')).not.toBeNull();
