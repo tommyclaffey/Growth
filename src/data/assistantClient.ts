@@ -3,6 +3,7 @@ import {
 } from './assistant';
 import { commitments } from './commitments';
 import { flags } from './attention';
+import { isDismissed } from './dismissedDecisions';
 import { decisionsFor, decisions as allDecisions } from './decisions';
 import type { Target } from './decisions';
 import { activeChannels, windowEnd, type Range } from './metrics';
@@ -134,7 +135,8 @@ export async function askAssistant(
         range,
         subject,
         findings: (subject ? decisionsFor(subject, range) : allDecisions(range))
-          .filter((c) => !taken.includes(c.id)),
+          /* Dismissed too -- the screen's plan leaves them out, so the model's must. */
+          .filter((c) => !taken.includes(c.id) && !isDismissed(c.id)),
         /* The decisions queue lives in this browser; the server cannot see it.
            Sent, so "what did we decide / is it working" has an answer there. */
         commitments: commitments(),

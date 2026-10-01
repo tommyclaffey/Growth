@@ -501,9 +501,14 @@ function buildTools(
         /* ⭐ The plan rides along only for the whole account: "if I take every
            ready move, where does the week land?" A channel-filtered sum would
            read as the account's. */
-        if (channel && channel !== 'all') return JSON.stringify(items);
+        /* 🐛 Not when the question is about ONE thing either: with a subject the
+           client sends only that subject's findings, and the sum came out as
+           "the account's week" built from Meta's moves alone. And always the
+           same SHAPE -- the model was getting a list, an object, or an object
+           with a note depending on the case. */
+        if ((channel && channel !== 'all') || subject) return JSON.stringify({ findings: items });
         const p = d.planFrom(found, range, m.activeChannels());
-        if (p.moves.length < 2) return JSON.stringify(items);
+        if (p.moves.length < 2) return JSON.stringify({ findings: items });
         const usd = (n: number) => m.formatMetric('Spend', n);
         return JSON.stringify({
           findings: items,

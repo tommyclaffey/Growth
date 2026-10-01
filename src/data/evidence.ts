@@ -122,6 +122,12 @@ export function responseCurve(rows: DayRow[]): Curve {
   const pts = rows.filter((r) => r.spend > 0).map((r) => ({ x: Math.log(r.spend), y: Math.log(r.leads + 0.5) }));
   const fallback: Curve = { b: DEFAULT_ELASTICITY, measured: false, days: pts.length, r2: 0 };
   if (pts.length < 28) return fallback;
+  /* 🐛 The +0.5 that keeps log(0) finite flattens the slope when days carry
+     only a few leads: a true elasticity of 1 fitted as 0.62 at 1 lead a day,
+     0.89 at 5 -- labelled MEASURED, so raises were priced too dear and held
+     back wrongly. Below ten leads a day the daily fit is not trusted. */
+  const meanLeads = rows.reduce((a, r) => a + r.leads, 0) / rows.length;
+  if (meanLeads < 10) return fallback;
   const mx = pts.reduce((a, p) => a + p.x, 0) / pts.length;
   const my = pts.reduce((a, p) => a + p.y, 0) / pts.length;
   let sxx = 0; let sxy = 0; let syy = 0;
