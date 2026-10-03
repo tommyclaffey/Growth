@@ -579,7 +579,7 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 
 ## ▶️ RESUME HERE *(Oct 1, morning)*
 
-**`overnight-polish` merged and LIVE.** Branch **`signin-hardening`** is NOT merged (795 tests, no visual change):
+**`overnight-polish` and `signin-hardening` merged and LIVE (Oct 3).** No open branches. 795 tests. What signin-hardening added:
 - Sign-in state cookie (login CSRF closed) + async scrypt on login.
 - Meta/Google token files follow `GROWTH_DATA_DIR`; `tests/adPlatformFailures.test.ts` covers Monday's failure paths (Meta 190, Google invalid_grant, no developer token, owner-only switch, v25 URL).
 - `engineScale.test.ts`: 60 campaigns / 1,200 ads kept as a test. 50 ms cold, 0.03 ms cached; 60 shown, 27 held.
