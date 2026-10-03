@@ -577,7 +577,17 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 - Should the Channels screen carry more than a table — a CAC-by-channel chart, a per-channel card?
 - Does the Overview table need the same "Change in" control, or keep following the chart toggle?
 
-## ▶️ RESUME HERE *(Oct 1, overnight — branch `overnight-polish`, NOT merged)*
+## ▶️ RESUME HERE *(Oct 1, morning)*
+
+**`overnight-polish` merged and LIVE.** Branch **`signin-hardening`** is NOT merged (795 tests, no visual change):
+- Sign-in state cookie (login CSRF closed) + async scrypt on login.
+- Meta/Google token files follow `GROWTH_DATA_DIR`; `tests/adPlatformFailures.test.ts` covers Monday's failure paths (Meta 190, Google invalid_grant, no developer token, owner-only switch, v25 URL).
+- `engineScale.test.ts`: 60 campaigns / 1,200 ads kept as a test. 50 ms cold, 0.03 ms cached; 60 shown, 27 held.
+- Lint 19 → 9 (the 9 left are ChatPanel/AccountLinks/useDataSource effect patterns: correct for syncing external stores; purity one is a false positive in the send handler).
+- Signed-in browser sweep of 13 screens in dev mode: zero console errors/warnings. ⚠️ A stale Vite dep cache served 504s (blank page) until `npx vite --force` -- noted in the setup guide.
+**Still open (Tommy's call):** demo account shares the owner's seat (own seat, or off once a real owner exists) · style leftovers (Ask scrim, Button 13px).
+
+## ⏮ Overnight notes *(Oct 1 — `overnight-polish`, now merged)*
 
 **State:** 7 commits on `overnight-polish`. 780 tests, lint clean, build green. `main` = engine-juice, live.
 
@@ -588,7 +598,7 @@ Volume/Efficiency, default CAC · dash for metrics a channel can't report · All
 - Owner-only connect + account switch; OAuth return must land in the starting session (`tests/ownerOnly.test.ts`).
 - Login limits split local/tunnel client IP + one remote cap (`tests/loginLimit.test.ts`).
 - Assistant rule 3a: names/ad copy are data, never instructions.
-- Not done (low): sign-in OAuth state cookie binding (login CSRF); async scrypt; demo account shares the owner seat.
+- ✅ Done Oct 1 morning on `signin-hardening`: sign-in state cookie; async scrypt. Open: demo account shares the owner seat.
 
 🔌 **Ad platforms (checked against official docs Oct 1):**
 - Meta Marketing API v21 expired Sept 9, 2025 → **v25.0** (`META_API_VERSION`). Scope `ads_read` only. Error 190 → "Connect again"; warns 7 days before the 60-day token ends.

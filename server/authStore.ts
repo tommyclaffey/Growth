@@ -1,4 +1,4 @@
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, scrypt, scryptSync, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -140,6 +140,22 @@ export function hashPassword(pw: string): string {
   const salt = randomBytes(16);
   const hash = scryptSync(pw, salt, 64);
   return `scrypt$${salt.toString('hex')}$${hash.toString('hex')}`;
+}
+
+/**
+ * The login path's check: the same comparison, off the event loop.
+ *
+ * 🔒 scryptSync blocks the whole dev server for every guess -- with the tunnel
+ * up, a stream of wrong passwords was a stream of frozen requests for
+ * everyone (security review, Oct 1). Same dummy hash for unknown emails, so
+ * the timing still says nothing about which accounts exist.
+ */
+export async function verifyPassword(pw: string, stored: string | undefined): Promise<boolean> {
+  const [, saltHex, hashHex] = (stored ?? `scrypt$${'0'.repeat(32)}$${'0'.repeat(128)}`).split('$');
+  const got = await new Promise<Buffer>((ok, fail) =>
+    scrypt(pw, Buffer.from(saltHex, 'hex'), 64, (e, key) => (e ? fail(e) : ok(key))));
+  const want = Buffer.from(hashHex, 'hex');
+  return Boolean(stored) && got.length === want.length && timingSafeEqual(got, want);
 }
 
 export function checkPassword(pw: string, stored: string | undefined): boolean {

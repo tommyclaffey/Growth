@@ -44,7 +44,9 @@ interface Normalizer {
    changelog/versions). Override with META_API_VERSION when Meta moves on. */
 export const META_VERSION = process.env.META_API_VERSION || 'v25.0';
 const GRAPH = `https://graph.facebook.com/${META_VERSION}`;
-const FILE = resolve(process.cwd(), '.meta-tokens.local');
+/* Resolved per call, and GROWTH_DATA_DIR wins -- the same rule as the sign-in
+   stores, so tests use a throwaway folder and can never overwrite a real token. */
+const file = () => resolve(process.env.GROWTH_DATA_DIR ?? process.cwd(), '.meta-tokens.local');
 /** The product's full history: 90 selectable days + 90 to compare against. */
 /* ~15 months: a year back plus the longest preset window (90), so year-over-year
    works on a real account. The product pads anything shorter as "no data". */
@@ -59,15 +61,17 @@ interface Stored {
 }
 
 function load(): Stored | null {
-  try { return existsSync(FILE) ? (JSON.parse(readFileSync(FILE, 'utf8')) as Stored) : null; } catch { return null; }
+  const f = file();
+  try { return existsSync(f) ? (JSON.parse(readFileSync(f, 'utf8')) as Stored) : null; } catch { return null; }
 }
 /* Merge into what is on disk NOW, not into a copy read before an await -- an
    OAuth callback can land in between, and a stale write would erase its
    token. Written privately (0600) and atomically (temp file, then rename). */
 function store(patch: Partial<Stored>) {
   const next = { ...(load() ?? {}), ...patch };
-  writeFileSync(`${FILE}.tmp`, JSON.stringify(next, null, 2), { mode: 0o600 });
-  renameSync(`${FILE}.tmp`, FILE);
+  const f = file();
+  writeFileSync(`${f}.tmp`, JSON.stringify(next, null, 2), { mode: 0o600 });
+  renameSync(`${f}.tmp`, f);
 }
 
 async function graph<T>(path: string, token: string, params: Record<string, string> = {}): Promise<T> {

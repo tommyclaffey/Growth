@@ -36,6 +36,9 @@ export function ConversationList({ currentId, onOpen, slackChannel }: Conversati
   const [picked, setPicked] = useState<string[]>([]);
   const avatarFor = useAvatarFor();
 
+  /* currentId and composing are not read inside: they are WHEN the module-level
+     list may have changed (a conversation opened or created), so they re-run it. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const conversations = useMemo(() => sortedConversations(), [currentId, composing]);
   const q = query.trim().toLowerCase();
 

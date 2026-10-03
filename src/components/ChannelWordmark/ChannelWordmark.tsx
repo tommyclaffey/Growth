@@ -60,10 +60,6 @@ const MARKS: Partial<Record<string, string>> = {
   paidSearch: googleAds,
 };
 
-export function hasWordmark(channel: string | null): boolean {
-  return Boolean(channel && LOCKUPS[channel]);
-}
-
 export function ChannelWordmark(
   { channel, name, size = 'md' }: { channel: string; name: string; size?: 'md' | 'sm' },
 ) {

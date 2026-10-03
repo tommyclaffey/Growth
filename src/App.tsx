@@ -436,6 +436,7 @@ export default function App() {
        row for a channel Settings said was removed, and an Export that wrote 5
        channels next to a table showing 6. Nothing recovered it but a reload or
        a range change. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- enabled/version are the cache keys explained above
   }, [scope, shown, range, enabled, version]);
 
   /* The channels a KPI card is computed over: one on a channel screen, every
@@ -443,6 +444,7 @@ export default function App() {
      keeps the two screens on one code path. */
   const kpiScope = useMemo(
     () => (channel ? [channel] : activeChannels()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- module state; enabled/version say when it changed
     [channel, enabled, version],
   );
   /* What a channel can report, or what the blend can. `headlineKpis` filters a
