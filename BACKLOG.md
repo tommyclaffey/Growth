@@ -526,6 +526,22 @@ pattern, not three incidents. One `.gr-unbutton` utility, applied everywhere.
 
 ---
 
+## 🔨 G-005 — Mobile *(phase 1 built Oct 4 on `mobile-phase1`, not merged)*
+
+**Tommy's calls (Oct 4):** bottom tab bar · check-in screens first · table rows become cards.
+
+**✅ Phase 1 (built):** BottomNav (Overview / Decisions / Campaigns / Notifications + More: Channels, Ads, Reports, Settings, Team chat, Export) · phone shell ≤640px (sidebar out, compact header, chat + assistant full screen, safe areas) · narrow column ≤560px via `@container main`: KPIs 2-up, strip stacked, chart header reflowed, channel + campaign rows as cards, decision cards and notifications stacked · hover-only controls visible on touch. Desktop + 1100px byte-identical to main.
+
+**▶️ Phase 2 (next):**
+- **Reports:** summary cards cramped (3 across), schedule column clipped → stack cards, schedule under name.
+- **Ads:** controls row overflows (vs channel / Raw value / metric select), metric column hidden → filters wrap or sheet; rank row as card with the metric.
+- **Channel detail, campaign / ad set / ad pages:** not yet checked on a phone.
+- **Settings:** check forms and the data-source rows.
+- Range calendar and channel switcher menus on a phone (full-width sheets?).
+- Real device pass (iOS Safari: safe areas, 100dvh, keyboard over the Ask input).
+
+<details><summary>Original note (parked Sept 27)</summary>
+
 ## ❄️ G-005 — P4: responsive
 
 Zero width-based media queries. 232px sidebar + 360px chat = 592px of chrome
@@ -542,6 +558,8 @@ is a desktop product** — nobody audits ad spend on a phone.
 ⚠️ It becomes blocking the moment the beta stops being moderated, or a tester is asked to use
 it on their own machine on their own time. **The constraint has to be STATED to testers, not
 assumed** — an unannounced 1300px floor is a broken product; an announced one is a scope.
+
+</details>
 
 ---
 
