@@ -3,7 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: lets the layout reach under the notch and home bar,
+         which is what makes env(safe-area-inset-*) report real values -- the
+         phone layout pads the header and tab bar with them. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Installable (Oct 4): Add to Home Screen opens Growth full screen with
+         its own icon. The manifest names it; Apple still reads its own tags. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Growth" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#F7F7FB" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B0B11" media="(prefers-color-scheme: dark)" />
     <title>Growth — Marketing Analytics Dashboard | Tommy Claffey</title>
     <meta name="description" content="Growth is a marketing analytics dashboard that blends spend, leads and revenue from six channels into one view. A design system built in Figma and implemented in React and TypeScript by Tommy Claffey." />
     <meta name="author" content="Tommy Claffey" />

@@ -15,6 +15,15 @@ try {
     : window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 } catch { /* storage disabled: tokens.css defaults apply */ }
 
+/* Installable: register the service worker in the BUILT app only. In dev it
+   would cache Vite's live modules and serve stale code to the next reload. */
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL })
+      .catch(() => { /* no offline shell -- the app still works online */ });
+  });
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Root />
