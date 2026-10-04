@@ -22,9 +22,9 @@ an ID.
 |---|---|---|---|---|
 | 1 | Web app, desktop layout | ✅ live | — | — |
 | 2 | **Phone layout** — phase 1 (shell, Overview, Decisions, Notifications, Campaigns) | ✅ built, `mobile-phase1` | — | — |
-| 2b | **Phone layout** — phase 2 (Reports, Ads, detail pages, Settings, menus as sheets) | 🔨 next | 1–2 sessions | — |
-| 3 | **Real backend** — the `/api` plugin moves off Tommy's Mac to a host + database, so real ad data works anywhere | ⬜ | 2–4 sessions | ~$0–20/mo |
-| 4 | **Installable web app (PWA)** — manifest, icons, offline shell, Add to Home Screen | ⬜ | ~1 session | free |
+| 2b | **Phone layout** — phase 2 (Reports, Ads, detail pages, menus, calendar sheet) | ✅ built, `mobile-phase1` | — | — |
+| 3 | **Real backend** — the `/api` plugin moves off Tommy's Mac to a host + database, so real ad data works anywhere | 🔨 next — needs Tommy: host account | 2–4 sessions | ~$0–20/mo |
+| 4 | **Installable web app (PWA)** — manifest, icons, offline shell, Add to Home Screen | ✅ built, `mobile-phase1` (Chrome: 0 installability errors) | — | free |
 | 5 | **App Store + Google Play** (Capacitor) — needs native value to pass Apple 4.2: **push alerts** ("Meta CAC +42%"), **Face ID**, a **widget** with the week's plan | ⬜ | 2–3 sessions + review | Apple $99/yr · Google $25 once |
 | 6 | **Mac + Windows downloads** (Tauri) | ⬜ | 1–2 sessions | Apple $99/yr covers Mac signing; Windows cert optional (~$100–300/yr, else a SmartScreen warning) |
 
