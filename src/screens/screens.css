@@ -674,3 +674,47 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 
 /* Sign out sits at the header's far edge, opposite the account it leaves. */
 .gr-settings__signout { margin-left: auto; align-self: center; }
+
+/* 📱 No hover on a touch screen: a notification's actions and its "Go" are
+   shown at rest there, or a phone could never mark one read or open it. */
+@media (hover: none) { .gr-note__go, .gr-note__actions { opacity: 1; } }
+
+/* 📱 DECISIONS, narrow column (Oct 4).
+   - The two real actions (Accept, Go to) split the first row evenly; the quiet
+     ones (Talk about this, Share, Dismiss) take a row of their own from the
+     left. Wrapping wherever they ran out of room scattered them across lines.
+   - "Expect / Assuming / Check on" labels sit above their sentence: a 5.5rem
+     label column left the sentence a third of a phone's width.
+   - The section heading takes its own line; its badge and count follow it. */
+@container main (max-width: 560px) {
+  .gr-dec__head { flex-wrap: wrap; }
+  .gr-dec__head .gr-dec__lede { flex: 1 1 100%; }
+  .gr-dec__tier-head { flex-wrap: wrap; }
+  .gr-dec__tier-head h3 { flex: 1 1 100%; }
+  .gr-dec__card, .gr-dec__plan { padding: var(--space-16); }
+  .gr-dec__card-head { flex-wrap: wrap; }
+  /* 40% basis: two buttons claim the row, so a short "Go to ad" cannot leave
+     room for "Talk about this" to squeeze up beside it. */
+  .gr-dec__actions .gr-button { flex: 1 1 40%; justify-content: center; }
+  .gr-dec__actions .gr-dec__minor { margin-left: 0; }
+  .gr-dec__actions .gr-dec__minor--first { margin-left: calc(var(--space-6) * -1); }
+  .gr-dec__expect p, .gr-dec__needs p { grid-template-columns: 1fr; gap: var(--space-2); }
+}
+
+/* 📱 NOTIFICATIONS, narrow column (Oct 4). One row was mark | sentence |
+   evidence | actions side by side, which on a phone squeezed the sentence to a
+   word per line. Now it stacks inside the same row: mark + sentence, then the
+   trend and change, then the actions -- both indented to the sentence's edge
+   (32px mark + 12px gap) so the eye runs down one column. The unread dot moves
+   to the corner. */
+@container main (max-width: 560px) {
+  .gr-note-list { padding: var(--space-4) var(--space-14); }
+  .gr-note { flex-wrap: wrap; position: relative; gap: var(--space-8); padding: var(--space-14) var(--space-14) var(--space-14) 0; }
+  .gr-note__open { flex: 1 1 100%; align-items: flex-start; }
+  .gr-note__body { flex: 1 1 0; }
+  .gr-note__evidence, .gr-note__actions { flex: 1 1 100%; padding-left: var(--space-48); flex-wrap: wrap; }
+  .gr-note__unread { position: absolute; top: var(--space-20); right: 0; }
+  .gr-note:not(.is-unread)::after { display: none; }
+  .gr-note-group__head { flex-wrap: wrap; }
+  .gr-note-group__note { flex: 1 1 100%; margin-left: 0; }
+}

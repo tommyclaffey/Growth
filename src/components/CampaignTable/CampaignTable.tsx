@@ -100,7 +100,7 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
                       </svg>
                     </button>
                   </td>
-                  <td>
+                  <td className="gr-cell--name">
                     {/* The NAME opens the page; the caret expands in place.
                         Two different questions -- "show me more here" and "take
                         me to this" -- so they get two different controls rather
@@ -123,17 +123,18 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
                       {CHANNEL_LABEL[c.channel]} · {c.adSets.length} ad set{c.adSets.length === 1 ? '' : 's'}
                     </span>
                   </td>
-                  {wideColumns && <td className="gr-type-body">{c.objective}</td>}
-                  <td>
+                  {wideColumns && <td className="gr-type-body gr-cell--objective">{c.objective}</td>}
+                  <td className="gr-cell--status">
                     {/* Same store as the campaign page. Held in component
                         state this reset on every navigation, and the two
                         screens would have disagreed. */}
                     <StatusMenu value={stageOf(c.id)} onChange={(next) => setStage(c.id, next)} />
                   </td>
-                  <td className="gr-type-body">{money(c.spend)}</td>
-                  <td className="gr-type-body">{count(c.leads)}</td>
-                  {wideColumns && <td className="gr-type-body">{cacOf(c)}</td>}
-                  <td className="gr-type-body">{c.roas.toFixed(1)}x</td>
+                  {/* Labels show only when the row is a card (narrow column). */}
+                  <td className="gr-type-body gr-cell--spend"><span className="gr-table__label gr-type-caption" aria-hidden="true">Spend</span>{money(c.spend)}</td>
+                  <td className="gr-type-body gr-cell--leads"><span className="gr-table__label gr-type-caption" aria-hidden="true">Leads</span>{count(c.leads)}</td>
+                  {wideColumns && <td className="gr-type-body gr-cell--cac"><span className="gr-table__label gr-type-caption" aria-hidden="true">CAC</span>{cacOf(c)}</td>}
+                  <td className="gr-type-body gr-cell--roas"><span className="gr-table__label gr-type-caption" aria-hidden="true">ROAS</span>{c.roas.toFixed(1)}x</td>
                   {onAskAbout && (
                     <td className="gr-table__ask gr-type-caption-med">
                       <button type="button" className="gr-unbutton gr-ask"
@@ -155,7 +156,7 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
                   c.adSets.map((a, i) => (
                     <tr key={a.id} id={i === 0 ? `adsets-${c.id}` : undefined} className="gr-campaigns__child">
                       <td />
-                      <td className="gr-type-body">
+                      <td className="gr-type-body gr-cell--name">
                         {/* The flex lives on this span, NOT on the <td>.
                             `display: flex` on a table cell takes it out of the
                             table layout algorithm -- the browser stops treating
@@ -168,10 +169,10 @@ export function CampaignTable({ channel = null, wideColumns = true, onOpenCampai
                         </span>
                       </td>
                       {wideColumns && <td />}
-                      <td><StatusPill stage={a.stage} /></td>
-                      <td className="gr-type-body">{money(a.spend)}</td>
-                      <td className="gr-type-body">{count(a.leads)}</td>
-                      {wideColumns && <td className="gr-type-body">{cacOf(a)}</td>}
+                      <td className="gr-cell--status"><StatusPill stage={a.stage} /></td>
+                      <td className="gr-type-body gr-cell--spend"><span className="gr-table__label gr-type-caption" aria-hidden="true">Spend</span>{money(a.spend)}</td>
+                      <td className="gr-type-body gr-cell--leads"><span className="gr-table__label gr-type-caption" aria-hidden="true">Leads</span>{count(a.leads)}</td>
+                      {wideColumns && <td className="gr-type-body gr-cell--cac"><span className="gr-table__label gr-type-caption" aria-hidden="true">CAC</span>{cacOf(a)}</td>}
                       <td />
                     </tr>
                   ))}

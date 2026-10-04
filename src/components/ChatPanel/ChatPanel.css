@@ -385,3 +385,14 @@
 }
 .gr-chat__report-table thead th { color: var(--text-muted); font-weight: 400; padding-bottom: var(--space-2); }
 .gr-chat__report-chg { color: var(--text-muted); }
+
+/* 📱 On a phone there is no room beside the content -- the chat IS the screen
+   while it is open, above the tab bar, and closes back to where you were. */
+@media (max-width: 640px) {
+  .gr-chat {
+    position: fixed; inset: 0; z-index: 110;
+    width: 100%;
+    border-left: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

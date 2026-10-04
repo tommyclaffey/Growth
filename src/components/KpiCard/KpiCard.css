@@ -160,3 +160,24 @@
    so the pair keeps the same 10px inset from the card's corner and neither one
    touches the 20px radius. */
 .gr-kpi__ask { right: 40px; }
+
+/* 📱 A touch screen has no hover, so a control revealed by hovering the card is
+   a control nobody on a phone can reach. Shown at rest wherever hover is absent. */
+@media (hover: none) { .gr-kpi__discuss { opacity: 1; } }
+
+/* 📱 Two across in a narrow column: one per row made the KPI band five screens
+   of scrolling before the first chart. The coverage note ("4 of 6") wraps
+   under the pill rather than squeezing the sparkline out. */
+@container main (max-width: 560px) {
+  .gr-kpi { min-width: 0; min-height: 0; padding: var(--space-12) var(--space-14); }
+  .gr-kpi__foot { flex-wrap: wrap; row-gap: var(--space-4); }
+}
+
+/* 📱 One shortcut per card on a phone: Ask AI. Sharing to Team lives behind
+   More there, and two icon buttons on a half-width card pushed the label into
+   an ellipsis. The label keeps clear of the one that stays. */
+@container main (max-width: 560px) {
+  .gr-kpi__discuss:not(.gr-kpi__ask) { display: none; }
+  .gr-kpi__ask { right: 10px; }
+  .gr-kpi__label { padding-right: var(--space-28); }
+}

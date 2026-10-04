@@ -229,7 +229,7 @@ export function ChannelTable({
                   }
                 }}
               >
-                <td>
+                <td className="gr-cell--name">
                   <span className="gr-table__channel gr-type-body-medium">
                     <ChannelMark channel={r.key} size={16} />
                     <span className="gr-table__name">
@@ -238,11 +238,15 @@ export function ChannelTable({
                     </span>
                   </span>
                 </td>
-                <td className="gr-type-body">{formatMetric('Spend', r.spend)}</td>
-                <td className="gr-type-body">{formatMetric('Leads', r.leads)}</td>
-                {wideColumns && <td className="gr-type-body">{formatMetric('CAC', r.cac)}</td>}
-                {wideColumns && <td className="gr-type-body">{formatMetric('ROAS', r.roas)}</td>}
-                <td>
+                {/* Each figure carries its own label, shown only when the row is a
+                    card (a phone): with the header row gone, "$18,400" alone
+                    does not say it is spend. aria-hidden -- the column header
+                    already names it for a screen reader. */}
+                <td className="gr-type-body gr-cell--spend"><span className="gr-table__label gr-type-caption" aria-hidden="true">Spend</span>{formatMetric('Spend', r.spend)}</td>
+                <td className="gr-type-body gr-cell--leads"><span className="gr-table__label gr-type-caption" aria-hidden="true">Leads</span>{formatMetric('Leads', r.leads)}</td>
+                {wideColumns && <td className="gr-type-body gr-cell--cac"><span className="gr-table__label gr-type-caption" aria-hidden="true">CAC</span>{formatMetric('CAC', r.cac)}</td>}
+                {wideColumns && <td className="gr-type-body gr-cell--roas"><span className="gr-table__label gr-type-caption" aria-hidden="true">ROAS</span>{formatMetric('ROAS', r.roas)}</td>}
+                <td className="gr-cell--delta">
                   {/* Instanced, not redrawn. This cell used to own a second
                       copy of the arrow-and-colour logic, so a fix to one never
                       reached the other. */}
@@ -257,7 +261,7 @@ export function ChannelTable({
                   )}
                 </td>
                 {wideColumns && (
-                  <td>
+                  <td className="gr-cell--share">
                     <span className="gr-share">
                       <span className="gr-share__value gr-type-body">{Math.round(r.share * 100)}%</span>
                       <span className="gr-share__track" aria-hidden="true">
@@ -271,7 +275,7 @@ export function ChannelTable({
                     </span>
                   </td>
                 )}
-                <td>
+                <td className="gr-cell--trend">
                   <Sparkline values={r.trend} channel={r.key} variant="line" height={20} />
                 </td>
                 {onAskAbout && (
@@ -304,22 +308,22 @@ export function ChannelTable({
         {total && rows.length > 1 && (
           <tfoot>
             <tr className="gr-table__total">
-              <th scope="row" className="gr-type-body-medium">All channels</th>
-              <td className="gr-type-body-medium">{formatMetric('Spend', sum.spend)}</td>
-              <td className="gr-type-body-medium">{formatMetric('Leads', sum.leads)}</td>
+              <th scope="row" className="gr-type-body-medium gr-cell--name">All channels</th>
+              <td className="gr-type-body-medium gr-cell--spend"><span className="gr-table__label gr-type-caption" aria-hidden="true">Spend</span>{formatMetric('Spend', sum.spend)}</td>
+              <td className="gr-type-body-medium gr-cell--leads"><span className="gr-table__label gr-type-caption" aria-hidden="true">Leads</span>{formatMetric('Leads', sum.leads)}</td>
               {wideColumns && (
-                <td className="gr-type-body-medium">
-                  {formatMetric('CAC', sum.leads > 0 ? sum.spend / sum.leads : 0)}
+                <td className="gr-type-body-medium gr-cell--cac">
+                  <span className="gr-table__label gr-type-caption" aria-hidden="true">CAC</span>{formatMetric('CAC', sum.leads > 0 ? sum.spend / sum.leads : 0)}
                 </td>
               )}
               {wideColumns && (
-                <td className="gr-type-body-medium">
-                  {formatMetric('ROAS', sum.spend > 0 ? sum.revenue / sum.spend : 0)}
+                <td className="gr-type-body-medium gr-cell--roas">
+                  <span className="gr-table__label gr-type-caption" aria-hidden="true">ROAS</span>{formatMetric('ROAS', sum.spend > 0 ? sum.revenue / sum.spend : 0)}
                 </td>
               )}
-              <td><DeltaBadge percent={total.delta} higherIsBetter={betterHigher(metric)} bare /></td>
-              {wideColumns && <td className="gr-type-body-medium">100%</td>}
-              <td><Sparkline values={total.trend} channel="all" variant="line" height={20} /></td>
+              <td className="gr-cell--delta"><DeltaBadge percent={total.delta} higherIsBetter={betterHigher(metric)} bare /></td>
+              {wideColumns && <td className="gr-type-body-medium gr-cell--share">100%</td>}
+              <td className="gr-cell--trend"><Sparkline values={total.trend} channel="all" variant="line" height={20} /></td>
               {onAskAbout && <td />}
             </tr>
           </tfoot>

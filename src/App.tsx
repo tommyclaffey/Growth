@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Sidebar, type NavKey } from './components/Sidebar/Sidebar';
+import { BottomNav } from './components/BottomNav/BottomNav';
 import { Button } from './components/Button/Button';
 import { KpiCard } from './components/KpiCard/KpiCard';
 import { Chart } from './components/Chart/Chart';
@@ -570,6 +571,12 @@ export default function App() {
 
   const showDashboard = nav === 'overview' || (nav === 'channels' && onChannelScreen);
 
+  /* Going to a screen clears every tier below it -- one function, because the
+     sidebar and the phone's tab bar both navigate (see the Sidebar comment). */
+  const navigateTo = (k: NavKey) => {
+    setNav(k); setChannel(null); setCampaignId(null); setAdSetId(null); setAdId(null);
+  };
+
   return (
     <div className="gr-app">
       {/* Skip link. The first Tab stop on every screen; invisible until focused.
@@ -591,9 +598,7 @@ export default function App() {
           render checks `adId` first -- so you stayed on the ad, now with no
           campaign behind it and a breadcrumb reading "Campaign". Every tier has
           to clear, not just the first one that was noticed. */}
-      <Sidebar active={nav} counts={navCounts} onNavigate={(k) => {
-        setNav(k); setChannel(null); setCampaignId(null); setAdSetId(null); setAdId(null);
-      }} />
+      <Sidebar active={nav} counts={navCounts} onNavigate={navigateTo} />
 
       <div className={`gr-main ${chatOpen ? 'is-chat-open' : ''}`}>
         <header className="gr-header">
@@ -655,8 +660,9 @@ export default function App() {
                   (the assistant's own mark) and Team (the people).
                 - Primary at the far right, where the eye ends. */}
             <div className="gr-toolbar__group gr-toolbar__group--actions">
-              <Button variant="ghost" icon={<IconDownload />} onClick={() => downloadCsv(scope, range)}>Export</Button>
-              <Button variant="ghost" onClick={() => setChatOpen(!chatOpen)}>Team</Button>
+              {/* On a phone these two move into the tab bar's More sheet. */}
+              <Button variant="ghost" className="gr-wide-only" icon={<IconDownload />} onClick={() => downloadCsv(scope, range)}>Export</Button>
+              <Button variant="ghost" className="gr-wide-only" onClick={() => setChatOpen(!chatOpen)}>Team</Button>
               <Button variant="primary" icon={<IconAsk />} onClick={() => setAssistOpen(true)}>Ask AI</Button>
             </div>
           </div>
@@ -959,6 +965,12 @@ export default function App() {
         seedSubject={assistSubject}
         onSeedConsumed={() => { setAssistSeed(null); setAssistSubject(null); }}
       />
+
+      {/* ⭐ The phone's navigation -- hidden above 640px, where the sidebar is. */}
+      <BottomNav active={nav} counts={navCounts}
+                 onNavigate={navigateTo}
+                 onTeam={() => setChatOpen(true)}
+                 onExport={() => downloadCsv(scope, range)} />
 
       {chatOpen && (
         <ChatPanel

@@ -153,3 +153,6 @@
   text-overflow: ellipsis;
   max-width: 160px;
 }
+
+/* 📱 On a phone the bottom tab bar is the navigation (BottomNav). */
+@media (max-width: 640px) { .gr-sidebar { display: none; } }

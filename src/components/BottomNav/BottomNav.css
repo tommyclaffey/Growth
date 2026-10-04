@@ -1,0 +1,66 @@
+/* ⭐ Phone only. On anything wider the sidebar is the navigation, and this is
+   not rendered visibly at all -- see the phone block in index.css for the
+   width the two swap at. */
+.gr-bottomnav { display: none; }
+
+@media (max-width: 640px) {
+  .gr-bottomnav {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    /* The home indicator lives under here on a phone -- leave it room. */
+    padding: var(--space-6) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
+    background: var(--surface-card);
+    border-top: var(--border-width-sm) solid var(--border-default);
+    box-shadow: 0 -1px 2px var(--shadow-key);
+  }
+  .gr-bottomnav__tab {
+    display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+    /* 44px: the smallest target a thumb reliably hits (Apple HIG). */
+    min-height: 44px; padding: var(--space-4) 0;
+    border: 0; background: none; border-radius: var(--radius-md);
+    color: var(--text-muted); font-family: inherit; cursor: pointer;
+  }
+  .gr-bottomnav__tab.is-active { color: var(--accent-text); }
+  .gr-bottomnav__tab:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: -2px; }
+  .gr-bottomnav__icon { position: relative; display: grid; place-items: center; width: 24px; height: 22px; color: currentColor; }
+  .gr-bottomnav__count {
+    position: absolute; top: -4px; left: 14px;
+    min-width: 16px; height: 16px; padding: 0 var(--space-4);
+    display: grid; place-items: center;
+    border-radius: var(--radius-pill);
+    color: var(--text-secondary); background: var(--surface-page-top);
+    border: var(--border-width-sm) solid var(--border-default);
+  }
+  .gr-bottomnav__count.is-accent { color: var(--brand-on-accent); background: var(--accent-fill); border-color: transparent; }
+
+  /* More: a sheet from the bottom, where the thumb already is. */
+  .gr-bottomnav__scrim {
+    position: fixed; inset: 0; z-index: 120;
+    display: flex; align-items: flex-end;
+    background: var(--surface-scrim);
+  }
+  .gr-bottomnav__sheet {
+    width: 100%;
+    padding: var(--space-8) var(--space-16) calc(var(--space-16) + env(safe-area-inset-bottom));
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    background: var(--surface-card);
+    box-shadow: var(--elevation-menu);
+  }
+  .gr-bottomnav__grip {
+    display: block; width: 36px; height: 4px; margin: 0 auto var(--space-12);
+    border-radius: var(--radius-pill); background: var(--border-strong);
+  }
+  .gr-bottomnav__list { list-style: none; margin: 0; padding: 0; }
+  .gr-bottomnav__list--actions {
+    margin-top: var(--space-8); padding-top: var(--space-8);
+    border-top: var(--border-width-sm) solid var(--border-subtle);
+  }
+  .gr-bottomnav__row {
+    display: flex; align-items: center; gap: var(--space-12);
+    width: 100%; min-height: 48px; padding: 0 var(--space-12);
+    border: 0; background: none; border-radius: var(--radius-md);
+    color: var(--text-primary); font-family: inherit; text-align: left; cursor: pointer;
+  }
+  .gr-bottomnav__row.is-active { color: var(--accent-text); background: var(--accent-tint); }
+  .gr-bottomnav__row:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: -2px; }
+}
