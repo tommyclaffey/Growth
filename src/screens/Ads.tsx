@@ -130,9 +130,9 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
           )}
 
           {rows.map((r, i) => (
-            <tr key={r.creative.id} className="gr-campaign__adset-row">
+            <tr key={r.creative.id} className="gr-campaign__adset-row gr-ads__row">
               <td className="gr-type-caption gr-ads__rank">{i + 1}</td>
-              <td className="gr-type-body-medium gr-ads__wrap">
+              <td className="gr-type-body-medium gr-ads__wrap gr-ac--ad">
                 <span className="gr-ads__ad">
                   {/* The ad itself, small. An ads table with no ads in it asked
                       the reader to remember what "Start free, no card" looked
@@ -163,20 +163,24 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
                   </span>
                 </span>
               </td>
-              <td>
+              <td className="gr-ac--chan">
                 <span className="gr-ads__channel">
                   <ChannelMark channel={r.channel} size={16} />
                   <span className="gr-type-body">{CHANNEL_LABEL[r.channel]}</span>
                 </span>
               </td>
-              <td className="gr-type-caption gr-ads__wrap">
+              <td className="gr-type-caption gr-ads__wrap gr-ac--camp">
                 {r.campaign.name}
                 <span className="gr-ads__kind gr-type-caption">
                   {groupNoun(r.channel).one}: {r.creative.adSetName}
                 </span>
               </td>
-              <td className="gr-type-body-medium gr-ads__num">{r.value === null ? '—' : formatDerived(metric, r.value)}</td>
-              <td>
+              <td className="gr-type-body-medium gr-ads__num gr-ac--value">
+                {/* Named on the card (narrow column), where the header row is gone. */}
+                <span className="gr-table__label gr-type-caption" aria-hidden="true">{metric}</span>
+                {r.value === null ? '—' : formatDerived(metric, r.value)}
+              </td>
+              <td className="gr-ac--vs">
                 {r.benchmark ? (
                   <DeltaBadge
                     percent={r.benchmark.deltaPercent}
@@ -191,7 +195,7 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
                   </span>
                 )}
               </td>
-              {showPaused && <td><StatusPill stage={r.creative.stage} /></td>}
+              {showPaused && <td className="gr-ac--status"><StatusPill stage={r.creative.stage} /></td>}
               {onAskAbout && (
                 <td className="gr-table__ask gr-type-caption-med">
                   <button type="button" className="gr-unbutton gr-ask"

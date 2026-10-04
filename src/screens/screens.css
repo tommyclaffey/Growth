@@ -718,3 +718,78 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
   .gr-note-group__head { flex-wrap: wrap; }
   .gr-note-group__note { flex: 1 1 100%; margin-left: 0; }
 }
+
+/* 📱 CAMPAIGN / AD SET / AD PAGES, narrow column (Oct 4, phase 2).
+   - The title takes the row; status and Flag follow beneath it. Squeezed
+     beside it, a campaign name wrapped to three lines.
+   - The ad-set table becomes cards on the channel table's pattern: name and
+     status on top, spend / leads / CAC beneath, share stepping out. */
+@container main (max-width: 560px) {
+  .gr-campaign__title { flex-wrap: wrap; row-gap: var(--space-8); }
+  .gr-campaign__title h2 { flex: 1 1 100%; }
+
+  .gr-table .gr-campaign__adset-row {
+    display: grid; height: auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas: "name name status" "spend leads cac";
+    gap: var(--space-8) var(--space-12);
+    padding: var(--space-12) 0;
+    border-bottom: var(--border-width-sm) solid var(--border-subtle);
+  }
+  .gr-table .gr-campaign__adset-row > * { display: block; padding: 0; border: 0; text-align: left; height: auto; }
+  .gr-table .gr-campaign__adset-row > .gr-cell--share { display: none; }
+  /* Outranks the desktop `td:last-child { text-align: right }`. */
+  .gr-table .gr-campaign__adset-row > td:last-child { text-align: left; }
+  .gr-table .gr-campaign__adset-row > .gr-cell--status { grid-area: status; justify-self: end; }
+}
+
+/* 📱 REPORTS, narrow column (Oct 4, phase 2). The three summary facts go two
+   across (the third full width), and each scheduled report becomes a card:
+   name and status, then when it runs and what it covers, who gets it and the
+   next send, then Preview / Export -- every column the table had, none of it
+   behind a sideways scroll. */
+@container main (max-width: 560px) {
+  .gr-report-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-10); }
+  .gr-report-summary > :last-child { grid-column: 1 / -1; }
+
+  .gr-table .gr-report-row {
+    display: grid; height: auto;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "name status" "when when" "people next" "actions actions";
+    gap: var(--space-8) var(--space-12);
+    padding: var(--space-14) 0;
+    border-bottom: var(--border-width-sm) solid var(--border-subtle);
+  }
+  .gr-table .gr-report-row > * { display: block; padding: 0; border: 0; text-align: left; height: auto; white-space: normal; }
+  .gr-table .gr-rc--name { grid-area: name; }
+  .gr-table .gr-rc--status { grid-area: status; justify-self: end; }
+  .gr-table .gr-rc--when { grid-area: when; }
+  .gr-table .gr-rc--people { grid-area: people; }
+  .gr-table .gr-rc--next { grid-area: next; justify-self: end; text-align: right; }
+  .gr-table .gr-rc--actions { grid-area: actions; display: flex; gap: var(--space-8); }
+  .gr-table .gr-rc--actions .gr-button { flex: 1 1 0; justify-content: center; }
+  .gr-report-preview-row > td { display: block; padding: 0; }
+}
+
+/* 📱 ADS, narrow column (Oct 4, phase 2). The ranking controls take a row of
+   their own and wrap; each ad becomes a card: rank, the ad and its metric on
+   top, then its channel and how it compares, then its campaign and status.
+   Overrides the ad-set card it shares a row class with. */
+@container main (max-width: 560px) {
+  .gr-card__header:has(.gr-ads__controls) { flex-wrap: wrap; }
+  .gr-ads__controls { flex: 1 1 100%; flex-wrap: wrap; margin-left: 0; }
+  .gr-table .gr-ads__row {
+    grid-template-columns: var(--space-20) minmax(0, 1fr) auto;
+    grid-template-areas: "rank ad value" ". chan vs" ". camp status";
+    align-items: start;
+  }
+  .gr-table .gr-ads__row > .gr-ads__rank { grid-area: rank; padding-top: var(--space-2); }
+  .gr-table .gr-ads__row > .gr-ac--ad { grid-area: ad; }
+  .gr-table .gr-ads__row > .gr-ac--value { grid-area: value; text-align: right; }
+  .gr-table .gr-ads__row > .gr-ac--value .gr-table__label { text-align: right; }
+  .gr-table .gr-ads__row > .gr-ac--chan { grid-area: chan; }
+  .gr-table .gr-ads__row > .gr-ac--vs { grid-area: vs; justify-self: end; }
+  .gr-table .gr-ads__row > .gr-ac--camp { grid-area: camp; }
+  .gr-table .gr-ads__row > .gr-ac--status { grid-area: status; justify-self: end; }
+  .gr-table .gr-ads__row > .gr-table__ask { display: none; }
+}

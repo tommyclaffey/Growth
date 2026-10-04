@@ -93,3 +93,27 @@
 .gr-cal__btn.is-primary { border-color: transparent; background: var(--accent-fill); color: var(--brand-on-accent); }
 .gr-cal__btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .gr-cal__btn:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+
+/* 📱 On a phone the calendar is a sheet from the bottom, like the tab bar's
+   More: two months side by side ran off the left edge. Quick ranges become a
+   row of chips across the top, the months stack -- the current one first --
+   and the sheet scrolls if they do not both fit. */
+@media (max-width: 640px) {
+  .gr-cal {
+    position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 130;
+    flex-direction: column;
+    max-height: 88vh; overflow-y: auto;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .gr-cal__presets {
+    flex-direction: row; overflow-x: auto; min-width: 0;
+    border-right: 0; border-bottom: var(--border-width-sm) solid var(--border-subtle);
+  }
+  .gr-cal__preset { width: auto; white-space: nowrap; }
+  .gr-cal__months { flex-direction: column-reverse; align-items: center; gap: var(--space-16); }
+  /* The header is its own stacking layer (z-index 2), which kept this sheet
+     UNDER the tab bar and hid Cancel / Apply. Raised while the sheet is open. */
+  .gr-header:has(.gr-cal) { z-index: 140; }
+  .gr-cal__foot { position: sticky; bottom: 0; background: var(--surface-card); }
+}

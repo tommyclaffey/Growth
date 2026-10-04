@@ -96,7 +96,9 @@ export function CampaignDetail({
 
   const t = campaignTotals(id, range);
   const data = campaignSeries(id, chartMetric, range);
-  const adSetSpend = campaign.adSets.reduce((a, s) => a + s.spend, 0);
+  /* The ad sets' share of the campaign, over the SELECTED dates -- the same
+     ranged totals each row shows (adSetTotals), summed once. */
+  const rangedSpend = campaign.adSets.reduce((a, s) => a + adSetTotals(s.id, range).spend, 0);
 
   /* What this channel can honestly report, narrowed to what this objective is
      trying to move. A podcast campaign never shows CTR, because a podcast ad
@@ -243,7 +245,7 @@ export function CampaignDetail({
               const open = () => onOpenAdSet?.(a.id);
               return (
                 <tr key={a.id} className="gr-campaign__adset-row">
-                  <td className="gr-type-body-medium">
+                  <td className="gr-type-body-medium gr-cell--name">
                     {/* A button, not a click handler on the row: the name is the
                         thing you are activating, and a real button is reachable
                         by keyboard and announced as one. */}
@@ -253,18 +255,21 @@ export function CampaignDetail({
                       </button>
                     ) : a.name}
                   </td>
-                  <td><StatusPill stage={a.stage} /></td>
-                  <td className="gr-type-body">{formatMetric('Spend', at.spend)}</td>
+                  <td className="gr-cell--status"><StatusPill stage={a.stage} /></td>
+                  <td className="gr-type-body gr-cell--spend"><span className="gr-table__label gr-type-caption" aria-hidden="true">Spend</span>{formatMetric('Spend', at.spend)}</td>
                   {/* Share of the campaign, so a reader can see which one is
                       actually carrying it without doing the division. */}
+                  {/* 🐛 Was the STATIC a.spend over the static sum -- the one figure on
+                      the row that did not follow the range (same bug the ad set
+                      page had). Ranged spend over the ranged campaign total now. */}
                   {wideColumns && (
-                    <td className="gr-type-body">
-                      {adSetSpend > 0 ? `${Math.round((a.spend / adSetSpend) * 100)}%` : '—'}
+                    <td className="gr-type-body gr-cell--share">
+                      {rangedSpend > 0 ? `${Math.round((at.spend / rangedSpend) * 100)}%` : '—'}
                     </td>
                   )}
-                  <td className="gr-type-body">{Math.round(at.leads).toLocaleString()}</td>
-                  <td className="gr-type-body">
-                    {at.leads > 0 ? formatMetric('CAC', at.cac) : '—'}
+                  <td className="gr-type-body gr-cell--leads"><span className="gr-table__label gr-type-caption" aria-hidden="true">Leads</span>{Math.round(at.leads).toLocaleString()}</td>
+                  <td className="gr-type-body gr-cell--cac">
+                    <span className="gr-table__label gr-type-caption" aria-hidden="true">CAC</span>{at.leads > 0 ? formatMetric('CAC', at.cac) : '—'}
                   </td>
                 </tr>
               );

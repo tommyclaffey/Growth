@@ -148,7 +148,7 @@ export function Reports({ onSend }: ReportsProps = {}) {
               return (
                 <Fragment key={r.id}>
                   <tr className={`gr-report-row ${isOpen ? 'is-open' : ''}`}>
-                    <td>
+                    <td className="gr-rc--name">
                       <span className="gr-report-name">
                         <strong className="gr-type-body-medium">{r.name}</strong>
                         {/* Derived from the channels the export runs -- never
@@ -156,13 +156,13 @@ export function Reports({ onSend }: ReportsProps = {}) {
                         <span className="gr-type-caption">{scopeLabel(r)}</span>
                       </span>
                     </td>
-                    <td>
+                    <td className="gr-rc--when">
                       <span className="gr-report-name">
                         <span className="gr-type-body gr-report-when">{r.when}</span>
                         <span className="gr-type-caption">{covers(r)}</span>
                       </span>
                     </td>
-                    <td>
+                    <td className="gr-rc--people">
                       <span className="gr-report-people">
                         {r.recipients.map((id) => MEMBERS[id]).filter(Boolean).map((m) => (
                           <Avatar key={m.id} initials={m.initials} hue={m.hue} src={m.avatar}
@@ -176,8 +176,8 @@ export function Reports({ onSend }: ReportsProps = {}) {
                         ) : null}
                       </span>
                     </td>
-                    <td><StatusPill stage={r.stage} /></td>
-                    <td>
+                    <td className="gr-rc--status"><StatusPill stage={r.stage} /></td>
+                    <td className="gr-rc--next">
                       <span className="gr-report-name">
                         <span className="gr-type-body gr-report-when">
                           {next ? formatRun(next)
@@ -188,7 +188,7 @@ export function Reports({ onSend }: ReportsProps = {}) {
                           : <Badge label="Never run" tone="neutral" />}
                       </span>
                     </td>
-                    <td className="gr-report-actions">
+                    <td className="gr-report-actions gr-rc--actions">
                       <Button variant="ghost" className="gr-report-toggle"
                               aria-expanded={isOpen} aria-controls={panel}
                               onClick={() => setOpen(isOpen ? null : r.id)}
