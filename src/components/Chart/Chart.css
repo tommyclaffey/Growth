@@ -513,3 +513,19 @@
 .gr-chart__table--periods.has-change thead th:last-child { padding-right: calc(3rem + var(--space-4)); }
 /* "6 days" beside a partial week, quiet. */
 .gr-chart__partial { margin-left: var(--space-6); color: var(--text-muted); }
+
+/* 📱 Narrow column: the title and the Bar | Line | Table switch share the top
+   row; the metric toggle gets a row of its own and scrolls sideways when six
+   metrics do not fit (a squeezed toggle wrapped the TITLE onto three lines);
+   Compare sits under it. Order only -- the markup and the keyboard order stay. */
+@container main (max-width: 560px) {
+  .gr-chart__header { flex-wrap: wrap; gap: var(--space-10); }
+  .gr-chart__title { flex: 1 1 auto; white-space: nowrap; order: 0; }
+  .gr-chart__marks { order: 1; }
+  .gr-chart__header .gr-metrictoggle {
+    order: 2; flex: 1 0 100%; max-width: 100%;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .gr-chart__header .gr-metrictoggle::-webkit-scrollbar { display: none; }
+  .gr-chart__compare { order: 3; margin-left: 0; }
+}

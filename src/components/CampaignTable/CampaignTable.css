@@ -66,3 +66,31 @@
   outline: var(--border-width-md) solid var(--focus-ring);
   outline-offset: 2px; border-radius: var(--radius-sm);
 }
+
+/* 📱 CAMPAIGNS AS CARDS (Oct 4). Rides on the channel table's card rules
+   (ChannelTable.css -- same .gr-table / .gr-table__row), with its own layout:
+   caret, name and status across the top; spend / leads / CAC / ROAS beneath.
+   Objective steps out (the campaign page has it); an expanded ad set is a
+   smaller card, indented under its campaign. Name still opens the campaign;
+   the caret still expands; the status menu still changes the stage. */
+@container main (max-width: 560px) {
+  .gr-table .gr-campaigns__row, .gr-table .gr-campaigns__child {
+    grid-template-columns: var(--space-24) repeat(4, minmax(0, 1fr));
+    grid-template-areas: "caret name name name status" ". spend leads cac roas";
+  }
+  .gr-table .gr-campaigns__child {
+    display: grid; gap: var(--space-8) var(--space-12);
+    padding: var(--space-10) 0 var(--space-10) var(--space-16);
+    border-bottom: var(--border-width-sm) solid var(--border-subtle);
+  }
+  .gr-table .gr-campaigns__child > * { display: block; padding: 0; border: 0; text-align: left; height: auto; }
+  .gr-table .gr-campaigns__child > td:empty { display: none; }
+  .gr-table .gr-campaigns__expander { grid-area: caret; align-self: start; }
+  .gr-table .gr-cell--status { grid-area: status; justify-self: end; align-self: start; }
+  .gr-table .gr-cell--objective { display: none; }
+  /* The desktop tint sits on each child CELL; on a card it boxed every figure. */
+  .gr-table .gr-campaigns__child > td { background: none; }
+  .gr-table .gr-campaigns__child { background: var(--surface-page-top); border-radius: var(--radius-md); margin: var(--space-4) 0; border-bottom: 0; }
+  /* The desktop rule right-aligns the last figure before Ask; a card reads left. */
+  .gr-table .gr-table__row > td.gr-cell--roas, .gr-table .gr-table__total > td.gr-cell--roas { text-align: left; }
+}

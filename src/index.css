@@ -150,6 +150,10 @@ body {
 .gr-content__spacer { height: var(--space-40); flex: none; }
 
 .gr-kpi-row { display: flex; gap: var(--space-14); flex-wrap: wrap; }
+/* 📱 Two across in a narrow column -- see KpiCard.css for the card itself. */
+@container main (max-width: 560px) {
+  .gr-kpi-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-10); }
+}
 
 .gr-placeholder {
   display: grid; place-items: center;
@@ -235,4 +239,56 @@ body {
   padding: 0;
   margin: 0;
   cursor: pointer;
+}
+
+
+/* ============================================================
+   📱 PHONE (Oct 4) -- 640px and under.
+   ============================================================
+
+   The one VIEWPORT breakpoint in the product, because it is the one decision
+   about the device rather than the column: below it the sidebar becomes the
+   bottom tab bar (BottomNav), the chat and the assistant take the whole screen,
+   and the header compacts. Everything inside the content column still answers
+   to the column's own width (`@container main`), as it always has.
+
+   640 because the narrowest real tablet in portrait is 744 (iPad mini) and the
+   widest phone in landscape-free use is ~430: anything at or under 640 is a
+   phone held upright. */
+@media (max-width: 640px) {
+  /* The tab bar is fixed at the bottom; the content column must scroll clear of it. */
+  .gr-content {
+    padding: var(--space-16) var(--space-16) calc(var(--space-48) + var(--space-24) + env(safe-area-inset-bottom));
+    gap: var(--space-14);
+  }
+  .gr-content__spacer { display: none; }
+
+  /* Header: title and Ask AI on one row, the two filters on the next. */
+  .gr-header {
+    min-height: 0;
+    padding: calc(var(--space-12) + env(safe-area-inset-top)) var(--space-16) var(--space-12);
+  }
+  .gr-crumb-slot:empty { display: none; }
+  .gr-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "title actions" "filters filters";
+    align-items: center;
+    gap: var(--space-12);
+  }
+  .gr-toolbar__title { grid-area: title; }
+  /* The filters below say the same thing, one tap away. */
+  .gr-toolbar__title p { display: none; }
+  .gr-toolbar__spacer { display: none; }
+  .gr-toolbar__group { grid-area: filters; }
+  .gr-toolbar__group--actions { grid-area: actions; margin-left: 0; }
+  .gr-toolbar__group--actions > * { flex: none; }
+  /* Export and Team live in the tab bar's More sheet on a phone. Scoped to the
+     toolbar so it outranks the button's own display rule. */
+  .gr-toolbar .gr-wide-only { display: none; }
+  /* The two filters share the row evenly, whatever their labels say. */
+  /* Scoped through .gr-toolbar: the switcher's own `flex: none` loads later
+     with the same specificity and won. */
+  .gr-toolbar .gr-toolbar__group > .gr-switcher { flex: 1 1 0; min-width: 0; }
+  .gr-toolbar .gr-switcher__trigger { width: 100%; justify-content: space-between; }
 }

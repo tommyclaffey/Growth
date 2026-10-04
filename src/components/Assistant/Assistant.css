@@ -358,3 +358,15 @@
 .gr-assist__brief .tone-good .gr-assist__brief-dot { background: var(--semantic-good); }
 .gr-assist__brief .tone-warn .gr-assist__brief-dot { background: var(--semantic-warn); }
 .gr-assist__brief-q { margin: 0 0 var(--space-8); color: var(--text-muted); }
+
+/* 📱 On a phone the assistant is a full screen, not a card floating in one:
+   the answer and its decision cards need every pixel, and the keyboard takes
+   the bottom half whenever the reader types. */
+@media (max-width: 640px) {
+  .gr-assist__scrim { padding: 0; }
+  .gr-assist {
+    max-width: none; max-height: none; height: 100%;
+    border-radius: 0; border: 0;
+    padding-top: env(safe-area-inset-top);
+  }
+}

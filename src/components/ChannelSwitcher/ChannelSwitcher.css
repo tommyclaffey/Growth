@@ -65,3 +65,11 @@
 }
 .gr-range-custom__input[aria-invalid='true'] { border-color: var(--semantic-bad); }
 .gr-range-custom__input:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 1px; }
+
+/* 📱 On a phone each filter is half the row, and a 240px menu anchored to the
+   right edge of the LEFT one ran off the screen (the channel names were cut at
+   the left). The menu takes its trigger's width instead -- both menus line up
+   under their buttons. */
+@media (max-width: 640px) {
+  .gr-switcher__menu { left: 0; right: 0; width: auto; }
+}

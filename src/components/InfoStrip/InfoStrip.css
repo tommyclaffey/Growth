@@ -170,3 +170,13 @@
   outline: var(--border-width-md) solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+/* 📱 A narrow column stacks the strip: the label on top, each pill on its own
+   full-width line beneath, so a long alert truncates inside the card instead
+   of running past its edge. */
+@container main (max-width: 560px) {
+  .gr-strip { flex-direction: column; align-items: stretch; gap: var(--space-10); }
+  .gr-strip__pills { flex-direction: column; align-items: stretch; }
+  .gr-strip__pill-wrap { max-width: 100%; justify-content: space-between; }
+  .gr-strip__pill-wrap .gr-strip__pill { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}

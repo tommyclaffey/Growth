@@ -1,0 +1,19 @@
+{
+  "name": "Growth — Marketing Analytics",
+  "short_name": "Growth",
+  "description": "Six ad channels in one view, and a decision engine that says what to do next.",
+  "id": "/Growth/",
+  "start_url": "/Growth/?source=pwa",
+  "scope": "/Growth/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F7F7FB",
+  "theme_color": "#635BFF",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

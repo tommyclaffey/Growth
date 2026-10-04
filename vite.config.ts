@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 
@@ -35,6 +36,10 @@ export default defineConfig(({ mode }) => {
        /assets/... at the domain root, gets GitHub's 404 page back, and renders
        blank with no console error that points at the cause. */
     base: '/Growth/',
+    /* 800+ tests run in parallel; the whole-app render tests take ~0.7 s alone
+       and twelve of them once crossed the 5 s default under machine load (Oct 4),
+       then passed twice in a row. 15 s absorbs load without hiding a hang. */
+    test: { testTimeout: 15_000 },
     server: {
       /* Vite rejects requests whose Host header it does not recognise — a real
          protection against DNS rebinding, and the reason the tunnel returned

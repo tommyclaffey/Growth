@@ -261,3 +261,45 @@
 /* Figures in columns: every digit the same width, so $61,240 sits directly
    over $28,110. The Ads table already did this; the others did not. */
 .gr-table td { font-variant-numeric: tabular-nums; }
+
+/* 📱 No hover on a touch screen: the row's Ask is shown at rest there. */
+@media (hover: none) { .gr-ask { opacity: 1; } }
+
+/* Per-cell labels exist for the card layout below and nowhere else. */
+.gr-table__label { display: none; }
+
+/* 📱 ROWS BECOME CARDS (Oct 4, Tommy: "turn rows into cards").
+   Name and change across the top, then spend / leads / CAC / ROAS as one row
+   of labelled figures. Share and the trend line step out -- the card is the
+   comparison, and the channel's own page has both. The header row is kept for
+   screen readers (visually hidden), since the cells are still a table to them.
+   Rows still open the channel on tap: same element, same handler. */
+@container main (max-width: 560px) {
+  .gr-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .gr-table, .gr-table tbody, .gr-table tfoot { display: block; }
+  .gr-table__row, .gr-table__total {
+    display: grid;
+    /* Four figures across: at a phone's width they fit on one line, and a 2x2
+       made every channel a screen-third tall. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-areas: "name name name delta" "spend leads cac roas";
+    gap: var(--space-10) var(--space-12);
+    padding: var(--space-14) 0;
+    border-bottom: var(--border-width-sm) solid var(--border-subtle);
+  }
+  .gr-table__total { border-bottom: 0; border-top: var(--border-width-sm) solid var(--border-strong); }
+  .gr-table .gr-table__row, .gr-table .gr-table__total { height: auto; }
+  .gr-table .gr-table__row > *, .gr-table .gr-table__total > * {
+    display: block; height: auto; padding: 0; border: 0; text-align: left; white-space: normal;
+  }
+  /* Through .gr-table so they outrank the row-cell rules above. */
+  .gr-table .gr-cell--name { grid-area: name; }
+  .gr-table .gr-cell--delta { grid-area: delta; justify-self: end; align-self: start; }
+  .gr-table .gr-cell--spend { grid-area: spend; }
+  .gr-table .gr-cell--leads { grid-area: leads; }
+  .gr-table .gr-cell--cac { grid-area: cac; }
+  .gr-table .gr-cell--roas { grid-area: roas; }
+  .gr-table .gr-cell--share, .gr-table .gr-cell--trend,
+  .gr-table .gr-table__row > .gr-table__ask, .gr-table .gr-table__total > td:empty { display: none; }
+  .gr-table__label { display: block; color: var(--text-muted); margin-bottom: var(--space-2); }
+}

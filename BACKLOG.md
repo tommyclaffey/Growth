@@ -12,6 +12,30 @@ an ID.
 
 ---
 
+## 🗺 PLATFORM ROADMAP *(agreed Oct 4 — the order we build in)*
+
+> Tommy: *"When do we start working on desktop applications that we download, and then apps on
+> Android and the App Store?"* → **One codebase, four wrappers.** Nothing is rebuilt; each step wraps
+> the same React app.
+
+| # | Step | Status | Effort | Cost |
+|---|---|---|---|---|
+| 1 | Web app, desktop layout | ✅ live | — | — |
+| 2 | **Phone layout** — phase 1 (shell, Overview, Decisions, Notifications, Campaigns) | ✅ built, `mobile-phase1` | — | — |
+| 2b | **Phone layout** — phase 2 (Reports, Ads, detail pages, menus, calendar sheet) | ✅ built, `mobile-phase1` | — | — |
+| 3 | **Real backend** — the `/api` plugin moves off Tommy's Mac to a host + database, so real ad data works anywhere | 🔨 next — needs Tommy: host account | 2–4 sessions | ~$0–20/mo |
+| 4 | **Installable web app (PWA)** — manifest, icons, offline shell, Add to Home Screen | ✅ built, `mobile-phase1` (Chrome: 0 installability errors) | — | free |
+| 5 | **App Store + Google Play** (Capacitor) — needs native value to pass Apple 4.2: **push alerts** ("Meta CAC +42%"), **Face ID**, a **widget** with the week's plan | ⬜ | 2–3 sessions + review | Apple $99/yr · Google $25 once |
+| 6 | **Mac + Windows downloads** (Tauri) | ⬜ | 1–2 sessions | Apple $99/yr covers Mac signing; Windows cert optional (~$100–300/yr, else a SmartScreen warning) |
+
+**Why 3 before 4–6:** the ad-platform connections run only on Tommy's Mac today (Vite dev-server plugin);
+the public site has no server and always shows the demo. A downloaded app has no Mac to talk to —
+without step 3, every app is a demo.
+
+**Order of value:** 2b → 3 → 4 → 5 → 6. Step 4 is the cheap early win once 2b merges.
+
+---
+
 ## 🌟 G-012 — THE AI DECISION MAKER *(north star, Sept 27)*
 
 > *"An AI decision maker to help take this data and then suggest decisions to make on this data…
@@ -526,6 +550,22 @@ pattern, not three incidents. One `.gr-unbutton` utility, applied everywhere.
 
 ---
 
+## 🔨 G-005 — Mobile *(phase 1 built Oct 4 on `mobile-phase1`, not merged)*
+
+**Tommy's calls (Oct 4):** bottom tab bar · check-in screens first · table rows become cards.
+
+**✅ Phase 1 (built):** BottomNav (Overview / Decisions / Campaigns / Notifications + More: Channels, Ads, Reports, Settings, Team chat, Export) · phone shell ≤640px (sidebar out, compact header, chat + assistant full screen, safe areas) · narrow column ≤560px via `@container main`: KPIs 2-up, strip stacked, chart header reflowed, channel + campaign rows as cards, decision cards and notifications stacked · hover-only controls visible on touch. Desktop + 1100px byte-identical to main.
+
+**▶️ Phase 2 (next):**
+- **Reports:** summary cards cramped (3 across), schedule column clipped → stack cards, schedule under name.
+- **Ads:** controls row overflows (vs channel / Raw value / metric select), metric column hidden → filters wrap or sheet; rank row as card with the metric.
+- **Channel detail, campaign / ad set / ad pages:** not yet checked on a phone.
+- **Settings:** check forms and the data-source rows.
+- Range calendar and channel switcher menus on a phone (full-width sheets?).
+- Real device pass (iOS Safari: safe areas, 100dvh, keyboard over the Ask input).
+
+<details><summary>Original note (parked Sept 27)</summary>
+
 ## ❄️ G-005 — P4: responsive
 
 Zero width-based media queries. 232px sidebar + 360px chat = 592px of chrome
@@ -542,6 +582,8 @@ is a desktop product** — nobody audits ad spend on a phone.
 ⚠️ It becomes blocking the moment the beta stops being moderated, or a tester is asked to use
 it on their own machine on their own time. **The constraint has to be STATED to testers, not
 assumed** — an unannounced 1300px floor is a broken product; an announced one is a scope.
+
+</details>
 
 ---
 
