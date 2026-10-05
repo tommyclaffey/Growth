@@ -101,3 +101,20 @@ describe('Slack acts as the signed-in person', () => {
     expect(tokenFor(ws({ tokens: { u_jess: 'xoxp-jess' } }), 'u_jess')).toBe('xoxp-jess');
   });
 });
+
+describe('🚂 hosted (Railway): the owner is named in advance', () => {
+  it('no request is local there -- only GROWTH_OWNER_EMAIL may create the first account', () => {
+    process.env.GROWTH_OWNER_EMAIL = 'Tommy@Example.com';
+    try {
+      expect(mayJoin('stranger@evil.example', false)).toBe(false);
+      expect(mayJoin('tommy@example.com', false)).toBe(true);
+      createUser({ email: 'tommy@example.com', name: 'Tommy' });
+      /* Once the owner exists, the name no longer opens anything. */
+      expect(mayJoin('tommy@example.com', false, '')).toBe(false);
+    } finally { delete process.env.GROWTH_OWNER_EMAIL; }
+  });
+
+  it('unset on a host means nobody can claim the instance -- the safe failure', () => {
+    expect(mayJoin('anyone@example.com', false)).toBe(false);
+  });
+});

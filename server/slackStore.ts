@@ -14,7 +14,9 @@ import { resolve } from 'node:path';
  * not fine on a server without encryption at rest.
  */
 
-const FILE = resolve(process.cwd(), '.slack-tokens.local');
+/* GROWTH_DATA_DIR wins, like every other store: on Railway it is the mounted
+   volume, so tokens survive a redeploy; in tests, a throwaway folder. */
+const file = () => resolve(process.env.GROWTH_DATA_DIR ?? process.cwd(), '.slack-tokens.local');
 
 export interface Workspace {
   teamId: string;
@@ -64,9 +66,9 @@ export interface Workspace {
 type Store = { workspaces: Record<string, Workspace>; active?: string };
 
 function read(): Store {
-  if (!existsSync(FILE)) return { workspaces: {} };
+  if (!existsSync(file())) return { workspaces: {} };
   try {
-    return JSON.parse(readFileSync(FILE, 'utf8')) as Store;
+    return JSON.parse(readFileSync(file(), 'utf8')) as Store;
   } catch {
     /* A corrupt store should not take the app down — it should look like no
        workspaces are connected, which is a state the UI already handles. */
@@ -75,7 +77,7 @@ function read(): Store {
 }
 
 function write(s: Store) {
-  writeFileSync(FILE, JSON.stringify(s, null, 2), { mode: 0o600 });
+  writeFileSync(file(), JSON.stringify(s, null, 2), { mode: 0o600 });
 }
 
 export function saveWorkspace(w: Workspace) {

@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
      not -- so putting META_CLIENT_ID in .env.local, exactly as the setup steps
      say, did nothing, and Connect kept reporting "needs an app registration". */
   for (const k of [
-    'ANTHROPIC_API_KEY', 'GROWTH_ALLOWED_EMAILS', 'PUBLIC_ORIGIN',
+    'ANTHROPIC_API_KEY', 'GROWTH_ALLOWED_EMAILS', 'GROWTH_OWNER_EMAIL', 'GROWTH_DATA_DIR', 'PUBLIC_ORIGIN',
     'SLACK_APP_TOKEN', 'SLACK_CLIENT_ID', 'SLACK_CLIENT_SECRET', 'SLACK_REDIRECT_URI', 'SLACK_SIGNING_SECRET',
     'META_CLIENT_ID', 'META_CLIENT_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET',
     'GOOGLE_ADS_DEVELOPER_TOKEN', 'GOOGLE_ADS_API_VERSION', 'META_API_VERSION',
@@ -45,7 +45,10 @@ export default defineConfig(({ mode }) => {
          protection against DNS rebinding, and the reason the tunnel returned
          403 rather than the app. The tunnel is a legitimate front door, so name
          it. Scoped to the tunnel domain, not opened to everything. */
-      allowedHosts: ['.trycloudflare.com'],
+      /* Railway: its own domain, plus whatever PUBLIC_ORIGIN names (a custom
+         domain later). Still scoped -- never "all hosts". */
+      allowedHosts: ['.trycloudflare.com', '.up.railway.app',
+        ...(env.PUBLIC_ORIGIN ? [new URL(env.PUBLIC_ORIGIN).hostname] : [])],
       /* 🚨 Vite's default deny list blocks .env but not *.local -- where every
          token, password hash and session lives. Second lock: isSecretPath in
          server/guard.ts. Test: tests/secretFiles.test.ts. */

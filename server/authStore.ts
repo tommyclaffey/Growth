@@ -78,8 +78,16 @@ export function userByIdentity(p: Provider, subject: string): User | undefined {
  *   "@company.com" for a whole domain. Unset = nobody new.
  */
 export function mayJoin(email: string, local: boolean, allowed = process.env.GROWTH_ALLOWED_EMAILS ?? ''): boolean {
-  if (users().length === 0) return local;
   const e = normEmail(email);
+  /* The FIRST account becomes the owner. From this machine, anyone at the
+     keyboard may create it. Hosted (Railway), no request is ever local -- so
+     the owner is named in advance: GROWTH_OWNER_EMAIL, that exact address and
+     nobody else. Unset on a host means nobody can claim the instance, which is
+     the safe failure. */
+  if (users().length === 0) {
+    const owner = normEmail(process.env.GROWTH_OWNER_EMAIL ?? '');
+    return local || (owner !== '' && e === owner);
+  }
   return allowed.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)
     .some((rule) => (rule.startsWith('@') ? e.endsWith(rule) : e === rule));
 }

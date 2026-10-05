@@ -226,7 +226,9 @@ export function authApi(): Plugin {
               providers: Object.fromEntries((Object.keys(PROVIDERS) as Provider[]).map((p) => [p, configured(p)])),
               firstRun,
               /* The first account can only be made from this machine. */
-              canCreateOwner: firstRun && isLocal(req),
+              /* Hosted: the form shows when an owner is named in advance; the
+                 signup route still accepts ONLY that address (mayJoin). */
+              canCreateOwner: firstRun && (isLocal(req) || Boolean(process.env.GROWTH_OWNER_EMAIL)),
               /* The demo account, likewise: this machine only. */
               canUseDemo: isLocal(req),
             });
