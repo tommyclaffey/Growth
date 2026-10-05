@@ -23,10 +23,18 @@ an ID.
 | 1 | Web app, desktop layout | ✅ live | — | — |
 | 2 | **Phone layout** — phase 1 (shell, Overview, Decisions, Notifications, Campaigns) | ✅ live Oct 4 | — | — |
 | 2b | **Phone layout** — phase 2 (Reports, Ads, detail pages, menus, calendar sheet) | ✅ live Oct 4 | — | — |
-| 3 | **Real backend** — the `/api` plugin moves off Tommy's Mac to a host + database, so real ad data works anywhere | 🔨 next — Tommy creating a Railway account | 2–4 sessions | ~$0–20/mo |
+| 3 | **Real backend** — the `/api` plugin moves off Tommy's Mac to a host, so real ad data works anywhere | ✅ **live Oct 5** — https://growth-production-1846.up.railway.app | — | Railway trial → Hobby $5/mo |
 | 4 | **Installable web app (PWA)** — manifest, icons, offline shell, Add to Home Screen | ✅ live Oct 4 (Chrome: 0 installability errors) | — | free |
 | 5 | **App Store + Google Play** (Capacitor) — needs native value to pass Apple 4.2: **push alerts** ("Meta CAC +42%"), **Face ID**, a **widget** with the week's plan | ⬜ | 2–3 sessions + review | Apple $99/yr · Google $25 once |
 | 6 | **Mac + Windows downloads** (Tauri) | ⬜ | 1–2 sessions | Apple $99/yr covers Mac signing; Windows cert optional (~$100–300/yr, else a SmartScreen warning) |
+
+**🚂 Railway (Oct 5):** project `growth`, service `growth`, deploys on every push to `main` (GitHub repo
+linked). `server/prod.mjs` = Vite middleware mode running the same `/api` plugins + the built `dist/`.
+Volume `growth-volume` at `/data` (`GROWTH_DATA_DIR`). Vars: `GROWTH_OWNER_EMAIL` (only this email may
+create the first account), `PUBLIC_ORIGIN`, `ANTHROPIC_API_KEY`. Health check `/healthz`.
+- ⚠️ `railway.json` (Config as Code) is deprecated; works until **2026-12-01** → run `railway config migrate`.
+- Meta / Google redirect URI on Railway: `https://growth-production-1846.up.railway.app/api/connect/callback`.
+- The GitHub Pages site stays the public DEMO (no server). Railway is Tommy's real instance.
 
 **Why 3 before 4–6:** the ad-platform connections run only on Tommy's Mac today (Vite dev-server plugin);
 the public site has no server and always shows the demo. A downloaded app has no Mac to talk to —
