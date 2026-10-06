@@ -32,7 +32,15 @@ an ID.
 linked). `server/prod.mjs` = Vite middleware mode running the same `/api` plugins + the built `dist/`.
 Volume `growth-volume` at `/data` (`GROWTH_DATA_DIR`). Vars: `GROWTH_OWNER_EMAIL` (only this email may
 create the first account), `PUBLIC_ORIGIN`, `ANTHROPIC_API_KEY`. Health check `/healthz`.
-- ⚠️ `railway.json` (Config as Code) is deprecated; works until **2026-12-01** → run `railway config migrate`.
+- ⚠️ `railway.json` (Config as Code) is deprecated; works until **2026-12-01**.
+  🛑 **Do NOT `railway config apply` the file `railway config migrate` writes** (tried Oct 6, plan only):
+  its plan deleted all 6 variables, disconnected the GitHub source and detached `growth-volume`.
+  `--service growth` fixes the name; restart policy has no IaC option (Railway's default is ON_FAILURE x10, fine).
+  `railway environment edit -s …` answered "No changes to apply" for every setting, so dashboard is the route.
+  ✅ **Before Dec 1, by hand in the dashboard** (service growth → Settings): Build `npm run build`,
+  Start `npm start`, Healthcheck `/healthz` (timeout 120). Then railway.json can go.
+  Side effect of the Oct 6 dry run: the service's "Config file" setting is now empty; root railway.json
+  is still read by default (build log: "Custom start command detected"), verified with a redeploy.
 - Meta / Google redirect URI on Railway: `https://growth-production-1846.up.railway.app/api/connect/callback`.
 - The GitHub Pages site stays the public DEMO (no server). Railway is Tommy's real instance.
 
