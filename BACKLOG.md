@@ -33,6 +33,10 @@ linked). `server/prod.mjs` = Vite middleware mode running the same `/api` plugin
 Volume `growth-volume` at `/data` (`GROWTH_DATA_DIR`). Vars: `GROWTH_OWNER_EMAIL` (only this email may
 create the first account), `PUBLIC_ORIGIN`, `ANTHROPIC_API_KEY`. Health check `/healthz`.
 - ⚠️ `railway.json` (Config as Code) is deprecated; works until **2026-12-01**.
+  ✅ **Public demo (Oct 7):** `/demo` → signed in as Maya at Northbank, fenced to `/api/auth/*`
+  (guard rule 4, allowlist). Needs `GROWTH_PUBLIC_DEMO=1` (set on Railway). Team of six with photos.
+  ⚠️ **Oct 6 side effect, fixed Oct 7:** `config migrate --apply` also removed the GitHub deploy trigger,
+  so pushes stopped deploying. Restored with `railway service source connect --repo tommyclaffey/Growth --branch main --service growth`.
   🛑 **Do NOT `railway config apply` the file `railway config migrate` writes** (tried Oct 6, plan only):
   its plan deleted all 6 variables, disconnected the GitHub source and detached `growth-volume`.
   `--service growth` fixes the name; restart policy has no IaC option (Railway's default is ON_FAILURE x10, fine).
