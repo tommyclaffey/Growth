@@ -27,6 +27,9 @@ export interface AuthUser {
   role: 'owner' | 'member';
   /** The built-in demo account (Maya at Northbank). */
   demo?: boolean;
+  /** The PUBLIC demo: the server answers /api/auth/* only. The app runs it
+      exactly like the static demo -- sample data, no server features. */
+  sandboxed?: boolean;
 }
 
 export type AuthState =
@@ -73,6 +76,11 @@ export function refreshAuth(force = false): Promise<AuthState> {
 }
 
 export function authState(): AuthState { return state; }
+
+/** Signed in to the public demo. Known before App mounts: Root waits for auth. */
+export function isSandboxed(): boolean {
+  return state.status === 'signed-in' && Boolean(state.user.sandboxed);
+}
 
 export function useAuth(): AuthState {
   return useSyncExternalStore(

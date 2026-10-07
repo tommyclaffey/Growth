@@ -94,10 +94,12 @@ export function mayJoin(email: string, local: boolean, allowed = process.env.GRO
 
 export function createUser(u: { email: string; name: string; avatar?: string; password?: string; identity?: [Provider, string] }): User {
   const list = users();
-  const owner = list.length === 0;
-  const id = owner ? OWNER_SEAT : `u_${randomBytes(6).toString('hex')}`;
+  /* The demo account never counts: a visitor opening the public demo first
+     must not cost the real first person their ownership. */
+  const owner = !list.some((x) => !x.demo);
+  const id = owner && !list.some((x) => x.id === OWNER_SEAT) ? OWNER_SEAT : `u_${randomBytes(6).toString('hex')}`;
   const made: User = {
-    id, seat: id, email: normEmail(u.email), name: u.name.trim() || normEmail(u.email).split('@')[0],
+    id, seat: owner ? OWNER_SEAT : id, email: normEmail(u.email), name: u.name.trim() || normEmail(u.email).split('@')[0],
     avatar: u.avatar, role: owner ? 'owner' : 'member',
     password: u.password ? hashPassword(u.password) : undefined,
     identities: u.identity ? { [u.identity[0]]: u.identity[1] } : {},
@@ -115,16 +117,21 @@ export function createUser(u: { email: string; name: string; avatar?: string; pa
  * No password, so it cannot be signed into from anywhere but this machine:
  * the route that uses it refuses remote requests.
  */
-export function demoUser(): User {
+export function demoUser(opts: { mayOwn?: boolean } = {}): User {
   const list = users();
   const found = list.find((u) => u.demo);
-  if (found) return found;
+  if (found) {
+    /* 🛑 Never an owner when it can be opened from outside -- a demo made on a
+       fresh local install keeps the role it was made with only on this machine. */
+    if (found.role === 'owner' && !opts.mayOwn) return updateUser(found.id, (u) => ({ ...u, role: 'member' })) ?? found;
+    return found;
+  }
   const taken = list.some((u) => u.seat === OWNER_SEAT);
   const made: User = {
     id: taken ? `u_demo_${randomBytes(4).toString('hex')}` : OWNER_SEAT,
     seat: OWNER_SEAT,
     email: 'maya@northbank.demo', name: 'Maya Okonkwo',
-    role: list.length === 0 ? 'owner' : 'member',
+    role: list.length === 0 && opts.mayOwn ? 'owner' : 'member',
     identities: {}, demo: true, createdAt: new Date().toISOString(),
   };
   saveUsers([...list, made]);
@@ -182,12 +189,12 @@ type Sessions = Record<string, { userId: string; exp: number }>;
    everyone's sign-in. */
 const tokenKey = (t: string) => createHash('sha256').update(t).digest('hex');
 
-export function createSession(userId: string): { token: string; maxAge: number } {
+export function createSession(userId: string, days = SESSION_DAYS): { token: string; maxAge: number } {
   const token = randomBytes(32).toString('base64url');
   const all = readJson<Sessions>(SESSIONS(), {});
   const now = Date.now();
   for (const [k, v] of Object.entries(all)) if (v.exp < now) delete all[k];
-  const maxAge = SESSION_DAYS * 86_400;
+  const maxAge = Math.round(days * 86_400);
   all[tokenKey(token)] = { userId, exp: now + maxAge * 1000 };
   writeJson(SESSIONS(), all);
   return { token, maxAge };

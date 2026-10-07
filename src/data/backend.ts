@@ -24,14 +24,18 @@ import { useEffect, useState } from 'react';
 let cached: boolean | null = null;
 
 export async function probeBackend(): Promise<boolean> {
-  if (cached !== null) return cached;
+  /* No early return on `cached`: the answer changes when someone signs in to
+     the public demo. refreshAuth() is itself cached, so this is still one
+     request per page, not one per caller. */
   /* The sign-in probe answers this too: /api/auth/me is always 200 when a
      server exists (signed in or not), and absent on the static build. One
      request, one answer -- and /api/slack/status now needs a session, so it
      would have read a signed-out server as "no server". */
   const { refreshAuth } = await import('./auth');
   const s = await refreshAuth();
-  cached = s.status !== 'no-server';
+  /* A sandboxed demo session is signed in to a server that will refuse it
+     everything but sign-out -- so for every feature, there is no server. */
+  cached = s.status !== 'no-server' && !(s.status === 'signed-in' && s.user.sandboxed);
   return cached;
 }
 

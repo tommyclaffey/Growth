@@ -793,3 +793,6 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
   .gr-table .gr-ads__row > .gr-ac--status { grid-area: status; justify-self: end; }
   .gr-table .gr-ads__row > .gr-table__ask { display: none; }
 }
+
+/* Team card (Settings): a real list for screen readers, without the bullets. */
+.gr-team { list-style: none; margin: 0; padding: 0; }

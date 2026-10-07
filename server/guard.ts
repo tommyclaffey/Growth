@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
-import { requester } from './auth.js';
+import { requester, sandboxed } from './auth.js';
 import { escapeHtml, pathOf, send } from './http.js';
 
 /**
@@ -21,6 +21,10 @@ import { escapeHtml, pathOf, send } from './http.js';
  *   3. SIGNED IN. Every route needs a session -- on this machine too, since
  *      Sept 29: a login is who you are, and the Slack and model routes act AS
  *      you. (This replaced a shared tunnel key: one system per job.)
+ *   4. THE PUBLIC DEMO IS FENCED IN (Oct 7). A sandboxed demo session reaches
+ *      /api/auth/* and nothing else -- not the owner's ad data, not Slack, not
+ *      the paid model. An allowlist, so a route added later is closed to it
+ *      until someone decides otherwise.
  *
  * Exempt from 3 -- each is verified another way, or is how you sign in:
  *   /api/auth/*           signing in, and the "is there a server" probe
@@ -35,7 +39,7 @@ const EXEMPT_JSON = new Set(['/api/slack/events']);
 export type Verdict = { ok: true } | { ok: false; status: number; error: string };
 
 /** Pure decision, so it is tested without a server. */
-export function check(req: IncomingMessage, path: string, signedIn: boolean): Verdict {
+export function check(req: IncomingMessage, path: string, signedIn: boolean, fenced = false): Verdict {
   const h = req.headers;
   const method = (req.method ?? 'GET').toUpperCase();
 
@@ -61,6 +65,11 @@ export function check(req: IncomingMessage, path: string, signedIn: boolean): Ve
     if ((len > 0 || chunked) && !/^application\/json\b/i.test(type)) {
       return { ok: false, status: 415, error: 'JSON only.' };
     }
+  }
+
+  /* 4. The public demo. */
+  if (fenced && !path.startsWith('/api/auth/')) {
+    return { ok: false, status: 403, error: 'Not available in the demo account.' };
   }
 
   /* 3. Signed in. */
@@ -109,7 +118,8 @@ export function accessGuard(): Plugin {
         const url = pathOf(req);
         if (!url) return send(res, 400, { error: 'Bad request.' });
         const path = `/api${url.pathname.replace(/\/$/, '')}`;
-        const v = check(req, path, Boolean(requester(req)));
+        const who = requester(req);
+        const v = check(req, path, Boolean(who), Boolean(who) && sandboxed(who!, req));
         if (v.ok) return next();
         if (req.headers['sec-fetch-mode'] === 'navigate') return page(res, v.status, 'Not allowed', escapeHtml(v.error));
         return send(res, v.status, { error: v.error });

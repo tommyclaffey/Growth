@@ -1,4 +1,11 @@
 import mayaPhoto from '../assets/maya.jpg';
+/* The demo team's faces. Generated (Figma AI, Oct 7 2026) -- these people do
+   not exist, so no real person is cast as a fictional employee. */
+import jessPhoto from '../assets/team/jess.jpg';
+import danPhoto from '../assets/team/dan.jpg';
+import amaraPhoto from '../assets/team/amara.jpg';
+import leoPhoto from '../assets/team/leo.jpg';
+import priyaPhoto from '../assets/team/priya.jpg';
 import type { ChannelName } from '../styles/tokens';
 import { DERIVED_METRICS, type DerivedMetric } from './channelMetrics';
 import { CAMPAIGNS } from './campaigns';
@@ -14,6 +21,8 @@ export interface Member {
   /* A stable hue index so a person is the same colour in every message.
      Colour follows the entity, never its position in the list. */
   hue: 0 | 1 | 2 | 3;
+  /** Job title, for the Team card. Absent for people Slack added. */
+  role?: string;
 }
 
 /**
@@ -25,16 +34,18 @@ export interface Member {
  * that shows a cast of named colleagues and then calls the user "You" has one
  * seat at the table that is not a person.
  */
-export const ME: Member = { id: 'maya', name: 'Maya Okonkwo', initials: 'MO', hue: 0, avatar: mayaPhoto };
+export const ME: Member = { id: 'maya', name: 'Maya Okonkwo', initials: 'MO', hue: 0, avatar: mayaPhoto, role: 'Growth lead' };
 
 /** What the account row shows under her name. A live binding: sign-in changes it. */
 export let ME_ROLE = 'Growth lead';
 
 export const MEMBERS: Record<string, Member> = {
   maya: ME,
-  jr: { id: 'jr', name: 'Jess Ramírez', initials: 'JR', hue: 1 },
-  dk: { id: 'dk', name: 'Dan Kwon',     initials: 'DK', hue: 2 },
-  ap: { id: 'ap', name: 'Amara Price',  initials: 'AP', hue: 3 },
+  jr: { id: 'jr', name: 'Jess Ramírez',  initials: 'JR', hue: 1, avatar: jessPhoto,  role: 'Paid social manager' },
+  dk: { id: 'dk', name: 'Dan Kwon',      initials: 'DK', hue: 2, avatar: danPhoto,   role: 'Performance analyst' },
+  ap: { id: 'ap', name: 'Amara Price',   initials: 'AP', hue: 3, avatar: amaraPhoto, role: 'Creative lead' },
+  lh: { id: 'lh', name: 'Leo Hartmann',  initials: 'LH', hue: 1, avatar: leoPhoto,   role: 'Search & SEO lead' },
+  pn: { id: 'pn', name: 'Priya Nair',    initials: 'PN', hue: 2, avatar: priyaPhoto, role: 'Lifecycle & CRM' },
 };
 
 /**
@@ -59,6 +70,7 @@ export function adoptMe(u: { seat: string; name: string; avatar?: string; role: 
   ME.initials = u.name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
   /* No photo from the provider = initials, never Maya's face on someone else. */
   ME.avatar = u.avatar;
+  ME.role = u.role === 'owner' ? 'Owner' : 'Member';
   MEMBERS[ME.id] = ME;
   ME_ROLE = u.role === 'owner' ? 'Owner' : 'Member';
 }

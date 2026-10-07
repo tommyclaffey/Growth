@@ -135,8 +135,8 @@ export function requester(req: IncomingMessage): User | undefined {
   return sessionUser(cookieOf(req, COOKIE));
 }
 
-function setSession(req: IncomingMessage, res: ServerResponse, user: User) {
-  const { token, maxAge } = createSession(user.id);
+function setSession(req: IncomingMessage, res: ServerResponse, user: User, days?: number) {
+  const { token, maxAge } = createSession(user.id, days);
   const secure = originOf(req).startsWith('https:') ? '; Secure' : '';
   /* Appended, not replaced: the sign-in callback has already cleared its state cookie. */
   const prev = res.getHeader?.('Set-Cookie');
@@ -144,7 +144,42 @@ function setSession(req: IncomingMessage, res: ServerResponse, user: User) {
   res.setHeader('Set-Cookie', [...kept, `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`]);
 }
 
-const publicUser = (u: User) => ({ id: u.id, seat: u.seat, name: u.name, email: u.email, avatar: u.avatar, role: u.role, demo: Boolean(u.demo) });
+const publicUser = (u: User, req?: IncomingMessage) => ({
+  id: u.id, seat: u.seat, name: u.name, email: u.email, avatar: u.avatar, role: u.role, demo: Boolean(u.demo),
+  sandboxed: req ? sandboxed(u, req) : Boolean(u.demo),
+});
+
+/* ------------------------------------------------------------ public demo */
+
+/**
+ * The demo account, opened from anywhere -- the link Tommy shares.
+ *
+ * Off unless GROWTH_PUBLIC_DEMO=1 (set on Railway). When on, a demo session is
+ * SANDBOXED: the guard lets it reach /api/auth/* and nothing else, so it can
+ * never read the owner's ad accounts, Slack, or spend the Anthropic key. The
+ * app treats a sandboxed session exactly like the static GitHub Pages demo:
+ * sample data, no server features.
+ */
+export const publicDemo = () => process.env.GROWTH_PUBLIC_DEMO === '1';
+export function sandboxed(u: Pick<User, 'demo'>, req: IncomingMessage): boolean {
+  return Boolean(u.demo) && (publicDemo() || !isLocal(req));
+}
+const mayOpenDemo = (req: IncomingMessage) => isLocal(req) || publicDemo();
+/* A public link gets crawled. Demo sessions last a day, and one address can
+   open at most 30 an hour, so the sessions file cannot be filled by a bot. */
+const DEMO_DAYS = 1;
+const demoOpens = new Map<string, number[]>();
+function demoTooOften(req: IncomingMessage): boolean {
+  if (isLocal(req)) return false;
+  const ip = String(req.headers['x-forwarded-for'] ?? req.socket?.remoteAddress ?? '?').split(',')[0].trim();
+  const now = Date.now();
+  const recent = (demoOpens.get(ip) ?? []).filter((t) => now - t < 3_600_000);
+  if (recent.length >= 30) return true;
+  recent.push(now);
+  demoOpens.set(ip, recent);
+  if (demoOpens.size > 5_000) demoOpens.clear();
+  return false;
+}
 
 /* ------------------------------------------------------------------ OAuth */
 
@@ -222,15 +257,15 @@ export function authApi(): Plugin {
             const { users } = await import('./authStore.js');
             const firstRun = users().length === 0;
             return send(res, 200, {
-              user: me ? publicUser(me) : null,
+              user: me ? publicUser(me, req) : null,
               providers: Object.fromEntries((Object.keys(PROVIDERS) as Provider[]).map((p) => [p, configured(p)])),
               firstRun,
               /* The first account can only be made from this machine. */
               /* Hosted: the form shows when an owner is named in advance; the
                  signup route still accepts ONLY that address (mayJoin). */
               canCreateOwner: firstRun && (isLocal(req) || Boolean(process.env.GROWTH_OWNER_EMAIL)),
-              /* The demo account, likewise: this machine only. */
-              canUseDemo: isLocal(req),
+              /* The demo account: this machine, or anyone when the public demo is on. */
+              canUseDemo: mayOpenDemo(req),
             });
           }
 
@@ -285,10 +320,27 @@ export function authApi(): Plugin {
              the seat that holds the owner's Slack link -- through the tunnel it
              would be an open door to their Slack and the Claude key. */
           if (req.method === 'POST' && path === '/demo') {
-            if (!isLocal(req)) return send(res, 403, { error: 'The demo account only opens on the computer running Growth.' });
-            const user = demoUser();
-            setSession(req, res, user);
-            return send(res, 200, { user: publicUser(user) });
+            if (!mayOpenDemo(req)) return send(res, 403, { error: 'The demo account only opens on the computer running Growth.' });
+            if (demoTooOften(req)) return send(res, 429, { error: 'Too many demo sign-ins from here. Try again in an hour.' });
+            const user = demoUser({ mayOwn: isLocal(req) && !publicDemo() });
+            setSession(req, res, user, sandboxed(user, req) ? DEMO_DAYS : undefined);
+            return send(res, 200, { user: publicUser(user, req) });
+          }
+
+          /* The shareable link: /demo -> here -> signed in as Maya -> the app.
+             A real person who is already signed in keeps their own session --
+             a link must not be able to swap someone out of their account. */
+          if (req.method === 'GET' && path === '/demo') {
+            const home = '/Growth/';
+            res.statusCode = 302;
+            res.setHeader('Location', home);
+            res.setHeader('Cache-Control', 'no-store');
+            if (!mayOpenDemo(req) || (me && !me.demo) || demoTooOften(req)) return res.end();
+            if (!me) {
+              const user = demoUser({ mayOwn: isLocal(req) && !publicDemo() });
+              setSession(req, res, user, sandboxed(user, req) ? DEMO_DAYS : undefined);
+            }
+            return res.end();
           }
 
           if (req.method === 'POST' && path === '/logout') {

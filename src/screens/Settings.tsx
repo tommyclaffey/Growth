@@ -19,6 +19,7 @@ import { AccountLinks } from '../components/AccountLinks/AccountLinks';
 import { DataSourceCard } from '../components/DataSourceCard/DataSourceCard';
 import { ChannelBudgets } from '../components/ChannelBudgets/ChannelBudgets';
 import { ME, ME_ROLE } from '../data/chat';
+import { TeamCard } from '../components/TeamCard/TeamCard';
 
 
 const SYNCED: Record<ChannelName, string> = {
@@ -85,6 +86,8 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
             <AvatarUpload />
           </div>
         </section>
+
+        <TeamCard />
 
         <DataSourceCard />
 
