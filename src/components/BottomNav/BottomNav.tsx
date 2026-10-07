@@ -24,9 +24,12 @@ export interface BottomNavProps {
   counts?: Partial<Record<NavKey, number>>;
   onTeam?: () => void;
   onExport?: () => void;
+  /** Light / dark. The sidebar has the button; on a phone it is a row here. */
+  theme?: 'light' | 'dark';
+  onToggleTheme?: () => void;
 }
 
-export function BottomNav({ active, onNavigate, counts = {}, onTeam, onExport }: BottomNavProps) {
+export function BottomNav({ active, onNavigate, counts = {}, onTeam, onExport, theme, onToggleTheme }: BottomNavProps) {
   const [open, setOpen] = useState(false);
   const sheet = useRef<HTMLDivElement>(null);
   useOverlay(open, sheet, () => setOpen(false));
@@ -81,10 +84,12 @@ export function BottomNav({ active, onNavigate, counts = {}, onTeam, onExport }:
                 );
               })}
             </ul>
-            {(onTeam || onExport) && (
+            {(onTeam || onExport || onToggleTheme) && (
               <ul className="gr-bottomnav__list gr-bottomnav__list--actions">
                 {onTeam && <li><button type="button" className="gr-bottomnav__row gr-type-body-medium" onClick={() => { setOpen(false); onTeam(); }}>Team chat</button></li>}
                 {onExport && <li><button type="button" className="gr-bottomnav__row gr-type-body-medium" onClick={() => { setOpen(false); onExport(); }}>Export CSV</button></li>}
+                {/* Stays open: the row's own label flipping is the confirmation. */}
+                {onToggleTheme && <li><button type="button" className="gr-bottomnav__row gr-type-body-medium" onClick={onToggleTheme}>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</button></li>}
               </ul>
             )}
           </div>

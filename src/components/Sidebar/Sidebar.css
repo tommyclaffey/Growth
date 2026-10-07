@@ -156,3 +156,6 @@
 
 /* 📱 On a phone the bottom tab bar is the navigation (BottomNav). */
 @media (max-width: 640px) { .gr-sidebar { display: none; } }
+
+/* Light / dark beside the logo, pushed to the rail's right edge. */
+.gr-sidebar__logo .gr-theme-button { margin-left: auto; flex: none; }

@@ -359,6 +359,7 @@ export default function App() {
   /* The attribute is what CSS reads, so it has to be set for the INITIAL value
      too -- not only on toggle. Restoring dark from storage without this left
      the state saying dark and every token still light. */
+  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* quota */ }
@@ -602,7 +603,7 @@ export default function App() {
           render checks `adId` first -- so you stayed on the ad, now with no
           campaign behind it and a breadcrumb reading "Campaign". Every tier has
           to clear, not just the first one that was noticed. */}
-      <Sidebar active={nav} counts={navCounts} onNavigate={navigateTo} />
+      <Sidebar active={nav} counts={navCounts} onNavigate={navigateTo} theme={theme} onToggleTheme={toggleTheme} />
 
       <div className={`gr-main ${chatOpen ? 'is-chat-open' : ''}`}>
         <header className="gr-header">
@@ -974,7 +975,8 @@ export default function App() {
       <BottomNav active={nav} counts={navCounts}
                  onNavigate={navigateTo}
                  onTeam={() => setChatOpen(true)}
-                 onExport={() => downloadCsv(scope, range)} />
+                 onExport={() => downloadCsv(scope, range)}
+                 theme={theme} onToggleTheme={toggleTheme} />
 
       {chatOpen && (
         <ChatPanel
