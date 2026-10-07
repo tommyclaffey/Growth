@@ -36,7 +36,8 @@ describe('who may create an account', () => {
 
 describe('the demo account', () => {
   it('is Maya in the maya seat, with no password, created once', () => {
-    const d = demoUser();
+    /* mayOwn: only the local route on a fresh install, never the public one. */
+    const d = demoUser({ mayOwn: true });
     expect(d).toMatchObject({ seat: 'maya', name: 'Maya Okonkwo', demo: true, role: 'owner' });
     expect(d.password).toBeUndefined();
     expect(demoUser().id).toBe(d.id);

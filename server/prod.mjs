@@ -9,6 +9,7 @@
 //
 //   /api/*      -> the plugins, guard first (session, origin, secret files)
 //   /healthz    -> 200, for Railway's health check
+//   /demo       -> the public demo account (GROWTH_PUBLIC_DEMO=1)
 //   /           -> redirect to /Growth/ (the app's base path)
 //   /Growth/*   -> the BUILT app from dist/, with the SPA fallback
 //
@@ -78,6 +79,8 @@ const http = createHttp((req, res) => {
     return vite.middlewares(req, res, () => { res.statusCode = 404; res.setHeader('Content-Type', 'application/json'); res.end('{"error":"Not found."}'); });
   }
   if (url === '/' || url === '/Growth') { res.statusCode = 302; res.setHeader('Location', BASE); return res.end(); }
+  /* The shareable demo link (Oct 7): signs in as Maya at Northbank, sandboxed. */
+  if (url === '/demo' || url === '/demo/') { res.statusCode = 302; res.setHeader('Location', '/api/auth/demo'); return res.end(); }
   if (url.startsWith(BASE)) return serveApp(req, res);
   res.statusCode = 404; res.end('Not found');
 });

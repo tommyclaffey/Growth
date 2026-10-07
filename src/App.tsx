@@ -13,6 +13,7 @@ import { ChannelWordmark } from './components/ChannelWordmark/ChannelWordmark';
 import { useChannels } from './data/channels';
 import { notifications, type NoteKind } from './data/notifications';
 import { setDemoState, useDemoState } from './data/demoState';
+import { isSandboxed } from './data/auth';
 import { useDataSource } from './data/useDataSource';
 import { seededSource } from './data/sources/seeded';
 import { metaSource } from './data/sources/meta';
@@ -143,7 +144,10 @@ export default function App() {
   /* ⭐ Phase 3: the data comes from a SOURCE, loaded with real request state.
      The Settings simulator still overrides it, so the states can be looked at
      on the demo account -- but it is now the second way in, not the only one. */
-  const { dataSource } = usePrefs();
+  const { dataSource: chosen } = usePrefs();
+  /* The public demo account always shows the sample company, whatever this
+     browser chose last time -- the server refuses it real data anyway. */
+  const dataSource = isSandboxed() ? 'seeded' : chosen;
   const source = useDataSource(dataSource === 'meta' ? metaSource : dataSource === 'google' ? googleSource : seededSource);
   const demo = simulated !== 'ready' ? simulated : source.status;
 
