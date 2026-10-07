@@ -4,6 +4,7 @@ import { ME, ME_ROLE } from '../../data/chat';
 import { useAvatarFor, useWorkspaceName } from '../../data/profile';
 
 import { NAV, type Item, type NavKey } from './nav';
+import { ThemeButton, type Theme } from '../ThemeButton/ThemeButton';
 export type { NavKey } from './nav';
 
 export interface SidebarProps {
@@ -11,6 +12,9 @@ export interface SidebarProps {
   onNavigate: (key: NavKey) => void;
   /** Waiting items, shown as a count on the item. Zero or absent = no badge. */
   counts?: Partial<Record<NavKey, number>>;
+  /** Light / dark, switched from beside the logo. Absent = no button. */
+  theme?: Theme;
+  onToggleTheme?: () => void;
 }
 
 
@@ -26,7 +30,7 @@ export interface SidebarProps {
  * selection — an item can be active AND focused — and modelling it as a State
  * would take Nav item from 28 variants to 56 for zero added expressiveness.
  */
-export function Sidebar({ active, onNavigate, counts = {} }: SidebarProps) {
+export function Sidebar({ active, onNavigate, counts = {}, theme, onToggleTheme }: SidebarProps) {
   const avatarFor = useAvatarFor();
   /* Read once at the top rather than inline in the JSX -- a hook call buried in
      an attribute is a hook whose ordering nobody can check at a glance. */
@@ -57,6 +61,7 @@ export function Sidebar({ active, onNavigate, counts = {} }: SidebarProps) {
           <span className="gr-sidebar__wordmark gr-type-brand">GROWTH</span>
           <span className="gr-sidebar__workspace gr-type-caption">{workspace}</span>
         </span>
+        {theme && onToggleTheme && <ThemeButton theme={theme} onToggle={onToggleTheme} />}
       </div>
 
       {/* ONE list, Settings included (Tommy, Sept 30): Analyze / Act sections

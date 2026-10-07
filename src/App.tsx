@@ -359,6 +359,7 @@ export default function App() {
   /* The attribute is what CSS reads, so it has to be set for the INITIAL value
      too -- not only on toggle. Restoring dark from storage without this left
      the state saying dark and every token still light. */
+  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* quota */ }
@@ -602,7 +603,7 @@ export default function App() {
           render checks `adId` first -- so you stayed on the ad, now with no
           campaign behind it and a breadcrumb reading "Campaign". Every tier has
           to clear, not just the first one that was noticed. */}
-      <Sidebar active={nav} counts={navCounts} onNavigate={navigateTo} />
+      <Sidebar active={nav} counts={navCounts} onNavigate={navigateTo} theme={theme} onToggleTheme={toggleTheme} />
 
       <div className={`gr-main ${chatOpen ? 'is-chat-open' : ''}`}>
         <header className="gr-header">
@@ -665,17 +666,6 @@ export default function App() {
                 - Primary at the far right, where the eye ends. */}
             <div className="gr-toolbar__group gr-toolbar__group--actions">
               {/* On a phone these two move into the tab bar's More sheet. */}
-              {/* Light / dark, one press (Oct 7). The Figma "Theme toggle": a moon
-                  in light mode, a sun in dark -- the icon is where you'd go. On
-                  every screen size; Settings keeps its switch too. */}
-              <Button
-                variant="ghost"
-                className="gr-button--square"
-                icon={theme === 'dark' ? <IconSun /> : <IconMoon />}
-                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              />
               <Button variant="ghost" className="gr-wide-only" icon={<IconDownload />} onClick={() => downloadCsv(scope, range)}>Export</Button>
               <Button variant="ghost" className="gr-wide-only" onClick={() => setChatOpen(!chatOpen)}>Team</Button>
               <Button variant="primary" icon={<IconAsk />} onClick={() => setAssistOpen(true)}>Ask AI</Button>
@@ -985,7 +975,8 @@ export default function App() {
       <BottomNav active={nav} counts={navCounts}
                  onNavigate={navigateTo}
                  onTeam={() => setChatOpen(true)}
-                 onExport={() => downloadCsv(scope, range)} />
+                 onExport={() => downloadCsv(scope, range)}
+                 theme={theme} onToggleTheme={toggleTheme} />
 
       {chatOpen && (
         <ChatPanel
@@ -1031,23 +1022,6 @@ function IconAsk() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
       <path d="M7 1.5v11M1.5 7h11M3.2 3.2l7.6 7.6M10.8 3.2l-7.6 7.6" />
-    </svg>
-  );
-}
-function IconMoon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
-         strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" />
-    </svg>
-  );
-}
-function IconSun() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
-         strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
     </svg>
   );
 }

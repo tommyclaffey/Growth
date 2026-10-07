@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import App from '../App';
 
 beforeAll(() => {
@@ -13,11 +13,12 @@ beforeAll(() => {
 });
 afterEach(() => { cleanup(); localStorage.clear(); delete document.documentElement.dataset.theme; });
 
-describe('the light / dark button in the top bar', () => {
+describe('the light / dark button beside the Growth logo', () => {
   it('flips the theme in one press, names where it goes, and remembers it', () => {
     localStorage.setItem('growth.theme', 'light');
     render(<App />);
-    const toDark = screen.getByRole('button', { name: 'Switch to dark mode' });
+    const rail = document.querySelector<HTMLElement>('.gr-sidebar')!;
+    const toDark = within(rail).getByRole('button', { name: 'Switch to dark mode' });
     expect(document.documentElement.dataset.theme).toBe('light');
 
     fireEvent.click(toDark);
@@ -27,5 +28,17 @@ describe('the light / dark button in the top bar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Switch to light mode' }));
     expect(document.documentElement.dataset.theme).toBe('light');
     expect(localStorage.getItem('growth.theme')).toBe('light');
+  });
+});
+
+describe('on a phone: a row in More', () => {
+  it('reads as where it will take you, and flips without closing the sheet', () => {
+    localStorage.setItem('growth.theme', 'light');
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /^More/ }));
+    const sheet = screen.getByRole('dialog', { name: 'More' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Dark mode' }));
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(within(screen.getByRole('dialog', { name: 'More' })).getByRole('button', { name: 'Light mode' })).toBeTruthy();
   });
 });
