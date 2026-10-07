@@ -9,7 +9,9 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   caret?: boolean;
   /** A leading 14px icon, drawn in currentColor. */
   icon?: ReactNode;
-  children: ReactNode;
+  /** Omit only for an icon-only button (`gr-button--square`), which then
+      MUST carry an aria-label -- the icon is aria-hidden. */
+  children?: ReactNode;
 }
 
 /**
