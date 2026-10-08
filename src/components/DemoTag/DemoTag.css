@@ -1,0 +1,15 @@
+/* DemoTag — a pill in the accent's own tint: brand, not warning. */
+.gr-demo-tag {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  color: var(--accent-text);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+/* Above the type class, which resets the weight with its font shorthand. */
+.gr-demo-tag.gr-type-micro { font-weight: 600; }
