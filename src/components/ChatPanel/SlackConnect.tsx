@@ -34,9 +34,9 @@ export function SlackConnect({ onConnected }: { onConnected: () => void }) {
   if (!backend) {
     return (
       <div className="gr-slack">
-        <p className="gr-type-body">Slack sync runs in the local build.</p>
+        <p className="gr-type-body">Slack connects on a real account.</p>
         <p className="gr-type-caption gr-slack__hint">
-          It needs a server for OAuth and for Slack to post events back to.
+          The demo's team chat runs on sample messages.
           Everything else on this page works here.
         </p>
       </div>
