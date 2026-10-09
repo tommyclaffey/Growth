@@ -100,6 +100,10 @@ body {
   align-items: center;
 }
 .gr-toolbar__title p  { margin: 0; color: var(--text-muted); }
+.gr-toolbar__titlerow { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
+/* Shown only on a phone (the block below turns it on). Scoped through the
+   toolbar so it outranks a component's own display rule. */
+.gr-toolbar .gr-phone-only { display: none; }
 .gr-toolbar__spacer { flex: 1; }
 /* A group holds together on one line; the toolbar wraps between groups. */
 .gr-toolbar__group { display: flex; align-items: center; gap: var(--space-12); }
@@ -286,6 +290,7 @@ body {
   /* Export and Team live in the tab bar's More sheet on a phone. Scoped to the
      toolbar so it outranks the button's own display rule. */
   .gr-toolbar .gr-wide-only { display: none; }
+  .gr-toolbar .gr-phone-only { display: inline-flex; }
   /* The two filters share the row evenly, whatever their labels say. */
   /* Scoped through .gr-toolbar: the switcher's own `flex: none` loads later
      with the same specificity and won. */

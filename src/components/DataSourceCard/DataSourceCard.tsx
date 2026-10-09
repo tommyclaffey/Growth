@@ -101,7 +101,7 @@ function PlatformRow<A extends Choice>({ p }: { p: Platform<A> }) {
       <span className="gr-setting-row__text">
         <strong className="gr-type-body-medium">{p.name}</strong>
         <span className="gr-type-caption">
-          {step === 'static' && 'Real accounts need the local build — this public demo has no server.'}
+          {step === 'static' && 'Connects on a real account. The demo runs on sample data.'}
           {step === 'checking' && 'Checking…'}
           {step === 'no-app' && p.missingApp}
           {step === 'connect' && (status?.expired ? `Your ${p.short} sign-in expired. Connect again.` : `Connect ${p.short} to read the accounts you have access to.`)}

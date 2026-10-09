@@ -148,8 +148,8 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
             </span>
             {backend === false ? (
               <span className="gr-setting-row__connect is-unavailable gr-type-caption"
-                    title="Connecting Teams needs a server for OAuth">
-                Connect in local build
+                    title="Connecting Teams needs a signed-in, non-demo account">
+                Not in the demo
               </span>
             ) : (
               <a className="gr-setting-row__connect is-primary gr-type-caption" href="/api/connect/teams">
@@ -212,8 +212,8 @@ export function Settings({ theme, onThemeChange }: SettingsProps) {
                        toggle in the first place. */
                     backend === false ? (
                       <span className="gr-setting-row__connect is-unavailable gr-type-caption"
-                            title="Connecting an ad account needs a server for OAuth">
-                        Connect in local build
+                            title="Connecting an ad account needs a signed-in, non-demo account">
+                        Not in the demo
                       </span>
                     ) : (
                       <a className="gr-setting-row__connect is-primary gr-type-caption"

@@ -157,5 +157,9 @@
 /* 📱 On a phone the bottom tab bar is the navigation (BottomNav). */
 @media (max-width: 640px) { .gr-sidebar { display: none; } }
 
+/* Workspace and, on the sample company, the DEMO pill -- one line. The
+   name gives way (ellipsis) before the pill or the theme button does. */
+.gr-sidebar__brand-line { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+
 /* Light / dark beside the logo, pushed to the rail's right edge. */
 .gr-sidebar__logo .gr-theme-button { margin-left: auto; flex: none; }

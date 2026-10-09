@@ -5,6 +5,7 @@ import { useAvatarFor, useWorkspaceName } from '../../data/profile';
 
 import { NAV, type Item, type NavKey } from './nav';
 import { ThemeButton, type Theme } from '../ThemeButton/ThemeButton';
+import { DemoTag } from '../DemoTag/DemoTag';
 export type { NavKey } from './nav';
 
 export interface SidebarProps {
@@ -59,7 +60,13 @@ export function Sidebar({ active, onNavigate, counts = {}, theme, onToggleTheme 
             and the account you are inside it is a line under it. */}
         <span className="gr-sidebar__brand-text">
           <span className="gr-sidebar__wordmark gr-type-brand">GROWTH</span>
-          <span className="gr-sidebar__workspace gr-type-caption">{workspace}</span>
+          {/* Workspace, and on the sample company the DEMO pill beside it --
+              the line that says WHOSE account this is. (Beside GROWTH it ran
+              under the light / dark button: the rail is 232 wide.) */}
+          <span className="gr-sidebar__brand-line">
+            <span className="gr-sidebar__workspace gr-type-caption">{workspace}</span>
+            <DemoTag />
+          </span>
         </span>
         {theme && onToggleTheme && <ThemeButton theme={theme} onToggle={onToggleTheme} />}
       </div>

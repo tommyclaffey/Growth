@@ -14,6 +14,7 @@ import { useChannels } from './data/channels';
 import { notifications, type NoteKind } from './data/notifications';
 import { setDemoState, useDemoState } from './data/demoState';
 import { isSandboxed } from './data/auth';
+import { DemoTag } from './components/DemoTag/DemoTag';
 import { useDataSource } from './data/useDataSource';
 import { seededSource } from './data/sources/seeded';
 import { metaSource } from './data/sources/meta';
@@ -629,6 +630,7 @@ export default function App() {
           </div>
           <div className="gr-toolbar">
             <div className="gr-toolbar__title">
+              <div className="gr-toolbar__titlerow">
               <h1 className="gr-type-page-title">
                 {/* On a channel screen the title is the channel's own logo,
                     matching the design — where each brand lockup appears
@@ -638,6 +640,9 @@ export default function App() {
                   ? <ChannelWordmark channel={channel} name={title} />
                   : title}
               </h1>
+              {/* The sidebar carries it on a desktop; a phone has no sidebar. */}
+              <DemoTag className="gr-phone-only" />
+              </div>
               <p className="gr-type-caption">{sub}</p>
             </div>
             <div className="gr-toolbar__spacer" />
