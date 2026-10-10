@@ -1,5 +1,6 @@
 import './DemoTag.css';
 import { useAuth } from '../../data/auth';
+import { openWelcome } from '../../data/welcome';
 
 /** True on the sample company: the demo account, or the static public demo. */
 export function useIsDemo(): boolean {
@@ -17,11 +18,15 @@ export function useIsDemo(): boolean {
 export function DemoTag({ className }: { className?: string }) {
   if (!useIsDemo()) return null;
   return (
-    <span
+    /* A button: it brings back the welcome card (what this is, what to try). */
+    <button
+      type="button"
       className={['gr-demo-tag', 'gr-type-micro', className].filter(Boolean).join(' ')}
-      title="Sample company and data. Nothing here touches a real ad account."
+      title="Sample company and data. Click for the welcome tour."
+      aria-label="Demo account: show the welcome tour"
+      onClick={openWelcome}
     >
       Demo
-    </span>
+    </button>
   );
 }

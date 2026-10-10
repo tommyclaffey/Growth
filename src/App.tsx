@@ -14,7 +14,9 @@ import { useChannels } from './data/channels';
 import { notifications, type NoteKind } from './data/notifications';
 import { setDemoState, useDemoState } from './data/demoState';
 import { isSandboxed } from './data/auth';
-import { DemoTag } from './components/DemoTag/DemoTag';
+import { DemoTag, useIsDemo } from './components/DemoTag/DemoTag';
+import { WelcomeCard } from './components/WelcomeCard/WelcomeCard';
+import { openWelcome, welcomeSeen } from './data/welcome';
 import { useDataSource } from './data/useDataSource';
 import { seededSource } from './data/sources/seeded';
 import { metaSource } from './data/sources/meta';
@@ -361,6 +363,14 @@ export default function App() {
      too -- not only on toggle. Restoring dark from storage without this left
      the state saying dark and every token still light. */
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+  /* The demo's welcome card, once per browser -- not on a phone, where a
+     card this size is a wall; there the DEMO pill opens it on request. */
+  const isDemo = useIsDemo();
+  useEffect(() => {
+    if (!isDemo || welcomeSeen() || window.matchMedia?.('(max-width: 640px)').matches) return;
+    const t = window.setTimeout(openWelcome, 400);
+    return () => window.clearTimeout(t);
+  }, [isDemo]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* quota */ }
@@ -977,6 +987,12 @@ export default function App() {
       />
 
       {/* ⭐ The phone's navigation -- hidden above 640px, where the sidebar is. */}
+      <WelcomeCard
+        onDecisions={() => navigateTo('decisions')}
+        onAsk={() => setAssistOpen(true)}
+        onChannels={() => navigateTo('channels')}
+        onTeam={() => setChatOpen(true)}
+      />
       <BottomNav active={nav} counts={navCounts}
                  onNavigate={navigateTo}
                  onTeam={() => setChatOpen(true)}

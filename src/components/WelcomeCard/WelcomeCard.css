@@ -1,0 +1,66 @@
+/* WelcomeCard — the demo's front door. Every value is a token. */
+.gr-welcome__scrim {
+  position: fixed; inset: 0; z-index: 400;
+  display: grid; place-items: center;
+  padding: var(--space-24);
+  background: var(--surface-scrim);
+}
+.gr-welcome {
+  width: min(100%, 560px);
+  max-height: 100%;
+  overflow: auto;
+  display: flex; flex-direction: column; gap: var(--space-12);
+  padding: var(--space-28) var(--space-28) var(--space-24);
+  background: var(--surface-card);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-card);
+  color: var(--text-primary);
+}
+.gr-welcome__pill {
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-8);
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  color: var(--accent-text);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.gr-welcome__pill.gr-type-micro { font-weight: 600; }
+.gr-welcome__title, .gr-welcome__lede, .gr-welcome__persona, .gr-welcome__label { margin: 0; }
+.gr-welcome__lede.gr-type-card-heading { font-weight: 400; color: var(--text-primary); }
+.gr-welcome__persona { color: var(--text-secondary); }
+.gr-welcome__label {
+  margin-top: var(--space-4);
+  color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.gr-welcome__steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-8); }
+.gr-welcome__step {
+  width: 100%;
+  display: flex; align-items: center; gap: var(--space-14);
+  padding: var(--space-12) var(--space-16);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.gr-welcome__step:hover { border-color: var(--border-strong); background: var(--surface-card-tint); }
+.gr-welcome__step:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; }
+.gr-welcome__num {
+  flex: none; width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  color: var(--accent-text);
+}
+.gr-welcome__num.gr-type-body-medium { font-weight: 600; }
+.gr-welcome__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.gr-welcome__text strong { font-weight: 600; }
+.gr-welcome__text .gr-type-caption { color: var(--text-secondary); }
+.gr-welcome__chev { flex: none; color: var(--text-muted); }
+.gr-welcome__foot { display: flex; align-items: center; gap: var(--space-16); margin-top: var(--space-8); }
+.gr-welcome__credit { flex: 1; color: var(--text-secondary); }
+.gr-welcome__credit a { color: var(--accent-text); text-decoration: none; font-weight: 500; }
+.gr-welcome__credit a:hover { text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) { .gr-welcome__step { transition: none; } }
