@@ -1,0 +1,48 @@
+/* Tour — spotlight + step card. Above the welcome card; every value a token. */
+.gr-tour { position: fixed; inset: 0; z-index: 450; pointer-events: none; }
+.gr-tour__block { position: absolute; inset: 0; pointer-events: auto; }
+.gr-tour__spot {
+  position: fixed;
+  border-radius: var(--radius-xl);
+  /* The scrim is this shadow: everything but the hole is dimmed. */
+  box-shadow: 0 0 0 9999px var(--surface-scrim), 0 0 0 var(--border-width-md) var(--focus-ring);
+  transition: top 200ms ease, left 200ms ease, width 200ms ease, height 200ms ease;
+}
+.gr-tour__card {
+  position: fixed; width: 340px;
+  pointer-events: auto;
+  display: flex; flex-direction: column; gap: var(--space-8);
+  padding: var(--space-20) var(--space-20) var(--space-16);
+  background: var(--surface-card);
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  color: var(--text-primary);
+  transition: top 200ms ease, left 200ms ease;
+}
+.gr-tour__card.is-waiting { visibility: hidden; }
+.gr-tour__count { margin: 0; color: var(--accent-text); text-transform: uppercase; letter-spacing: 0.06em; }
+.gr-tour__count.gr-type-micro { font-weight: 600; }
+.gr-tour__title { margin: 0; }
+.gr-tour__body { margin: 0; color: var(--text-secondary); }
+.gr-tour__dots { display: flex; gap: var(--space-4); margin-top: var(--space-4); }
+.gr-tour__dots span { width: 6px; height: 6px; border-radius: var(--radius-pill); background: var(--border-strong); }
+.gr-tour__dots .is-done { background: var(--accent-soft); }
+.gr-tour__dots .is-on { width: 18px; background: var(--accent-base); }
+.gr-tour__foot { display: flex; align-items: center; gap: var(--space-8); margin-top: var(--space-8); }
+.gr-tour__end {
+  margin-right: auto; padding: 0; border: none; background: none;
+  color: var(--text-secondary); cursor: pointer;
+}
+.gr-tour__end:hover { color: var(--text-primary); text-decoration: underline; }
+.gr-tour__end:focus-visible { outline: var(--border-width-md) solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* 📱 A phone: the card docks to the bottom, full width, over the tab bar. */
+@media (max-width: 640px) {
+  .gr-tour__card {
+    top: auto !important; left: var(--space-12) !important; right: var(--space-12);
+    bottom: calc(var(--space-12) + env(safe-area-inset-bottom));
+    width: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) { .gr-tour__spot, .gr-tour__card { transition: none; } }

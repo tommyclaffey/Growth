@@ -25,6 +25,7 @@ export function DemoTag({ className }: { className?: string }) {
       title="Sample company and data. Click for the welcome tour."
       aria-label="Demo account: show the welcome tour"
       onClick={openWelcome}
+      data-tour="demo"
     >
       Demo
     </button>
