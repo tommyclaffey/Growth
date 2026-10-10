@@ -67,7 +67,7 @@ export function WelcomeCard({ onDecisions, onAsk, onChannels, onTeam }: WelcomeC
         </ol>
         <div className="gr-welcome__foot">
           <span className="gr-type-caption gr-welcome__credit">
-            Designed by <a href="https://www.tommyclaffey.com" target="_blank" rel="noopener noreferrer">Tommy Claffey</a>
+            Designed and engineered by <a href="https://www.tommyclaffey.com" target="_blank" rel="noopener noreferrer">Tommy Claffey</a>
           </span>
           <Button variant="primary" onClick={closeWelcome} autoFocus>Start exploring</Button>
         </div>

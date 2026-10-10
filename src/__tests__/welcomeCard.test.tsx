@@ -29,6 +29,7 @@ describe('the demo welcome card', () => {
     const card = screen.getByRole('dialog', { name: 'Welcome to Growth' });
     expect(card.textContent).toContain('Live demo');
     expect(card.textContent).toContain('Maya Okonkwo');
+    expect(card.textContent).toContain('Designed and engineered by Tommy Claffey');
     expect(within(card).getByRole('link', { name: 'Tommy Claffey' }).getAttribute('href')).toBe('https://www.tommyclaffey.com');
     expect(localStorage.getItem(WELCOME_KEY)).toBe('1');
     fireEvent.click(within(card).getByRole('button', { name: 'Start exploring' }));
