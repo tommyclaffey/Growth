@@ -3,6 +3,7 @@ import './WelcomeCard.css';
 import { Button } from '../Button/Button';
 import { useOverlay } from '../../data/useOverlay';
 import { closeWelcome, useWelcomeOpen } from '../../data/welcome';
+import { startTour } from '../../data/tour';
 
 export interface WelcomeCardProps {
   onDecisions: () => void;
@@ -69,7 +70,11 @@ export function WelcomeCard({ onDecisions, onAsk, onChannels, onTeam }: WelcomeC
           <span className="gr-type-caption gr-welcome__credit">
             Designed and engineered by <a href="https://www.tommyclaffey.com" target="_blank" rel="noopener noreferrer">Tommy Claffey</a>
           </span>
-          <Button variant="primary" onClick={closeWelcome} autoFocus>Start exploring</Button>
+          <div className="gr-welcome__actions">
+            <Button variant="ghost" onClick={closeWelcome}>Explore on my own</Button>
+            {/* The guided walk: the same four ideas, shown on the real screens. */}
+            <Button variant="primary" onClick={() => { closeWelcome(); startTour(); }} autoFocus>Take the tour</Button>
+          </div>
         </div>
       </div>
     </div>

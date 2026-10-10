@@ -128,7 +128,7 @@ export function ChannelTable({
   }), { spend: 0, leads: 0, revenue: 0 });
 
   return (
-    <div className="gr-card">
+    <div className="gr-card" data-tour="channels">
       <header className="gr-card__header">
         <h3 className="gr-card__title gr-type-card-heading">Channels</h3>
         {onMetricChange && (

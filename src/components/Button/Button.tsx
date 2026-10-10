@@ -1,5 +1,5 @@
 import './Button.css';
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 
 export type ButtonVariant = 'primary' | 'ghost';
 
@@ -12,6 +12,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** Omit only for an icon-only button (`gr-button--square`), which then
       MUST carry an aria-label -- the icon is aria-hidden. */
   children?: ReactNode;
+  /** React 19: a ref is a plain prop, passed through to the <button>. */
+  ref?: Ref<HTMLButtonElement>;
 }
 
 /**

@@ -32,7 +32,7 @@ describe('the demo welcome card', () => {
     expect(card.textContent).toContain('Designed and engineered by Tommy Claffey');
     expect(within(card).getByRole('link', { name: 'Tommy Claffey' }).getAttribute('href')).toBe('https://www.tommyclaffey.com');
     expect(localStorage.getItem(WELCOME_KEY)).toBe('1');
-    fireEvent.click(within(card).getByRole('button', { name: 'Start exploring' }));
+    fireEvent.click(within(card).getByRole('button', { name: 'Explore on my own' }));
     expect(screen.queryByRole('dialog', { name: 'Welcome to Growth' })).toBeNull();
   });
 

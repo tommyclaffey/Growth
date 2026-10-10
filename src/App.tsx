@@ -16,6 +16,7 @@ import { setDemoState, useDemoState } from './data/demoState';
 import { isSandboxed } from './data/auth';
 import { DemoTag, useIsDemo } from './components/DemoTag/DemoTag';
 import { WelcomeCard } from './components/WelcomeCard/WelcomeCard';
+import { Tour } from './components/Tour/Tour';
 import { openWelcome, welcomeSeen } from './data/welcome';
 import { useDataSource } from './data/useDataSource';
 import { seededSource } from './data/sources/seeded';
@@ -682,8 +683,8 @@ export default function App() {
             <div className="gr-toolbar__group gr-toolbar__group--actions">
               {/* On a phone these two move into the tab bar's More sheet. */}
               <Button variant="ghost" className="gr-wide-only" icon={<IconDownload />} onClick={() => downloadCsv(scope, range)}>Export</Button>
-              <Button variant="ghost" className="gr-wide-only" onClick={() => setChatOpen(!chatOpen)}>Team</Button>
-              <Button variant="primary" icon={<IconAsk />} onClick={() => setAssistOpen(true)}>Ask AI</Button>
+              <Button variant="ghost" className="gr-wide-only" data-tour="team" onClick={() => setChatOpen(!chatOpen)}>Team</Button>
+              <Button variant="primary" data-tour="ask" icon={<IconAsk />} onClick={() => setAssistOpen(true)}>Ask AI</Button>
             </div>
           </div>
         </header>
@@ -701,7 +702,7 @@ export default function App() {
           )}
           {showDashboard && (
             <>
-              <div className="gr-kpi-row">
+              <div className="gr-kpi-row" data-tour="kpis">
                 {/* ⭐ Driven by what the scope can report, not four hardcoded
                     cards.
 
@@ -993,6 +994,7 @@ export default function App() {
         onChannels={() => navigateTo('channels')}
         onTeam={() => setChatOpen(true)}
       />
+      <Tour nav={nav} onGo={navigateTo} />
       <BottomNav active={nav} counts={navCounts}
                  onNavigate={navigateTo}
                  onTeam={() => setChatOpen(true)}

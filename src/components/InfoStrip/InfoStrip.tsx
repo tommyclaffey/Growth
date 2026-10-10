@@ -54,7 +54,7 @@ export function InfoStrip({
   if (alerts.length === 0 && !undoLabel) return null;
 
   return (
-    <div className="gr-strip">
+    <div className="gr-strip" data-tour="attention">
       <div className="gr-strip__lead">
         <span className="gr-strip__dot" aria-hidden="true" />
         <span className="gr-strip__title gr-type-strip">{title}</span>

@@ -449,7 +449,7 @@ function PlanCard({ plan, range, onAccepted }: { plan: Plan; range: Range; onAcc
   const moneyLine = money.length
     ? `${money.join(money.length > 2 ? ', ' : ' and ').replace(/^./, (x) => x.toUpperCase())}. ` : '';
   return (
-    <section className="gr-card gr-dec__plan" aria-labelledby="gr-dec-plan-kicker">
+    <section className="gr-card gr-dec__plan" aria-labelledby="gr-dec-plan-kicker" data-tour="plan">
       <header className="gr-dec__plan-head">
         <p className="gr-type-overline gr-dec__plan-kicker" id="gr-dec-plan-kicker">This week’s plan</p>
         <h3 className="gr-type-section gr-dec__action">
@@ -532,7 +532,7 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range, onShare }:
   const accepted = isFlagged('decision', c.id);
 
   return (
-    <article className={`gr-card gr-dec__card is-tier-${c.tier} ${flag && isOverdue(flag) ? 'is-overdue' : ''}`}>
+    <article className={`gr-card gr-dec__card is-tier-${c.tier} ${flag && isOverdue(flag) ? 'is-overdue' : ''}`} data-tour="decision">
       {/* ⭐ Where this decision lives, before what it says.
 
           A decision without its scope is an instruction with no address.
@@ -579,7 +579,7 @@ function DecisionCard({ candidate: c, flag, onDiscuss, onOpen, range, onShare }:
           claim that compares two things. Structural findings have no line:
           a count of ad groups has no chance in it. */}
       {c.confidence && (
-        <p className={`gr-type-caption gr-dec__confidence is-${c.confidence.level}`}>
+        <p className={`gr-type-caption gr-dec__confidence is-${c.confidence.level}`} data-tour="confidence">
           <span className="gr-type-overline">
             {c.confidence.level === 'high' ? 'High confidence' : c.confidence.level === 'medium' ? 'Medium confidence' : 'Low confidence'}
           </span>{' '}

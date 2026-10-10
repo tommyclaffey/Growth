@@ -59,8 +59,9 @@
 .gr-welcome__text strong { font-weight: 600; }
 .gr-welcome__text .gr-type-caption { color: var(--text-secondary); }
 .gr-welcome__chev { flex: none; color: var(--text-muted); }
-.gr-welcome__foot { display: flex; align-items: center; gap: var(--space-16); margin-top: var(--space-8); }
-.gr-welcome__credit { flex: 1; color: var(--text-secondary); }
+.gr-welcome__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-12) var(--space-16); margin-top: var(--space-8); }
+.gr-welcome__credit { flex: 1 1 auto; color: var(--text-secondary); }
+.gr-welcome__actions { display: flex; gap: var(--space-8); margin-left: auto; }
 .gr-welcome__credit a { color: var(--accent-text); text-decoration: none; font-weight: 500; }
 .gr-welcome__credit a:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) { .gr-welcome__step { transition: none; } }
