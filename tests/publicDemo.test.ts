@@ -7,7 +7,7 @@ import { authApi, sandboxed } from '../server/auth.js';
 import { check } from '../server/guard.js';
 
 /**
- * 🔒 The public demo link (Oct 7): anyone can open Maya's account on the
+ * 🔒 The public demo link (Oct 7): anyone can open Elise's account on the
  * hosted Growth, so a demo session must be fenced to /api/auth/* -- never the
  * owner's ad data, Slack, or the paid model -- and must never own anything.
  */
@@ -52,14 +52,14 @@ describe('the shareable /demo link', () => {
     expect(r.token).toBeUndefined();
   });
 
-  it('when on: signs a visitor in as Maya, for a day, and sends them to the app', async () => {
+  it('when on: signs a visitor in as Elise, for a day, and sends them to the app', async () => {
     process.env.GROWTH_PUBLIC_DEMO = '1';
     createUser({ email: 'tommy@example.com', name: 'Tommy' });
     const r = await openDemo(REMOTE);
     expect(r.status).toBe(302);
     expect(r.headers.location).toBe('/Growth/');
     expect(r.token).toBeTruthy();
-    expect(sessionUser(r.token)).toMatchObject({ name: 'Maya Okonkwo', demo: true, role: 'member' });
+    expect(sessionUser(r.token)).toMatchObject({ name: 'Elise Marchetti', demo: true, role: 'member' });
     expect(String(r.headers['set-cookie'])).toMatch(/Max-Age=86400/);
   });
 

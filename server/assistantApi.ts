@@ -537,7 +537,7 @@ function buildTools(
       description:
         'The team\'s decisions queue: what has been decided (newest first), who owns each, its due date, '
         + 'whether it is overdue, and how it has been graded so far (worked / missed / pending / no new data / needs the person to judge). '
-        + 'Use for "what did we decide", "is it working", "what is overdue", "what does Jess own".',
+        + 'Use for "what did we decide", "is it working", "what is overdue", "what does Camila own".',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       run: () => JSON.stringify({
         count: commitments.length,

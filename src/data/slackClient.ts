@@ -70,7 +70,7 @@ export async function loadThread(): Promise<Thread> {
     if (!d.messages?.length) return seeded;
     /* Seed first, then the live channel.
        The scripted thread is not fake next to real data — the whole account is
-       invented, and $160,780 of spend is exactly as made up as Amara's message.
+       invented, and $160,780 of spend is exactly as made up as Imani's message.
        What it is, is written: it shows what the panel is for in four messages,
        which a real channel reading "this is a test" does not. It stays as
        history above the live conversation. */
@@ -80,7 +80,7 @@ export async function loadThread(): Promise<Thread> {
         const found = decodeView(m.body);
         const base = found ? { ...m, body: found.text, view: found.view } : m;
         /* Anything not marked fromSlack was posted by this app, which means
-           Maya wrote it — Slack just recorded the bot as the author because
+           Elise wrote it — Slack just recorded the bot as the author because
            the bot holds the token. Attributing it to the app's own identity is
            the truth of who typed it. Slack's own record still says Growth;
            changing that needs chat:write.customize and a reinstall. */

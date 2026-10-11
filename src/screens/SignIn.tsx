@@ -142,7 +142,7 @@ export function SignIn({ providers, firstRun, canCreateOwner, canUseDemo = false
                     }}>
               Use the demo account
             </Button>
-            <p className="gr-type-caption gr-signin__notice">Maya at Northbank — sample data, every feature.</p>
+            <p className="gr-type-caption gr-signin__notice">Elise at Copperline — sample data, every feature.</p>
           </div>
         )}
 

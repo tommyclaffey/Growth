@@ -86,12 +86,12 @@ describe('the Reports screen', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'TikTok' }));
     fireEvent.click(within(form).getByRole('button', { name: 'Weekly' }));
     expect(form.textContent).toMatch(/Pick at least one person/);
-    fireEvent.click(within(form).getByRole('button', { name: 'Jess Ramírez' }));
+    fireEvent.click(within(form).getByRole('button', { name: 'Camila Duarte' }));
     fireEvent.click(create);
 
     const mine = reports().find((r) => r.name === 'Paid social Monday')!;
     expect(mine.channels).toEqual(['meta', 'tiktok']);
-    expect(mine.recipients).toEqual(['jr']);
+    expect(mine.recipients).toEqual(['cd']);
     const row = [...container.querySelectorAll('tbody tr')][0] as HTMLElement;
     expect(row.textContent).toContain('Meta · TikTok');
     expect(row.textContent).toContain('Never run');

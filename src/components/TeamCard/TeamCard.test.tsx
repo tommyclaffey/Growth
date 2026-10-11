@@ -8,9 +8,9 @@ describe('TeamCard', () => {
     render(<TeamCard />);
     const items = within(screen.getByRole('list')).getAllByRole('listitem');
     expect(items).toHaveLength(6);
-    expect(items[0].textContent).toContain('Maya Okonkwo (you)');
+    expect(items[0].textContent).toContain('Elise Marchetti (you)');
     expect(items[0].textContent).toContain('Growth lead');
-    for (const name of ['Jess Ramírez', 'Dan Kwon', 'Amara Price', 'Leo Hartmann', 'Priya Nair']) {
+    for (const name of ['Camila Duarte', 'Kenji Mori', 'Imani Brooks', 'Oskar Brandt', 'Anjali Menon']) {
       expect(screen.getByRole('img', { name }).getAttribute('src')).toBeTruthy();
     }
     expect(screen.getByText('Paid social manager')).toBeTruthy();

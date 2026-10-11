@@ -1,11 +1,11 @@
-import mayaPhoto from '../assets/maya.jpg';
+import elisePhoto from '../assets/elise.jpg';
 /* The demo team's faces. Generated (Figma AI, Oct 7 2026) -- these people do
    not exist, so no real person is cast as a fictional employee. */
-import jessPhoto from '../assets/team/jess.jpg';
-import danPhoto from '../assets/team/dan.jpg';
-import amaraPhoto from '../assets/team/amara.jpg';
-import leoPhoto from '../assets/team/leo.jpg';
-import priyaPhoto from '../assets/team/priya.jpg';
+import camilaPhoto from '../assets/team/camila.jpg';
+import kenjiPhoto from '../assets/team/kenji.jpg';
+import imaniPhoto from '../assets/team/imani.jpg';
+import oskarPhoto from '../assets/team/oskar.jpg';
+import anjaliPhoto from '../assets/team/anjali.jpg';
 import type { ChannelName } from '../styles/tokens';
 import { DERIVED_METRICS, type DerivedMetric } from './channelMetrics';
 import { CAMPAIGNS } from './campaigns';
@@ -34,18 +34,18 @@ export interface Member {
  * that shows a cast of named colleagues and then calls the user "You" has one
  * seat at the table that is not a person.
  */
-export const ME: Member = { id: 'maya', name: 'Maya Okonkwo', initials: 'MO', hue: 0, avatar: mayaPhoto, role: 'Growth lead' };
+export const ME: Member = { id: 'maya', name: 'Elise Marchetti', initials: 'EM', hue: 0, avatar: elisePhoto, role: 'Growth lead' };
 
 /** What the account row shows under her name. A live binding: sign-in changes it. */
 export let ME_ROLE = 'Growth lead';
 
 export const MEMBERS: Record<string, Member> = {
   maya: ME,
-  jr: { id: 'jr', name: 'Jess Ramírez',  initials: 'JR', hue: 1, avatar: jessPhoto,  role: 'Paid social manager' },
-  dk: { id: 'dk', name: 'Dan Kwon',      initials: 'DK', hue: 2, avatar: danPhoto,   role: 'Performance analyst' },
-  ap: { id: 'ap', name: 'Amara Price',   initials: 'AP', hue: 3, avatar: amaraPhoto, role: 'Creative lead' },
-  lh: { id: 'lh', name: 'Leo Hartmann',  initials: 'LH', hue: 1, avatar: leoPhoto,   role: 'Search & SEO lead' },
-  pn: { id: 'pn', name: 'Priya Nair',    initials: 'PN', hue: 2, avatar: priyaPhoto, role: 'Lifecycle & CRM' },
+  cd: { id: 'cd', name: 'Camila Duarte',  initials: 'CD', hue: 1, avatar: camilaPhoto,  role: 'Paid social manager' },
+  km: { id: 'km', name: 'Kenji Mori',      initials: 'KM', hue: 2, avatar: kenjiPhoto,   role: 'Performance analyst' },
+  ib: { id: 'ib', name: 'Imani Brooks',   initials: 'IB', hue: 3, avatar: imaniPhoto, role: 'Creative lead' },
+  ob: { id: 'ob', name: 'Oskar Brandt',  initials: 'OB', hue: 1, avatar: oskarPhoto,   role: 'Search & SEO lead' },
+  am: { id: 'am', name: 'Anjali Menon',    initials: 'AM', hue: 2, avatar: anjaliPhoto, role: 'Lifecycle & CRM' },
 };
 
 /**
@@ -54,21 +54,21 @@ export const MEMBERS: Record<string, Member> = {
  * ME is one object shared by reference everywhere (MEMBERS, the chat, the
  * sidebar), so it is updated IN PLACE rather than replaced. The owner keeps
  * the "maya" seat -- their existing threads, decisions and Slack link are
- * already keyed to it. Anyone else gets their own seat, and the demo's Maya
+ * already keyed to it. Anyone else gets their own seat, and the demo's Elise
  * stays in the directory as a separate person, so a demo thread with her is
  * still a thread with someone else.
  */
 export function adoptMe(u: { seat: string; name: string; avatar?: string; role: 'owner' | 'member'; demo?: boolean }) {
-  /* The demo account IS the demo persona -- Maya, her photo, "Growth lead".
+  /* The demo account IS the demo persona -- Elise, her photo, "Growth lead".
      Nothing to adopt. */
   if (u.demo) return;
   if (u.seat !== ME.id) {
-    MEMBERS[ME.id] = { ...ME };        // the demo's Maya, as herself
+    MEMBERS[ME.id] = { ...ME };        // the demo's Elise, as herself
     ME.id = u.seat;
   }
   ME.name = u.name;
   ME.initials = u.name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
-  /* No photo from the provider = initials, never Maya's face on someone else. */
+  /* No photo from the provider = initials, never Elise's face on someone else. */
   ME.avatar = u.avatar;
   ME.role = u.role === 'owner' ? 'Owner' : 'Member';
   MEMBERS[ME.id] = ME;
@@ -158,21 +158,21 @@ export interface DecisionRef {
 }
 
 export const SEED: Message[] = [
-  { id: 'm1', authorId: 'jr', minutesAgo: 214, time: '8:12 AM',
+  { id: 'm1', authorId: 'cd', minutesAgo: 214, time: '8:12 AM',
     body: 'Meta CAC is up 42% week over week. Worth a look before Friday.' },
-  { id: 'm2', authorId: 'jr', minutesAgo: 212, time: '8:14 AM',
+  { id: 'm2', authorId: 'cd', minutesAgo: 212, time: '8:14 AM',
     /* "Advantage+ Shopping" is not a campaign in this account. Evergreen
        Signups is, and it carries 56% of Meta's spend. */
     body: 'Pulled the campaign split — Evergreen Signups carries over half of Meta spend, so most of it lands there.',
     view: { channel: 'meta', metric: 'CAC', range: 30 } },
-  { id: 'm3', authorId: 'dk', minutesAgo: 156, time: '9:10 AM', fromSlack: true,
+  { id: 'm3', authorId: 'km', minutesAgo: 156, time: '9:10 AM', fromSlack: true,
     body: 'That tracks. We raised the Advantage+ budget on the 14th and never re-baselined the target.' },
-  { id: 'm4', authorId: 'ap', minutesAgo: 88, time: '10:38 AM',
+  { id: 'm4', authorId: 'ib', minutesAgo: 88, time: '10:38 AM',
     body: 'Affiliates are quietly carrying the quarter. 5.2x and the cheapest leads we have.',
     view: { channel: 'affiliates', metric: 'ROAS', range: 30 } },
-  { id: 'm5', authorId: 'dk', minutesAgo: 41, time: '11:25 AM', fromSlack: true,
+  { id: 'm5', authorId: 'km', minutesAgo: 41, time: '11:25 AM', fromSlack: true,
     body: 'Proposal: move 15% of Meta prospecting into Affiliates for two weeks and measure.' },
-  { id: 'm6', authorId: 'jr', minutesAgo: 12, time: '11:54 AM',
+  { id: 'm6', authorId: 'cd', minutesAgo: 12, time: '11:54 AM',
     body: 'Works for me. Can someone pull the numbers into the Monday report?' },
 ];
 

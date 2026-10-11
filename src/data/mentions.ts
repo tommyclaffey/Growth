@@ -18,7 +18,7 @@ export function activeMention(text: string, caret: number): { query: string; sta
   /* Only a mention if the @ starts a word — an email address is not one. */
   if (at > 0 && !/\s/.test(upto[at - 1])) return null;
   const query = upto.slice(at + 1);
-  /* A space ends it: "@Dan " is finished, not still being typed. */
+  /* A space ends it: "@Kenji " is finished, not still being typed. */
   if (/\s/.test(query)) return null;
   return { query, start: at };
 }
@@ -35,8 +35,8 @@ export function applyMention(text: string, start: number, caret: number, name: s
 /**
  * `@Name` -> `<@U0123>` for Slack.
  *
- * Longest names first: with "Dan" and "Dan Kwon" both in the directory,
- * matching the short one first would turn "@Dan Kwon" into "<@Dan-id> Kwon".
+ * Longest names first: with "Kenji" and "Kenji Mori" both in the directory,
+ * matching the short one first would turn "@Kenji Mori" into "<@Kenji-id> Kwon".
  */
 export function toSlackMentions(text: string, people: Person[]): string {
   const sorted = [...people].filter((p) => p.slackId).sort((a, b) => b.name.length - a.name.length);

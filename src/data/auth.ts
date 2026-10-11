@@ -8,7 +8,7 @@ import { adoptMe } from './chat';
  *
  *   checking      asked the server, no answer yet
  *   no-server     the public demo (GitHub Pages has no /api) -- no login,
- *                 the demo runs as Maya exactly as before
+ *                 the demo runs as Elise exactly as before
  *   signed-out    a server exists and nobody is signed in: the sign-in screen
  *   signed-in     a real person; they take the "me" seat
  *
@@ -25,7 +25,7 @@ export interface AuthUser {
   email: string;
   avatar?: string;
   role: 'owner' | 'member';
-  /** The built-in demo account (Maya at Northbank). */
+  /** The built-in demo account (Elise at Copperline). */
   demo?: boolean;
   /** The PUBLIC demo: the server answers /api/auth/* only. The app runs it
       exactly like the static demo -- sample data, no server features. */
@@ -114,7 +114,7 @@ export async function signUp(name: string, email: string, password: string) {
   return r;
 }
 
-/** Straight into the full demo as Maya. This machine only. */
+/** Straight into the full demo as Elise. This machine only. */
 export async function enterDemo() {
   const r = await post('/api/auth/demo', {});
   if (r.ok) await refreshAuth(true);

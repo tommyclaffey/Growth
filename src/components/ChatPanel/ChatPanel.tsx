@@ -151,7 +151,7 @@ export function ChatPanel({
   const messages: Message[] = open?.messages ?? [];
   const mirrored = Boolean(open?.mirrorsSlack) && source === 'slack';
 
-  /* The directory is needed to turn "@Dan Kwon" into the id Slack stores, so
+  /* The directory is needed to turn "@Kenji Mori" into the id Slack stores, so
      it is fetched once rather than per keystroke. */
   useEffect(() => { void listPeople().then(setSlackPeople); }, [source]);
   const endRef = useRef<HTMLDivElement>(null);

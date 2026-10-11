@@ -10,7 +10,7 @@ import { resolve } from 'node:path';
  * database before this is hosted. Swapping it is this one file.
  *
  * ⚠️ SEATS. The product's chat, decisions and Slack links are keyed by a
- * person id ("maya", "jr"...). The FIRST account -- the owner -- takes the
+ * person id ("maya", "cd"...). The FIRST account -- the owner -- takes the
  * "maya" seat, so everything already in this instance (the Slack link, the
  * decisions queue, the threads) stays theirs. Everyone after gets their own id
  * as their seat. A seat is assigned by the server, never claimed by a browser.
@@ -29,12 +29,18 @@ export interface User {
   /** scrypt$<salt hex>$<hash hex>. Absent for people who only use a provider. */
   password?: string;
   identities: Partial<Record<Provider, string>>;
-  /** The built-in demo account: Maya at Northbank. No password -- local only. */
+  /** The built-in demo account: Elise at Copperline. No password -- local only. */
   demo?: boolean;
   createdAt: string;
 }
 
+/* A STORAGE KEY, not a name. The owner's threads, decisions and Slack link are
+   saved under it on the Railway volume, so it stays 'maya' even though the
+   demo persona was renamed (Oct 11: Elise Marchetti -- placeholder names are
+   unique per project). Changing it would orphan the real owner's data. */
 const OWNER_SEAT = 'maya';
+/** The demo persona. One place, so a rename reaches every saved copy. */
+const DEMO = { name: 'Elise Marchetti', email: 'elise@copperline.demo' };
 /* GROWTH_DATA_DIR lets tests use a throwaway folder; normally the project root. */
 const dir = () => process.env.GROWTH_DATA_DIR ?? process.cwd();
 const USERS = () => resolve(dir(), '.growth-users.local');
@@ -110,7 +116,7 @@ export function createUser(u: { email: string; name: string; avatar?: string; pa
 }
 
 /**
- * The demo account -- Maya Okonkwo, Growth lead at Northbank, in the "maya"
+ * The demo account -- Elise Marchetti, Growth lead at Copperline, in the "maya"
  * seat, so everything already in this instance (threads, decisions, the
  * Slack link) is hers. Created the first time it is used.
  *
@@ -121,6 +127,12 @@ export function demoUser(opts: { mayOwn?: boolean } = {}): User {
   const list = users();
   const found = list.find((u) => u.demo);
   if (found) {
+    /* A demo saved under an older persona (the volume keeps it) takes the
+       current name and email, so the live demo never shows the old cast. */
+    if (found.name !== DEMO.name || found.email !== DEMO.email) {
+      updateUser(found.id, (u) => ({ ...u, name: DEMO.name, email: DEMO.email }));
+      return demoUser(opts);
+    }
     /* 🛑 Never an owner when it can be opened from outside -- a demo made on a
        fresh local install keeps the role it was made with only on this machine. */
     if (found.role === 'owner' && !opts.mayOwn) return updateUser(found.id, (u) => ({ ...u, role: 'member' })) ?? found;
@@ -130,7 +142,7 @@ export function demoUser(opts: { mayOwn?: boolean } = {}): User {
   const made: User = {
     id: taken ? `u_demo_${randomBytes(4).toString('hex')}` : OWNER_SEAT,
     seat: OWNER_SEAT,
-    email: 'maya@northbank.demo', name: 'Maya Okonkwo',
+    email: DEMO.email, name: DEMO.name,
     role: list.length === 0 && opts.mayOwn ? 'owner' : 'member',
     identities: {}, demo: true, createdAt: new Date().toISOString(),
   };

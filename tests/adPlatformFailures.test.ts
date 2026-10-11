@@ -73,7 +73,7 @@ describe('Meta', () => {
   it('🔒 only the owner can switch the ad account', async () => {
     writeFileSync(join(dir, '.meta-tokens.local'), JSON.stringify({ accessToken: 'tok' }));
     createUser({ email: 'tommy@example.com', name: 'Tommy' });
-    const member = createUser({ email: 'jess@example.com', name: 'Jess' });
+    const member = createUser({ email: 'camila@example.com', name: 'Camila' });
     const r = await call(mount(metaApi(), '/api/meta'), 'POST', '/account', { cookie: `growth_session=${createSession(member.id).token}`, body: { id: 'act_2' } });
     expect(r.status).toBe(403);
     expect(JSON.parse(readFileSync(join(dir, '.meta-tokens.local'), 'utf8')).accountId).toBeUndefined();

@@ -103,14 +103,14 @@ describe('tasks are flags with fields', () => {
   it('assigning to something unflagged flags it first', () => {
     /* You cannot own a thing that is not on the list, and making someone press
        two buttons to express one intention is how features get called clunky. */
-    setTask('campaign', 'c1', 'Advantage+', { owner: 'jr' });
+    setTask('campaign', 'c1', 'Advantage+', { owner: 'cd' });
     expect(flags()).toHaveLength(1);
-    expect(flags()[0].owner).toBe('jr');
+    expect(flags()[0].owner).toBe('cd');
     expect(isTask(flags()[0])).toBe(true);
   });
 
   it('null clears one field without wiping the other', () => {
-    setTask('campaign', 'c1', 'x', { owner: 'jr', due: '2026-10-01' });
+    setTask('campaign', 'c1', 'x', { owner: 'cd', due: '2026-10-01' });
     setTask('campaign', 'c1', 'x', { owner: null });
     /* undefined means leave alone; null means clear. Without the distinction
        there is no way to unassign an owner without losing the due date. */

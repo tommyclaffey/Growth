@@ -79,7 +79,7 @@ const http = createHttp((req, res) => {
     return vite.middlewares(req, res, () => { res.statusCode = 404; res.setHeader('Content-Type', 'application/json'); res.end('{"error":"Not found."}'); });
   }
   if (url === '/' || url === '/Growth') { res.statusCode = 302; res.setHeader('Location', BASE); return res.end(); }
-  /* The shareable demo link (Oct 7): signs in as Maya at Northbank, sandboxed. */
+  /* The shareable demo link (Oct 7): signs in as Elise at Copperline, sandboxed. */
   if (url === '/demo' || url === '/demo/') { res.statusCode = 302; res.setHeader('Location', '/api/auth/demo'); return res.end(); }
   if (url.startsWith(BASE)) return serveApp(req, res);
   res.statusCode = 404; res.end('Not found');

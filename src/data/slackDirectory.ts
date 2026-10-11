@@ -39,7 +39,7 @@ export async function listPeople(): Promise<Person[]> {
  * Disconnect your own Slack account.
  *
  * There is no matching `link` — a link is only ever created by completing
- * Slack's consent screen. Asserting "that account is Dan" from a dropdown
+ * Slack's consent screen. Asserting "that account is Kenji" from a dropdown
  * would let one person put words in another's mouth.
  */
 export async function unlinkAccount(personId: string): Promise<boolean> {

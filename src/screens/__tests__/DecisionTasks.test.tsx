@@ -40,13 +40,13 @@ describe('G-008 — a decision gets an owner and a date', () => {
     const { container } = render(<Decisions range={30} />);
     const q = decided(container);
 
-    fireEvent.change(within(q).getByRole('combobox'), { target: { value: 'jr' } });
+    fireEvent.change(within(q).getByRole('combobox'), { target: { value: 'cd' } });
     fireEvent.change(q.querySelector('input[type="date"]')!, { target: { value: '2099-01-31' } });
 
     /* One record, grown fields -- not a second task list beside it. */
     const f = flags().filter((x) => x.kind === 'decision');
     expect(f).toHaveLength(1);
-    expect(f[0].owner).toBe('jr');
+    expect(f[0].owner).toBe('cd');
     expect(f[0].due).toBe('2099-01-31');
   });
 
@@ -69,7 +69,7 @@ describe('G-008 — a decision gets an owner and a date', () => {
 
   it('clearing the owner unassigns without touching the date', () => {
     const c = takeable();
-    setTask('decision', c.id, c.action, { owner: 'dk', due: '2099-02-01' });
+    setTask('decision', c.id, c.action, { owner: 'km', due: '2099-02-01' });
     setChannels([...CHANNEL_KEYS]);
     const { container } = render(<Decisions range={30} />);
     fireEvent.change(within(decided(container)).getByRole('combobox'), { target: { value: '' } });

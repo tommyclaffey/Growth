@@ -32,7 +32,7 @@ export function WelcomeCard({ onDecisions, onAsk, onChannels, onTeam }: WelcomeC
     { title: 'Review the decisions', body: 'The moves worth making this week, how sure Growth is of each, and what each would change', run: onDecisions },
     { title: 'Ask AI', body: 'Ask anything about the numbers. Every answer comes from this dashboard, with its sources', run: onAsk },
     { title: 'Drill down to a single ad', body: 'From six channels to one campaign, one ad set, one ad, and see what is working', run: onChannels },
-    { title: 'Meet the team', body: 'Assign a decision, send a report, or open the team chat with Jess, Dan and Amara', run: onTeam },
+    { title: 'Meet the team', body: 'Assign a decision, send a report, or open the team chat with Camila, Kenji and Imani', run: onTeam },
   ];
 
   return (
@@ -46,7 +46,7 @@ export function WelcomeCard({ onDecisions, onAsk, onChannels, onTeam }: WelcomeC
           every channel, finds the moves worth making, and says how sure it is.
         </p>
         <p className="gr-welcome__persona gr-type-body">
-          You&rsquo;re Maya Okonkwo, Growth lead at Northbank, with a team of six. Everyone here is
+          You&rsquo;re Elise Marchetti, Growth lead at Copperline, with a team of six. Everyone here is
           made up, and nothing touches a real ad account.
         </p>
         <p className="gr-welcome__label gr-type-micro">Try these</p>
