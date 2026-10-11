@@ -528,4 +528,23 @@
   }
   .gr-chart__header .gr-metrictoggle::-webkit-scrollbar { display: none; }
   .gr-chart__compare { order: 3; margin-left: 0; }
+
+  /* Table on a phone (Oct 11). The desktop rule shares the card width equally
+     across the columns (table-layout: fixed), which left ~45px per figure on a
+     370px card: "$160,7816,182" -- the numbers ran into each other and ROAS
+     was cut off. Here every column keeps a reading width and the table scrolls
+     sideways; the Date column is already sticky, so the row stays labelled. */
+  .gr-chart__table--periods { table-layout: auto; width: max-content; min-width: 100%; }
+  .gr-chart__table--periods tr > :first-child { width: auto; min-width: 72px; }
+  .gr-chart__table th,
+  .gr-chart__table td { min-width: 76px; white-space: nowrap; }
+  /* The column chips: one row that scrolls, like the metric toggle above. */
+  .gr-chart__table-bar { flex-direction: column; align-items: stretch; gap: var(--space-8); }
+  .gr-chart__cols {
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+    height: auto; padding-bottom: var(--space-4);
+  }
+  .gr-chart__cols::-webkit-scrollbar { display: none; }
+  .gr-chart__col { flex: none; }
+  .gr-chart__by { align-self: flex-start; }
 }
