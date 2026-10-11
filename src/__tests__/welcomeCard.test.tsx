@@ -19,7 +19,7 @@ const signIn = async (user: object) => {
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ user, providers: {}, firstRun: false, canCreateOwner: false }), { status: 200 })));
   await act(async () => { await refreshAuth(true); });
 };
-const base = { id: 'x', seat: 'maya', name: 'Maya Okonkwo', email: 'maya@northbank.demo', role: 'member' };
+const base = { id: 'x', seat: 'maya', name: 'Elise Marchetti', email: 'elise@copperline.demo', role: 'member' };
 const mount = async () => { vi.useFakeTimers(); render(<App />); await act(async () => { vi.advanceTimersByTime(500); }); vi.useRealTimers(); };
 
 describe('the demo welcome card', () => {
@@ -28,7 +28,7 @@ describe('the demo welcome card', () => {
     await mount();
     const card = screen.getByRole('dialog', { name: 'Welcome to Growth' });
     expect(card.textContent).toContain('Live demo');
-    expect(card.textContent).toContain('Maya Okonkwo');
+    expect(card.textContent).toContain('Elise Marchetti');
     expect(card.textContent).toContain('Designed and engineered by Tommy Claffey');
     expect(within(card).getByRole('link', { name: 'Tommy Claffey' }).getAttribute('href')).toBe('https://www.tommyclaffey.com');
     expect(localStorage.getItem(WELCOME_KEY)).toBe('1');

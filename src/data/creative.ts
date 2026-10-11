@@ -105,7 +105,7 @@ const FORMATS: Record<ChannelName, { kind: CreativeKind; ratio?: Creative['ratio
  *
  * One constant, so renaming the fictional advertiser is a one-line change.
  */
-export const ADVERTISER = { name: 'Northbank', domain: 'northbank.app' };
+export const ADVERTISER = { name: 'Copperline', domain: 'copperline.app' };
 
 /* Copy fragments, picked deterministically rather than randomly -- the same
    campaign must render the same ads on every visit, and Math.random in a data

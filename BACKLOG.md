@@ -33,7 +33,7 @@ linked). `server/prod.mjs` = Vite middleware mode running the same `/api` plugin
 Volume `growth-volume` at `/data` (`GROWTH_DATA_DIR`). Vars: `GROWTH_OWNER_EMAIL` (only this email may
 create the first account), `PUBLIC_ORIGIN`, `ANTHROPIC_API_KEY`. Health check `/healthz`.
 - ⚠️ `railway.json` (Config as Code) is deprecated; works until **2026-12-01**.
-  ✅ **Public demo (Oct 7):** `/demo` → signed in as Maya at Northbank, fenced to `/api/auth/*`
+  ✅ **Public demo (Oct 7):** `/demo` → signed in as Elise at Copperline, fenced to `/api/auth/*`
   (guard rule 4, allowlist). Needs `GROWTH_PUBLIC_DEMO=1` (set on Railway). Team of six with photos.
   ⚠️ **Oct 6 side effect, fixed Oct 7:** `config migrate --apply` also removed the GitHub deploy trigger,
   so pushes stopped deploying. Restored with `railway service source connect --repo tommyclaffey/Growth --branch main --service growth`.
@@ -751,7 +751,7 @@ Everything below is built, tested and screenshotted; nothing is live until merge
   - ▶️ **Needs Tommy:** the Meta app (Todoist). Then: `META_CLIENT_ID` + `META_CLIENT_SECRET` in `.env.local`, restart, Settings → Data source → Connect → choose account → Use Meta. Ad sets and ads load with it — see below.
 - **Real ad sets and ads from Meta** *(Sept 29)* — insights at `level=ad`, plus `/adsets` and `/ads` (with creative title, body, thumbnail). **Ads are the unit; ad sets and campaigns are sums of their ads**, so all three tiers reconcile by construction — the demo's rule. The campaign page, ad set page, Ads screen, ad ranking and grading all read the real rows. Deep links to real ids survive a reload (they used to be dropped because the URL was checked before the account loaded); the page says "Loading your account…" instead of "no longer exists".
 - **Sign-in — five ways in, one account per person** *(Sept 29)* — email + password, Google, Slack, Microsoft, Microsoft Teams (OpenID Connect; logos are the providers' own files). First account only from this machine = owner in the `maya` seat; others via `GROWTH_ALLOWED_EMAILS`. Every `/api` route needs a session. Slack acts as the signed-in person with their own token; `?person=` spoofing closed. Public demo unchanged (no server = no login).
-  - **One-click demo account** (Maya at Northbank, the `maya` seat), local only — Tommy uses Growth alone, so this replaced creating an owner account. Optional: `GOOGLE_CLIENT_ID/SECRET`, `MS_CLIENT_ID/SECRET` for those buttons (register `<origin>/api/auth/callback`); Slack sign-in needs `<https origin>/api/auth/callback` added to the Slack app's redirect URLs.
+  - **One-click demo account** (Elise at Copperline, the `maya` seat), local only — Tommy uses Growth alone, so this replaced creating an owner account. Optional: `GOOGLE_CLIENT_ID/SECRET`, `MS_CLIENT_ID/SECRET` for those buttons (register `<origin>/api/auth/callback`); Slack sign-in needs `<https origin>/api/auth/callback` added to the Slack app's redirect URLs.
   - ⏭ **Next:** a real team roster from signed-in people (chat still shows the demo team).
 - **Hardening pass** *(Sept 29)* — four audits (server, data, thought partner, UI), 39 bugs fixed with regression tests. See commits `72abbe6`…`abfe201`.
 - **Phase 4b — Google Ads, built and waiting on the developer token** *(Sept 29)* — same seam as Meta, against the REST API (`googleAds:searchStream`, v25; override with `GOOGLE_ADS_API_VERSION`).

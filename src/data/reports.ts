@@ -59,15 +59,15 @@ export const DEFAULT_WHEN: Record<Cadence, string> = {
    so the numbers add up to people who exist. */
 const SEED: Report[] = [
   { id: 'r1', name: 'Weekly performance summary', channels: [], cadence: 'Weekly', weekday: 1,
-    when: 'Every Monday, 8:00', recipients: ['maya', 'jr', 'dk', 'ap'], external: 2,
+    when: 'Every Monday, 8:00', recipients: ['maya', 'cd', 'km', 'ib'], external: 2,
     lastRun: 'Aug 10', stage: 'Active' },
   { id: 'r2', name: 'Meta deep dive', channels: ['meta'], cadence: 'Weekly', weekday: 5,
-    when: 'Every Friday, 16:00', recipients: ['maya', 'jr'], external: 1,
+    when: 'Every Friday, 16:00', recipients: ['maya', 'cd'], external: 1,
     lastRun: 'Aug 7', stage: 'Active' },
   { id: 'r3', name: 'Creator channel blended', channels: ['tiktok', 'youtube'], cadence: 'Monthly',
-    when: 'Monthly, 1st', recipients: ['jr', 'ap'], external: 2, lastRun: 'Aug 1', stage: 'Active' },
+    when: 'Monthly, 1st', recipients: ['cd', 'ib'], external: 2, lastRun: 'Aug 1', stage: 'Active' },
   { id: 'r4', name: 'CAC watch', channels: [], cadence: 'Daily',
-    when: 'Daily, 7:00', recipients: ['maya', 'dk'], lastRun: 'Aug 3', stage: 'Paused' },
+    when: 'Daily, 7:00', recipients: ['maya', 'km'], lastRun: 'Aug 3', stage: 'Paused' },
   { id: 'r5', name: 'Q3 board pack', channels: [], cadence: 'Quarterly',
     when: 'Quarterly', recipients: ['maya'], external: 8, stage: 'Draft' },
 ];

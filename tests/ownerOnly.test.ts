@@ -39,7 +39,7 @@ async function hit(url: string, token?: string) {
 describe('connecting an ad account', () => {
   it('a member cannot start it; the owner can', async () => {
     const owner = createUser({ email: 'tommy@example.com', name: 'Tommy' });
-    const member = createUser({ email: 'jess@example.com', name: 'Jess' });
+    const member = createUser({ email: 'camila@example.com', name: 'Camila' });
     const m = await hit('/meta', createSession(member.id).token);
     expect(m.body).toMatch(/Only the owner connects ad accounts/);
     expect(m.status).toBe(200);
@@ -52,7 +52,7 @@ describe('connecting an ad account', () => {
 
   it('the callback must land in the session that started it', async () => {
     const owner = createUser({ email: 'tommy@example.com', name: 'Tommy' });
-    const member = createUser({ email: 'jess@example.com', name: 'Jess' });
+    const member = createUser({ email: 'camila@example.com', name: 'Camila' });
     const start = await hit('/meta', createSession(owner.id).token);
     const state = new URL(start.headers.location).searchParams.get('state')!;
     const back = await hit(`/callback?state=${encodeURIComponent(state)}&error=access_denied`, createSession(member.id).token);

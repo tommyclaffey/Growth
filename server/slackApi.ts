@@ -510,8 +510,8 @@ export function slackApi(): Plugin {
                Slack's own consent screen rather than a dropdown. */
             /* 🛑 WHO is connecting comes from the SESSION, never the URL.
                `?person=maya` used to be trusted, so anyone could complete the
-               consent with their own Slack account and be linked as Maya --
-               their messages shown under her name, DMs "to Maya" sent to
+               consent with their own Slack account and be linked as Elise --
+               their messages shown under her name, DMs "to Elise" sent to
                them. The query parameter is ignored now. */
             const who = requester(req);
             if (!who) return page(res, 'Sign in first', 'Sign in to Growth, then connect Slack from Settings.');
@@ -719,7 +719,7 @@ export function slackApi(): Plugin {
 
           /* Unlink only. There is no route that sets a link, because the only
              way one is created is somebody completing Slack's consent screen
-             for their own account. Being able to assert "that account is Dan"
+             for their own account. Being able to assert "that account is Kenji"
              from a dropdown would let one person put words in another's mouth. */
           if (req.method === 'POST' && path === '/unlink') {
             /* Your own seat only -- the body's personId is not trusted. */
@@ -901,7 +901,7 @@ export function slackApi(): Plugin {
                why a DM to a real Slack colleague reported "not delivered"
                while the id needed to reach them was sitting in the request.
 
-               A seeded Growth person ('maya', 'jr') has no Slack id of its
+               A seeded Growth person ('maya', 'cd') has no Slack id of its
                own and does need the link written at OAuth consent. */
             const isSlackId = (v: string) => /^[UW][A-Z0-9]{6,}$/.test(v);
             for (const raw of personIds) {

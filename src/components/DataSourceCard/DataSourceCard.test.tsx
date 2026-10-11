@@ -38,7 +38,7 @@ describe('Settings → Data source, Google row', () => {
   it('a Meta sign-in ending within a week says so, with the way to renew it', async () => {
     vi.stubGlobal('fetch', respond({
       '/api/meta/status': { configured: true, connected: true, expired: false, expiresInDays: 3, accountId: 'act_1' },
-      '/api/meta/accounts': { accounts: [{ id: 'act_1', name: 'Northbank', currency: 'USD' }] },
+      '/api/meta/accounts': { accounts: [{ id: 'act_1', name: 'Copperline', currency: 'USD' }] },
       '/api/google/status': { configured: false, connected: false, expired: false, accountId: null },
     }));
     render(<DataSourceCard />);

@@ -327,7 +327,7 @@ export function authApi(): Plugin {
             return send(res, 200, { user: publicUser(user, req) });
           }
 
-          /* The shareable link: /demo -> here -> signed in as Maya -> the app.
+          /* The shareable link: /demo -> here -> signed in as Elise -> the app.
              A real person who is already signed in keeps their own session --
              a link must not be able to swap someone out of their account. */
           if (req.method === 'GET' && path === '/demo') {

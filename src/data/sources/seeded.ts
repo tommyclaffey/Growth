@@ -10,7 +10,7 @@ import { SEEDED_PERIOD_END, generateSeeded } from '../metrics';
  */
 const data = (): SourceData => ({
   account: {
-    name: 'Northbank', currency: 'USD', timezone: 'UTC', periodEnd: SEEDED_PERIOD_END,
+    name: 'Copperline', currency: 'USD', timezone: 'UTC', periodEnd: SEEDED_PERIOD_END,
   },
   rows: generateSeeded(),
 });

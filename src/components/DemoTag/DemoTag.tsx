@@ -12,7 +12,7 @@ export function useIsDemo(): boolean {
  * DEMO, beside the logo -- the same small pill Queue wears (Tommy, Oct 7).
  *
  * Someone opening the shared /demo link should know at a glance that
- * Northbank is a sample company, before they wonder whose money this is.
+ * Copperline is a sample company, before they wonder whose money this is.
  * Never shown on a real account.
  */
 export function DemoTag({ className }: { className?: string }) {

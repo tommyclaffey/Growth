@@ -29,7 +29,7 @@ export interface Conversation {
   kind: ConversationKind;
   /**
    * A name someone chose. Optional everywhere, because most conversations do
-   * not need one — a DM with Dan is "Dan Kwon" and naming it adds nothing.
+   * not need one — a DM with Kenji is "Kenji Mori" and naming it adds nothing.
    * When it IS set it wins, including on a DM, because a name someone typed
    * is a stronger signal than a name derived from membership.
    */
@@ -64,7 +64,7 @@ function seeds(): Conversation[] {
       id: 'team',
       kind: 'channel',
       title: 'growth-analytics',
-      memberIds: ['maya', 'jr', 'dk', 'ap'],
+      memberIds: ['maya', 'cd', 'km', 'ib'],
       messages: SEED,
       readCount: SEED.length,
       mirrorsSlack: true,
@@ -72,21 +72,21 @@ function seeds(): Conversation[] {
     {
       id: 'dm-jr',
       kind: 'dm',
-      memberIds: ['maya', 'jr'],
+      memberIds: ['maya', 'cd'],
       messages: [
-        msg('jr', 63, '11:03 AM', 'Do you want the Monday report split by channel or blended?'),
+        msg('cd', 63, '11:03 AM', 'Do you want the Monday report split by channel or blended?'),
         msg('maya', 61, '11:05 AM', 'Split. Blended hides the Affiliates story.'),
-        msg('jr', 26, '11:40 AM', 'Makes sense. I will have a draft by 4.'),
+        msg('cd', 26, '11:40 AM', 'Makes sense. I will have a draft by 4.'),
       ],
       readCount: 3,
     },
     {
       id: 'dm-dk',
       kind: 'dm',
-      memberIds: ['maya', 'dk'],
+      memberIds: ['maya', 'km'],
       messages: [
-        msg('dk', 34, '11:32 AM', 'Re-baselined the Advantage+ target. CAC should settle by Thursday.', true),
-        msg('dk', 33, '11:33 AM', 'Flagging early in case Friday looks worse before it looks better.', true),
+        msg('km', 34, '11:32 AM', 'Re-baselined the Advantage+ target. CAC should settle by Thursday.', true),
+        msg('km', 33, '11:33 AM', 'Flagging early in case Friday looks worse before it looks better.', true),
       ],
       /* One unread, deliberately — the list needs to show what unread looks
          like, and every conversation being read makes the affordance dead. */
@@ -95,11 +95,11 @@ function seeds(): Conversation[] {
     {
       id: 'grp-budget',
       kind: 'group',
-      memberIds: ['maya', 'dk', 'ap'],
+      memberIds: ['maya', 'km', 'ib'],
       messages: [
-        msg('ap', 96, '10:30 AM', 'Starting a thread for the reallocation so it does not get lost in the main channel.'),
-        msg('dk', 94, '10:32 AM', 'Good call. 15% of Meta prospecting, two weeks, then we measure.'),
-        msg('ap', 18, '11:48 AM', 'I can pull the before numbers this afternoon.'),
+        msg('ib', 96, '10:30 AM', 'Starting a thread for the reallocation so it does not get lost in the main channel.'),
+        msg('km', 94, '10:32 AM', 'Good call. 15% of Meta prospecting, two weeks, then we measure.'),
+        msg('ib', 18, '11:48 AM', 'I can pull the before numbers this afternoon.'),
       ],
       readCount: 3,
     },
@@ -345,7 +345,7 @@ export function replaceMessages(id: string, messages: Message[]) {
  *
  * Returns an existing conversation when the same set of people already has
  * one. Two threads with identical membership is the bug that makes people ask
- * "which Dan chat did I send that in".
+ * "which Kenji chat did I send that in".
  */
 export function openDirect(memberIds: string[]): Conversation {
   const ids = Array.from(new Set([ME.id, ...memberIds]));

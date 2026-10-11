@@ -62,7 +62,7 @@ describe('saved conversations', () => {
   it('🐛 malformed records cannot blank the app -- bad ones are dropped, bad messages filtered', async () => {
     localStorage.setItem('growth.conversations', JSON.stringify([
       { id: 'x1', kind: 'dm', messages: [] },                                       // no memberIds
-      { id: 'x2', kind: 'dm', memberIds: ['maya', 'dk'], messages: [null, { id: 'm', authorId: 'dk' }, { id: 'ok', authorId: 'dk', body: 'hi', time: '9:00' }] },
+      { id: 'x2', kind: 'dm', memberIds: ['maya', 'km'], messages: [null, { id: 'm', authorId: 'km' }, { id: 'ok', authorId: 'km', body: 'hi', time: '9:00' }] },
     ]));
     vi.resetModules();
     const { allConversations } = await import('../data/conversations');

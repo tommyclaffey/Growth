@@ -28,13 +28,13 @@ afterEach(() => {
 
 describe('decisions reach people', () => {
   it('assigning a decision tells the owner, in their DMs, with the decision attached', () => {
-    const id = notifyAssignment('jr', { refId: 'x', label: 'Pause the weak ad', due: '2026-10-02' })!;
+    const id = notifyAssignment('cd', { refId: 'x', label: 'Pause the weak ad', due: '2026-10-02' })!;
     const c = getConversation(id)!;
-    expect(c.memberIds.sort()).toEqual([ME.id, 'jr'].sort());
+    expect(c.memberIds.sort()).toEqual([ME.id, 'cd'].sort());
     const last = c.messages[c.messages.length - 1];
     expect(last.body).toMatch(/assigned you a decision, due Oct 2/);
     expect(last.decision?.label).toBe('Pause the weak ad');
-    expect(last.decision?.owner).toBe('jr');
+    expect(last.decision?.owner).toBe('cd');
   });
 
   it('assigning to yourself sends nothing -- you already know', () => {

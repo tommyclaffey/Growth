@@ -64,20 +64,20 @@ describe('the demo account', () => {
 });
 
 describe('the signed-in person takes the "me" seat', () => {
-  it('the demo account keeps the demo persona -- Maya, her photo, Growth lead', () => {
+  it('the demo account keeps the demo persona -- Elise, her photo, Growth lead', () => {
     const before = { ...ME };
-    adoptMe({ seat: 'maya', name: 'Maya Okonkwo', role: 'owner', demo: true });
+    adoptMe({ seat: 'maya', name: 'Elise Marchetti', role: 'owner', demo: true });
     expect(ME).toMatchObject({ id: before.id, name: before.name, avatar: before.avatar });
   });
 
-  it('a member gets their own seat; the demo’s Maya stays a separate person, with her own face', () => {
+  it('a member gets their own seat; the demo’s Elise stays a separate person, with her own face', () => {
     const photo = ME.avatar;
-    adoptMe({ seat: 'u_jess', name: 'Jess Ramírez-Real', role: 'member' });
-    expect(ME.id).toBe('u_jess');
-    expect(ME.initials).toBe('JR');
-    expect(ME.avatar).toBeUndefined();                 // never Maya's photo on someone else
-    expect(MEMBERS.u_jess).toBe(ME);
-    expect(MEMBERS.maya.name).toBe('Maya Okonkwo');
+    adoptMe({ seat: 'u_camila', name: 'Camila Duarte-Real', role: 'member' });
+    expect(ME.id).toBe('u_camila');
+    expect(ME.initials).toBe('CD');
+    expect(ME.avatar).toBeUndefined();                 // never Elise's photo on someone else
+    expect(MEMBERS.u_camila).toBe(ME);
+    expect(MEMBERS.maya.name).toBe('Elise Marchetti');
     expect(MEMBERS.maya.avatar).toBe(photo);
   });
 });

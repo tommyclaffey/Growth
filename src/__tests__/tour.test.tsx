@@ -26,7 +26,7 @@ afterEach(() => { act(() => { endTour(); closeWelcome(); }); cleanup(); localSto
 async function demo() {
   localStorage.setItem(WELCOME_KEY, '1');
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
-    user: { id: 'd', seat: 'maya', name: 'Maya Okonkwo', email: 'maya@northbank.demo', role: 'member', demo: true, sandboxed: true },
+    user: { id: 'd', seat: 'maya', name: 'Elise Marchetti', email: 'elise@copperline.demo', role: 'member', demo: true, sandboxed: true },
     providers: {}, firstRun: false, canCreateOwner: false,
   }), { status: 200 })));
   await act(async () => { await refreshAuth(true); });

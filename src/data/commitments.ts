@@ -8,7 +8,7 @@ import { grade, tally, type GradeStatus } from './grading';
  *
  * ⭐ A thought partner that knows the numbers but not what you decided about
  * them is half a partner. "What did we decide?", "is it working?", "what is
- * late?", "what does Jess own?" are the questions a growth lead asks on a
+ * late?", "what does Camila own?" are the questions a growth lead asks on a
  * Monday, and until now the assistant could answer none of them.
  *
  * Plain data, built in the BROWSER (the queue lives in localStorage) and sent

@@ -162,7 +162,7 @@ export function DataSourceCard() {
       <div className="gr-setting-row">
         <span className="gr-setting-row__text">
           <strong className="gr-type-body-medium">Demo account</strong>
-          <span className="gr-type-caption">Northbank — seeded data, frozen on Aug 12, 2026</span>
+          <span className="gr-type-caption">Copperline — seeded data, frozen on Aug 12, 2026</span>
         </span>
         {dataSource === 'seeded'
           ? <span className="gr-type-caption-med gr-source__on">In use</span>

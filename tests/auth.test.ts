@@ -21,24 +21,24 @@ describe('who may create an account', () => {
   it('the first account is the owner and takes the "maya" seat, so existing data stays theirs', () => {
     const u = createUser({ email: 'Tommy@Example.com', name: 'Tommy', password: 'long enough pw' });
     expect(u).toMatchObject({ role: 'owner', seat: 'maya', email: 'tommy@example.com' });
-    expect(createUser({ email: 'jess@example.com', name: 'Jess' })).toMatchObject({ role: 'member' });
+    expect(createUser({ email: 'camila@example.com', name: 'Camila' })).toMatchObject({ role: 'member' });
     expect(users()[1].seat).not.toBe('maya');
   });
 
   it('🛑 after that: only the allow-list -- exact emails or @domain', () => {
     createUser({ email: 'tommy@example.com', name: 'Tommy' });
-    expect(mayJoin('dan@acme.com', true, '')).toBe(false);                   // unset = nobody new, even locally
-    expect(mayJoin('dan@acme.com', false, 'jess@x.com, @acme.com')).toBe(true);
-    expect(mayJoin('dan@notacme.com', false, '@acme.com')).toBe(false);
-    expect(mayJoin('JESS@x.com', false, 'jess@x.com')).toBe(true);
+    expect(mayJoin('kenji@acme.com', true, '')).toBe(false);                   // unset = nobody new, even locally
+    expect(mayJoin('kenji@acme.com', false, 'camila@x.com, @acme.com')).toBe(true);
+    expect(mayJoin('kenji@notacme.com', false, '@acme.com')).toBe(false);
+    expect(mayJoin('CAMILA@x.com', false, 'camila@x.com')).toBe(true);
   });
 });
 
 describe('the demo account', () => {
-  it('is Maya in the maya seat, with no password, created once', () => {
+  it('is Elise in the maya seat, with no password, created once', () => {
     /* mayOwn: only the local route on a fresh install, never the public one. */
     const d = demoUser({ mayOwn: true });
-    expect(d).toMatchObject({ seat: 'maya', name: 'Maya Okonkwo', demo: true, role: 'owner' });
+    expect(d).toMatchObject({ seat: 'maya', name: 'Elise Marchetti', demo: true, role: 'owner' });
     expect(d.password).toBeUndefined();
     expect(demoUser().id).toBe(d.id);
     expect(users()).toHaveLength(1);
@@ -95,11 +95,11 @@ describe('Slack acts as the signed-in person', () => {
   });
   it('🛑 the installer’s token is used ONLY for the installer’s own seat', () => {
     expect(tokenFor(ws(), 'maya')).toBe('xoxp-installer');
-    expect(tokenFor(ws(), 'u_jess')).toBeUndefined();
-    expect(tokenFor(ws({ links: { maya: 'U_TOMMY', u_jess: 'U_TOMMY' } }), 'u_jess')).toBe('xoxp-installer');   // same Slack person
+    expect(tokenFor(ws(), 'u_camila')).toBeUndefined();
+    expect(tokenFor(ws({ links: { maya: 'U_TOMMY', u_camila: 'U_TOMMY' } }), 'u_camila')).toBe('xoxp-installer');   // same Slack person
   });
   it('each person’s own token wins', () => {
-    expect(tokenFor(ws({ tokens: { u_jess: 'xoxp-jess' } }), 'u_jess')).toBe('xoxp-jess');
+    expect(tokenFor(ws({ tokens: { u_camila: 'xoxp-camila' } }), 'u_camila')).toBe('xoxp-camila');
   });
 });
 
@@ -117,5 +117,17 @@ describe('🚂 hosted (Railway): the owner is named in advance', () => {
 
   it('unset on a host means nobody can claim the instance -- the safe failure', () => {
     expect(mayJoin('anyone@example.com', false)).toBe(false);
+  });
+});
+
+describe('the demo persona rename (Oct 11)', () => {
+  it('a demo saved under the old name takes the current one, keeping its id and seat', async () => {
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(join(dir, '.growth-users.local'), JSON.stringify({ users: [
+      { id: 'maya', seat: 'maya', email: 'old@example.demo', name: 'Old Persona', role: 'member', identities: {}, demo: true, createdAt: '2026-10-01' },
+    ] }));
+    const d = demoUser();
+    expect(d).toMatchObject({ id: 'maya', seat: 'maya', name: 'Elise Marchetti', email: 'elise@copperline.demo' });
+    expect(users()).toHaveLength(1);
   });
 });
