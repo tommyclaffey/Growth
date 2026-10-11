@@ -163,3 +163,7 @@
 
 /* Light / dark beside the logo, pushed to the rail's right edge. */
 .gr-sidebar__logo .gr-theme-button { margin-left: auto; flex: none; }
+/* The name block and the theme button sit 4px apart, not the row's 8: the
+   workspace line holds a name AND the DEMO pill in a 232px rail. "Copperline"
+   (Oct 11) needed 106px of a 105px slot. The mark-to-name gap stays 8. */
+.gr-sidebar__logo .gr-sidebar__brand-text { margin-right: calc(var(--space-4) * -1); }
