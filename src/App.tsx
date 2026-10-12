@@ -841,7 +841,13 @@ export default function App() {
                     <CampaignPreview
                       channel={channel}
                       range={range}
-                      onOpen={(id) => openCampaign(id, channel)}
+                      onOpenAd={(ad) => {
+                        /* Opened inside its campaign and ad set, so Back walks
+                           ad → ad set → campaign → this channel. */
+                        openCampaign(ad.campaignId, channel);
+                        setAdSetId(ad.adSetId);
+                        setAdId(ad.id);
+                      }}
                     />
                   </section>
 

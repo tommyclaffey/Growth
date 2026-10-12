@@ -302,3 +302,13 @@ describe('⭐ every ad set is full and never repeats itself (Oct 12)', () => {
     }
   });
 });
+
+describe('topDistinct: a shortlist never repeats a picture (Oct 12)', () => {
+  it('skips repeats while there are distinct pictures, then fills from them', async () => {
+    const { topDistinct } = await import('../creative');
+    const mk = (id: string, src?: string) => ({ id, src } as unknown as import('../creative').Creative);
+    const list = [mk('a', 'p1'), mk('b', 'p1'), mk('c', 'p2'), mk('d'), mk('e', 'p2')];
+    expect(topDistinct(list, 3).map((x) => x.id)).toEqual(['a', 'c', 'd']);
+    expect(topDistinct(list, 5).map((x) => x.id)).toEqual(['a', 'c', 'd', 'b', 'e']);
+  });
+});

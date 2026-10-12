@@ -332,6 +332,29 @@ export function rankCreatives(
   }).map((x) => x.c);
 }
 
+/**
+ * The first `n` of a ranked list, one per picture.
+ *
+ * Two ad sets in one campaign often run the same asset (that is normal: one
+ * master, served to two audiences), so a top-six drawn across ad sets could
+ * show the same photo twice and read as a broken grid. The shortlist keeps each
+ * picture's best-ranked ad and skips its repeats; if there are not enough
+ * distinct pictures to fill `n`, the repeats come back rather than leaving a
+ * gap. Ads without a picture never collide.
+ */
+export function topDistinct(ranked: Creative[], n: number): Creative[] {
+  const seen = new Set<string>();
+  const first: Creative[] = [];
+  const rest: Creative[] = [];
+  for (const c of ranked) {
+    const art = c.src ?? c.image;
+    if (art && seen.has(art)) { rest.push(c); continue; }
+    if (art) seen.add(art);
+    first.push(c);
+  }
+  return [...first, ...rest].slice(0, n);
+}
+
 /* ---------------------------------------------------------------- one ad -- */
 
 export function creativeById(id: string): { creative: Creative; campaignId: string } | undefined {
