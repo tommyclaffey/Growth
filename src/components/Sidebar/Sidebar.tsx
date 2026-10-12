@@ -59,7 +59,7 @@ export function Sidebar({ active, onNavigate, counts = {}, theme, onToggleTheme 
             Every product with workspaces does it this way: the app is the app,
             and the account you are inside it is a line under it. */}
         <span className="gr-sidebar__brand-text">
-          <span className="gr-sidebar__wordmark gr-type-brand">GROWTH</span>
+          <span className="gr-sidebar__wordmark gr-type-brand">Growth</span>
           {/* Workspace, and on the sample company the DEMO pill beside it --
               the line that says WHOSE account this is. (Beside GROWTH it ran
               under the light / dark button: the rail is 232 wide.) */}

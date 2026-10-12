@@ -170,7 +170,7 @@ function Lockup() {
                 strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
-      <span className="gr-sidebar__wordmark gr-type-brand">GROWTH</span>
+      <span className="gr-sidebar__wordmark gr-type-brand">Growth</span>
     </div>
   );
 }

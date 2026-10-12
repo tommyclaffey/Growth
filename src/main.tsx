@@ -1,5 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+/* The wordmark's face (Oct 11 2026: Tommy picked Fraunces, option 8). Self-hosted,
+   one weight, Latin only -- so the installed app shows it offline too. */
+import '@fontsource/fraunces/latin-600.css';
 import './styles/tokens.css';
 import './styles/type.css';
 import './index.css';

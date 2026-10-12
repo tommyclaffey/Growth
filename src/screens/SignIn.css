@@ -19,7 +19,18 @@
   padding: var(--space-28) var(--space-30);
 }
 
-.gr-signin__lockup { display: flex; align-items: center; gap: var(--space-8); }
+/* The lockup is drawn, not centred (Oct 11 2026): the mark's top meets the
+   top of the tall letters (h, t) and its bottom sits on the baseline.
+   Fraunces 600 metrics, per 1em: ascent 0.98, descent 0.26, ascender of h
+   0.7435. With line-height 1 the baseline is at 0.86em, so the glyph top is
+   at 0.1165em -- the mark is 0.7435em tall and starts there. */
+.gr-signin__lockup { --wordmark: 36px; display: flex; align-items: flex-start; gap: calc(var(--wordmark) * 0.2); }
+.gr-signin__lockup .gr-sidebar__wordmark { font-size: var(--wordmark); line-height: 1; }
+.gr-signin__lockup .gr-sidebar__mark {
+  width: calc(var(--wordmark) * 0.7435); height: calc(var(--wordmark) * 0.7435);
+  margin-top: calc(var(--wordmark) * 0.1165);
+}
+.gr-signin__lockup .gr-sidebar__mark svg { width: 50%; height: 50%; }
 
 .gr-signin__head { display: flex; flex-direction: column; gap: var(--space-4); }
 .gr-signin__lede { color: var(--text-secondary); margin: 0; }
