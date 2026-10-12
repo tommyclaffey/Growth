@@ -3,7 +3,7 @@ import type { Stage } from '../components/StatusPill/StatusPill';
 import { CAMPAIGNS, type AdSet, type Campaign } from './campaigns';
 import { campaignRows } from './campaignSeries';
 import { sliceWindow, windowLabels, type DayRow, type Metric, type Range } from './metrics';
-import { assetFor } from './creativeAssets';
+import { assetFor, extraImageFor } from './creativeAssets';
 import { CHANNEL_DEPTH } from './channelDepth';
 import { AD_SPREAD, adSetLeadShare, adSetWobble } from './adSets';
 
@@ -46,6 +46,12 @@ export interface Creative {
   destination?: string;
   /** The master asset, for formats that have one. */
   src?: string;
+  /**
+   * The picture a text, link or audio ad really carries: a search image asset,
+   * a partner placement image, or the show's cover art. Never set on a visual
+   * format -- those use `src`.
+   */
+  image?: string;
   /**
    * Where the crop is anchored, as a CSS object-position.
    *
@@ -172,6 +178,7 @@ function forAdSet(c: Campaign, a: AdSet): Creative[] {
          FRAME, which is a still, and is exactly what Ads Manager shows in a
          list view. */
       src: f.ratio ? assetFor(f.ratio, i + seed(a.id)) : undefined,
+      image: f.ratio ? undefined : extraImageFor(f.kind, i + seed(a.id)),
       focus: f.ratio ? FOCUS[f.ratio] : undefined,
       /* An ad in a paused ad set is not running, whatever its own status says.
          Reporting it as Active would be a status describing what was stored

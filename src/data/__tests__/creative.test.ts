@@ -265,3 +265,24 @@ describe('one ad', () => {
     }
   });
 });
+
+describe('every ad has a picture (Oct 12 2026)', () => {
+  it('visual formats carry a master asset; text, link and audio carry their own picture', () => {
+    for (const c of CAMPAIGNS) {
+      for (const cr of creativesFor(c.id)) {
+        const visual = cr.kind === 'image' || cr.kind === 'video';
+        if (visual) {
+          expect(cr.src, `${cr.id} ${cr.ratio}`).toBeTruthy();
+          expect(cr.image, `${cr.id} visual ads use src, never image`).toBeUndefined();
+        } else {
+          expect(cr.image, `${cr.id} ${cr.kind}`).toBeTruthy();
+        }
+      }
+    }
+  });
+
+  it('every library shape is stocked', () => {
+    expect(missingRatios()).toEqual([]);
+  });
+
+});

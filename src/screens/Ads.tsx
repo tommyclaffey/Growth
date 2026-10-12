@@ -136,11 +136,11 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
                 <span className="gr-ads__ad">
                   {/* The ad itself, small. An ads table with no ads in it asked
                       the reader to remember what "Start free, no card" looked
-                      like. Text, audio and link placements have no picture, so
-                      they get a tile naming the format rather than a stock
-                      image implying one. */}
-                  {r.creative.src
-                    ? <img className="gr-ads__thumb" src={r.creative.src} alt="" loading="lazy" />
+                      like. Text, link and audio ads show the picture they really
+                      carry (search image asset, placement image, cover art);
+                      the named tile is only for an ad with no picture at all. */}
+                  {(r.creative.src ?? r.creative.image)
+                    ? <img className="gr-ads__thumb" src={r.creative.src ?? r.creative.image} alt="" loading="lazy" />
                     : (
                       <span className="gr-ads__thumb gr-ads__thumb--none gr-type-micro" aria-hidden="true">
                         {FORMAT[r.creative.kind]}

@@ -122,6 +122,10 @@ export function AdDetail({ id, range, onBack, backLabel = 'Campaign' }: AdDetail
           >
             {visual && c.src ? (
               <img src={c.src} alt="" style={{ objectPosition: c.focus }} />
+            ) : !visual && c.image ? (
+              /* The picture this format really carries: a search image asset,
+                 a partner placement or the show's cover art. */
+              <img src={c.image} alt="" />
             ) : (
               <span className="gr-ad__empty">
                 <ChannelMark channel={campaign.channel} size={28} />
