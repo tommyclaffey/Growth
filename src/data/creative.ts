@@ -333,7 +333,7 @@ export function rankCreatives(
 }
 
 /**
- * The first `n` of a ranked list, one per picture.
+ * The first `n` of a ranked list, one per picture and one per headline.
  *
  * Two ad sets in one campaign often run the same asset (that is normal: one
  * master, served to two audiences), so a top-six drawn across ad sets could
@@ -348,8 +348,11 @@ export function topDistinct(ranked: Creative[], n: number): Creative[] {
   const rest: Creative[] = [];
   for (const c of ranked) {
     const art = c.src ?? c.image;
-    if (art && seen.has(art)) { rest.push(c); continue; }
-    if (art) seen.add(art);
+    /* Headlines too: campaigns share hooks, so a channel-wide six could read
+       "Rated 4.8 by real users" twice. */
+    const keys = [art && `art:${art}`, `head:${c.headline}`].filter(Boolean) as string[];
+    if (keys.some((k) => seen.has(k))) { rest.push(c); continue; }
+    for (const k of keys) seen.add(k);
     first.push(c);
   }
   return [...first, ...rest].slice(0, n);

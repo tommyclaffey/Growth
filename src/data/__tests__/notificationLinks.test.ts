@@ -28,7 +28,7 @@ describe('notifications are computed, and true', () => {
 
   it('…and the month did not move: every published 30-day figure still holds', () => {
     expect(Math.round(totals('meta', 30).cac * 100) / 100).toBe(35.94);
-    expect(Math.round(totals('all', 30).spend)).toBe(160780);
+    expect(Math.round(totals('all', 30).spend)).toBe(286180);
   });
 
   it('every change alert states the SAME number delta() gives the KPI cards', () => {

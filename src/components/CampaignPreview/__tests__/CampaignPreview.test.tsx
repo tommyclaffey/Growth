@@ -8,7 +8,7 @@ afterEach(cleanup);
 
 describe('⭐ Running now is full (Oct 12)', () => {
   it('shows six running ads on every channel that has a live campaign', () => {
-    for (const ch of ['meta', 'tiktok', 'youtube', 'paidSearch', 'affiliates'] as const) {
+    for (const ch of ['meta', 'tiktok', 'youtube', 'paidSearch', 'affiliates', 'podcasts'] as const) {
       const { container, unmount } = render(<CampaignPreview channel={ch} range={30} onOpenAd={() => {}} />);
       expect(container.querySelectorAll('.gr-cpreview'), ch).toHaveLength(6);
       unmount();
@@ -32,6 +32,16 @@ it('never shows the same picture twice on a channel', () => {
     const { container, unmount } = render(<CampaignPreview channel={ch} range={30} onOpenAd={() => {}} />);
     const srcs = [...container.querySelectorAll('.gr-cpreview__art img')].map((i) => i.getAttribute('src'));
     expect(new Set(srcs).size, ch).toBe(srcs.length);
+    unmount();
+  }
+});
+
+it('never shows the same headline twice on a channel', () => {
+  for (const ch of ['meta', 'tiktok', 'youtube', 'paidSearch', 'affiliates', 'podcasts'] as const) {
+    const { container, unmount } = render(<CampaignPreview channel={ch} range={30} onOpenAd={() => {}} />);
+    const heads = [...container.querySelectorAll('.gr-cpreview__name')].map((n) => n.textContent);
+    expect(heads.length, ch).toBe(6);
+    expect(new Set(heads).size, ch).toBe(heads.length);
     unmount();
   }
 });

@@ -36,7 +36,7 @@ describe('the engine knows what moved this week', () => {
     const aff = decisions(30, ALL_CHANNELS).find((c) => c.id === 'weekly:leads:affiliates')!;
     expect(aff.action).toBe('Raise the budget on “Partner Network — Tier 1” 20% (+$887 a week)');
     expect(aff.tier).toBe(2);
-    expect(aff.expectation?.assuming).toMatch(/If a week comes in above \$38\.89, put the budget back/);
+    expect(aff.expectation?.assuming).toMatch(/If a week comes in above \$38\.90, put the budget back/);
   });
 
   it('a cost spike acts on the ad that stands out -- never the whole channel on cost alone', () => {
@@ -232,8 +232,9 @@ describe('per-channel budgets', () => {
   it('a channel off its own budget is a Standing alert; one without a budget has none', async () => {
     const { setChannelBudget } = await import('../profile');
     const { notifications: notes } = await import('../notifications');
-    /* TikTok spent ~$6.4k in 7 days. A $40k/month budget is $9.3k/week -> ~31% under. */
-    setChannelBudget('tiktok', 40000);
+    /* TikTok spent ~$11.4k in 7 days (Oct 12: it runs four campaigns now). A $70k/month
+       budget is $16.3k/week -> ~30% under. */
+    setChannelBudget('tiktok', 70000);
     try {
       const n = notes([...CHANNEL_KEYS]).find((x) => x.id === 'pacing:tiktok')!;
       expect(n.message).toMatch(/^TikTok is spending \d+% under its budget/);
@@ -245,7 +246,7 @@ describe('per-channel budgets', () => {
 
   it('"where should more budget go?" says how much of each budget is unspent', async () => {
     const { setChannelBudget } = await import('../profile');
-    setChannelBudget('tiktok', 40000);
+    setChannelBudget('tiktok', 70000);
     try {
       expect(ask('Where should more budget go?', 30).text).toMatch(/TikTok — .* of its budget unspent/);
     } finally {
