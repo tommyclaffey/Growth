@@ -20,6 +20,29 @@ import placementPlanner from '../assets/creative/placement-planner.jpg';
 import placementLaptop from '../assets/creative/placement-laptop.jpg';
 import coverHost from '../assets/creative/cover-host.jpg';
 import coverMic from '../assets/creative/cover-mic.jpg';
+/* Oct 12, round 2: seven per shape, so an ad set of six never repeats a picture. */
+import verticalBrownJumper from '../assets/creative/vertical-brown-jumper.jpg';
+import verticalSelfieRecord from '../assets/creative/vertical-selfie-record.jpg';
+import verticalAndroidSmile from '../assets/creative/vertical-android-smile.jpg';
+import wideTableLaptop from '../assets/creative/wide-table-laptop.jpg';
+import wideSofaLaptop from '../assets/creative/wide-sofa-laptop.jpg';
+import wideSeatedLaptop from '../assets/creative/wide-seated-laptop.jpg';
+import wideCouchCreator from '../assets/creative/wide-couch-creator.jpg';
+import searchCardWallet from '../assets/creative/search-card-wallet.jpg';
+import searchDeskPhone from '../assets/creative/search-desk-phone.jpg';
+import searchCalculatorNotes from '../assets/creative/search-calculator-notes.jpg';
+import searchGlassesPen from '../assets/creative/search-glasses-pen.jpg';
+import searchWalletCoins from '../assets/creative/search-wallet-coins.jpg';
+import placementSurfaceLaptop from '../assets/creative/placement-surface-laptop.jpg';
+import placementWindowsLaptop from '../assets/creative/placement-windows-laptop.jpg';
+import placementWriting from '../assets/creative/placement-writing.jpg';
+import placementWhiteDesk from '../assets/creative/placement-white-desk.jpg';
+import placementNotebookBench from '../assets/creative/placement-notebook-bench.jpg';
+import coverRedBooth from '../assets/creative/cover-red-booth.jpg';
+import coverDarkStand from '../assets/creative/cover-dark-stand.jpg';
+import coverCouchHeadphones from '../assets/creative/cover-couch-headphones.jpg';
+import coverSilverMic from '../assets/creative/cover-silver-mic.jpg';
+import coverYetiBoom from '../assets/creative/cover-yeti-boom.jpg';
 
 /**
  * The asset library. Drop a file in `src/assets/creative/`, import it, add it
@@ -50,9 +73,9 @@ const LIBRARY: Record<string, string[]> = {
   /* Portrait — the highest-performing Meta feed shape. */
   '4:5': [portraitRedPhone, portraitPhoneHands],
   /* Vertical — TikTok, Reels, Stories, Shorts. Where UGC lives. */
-  '9:16': [verticalStreetCall, verticalPinkSweater, verticalPhoneWhite, verticalLaughing],
+  '9:16': [verticalStreetCall, verticalPinkSweater, verticalPhoneWhite, verticalLaughing, verticalBrownJumper, verticalSelfieRecord, verticalAndroidSmile],
   /* Landscape — YouTube in-stream, display. */
-  '16:9': [wideKitchenCall, wideKitchenLaptop, wideCalculator],
+  '16:9': [wideKitchenCall, wideKitchenLaptop, wideCalculator, wideTableLaptop, wideSofaLaptop, wideSeatedLaptop, wideCouchCreator],
 };
 
 /**
@@ -67,9 +90,9 @@ const LIBRARY: Record<string, string[]> = {
  *            while the host read plays.
  */
 const EXTRA: Partial<Record<string, string[]>> = {
-  text: [searchCopperCoins, searchCoinStack],
-  link: [placementPlanner, placementLaptop],
-  audio: [coverHost, coverMic],
+  text: [searchCopperCoins, searchCoinStack, searchCardWallet, searchDeskPhone, searchCalculatorNotes, searchGlassesPen, searchWalletCoins],
+  link: [placementPlanner, placementLaptop, placementSurfaceLaptop, placementWindowsLaptop, placementWriting, placementWhiteDesk, placementNotebookBench],
+  audio: [coverHost, coverMic, coverRedBooth, coverDarkStand, coverCouchHeadphones, coverSilverMic, coverYetiBoom],
 };
 
 /** The picture for a text, link or audio ad; undefined for any other kind. */

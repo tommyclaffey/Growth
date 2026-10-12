@@ -20,7 +20,7 @@ describe('the engine knows what moved this week', () => {
     /* Sept 30: it was "Find out why Meta CAC rose 42%". The engine now finds
        WHERE (the live ad paying the most per lead) and says what to do. */
     expect(top.id).toBe('weekly:cac:meta');
-    expect(top.action).toBe('Pause “Join 400,000 people” (Broad — US 25-54)');
+    expect(top.action).toBe('Pause “Rated 4.8 by real users” (Broad — US 25-54)');
     expect(top.because).toMatch(/from \$33\.85 to \$48\.04/);
     expect(top.tier).toBe(1);
   });

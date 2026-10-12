@@ -9,7 +9,7 @@ describe('creative asset credits', () => {
     const dir = join(__dirname, '..', 'src', 'assets', 'creative');
     const credits = readFileSync(join(dir, 'CREDITS.md'), 'utf8');
     const photos = readdirSync(dir).filter((f) => f.endsWith('.jpg') && f !== 'ad.jpg');
-    expect(photos.length).toBe(18);
+    expect(photos.length).toBe(40);
     for (const f of photos) expect(credits, f).toContain(f);
   });
 });

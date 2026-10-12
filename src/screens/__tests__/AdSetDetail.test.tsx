@@ -89,7 +89,9 @@ describe('AdSetDetail speaks the platform’s vocabulary', () => {
        printing the word is the same defect as printing a CTR for an audio ad. */
     const a = POD.adSets[0];
     render(<AdSetDetail id={a.id} range={30} metric="Spend" onBack={() => {}} />);
-    expect(screen.getByText(new RegExp(CHANNEL_DEPTH.podcasts.group.one))).toBeTruthy();
+    /* Not the ad grid's "Show 1 paused" chip, which also starts with the word. */
+    const noun = new RegExp(`${CHANNEL_DEPTH.podcasts.group.one}(?! \\d+ paused)`);
+    expect(screen.getAllByText(noun).length).toBeGreaterThan(0);
     expect(screen.queryByText(/Ad set/i)).toBeNull();
   });
 });

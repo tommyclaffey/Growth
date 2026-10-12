@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { Decisions } from '../Decisions';
 import { decisions, targetOfDecision } from '../../data/decisions';
 import { ALL_CHANNELS } from '../../data/blended';
@@ -118,6 +118,8 @@ describe('every decision goes back to the item it was decided on', () => {
     setChannels([...CHANNEL_KEYS]);
     const opened: unknown[] = [];
     const { container } = render(<Decisions range={30} onOpen={(t) => opened.push(t)} />);
+    /* Tiers past PER_TIER are collapsed; open them so every card is checked. */
+    for (const b of screen.queryAllByRole('button', { name: /^Show \d+ more$/ })) fireEvent.click(b);
     const cards = [...container.querySelectorAll('.gr-dec__card')] as HTMLElement[];
     const all = decisions(30, ALL_CHANNELS);
     expect(cards).toHaveLength(all.length);

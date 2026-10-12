@@ -286,3 +286,19 @@ describe('every ad has a picture (Oct 12 2026)', () => {
   });
 
 });
+
+describe('⭐ every ad set is full and never repeats itself (Oct 12)', () => {
+  it('runs six live ads, each with its own picture and headline', async () => {
+    const { CAMPAIGNS } = await import('../campaigns');
+    for (const c of CAMPAIGNS) {
+      for (const a of c.adSets) {
+        const ads = creativesFor(c.id).filter((x) => x.adSetId === a.id);
+        const live = a.stage === 'Paused' ? ads : ads.filter((x) => x.stage === 'Active');
+        expect(live.length, a.id).toBeGreaterThanOrEqual(6);
+        const pics = ads.map((x) => x.src ?? x.image);
+        expect(new Set(pics).size, `${a.id} pictures`).toBe(pics.length);
+        expect(new Set(ads.map((x) => x.headline)).size, `${a.id} headlines`).toBe(ads.length);
+      }
+    }
+  });
+});

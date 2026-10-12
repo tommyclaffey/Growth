@@ -24,10 +24,16 @@ afterEach(() => {
 
 const all = () => decisions(30, ALL_CHANNELS);
 
+/* Tiers past PER_TIER are collapsed behind "Show N more"; open them all. */
+const openAllTiers = () => {
+  for (const b of screen.queryAllByRole('button', { name: /^Show \d+ more$/ })) fireEvent.click(b);
+};
+
 describe('Decisions renders the queue', () => {
   it('renders one card per live finding', () => {
     setChannels([...CHANNEL_KEYS]);
     const { container } = render(<Decisions range={30} />);
+    openAllTiers();
     expect(container.querySelectorAll('.gr-dec__card')).toHaveLength(all().length);
   });
 
@@ -102,6 +108,8 @@ describe('Accept and Dismiss actually do something', () => {
   it('Dismiss takes a reason and removes the card', () => {
     setChannels([...CHANNEL_KEYS]);
     const { container } = render(<Decisions range={30} />);
+    /* Open every tier, or the next collapsed card slides in and the count holds. */
+    openAllTiers();
     const before = container.querySelectorAll('.gr-dec__card').length;
     const card = container.querySelector('.gr-dec__card') as HTMLElement;
 

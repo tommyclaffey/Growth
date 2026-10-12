@@ -9,7 +9,8 @@ import {
 import type { ChannelName } from '../../styles/tokens';
 import type { Range } from '../../data/metrics';
 
-const TOP_N = 3;
+/* Six fills a full row at every width: 3 + 3, 2 + 2 + 2, or one column. */
+const TOP_N = 6;
 
 export interface CreativeSectionProps {
   channel: ChannelName;
