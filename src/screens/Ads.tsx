@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Button } from '../components/Button/Button';
 import './screens.css';
 import { ChannelMark } from '../components/ChannelMark/ChannelMark';
 import { StatusPill } from '../components/StatusPill/StatusPill';
@@ -39,6 +40,9 @@ export interface AdsProps {
  * four of them. Using cards here would make the reader scroll past the artwork
  * to compare numbers that belong in a column.
  */
+/** Rows per page of the ranking. */
+export const PAGE = 25;
+
 export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
   const [metric, setMetric] = useState<DerivedMetric>('CAC');
   /* Relative by default, and that is the whole argument of this screen. See
@@ -58,6 +62,12 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
   const [showPaused, setShowPaused] = useState(false);
   const paused = all.filter((r) => r.creative.stage !== 'Active').length;
   const rows = showPaused ? all : all.filter((r) => r.creative.stage === 'Active');
+  /* ⭐ Oct 12: paged. With 23 campaigns the account runs ~230 live ads, and one
+     unbroken 230-row table is a scroll, not a ranking. The count in the header
+     stays the full number; the button says how many more there are. */
+  const [pages, setPages] = useState(1);
+  const shown = rows.slice(0, pages * PAGE);
+  const more = Math.min(PAGE, rows.length - shown.length);
 
   return (
     <section className="gr-card">
@@ -129,7 +139,7 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
             </tr>
           )}
 
-          {rows.map((r, i) => (
+          {shown.map((r, i) => (
             <tr key={r.creative.id} className="gr-campaign__adset-row gr-ads__row">
               <td className="gr-type-caption gr-ads__rank">{i + 1}</td>
               <td className="gr-type-body-medium gr-ads__wrap gr-ac--ad">
@@ -217,6 +227,14 @@ export function Ads({ range, onOpenAd, onAskAbout }: AdsProps) {
         </tbody>
       </table>
       </div>
+      {more > 0 && (
+        <div className="gr-dec__more gr-ads__more">
+          <Button variant="ghost" onClick={() => setPages(pages + 1)}>
+            {`Show ${more} more`}
+          </Button>
+          <span className="gr-type-caption">{`${shown.length} of ${rows.length}`}</span>
+        </div>
+      )}
     </section>
   );
 }
