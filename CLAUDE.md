@@ -49,8 +49,9 @@ npm run brand:check  # rasterise brand assets so they can be LOOKED AT
 ## Figma
 File `b6JvDQQ7QcWJpckvZyAbjm` (Growth). All required pages exist (checked Oct 14 2026; every screen reachable from a flow):
 00 Cover · 01 Brand guide · 02 Design system · 03 Wireframes · Lo-fi (desktop 1440 + phone 402) ·
-04 Hi-fi · Desktop (prototype, 19 screens at 1440 wide, captured at 1440 × 1024; flows "Growth · Desktop" + "· Dark") ·
-05 Hi-fi · Phone (prototype, 20 screens incl. channel → ad set → ad, with Back; flows "Growth · Phone" + "· Dark") ·
-06 Mockups (iPhone 1206×2622, laptops 2560×1664 + 3456×2234, desktop 5120×2880, light + dark,
-plus Paid Search / Meta / YouTube laptop channel pages). Screens are captures of this app: the
-app is the source of truth. Mockup charts use the trend line, bars only where the metric is Leads.
+04 Hi-fi · Desktop (prototype, 19 screens at 1440; flows Desktop / Dark / Welcome) ·
+05 Hi-fi · Phone (prototype, 20 screens at 402 × 874; flows Phone / Dark / Welcome) ·
+06 Mockups (89 frames: 8 main screens + 3 channel pages + TikTok running now + Ad detail; iPhone, 13", 16", 5K;
+light + dark). Laptop/5K mockups are the 1440 design scaled per device, captured sharp at 1440 wide.
+Screens are captures of this app with the DEMO tag and the welcome card's "Live demo" pill hidden at capture time
+(the app keeps them). Charts use the trend line, bars only where the metric is Leads.
