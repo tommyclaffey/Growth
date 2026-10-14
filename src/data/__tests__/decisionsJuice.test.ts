@@ -67,12 +67,31 @@ describe('⭐ every raise is priced at the MARGIN, and sized to stay worth it', 
     expect(shown().some((c) => c.id === 'beats-channel:c7')).toBe(false);
   });
 
-  it('⭐ under plan with nowhere good to put it: the decision is to lower the plan', () => {
+  /* Oct 12: with 23 campaigns there IS somewhere good to put it, so the demo's
+     pacing card now moves money instead of lowering the plan. The next test
+     forces the lower-the-plan branch. */
+  it('⭐ under plan: unspent budget goes where a lead costs less than the average', () => {
     const p = shown().find((c) => c.kind === 'pacing')!;
-    expect(p.action).toBe('Lower the 30-day plan to $160,780');
-    expect(p.because).toMatch(/next dollar would buy leads at about \$/);
+    expect(p.action).toMatch(/^Put \$[\d,]+ of the unspent budget into “.+”$/);
+    expect(p.because).toMatch(/under plan: \$286,180 of \$445,000 for 30 days/);
     expect(p.tier).toBe(2);                         // rests on the curve -- stated
     expect(validate(p)).toBeNull();
+  });
+
+  it('⭐ under plan with nowhere good to put it: the decision is to lower the plan', async () => {
+    const { setStage } = await import('../campaignStatus');
+    const { CAMPAIGNS } = await import('../campaigns');
+    /* Only the podcast host reads keep running: dearer per lead than the
+       account average, so no campaign is a good home for the unspent budget. */
+    const before = CAMPAIGNS.map((c) => [c.id, c.stage] as const);
+    for (const c of CAMPAIGNS) if (c.id !== 'c22') setStage(c.id, 'Paused');
+    try {
+      const p = shown().find((c) => c.kind === 'pacing')!;
+      expect(p.action).toMatch(/^Lower the 30-day plan to \$[\d,]+$/);
+      expect(validate(p)).toBeNull();
+    } finally {
+      for (const [id, st] of before) setStage(id, st);
+    }
   });
 
   it('raise sizes come in 5% steps, never more than the detector allows', () => {
@@ -82,5 +101,16 @@ describe('⭐ every raise is priced at the MARGIN, and sized to stay worth it', 
       expect(Number(m![1]) % 5).toBe(0);
       expect(Number(m![1])).toBeLessThanOrEqual(25);
     }
+  });
+});
+
+describe('⭐ ad-level moves come three at a time (Oct 12)', () => {
+  it('shows at most three of each kind; the rest wait in Held back, saying why', () => {
+    for (const kind of ['spend-return-mismatch', 'scale-winner', 'paused-winner']) {
+      expect(shown().filter((c) => c.kind === kind).length, kind).toBeLessThanOrEqual(3);
+    }
+    const queued = held().filter((c) => c.held?.reason === 'queue');
+    expect(queued.length).toBeGreaterThan(0);
+    for (const c of queued) expect(c.held!.sentence).toMatch(/^One of \d+ .+ this week\. The 3 strongest are proposed first/);
   });
 });

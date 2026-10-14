@@ -526,6 +526,7 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 
 /* Under the list, left-aligned with the cards it extends. */
 .gr-dec__more { margin: var(--space-12) 0 0; }
+.gr-ads__more { display: flex; align-items: center; gap: var(--space-12); color: var(--text-muted); }
 
 .gr-dec__list {
   display: grid; gap: var(--space-16);

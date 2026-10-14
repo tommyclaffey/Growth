@@ -3,7 +3,7 @@ import type { Stage } from '../components/StatusPill/StatusPill';
 import { CAMPAIGNS, type AdSet, type Campaign } from './campaigns';
 import { campaignRows } from './campaignSeries';
 import { sliceWindow, windowLabels, type DayRow, type Metric, type Range } from './metrics';
-import { assetFor } from './creativeAssets';
+import { assetFor, extraImageFor } from './creativeAssets';
 import { CHANNEL_DEPTH } from './channelDepth';
 import { AD_SPREAD, adSetLeadShare, adSetWobble } from './adSets';
 
@@ -47,6 +47,12 @@ export interface Creative {
   /** The master asset, for formats that have one. */
   src?: string;
   /**
+   * The picture a text, link or audio ad really carries: a search image asset,
+   * a partner placement image, or the show's cover art. Never set on a visual
+   * format -- those use `src`.
+   */
+  image?: string;
+  /**
    * Where the crop is anchored, as a CSS object-position.
    *
    * The master is a tall poster. A 16:9 frame keeps a horizontal band of it,
@@ -72,13 +78,21 @@ const FOCUS: Record<string, string> = {
   '16:9': '50% 25%',
 };
 
+/* ⭐ SIX running ads per ad set, plus one paused. Real accounts rotate many
+   ads per ad set, and six fills a card grid at every width: one row of
+   three, three rows of two, or a single column. Fewer left a half-empty row,
+   which read as the account barely running anything. */
 const FORMATS: Record<ChannelName, { kind: CreativeKind; ratio?: Creative['ratio']; seconds?: number }[]> = {
-  meta:       [{ kind: 'image', ratio: '1:1' }, { kind: 'image', ratio: '4:5' }, { kind: 'video', ratio: '9:16', seconds: 15 }],
-  tiktok:     [{ kind: 'video', ratio: '9:16', seconds: 21 }, { kind: 'video', ratio: '9:16', seconds: 34 }],
-  youtube:    [{ kind: 'video', ratio: '16:9', seconds: 30 }, { kind: 'video', ratio: '16:9', seconds: 6 }],
-  paidSearch: [{ kind: 'text' }, { kind: 'text' }],
-  affiliates: [{ kind: 'link' }],
-  podcasts:   [{ kind: 'audio', seconds: 60 }, { kind: 'audio', seconds: 30 }],
+  meta: [
+    { kind: 'image', ratio: '1:1' }, { kind: 'image', ratio: '4:5' }, { kind: 'video', ratio: '9:16', seconds: 15 },
+    { kind: 'image', ratio: '1:1' }, { kind: 'image', ratio: '4:5' }, { kind: 'video', ratio: '9:16', seconds: 30 },
+    { kind: 'image', ratio: '1:1' },
+  ],
+  tiktok: [21, 34, 15, 28, 45, 18, 60].map((seconds) => ({ kind: 'video' as const, ratio: '9:16' as const, seconds })),
+  youtube: [30, 6, 15, 60, 20, 6, 45].map((seconds) => ({ kind: 'video' as const, ratio: '16:9' as const, seconds })),
+  paidSearch: Array.from({ length: 7 }, () => ({ kind: 'text' as const })),
+  affiliates: Array.from({ length: 7 }, () => ({ kind: 'link' as const })),
+  podcasts: [60, 30, 60, 30, 60, 30, 15].map((seconds) => ({ kind: 'audio' as const, seconds })),
 };
 
 /**
@@ -111,11 +125,11 @@ export const ADVERTISER = { name: 'Copperline', domain: 'copperline.app' };
    campaign must render the same ads on every visit, and Math.random in a data
    layer means a screenshot cannot be reproduced. */
 const HOOKS: Record<string, string[]> = {
-  Conversions: ['Set up in under three minutes', 'Start free, no card', 'Join 400,000 people'],
-  Traffic:     ['See your spending in two minutes', 'Link an account, see the truth', 'For people who hate budgeting'],
-  Awareness:   ['Know where the money went', 'Every account, one place', 'The last money app you will try'],
-  Sales:       ['Premium is $4 a month', 'Lock in the annual price', 'Two months free on annual'],
-  Retention:   ['Your December summary is ready', 'You have not checked in since October', 'Pick your budget back up'],
+  Conversions: ['Set up in under three minutes', 'Start free, no card', 'Join 400,000 people', 'Your first budget in one tap', 'Free for your first year', 'Rated 4.8 by real users', 'Budgeting that takes a minute'],
+  Traffic:     ['See your spending in two minutes', 'Link an account, see the truth', 'For people who hate budgeting', 'Where did October go?', 'Every bill on one screen', 'Find the subscriptions you forgot', 'Your money, sorted by Friday'],
+  Awareness:   ['Know where the money went', 'Every account, one place', 'The last money app you will try', 'Money, minus the spreadsheet', 'Built for real paychecks', 'Calm about money, finally', 'See it all before payday'],
+  Sales:       ['Premium is $4 a month', 'Lock in the annual price', 'Two months free on annual', 'Premium pays for itself', 'Cancel any time, keep your data', 'Annual plan, half the price', 'Premium, free for 30 days'],
+  Retention:   ['Your December summary is ready', 'You have not checked in since October', 'Pick your budget back up', 'Your savings goal moved', 'Three bills are due this week', 'See what changed this month', 'Your weekly money check-in'],
 };
 
 const CTAS = ['Get started', 'Download free', 'Link an account', 'See my spending'];
@@ -132,6 +146,8 @@ function seed(s: string): number {
   return n;
 }
 
+const PAUSED_SLOT = 3;
+
 function forAdSet(c: Campaign, a: AdSet): Creative[] {
   const formats = FORMATS[c.channel];
   const hooks = hooksFor(c.objective);
@@ -143,6 +159,11 @@ function forAdSet(c: Campaign, a: AdSet): Creative[] {
      than no creative table. */
   const weights = formats.map((_, i) => 1 + ((base + i * 7) % 5));
   const total = weights.reduce((x, y) => x + y, 0);
+
+  /* Each ad's place among the ads of its OWN shape in this ad set. Cycling
+     the library by that, not by the raw index, gives every ad in an ad set a
+     different picture: Meta's three squares are three different squares. */
+  const nth = formats.map((f, i) => formats.slice(0, i).filter((g) => (g.ratio ?? g.kind) === (f.ratio ?? f.kind)).length);
 
   return formats.map((f, i) => {
     const share = weights[i] / total;
@@ -171,12 +192,15 @@ function forAdSet(c: Campaign, a: AdSet): Creative[] {
          Video resolves against the library too: a video slot wants a POSTER
          FRAME, which is a still, and is exactly what Ads Manager shows in a
          list view. */
-      src: f.ratio ? assetFor(f.ratio, i + seed(a.id)) : undefined,
+      src: f.ratio ? assetFor(f.ratio, nth[i] + base) : undefined,
+      image: f.ratio ? undefined : extraImageFor(f.kind, nth[i] + base),
       focus: f.ratio ? FOCUS[f.ratio] : undefined,
       /* An ad in a paused ad set is not running, whatever its own status says.
          Reporting it as Active would be a status describing what was stored
          rather than what is true. */
-      stage: a.stage === 'Paused' ? 'Paused' : (i === formats.length - 1 && formats.length > 2 ? 'Paused' : 'Active'),
+      /* One ad per ad set is paused: the fourth, rotated out mid-test. Not
+         the last, so the paused one is not always the newest format. */
+      stage: a.stage === 'Paused' ? 'Paused' : (i === PAUSED_SLOT && formats.length > PAUSED_SLOT + 1 ? 'Paused' : 'Active'),
       spend: Math.round(a.spend * share),
       leads: Math.round(a.leads * share),
     };
@@ -185,17 +209,35 @@ function forAdSet(c: Campaign, a: AdSet): Creative[] {
 
 function bodyFor(c: Campaign, kind: CreativeKind, i: number): string {
   if (kind === 'text') {
-    return i === 0
-      ? 'Track spending, bills and savings in one app. Free to start, no card.'
-      : 'Link every account and see where it actually goes. Setup takes minutes.';
+    const lines = [
+      'Track spending, bills and savings in one app. Free to start, no card.',
+      'Link every account and see where it actually goes. Setup takes minutes.',
+      'Bills, budgets and goals together. Bank-level security, no ads.',
+      'Spot forgotten subscriptions and cancel in a tap. Free download.',
+      'One view of every account. Join 400,000 people who stopped guessing.',
+      'Set a budget that adjusts to your paycheck. Start free today.',
+      'Compare plans and see your money clearly. No card needed.',
+    ];
+    return lines[i % lines.length];
   }
   if (kind === 'audio') {
-    return i === 0
-      ? `Host read — 60s mid-roll. Opens on the where-did-it-go story, then the ${ADVERTISER.name} code.`
-      : 'Host read — 30s pre-roll. Offer code only, no narrative setup.';
+    const reads = [
+      `Host read — 60s mid-roll. Opens on the where-did-it-go story, then the ${ADVERTISER.name} code.`,
+      'Host read — 30s pre-roll. Offer code only, no narrative setup.',
+      'Host read — 60s mid-roll. The host walks through their own first budget.',
+      'Host read — 30s post-roll. Annual-plan offer with the show code.',
+      'Host read — 60s mid-roll. Listener question about subscriptions, then the code.',
+      'Host read — 30s pre-roll. Tax-season angle, offer code at the end.',
+      'Produced spot — 15s. Tagline and URL only.',
+    ];
+    return reads[i % reads.length];
   }
-  if (kind === 'link') return `Placement on ${c.name.split(' — ')[0]} partner pages, above the fold.`;
-  return 'Cold audience cut. App on screen within the first two seconds.';
+  if (kind === 'link') {
+    const spots = ['partner pages, above the fold', 'comparison table, top slot', 'newsletter, lead story', 'review page, sidebar', 'deals roundup, first card', 'how-to guide, inline', 'homepage, rotating banner'];
+    return `Placement on ${c.name.split(' — ')[0]} ${spots[i % spots.length]}.`;
+  }
+  const cuts = ['Cold audience cut. App on screen within the first two seconds.', 'Testimonial cut. A real user opens on their bank balance.', 'Problem-first cut. Opens on a pile of receipts.', 'Feature cut. The subscription finder in one take.', 'Offer cut. Free year, shown as a price card.', 'Founder cut. Straight to camera, under 20 seconds.', 'Retargeting cut. Picks up where the last ad left off.'];
+  return cuts[i % cuts.length];
 }
 
 /* ---- A real account's ads (Phase 4) ----------------------------------
@@ -288,6 +330,32 @@ export function rankCreatives(
        on its own. */
     return d !== 0 ? d : (b.spend - a.spend) || a.c.id.localeCompare(b.c.id);
   }).map((x) => x.c);
+}
+
+/**
+ * The first `n` of a ranked list, one per picture and one per headline.
+ *
+ * Two ad sets in one campaign often run the same asset (that is normal: one
+ * master, served to two audiences), so a top-six drawn across ad sets could
+ * show the same photo twice and read as a broken grid. The shortlist keeps each
+ * picture's best-ranked ad and skips its repeats; if there are not enough
+ * distinct pictures to fill `n`, the repeats come back rather than leaving a
+ * gap. Ads without a picture never collide.
+ */
+export function topDistinct(ranked: Creative[], n: number): Creative[] {
+  const seen = new Set<string>();
+  const first: Creative[] = [];
+  const rest: Creative[] = [];
+  for (const c of ranked) {
+    const art = c.src ?? c.image;
+    /* Headlines too: campaigns share hooks, so a channel-wide six could read
+       "Rated 4.8 by real users" twice. */
+    const keys = [art && `art:${art}`, `head:${c.headline}`].filter(Boolean) as string[];
+    if (keys.some((k) => seen.has(k))) { rest.push(c); continue; }
+    for (const k of keys) seen.add(k);
+    first.push(c);
+  }
+  return [...first, ...rest].slice(0, n);
 }
 
 /* ---------------------------------------------------------------- one ad -- */

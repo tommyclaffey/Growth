@@ -45,3 +45,11 @@ npm run lint
 npm run build
 npm run brand:check  # rasterise brand assets so they can be LOOKED AT
 ```
+
+## Figma
+File `b6JvDQQ7QcWJpckvZyAbjm` (Growth). All required pages exist (checked Oct 12 2026):
+00 Cover · 01 Brand guide · 02 Design system · 03 Wireframes · Lo-fi (desktop + phone) ·
+04 Hi-fi · Desktop (prototype, 19 screens) · 05 Hi-fi · Phone (prototype, 17 screens) ·
+06 Mockups (iPhone 1206×2622, laptops 2560×1664 + 3456×2234, desktop 5120×2880, light + dark,
+plus Paid Search / Meta / YouTube laptop channel pages). Screens are captures of this app: the
+app is the source of truth. Mockup charts use the trend line, bars only where the metric is Leads.

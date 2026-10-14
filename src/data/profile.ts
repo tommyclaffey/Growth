@@ -251,12 +251,12 @@ export function useWorkspaceName(): string {
    question ("am I on track") rather than a backward one, so it is worth making
    real rather than deleting.
 
-   $250,000 is the default because it is what makes the original 64% true:
-   $160,780 of 30-day spend against $250k is 64.3%. The number on the screen
-   does not move; it just becomes derived instead of typed. */
+   $250,000 was the default because it made the original 64% true ($160,780 of
+   30-day spend). Oct 12: the account grew to 23 campaigns and $286,180 a month,
+   so the default is $445k: the same 64% (286,180 / 445,000 = 64.3%). */
 const BUDGET_KEY = 'growth.budget';
 const BUDGET_CHANGED = 'growth:budget-changed';
-export const DEFAULT_BUDGET = 250_000;
+export const DEFAULT_BUDGET = 445_000;
 
 /* SERVER ONLY -- the browser's budgets, adopted for one assistant request.
    See adoptPrefs in prefs.ts for why. */

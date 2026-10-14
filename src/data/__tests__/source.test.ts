@@ -68,7 +68,7 @@ describe('⭐ the product runs on ANY source loaded through hydrate()', () => {
   });
 
   it('the seeded source reproduces the published figures exactly', () => {
-    expect(Math.round(totals('all', 30).spend)).toBe(160780);
+    expect(Math.round(totals('all', 30).spend)).toBe(286180);
     expect(PERIOD_END.toISOString().slice(0, 10)).toBe('2026-08-12');
   });
 });

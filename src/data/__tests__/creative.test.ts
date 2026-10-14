@@ -265,3 +265,50 @@ describe('one ad', () => {
     }
   });
 });
+
+describe('every ad has a picture (Oct 12 2026)', () => {
+  it('visual formats carry a master asset; text, link and audio carry their own picture', () => {
+    for (const c of CAMPAIGNS) {
+      for (const cr of creativesFor(c.id)) {
+        const visual = cr.kind === 'image' || cr.kind === 'video';
+        if (visual) {
+          expect(cr.src, `${cr.id} ${cr.ratio}`).toBeTruthy();
+          expect(cr.image, `${cr.id} visual ads use src, never image`).toBeUndefined();
+        } else {
+          expect(cr.image, `${cr.id} ${cr.kind}`).toBeTruthy();
+        }
+      }
+    }
+  });
+
+  it('every library shape is stocked', () => {
+    expect(missingRatios()).toEqual([]);
+  });
+
+});
+
+describe('⭐ every ad set is full and never repeats itself (Oct 12)', () => {
+  it('runs six live ads, each with its own picture and headline', async () => {
+    const { CAMPAIGNS } = await import('../campaigns');
+    for (const c of CAMPAIGNS) {
+      for (const a of c.adSets) {
+        const ads = creativesFor(c.id).filter((x) => x.adSetId === a.id);
+        const live = a.stage === 'Paused' ? ads : ads.filter((x) => x.stage === 'Active');
+        expect(live.length, a.id).toBeGreaterThanOrEqual(6);
+        const pics = ads.map((x) => x.src ?? x.image);
+        expect(new Set(pics).size, `${a.id} pictures`).toBe(pics.length);
+        expect(new Set(ads.map((x) => x.headline)).size, `${a.id} headlines`).toBe(ads.length);
+      }
+    }
+  });
+});
+
+describe('topDistinct: a shortlist never repeats a picture (Oct 12)', () => {
+  it('skips repeats while there are distinct pictures, then fills from them', async () => {
+    const { topDistinct } = await import('../creative');
+    const mk = (id: string, src?: string) => ({ id, src, headline: id } as unknown as import('../creative').Creative);
+    const list = [mk('a', 'p1'), mk('b', 'p1'), mk('c', 'p2'), mk('d'), mk('e', 'p2')];
+    expect(topDistinct(list, 3).map((x) => x.id)).toEqual(['a', 'c', 'd']);
+    expect(topDistinct(list, 5).map((x) => x.id)).toEqual(['a', 'c', 'd', 'b', 'e']);
+  });
+});

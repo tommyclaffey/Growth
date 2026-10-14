@@ -49,6 +49,13 @@
    That is what "the logo is cut off" was: not the SVG, not the mark component,
    a rule two components away matching on structure without checking what it
    had hit. */
+.gr-cpreview__art { position: relative; }
+/* Same rank chip as the ad cards on the campaign page. */
+.gr-cpreview__rank {
+  position: absolute; left: 6px; top: 6px;
+  padding: 1px 5px; border-radius: var(--radius-sm);
+  background: var(--accent-fill); color: var(--brand-on-accent);
+}
 .gr-cpreview__art > img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .gr-cpreview__noart {
   display: flex; flex-direction: column; align-items: center; justify-content: center;

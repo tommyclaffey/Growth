@@ -97,17 +97,33 @@ export function CreativeCard({ creative: c, channel, rank, onOpen, range = 30 }:
             </span>
           </span>
         ) : c.kind === 'audio' ? (
-          <span className="gr-creative__wave" aria-hidden="true">
-            {[6, 13, 9, 17, 11, 20, 8, 15, 10, 18, 7, 12, 16, 9, 14].map((h, i) => (
-              <i key={i} style={{ height: `${h}px` }} />
-            ))}
+          /* A podcast spot plays over the SHOW'S cover art -- that is what a
+             listener's player has on screen during the read. */
+          <span className="gr-creative__podcast">
+            {c.image && <img className="gr-creative__cover" src={c.image} alt="" loading="lazy" />}
+            <span className="gr-creative__wave" aria-hidden="true">
+              {[6, 13, 9, 17, 11, 20, 8, 15, 10, 18, 7, 12, 16, 9, 14].map((h, i) => (
+                <i key={i} style={{ height: `${h}px` }} />
+              ))}
+            </span>
           </span>
+        ) : c.kind === 'link' && c.image ? (
+          /* A partner placement: the picture the review page runs above the
+             link, with the link itself on it. */
+          <>
+            <img className="gr-creative__img" src={c.image} alt="" loading="lazy" />
+            <span className="gr-creative__url gr-type-micro">{c.destination}</span>
+          </>
         ) : (
           /* A search ad IS text, so it renders as a search result rather than
-             as an icon standing in for one. */
+             as an icon standing in for one -- with its image asset on the
+             right, where Google shows one. */
           <span className="gr-creative__serp">
-            <span className="gr-creative__serp-url gr-type-micro">{c.destination}</span>
-            <span className="gr-creative__serp-head gr-type-strip">{c.headline}</span>
+            <span className="gr-creative__serp-text">
+              <span className="gr-creative__serp-url gr-type-micro">{c.destination}</span>
+              <span className="gr-creative__serp-head gr-type-strip">{c.headline}</span>
+            </span>
+            {c.image && <img className="gr-creative__serp-img" src={c.image} alt="" loading="lazy" />}
           </span>
         )}
 

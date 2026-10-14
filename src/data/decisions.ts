@@ -287,7 +287,7 @@ function sizedRaise(rows: DayRow[], base: Sample, most: number, ceiling: number,
 }
 
 /** Why a finding was found and not shown. */
-export type HeldReason = 'chance' | 'marginal' | 'overlap';
+export type HeldReason = 'chance' | 'marginal' | 'overlap' | 'queue';
 
 /** Range totals → one week. */
 const perWeek = (x: Sample, range: number): Sample => ({ spend: (x.spend / range) * 7, leads: (x.leads / range) * 7 });
@@ -1612,7 +1612,7 @@ function compute(range: Range, channels: ChannelName[]): Candidate[] {
     ...slowLeak(channels),
   ];
 
-  const first = settle(assess(found), new Set(), new Map());
+  const first = settle(queueAdMoves(assess(found)), new Set(), new Map());
   /* ⭐ Pacing LAST, and only after the others are SETTLED -- so it never puts
      unspent money into, or cuts the excess from, a campaign another shown card
      already moves. 🐛 It used to read the raises BEFORE holding, so a raise
@@ -1632,6 +1632,37 @@ function compute(range: Range, channels: ChannelName[]): Candidate[] {
     .filter((c) => !shownKeys.has(dedupeKey(c)) && !insideEnding(c, ending))
     .sort(byRank);
   return shown;
+}
+
+/**
+ * At most AD_MOVES_SHOWN of each kind of ad-level move per week; the rest wait.
+ *
+ * ⭐ Oct 12. Once the account ran 23 campaigns and ~300 ads, the per-ad
+ * detectors each found a dozen ads, and the queue read "Take these 27 moves":
+ * nine near-identical "Pause this ad" cards and thirteen "Raise this ad". A
+ * list that long is not a decision, it is a to-do dump, and the plan's total
+ * stops meaning anything. Each kind keeps its strongest few; the others go to
+ * Held back with a sentence saying why, and come back when those are acted on.
+ * Nothing is hidden -- it is ordered.
+ */
+const AD_MOVES_SHOWN = 3;
+const AD_MOVE_NOUN: Partial<Record<Candidate['kind'], string>> = {
+  'spend-return-mismatch': 'ads to pause',
+  'scale-winner': 'ads to raise',
+  'paused-winner': 'paused ads to turn back on',
+};
+
+function queueAdMoves(cs: Candidate[]): Candidate[] {
+  for (const [kind, noun] of Object.entries(AD_MOVE_NOUN)) {
+    const list = cs.filter((c) => c.kind === kind && !c.held).sort(byRank);
+    for (const c of list.slice(AD_MOVES_SHOWN)) {
+      c.held = {
+        reason: 'queue',
+        sentence: `One of ${list.length} ${noun} this week. The ${AD_MOVES_SHOWN} strongest are proposed first; this one comes back once they are done.`,
+      };
+    }
+  }
+  return cs;
 }
 
 /** Tier, then strength, then id -- a TOTAL order, so nothing reshuffles between renders. */

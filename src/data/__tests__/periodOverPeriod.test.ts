@@ -46,7 +46,7 @@ describe('period-over-period is the preceding window, not a half-split', () => {
   });
 
   it('adding history did not move the recent window (30-day total is still the design figure)', () => {
-    expect(Math.round(totals('meta', 30).spend)).toBe(61240);
+    expect(Math.round(totals('meta', 30).spend)).toBe(97040);
     expect(rowsFor('meta', 90)).toHaveLength(POINTS);
   });
 

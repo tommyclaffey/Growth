@@ -3,13 +3,14 @@ import './CreativeCard.css';
 import { CreativeCard } from './CreativeCard';
 import { Chip } from '../Chip/Chip';
 import {
-  CREATIVE_NOUN, CREATIVE_SORTS, rankCreatives,
+  CREATIVE_NOUN, CREATIVE_SORTS, rankCreatives, topDistinct,
   type Creative, type CreativeKind, type CreativeSort,
 } from '../../data/creative';
 import type { ChannelName } from '../../styles/tokens';
 import type { Range } from '../../data/metrics';
 
-const TOP_N = 3;
+/* Six fills a full row at every width: 3 + 3, 2 + 2 + 2, or one column. */
+const TOP_N = 6;
 
 export interface CreativeSectionProps {
   channel: ChannelName;
@@ -58,7 +59,9 @@ export function CreativeSection({ channel, creatives, onOpenAd, range = 30 }: Cr
     range,
   ), [creatives, showPaused, format, sort, range]);
 
-  const shown = expanded ? filtered : filtered.slice(0, TOP_N);
+  /* One per picture in the shortlist, so two ad sets sharing an asset do not
+     show the same photo twice in the top six. Expanded shows everything. */
+  const shown = expanded ? filtered : topDistinct(filtered, TOP_N);
   const hidden = filtered.length - shown.length;
 
   return (

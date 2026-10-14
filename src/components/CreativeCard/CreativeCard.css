@@ -46,10 +46,24 @@
 .gr-creative__wave { display: flex; align-items: center; gap: 4px; height: 40px; }
 .gr-creative__wave i { width: 3px; border-radius: var(--radius-pill); background: var(--border-strong); }
 
-/* The search ad, drawn the way a search ad looks. */
+/* The search ad, drawn the way a search ad looks: copy on the left, the
+   square image asset on the right (Oct 12 2026). */
 .gr-creative__serp {
-  display: flex; flex-direction: column; gap: var(--space-4);
+  display: flex; align-items: center; gap: var(--space-12);
   padding: 0 var(--space-16); width: 100%;
+}
+.gr-creative__serp-text { display: flex; flex-direction: column; gap: var(--space-4); flex: 1; min-width: 0; }
+.gr-creative__serp-img {
+  width: 34%; aspect-ratio: 1 / 1; flex: none;
+  object-fit: cover; border-radius: var(--radius-md);
+}
+
+/* A podcast spot: the show's cover art, the read's waveform under it. */
+.gr-creative__podcast { display: flex; flex-direction: column; align-items: center; gap: var(--space-12); width: 100%; }
+.gr-creative__cover {
+  width: 58%; aspect-ratio: 1 / 1;
+  object-fit: cover; border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
 }
 .gr-creative__serp-url { color: var(--text-muted); }
 .gr-creative__serp-head { color: var(--accent-text); }
@@ -58,6 +72,7 @@
    not control — the alternative is a label that works on one upload. */
 .gr-creative__ratio,
 .gr-creative__time,
+.gr-creative__url,
 .gr-creative__rank {
   position: absolute;
   padding: 1px 5px;
@@ -67,6 +82,8 @@
 }
 .gr-creative__ratio { left: 6px; bottom: 6px; }
 .gr-creative__time  { right: 6px; bottom: 6px; }
+/* The placement's link, over its picture -- scrimmed like the other overlays. */
+.gr-creative__url   { left: 6px; right: 6px; bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr-creative__rank  { left: 6px; top: 6px; background: var(--accent-fill); }
 
 /* Spacing follows the hierarchy rather than one uniform gap.

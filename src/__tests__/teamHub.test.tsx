@@ -72,7 +72,7 @@ describe('reports reach the team', () => {
     const s = snapshot(r, ['tiktok', 'youtube']);
     expect(s.window).toMatch(/Jul 14 – Aug 12, compared with Jun 14 – Jul 13/);
     expect(s.rows.map((x) => x.channel)).toEqual(['TikTok', 'YouTube']);
-    expect(s.total?.spend).toBe('$50,580');
+    expect(s.total?.spend).toBe('$92,980');
   });
 
   it('⭐ Send to chat stages the report; Send puts it in the conversation', async () => {

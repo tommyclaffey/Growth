@@ -21,7 +21,7 @@ describe('the chart: table view and earlier periods', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     const table = screen.getByRole('table', { hidden: false });
     expect(table.querySelectorAll('tbody tr')).toHaveLength(30);
-    expect(table.textContent).toContain('$160,780');          // the published 30-day total
+    expect(table.textContent).toContain('$286,180');          // the published 30-day total
   });
 
   it('⭐ compare to the same days last week / month / year -- one Compare control, a group of its own', () => {

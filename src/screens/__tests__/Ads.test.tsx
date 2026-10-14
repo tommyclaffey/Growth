@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { Ads } from '../Ads';
+import { Ads, PAGE } from '../Ads';
 import { rankedAds } from '../../data/adRanking';
 import { ALL_CHANNELS } from '../../data/blended';
 import { CHANNEL_KEYS, setActiveChannels } from '../../data/metrics';
@@ -22,7 +22,9 @@ describe('Ads renders the ranking', () => {
        taking the top three places. */
     const expected = rankedAds('CAC', 'relative', 30, ALL_CHANNELS)
       .filter((r) => r.creative.stage === 'Active').length;
-    expect(rows(container)).toHaveLength(expected);
+    /* Paged (Oct 12): the first page, and the header still counts them all. */
+    expect(rows(container)).toHaveLength(Math.min(expected, PAGE));
+    expect(container.querySelector('.gr-dec__count')!.textContent).toBe(String(expected));
 
     /* A table whose body has more cells than its head has columns lays out
        wrong in a way nothing else catches -- this shipped once already as a
@@ -120,7 +122,7 @@ describe('Ads renders the ranking', () => {
     expect([...container.querySelectorAll('thead th')].map((t) => t.textContent)).not.toContain('Status');
 
     fireEvent.click(screen.getByRole('button', { name: `Show paused ${paused}` }));
-    expect(rows(container)).toHaveLength(all.length);
+    expect(rows(container)).toHaveLength(Math.min(all.length, PAGE));
     expect([...container.querySelectorAll('thead th')].map((t) => t.textContent)).toContain('Status');
     expect(rows(container)[0].querySelectorAll('td').length)
       .toBe(container.querySelectorAll('thead th').length);
@@ -136,5 +138,20 @@ describe('Ads renders the ranking', () => {
       const kind = live[i].creative.kind;
       expect(tile.textContent!.toLowerCase()).toBe(kind);
     });
+  });
+});
+
+describe('⭐ a long ranking is paged, never cut (Oct 12)', () => {
+  it('"Show N more" adds the next page until every ad is listed', () => {
+    setActiveChannels([...CHANNEL_KEYS]);
+    const { container } = render(<Ads range={30} />);
+    const live = rankedAds('CAC', 'relative', 30, ALL_CHANNELS).filter((r) => r.creative.stage === 'Active').length;
+    expect(live).toBeGreaterThan(PAGE);
+    let guard = 0;
+    while (rows(container).length < live && guard++ < 50) {
+      fireEvent.click(screen.getByRole('button', { name: /^Show \d+ more$/ }));
+    }
+    expect(rows(container)).toHaveLength(live);
+    expect(screen.queryByRole('button', { name: /^Show \d+ more$/ })).toBeNull();
   });
 });

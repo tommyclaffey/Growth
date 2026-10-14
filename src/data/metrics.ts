@@ -101,12 +101,14 @@ const CHANNELS: Record<ChannelName, {
   trend: number;      // slope of the seeded ramp (second half vs first half of 90 days). NOT the Δ Prev shown on screen -- that compares real windows, see changeOf().
   cpm: number;        // $ per 1,000 impressions — what the media actually costs
 }> = {
-  meta:       { label: 'Meta',        spend: 61240, cvr: 0.034, closeRate: 0.12, roas: 4.6, cac:  35.94, trend:  0.06, cpm: 12 },
-  tiktok:     { label: 'TikTok',      spend: 28110, cvr: 0.021, closeRate: 0.09, roas: 3.9, cac:  33.38, trend: -0.03, cpm: 6 },
-  youtube:    { label: 'YouTube',     spend: 22470, cvr: 0.018, closeRate: 0.10, roas: 3.1, cac:  40.05, trend:  0.02, cpm: 4 },
-  affiliates: { label: 'Affiliates',  spend: 18320, cvr: 0.052, closeRate: 0.18, roas: 5.2, cac:  36.79, trend:  0.11, cpm: 95 },
-  paidSearch: { label: 'Paid Search', spend: 18400, cvr: 0.041, closeRate: 0.15, roas: 3.4, cac:  85.98, trend:  0.04, cpm: 120 },
-  podcasts:   { label: 'Podcasts',    spend: 12240, cvr: 0.012, closeRate: 0.07, roas: 2.1, cac: 128.80, trend: -0.01, cpm: 30 },
+  /* Oct 12: each total is the sum of its channel's campaigns in campaigns.ts
+     (a test holds them together). Grew when 14 campaigns were added. */
+  meta:       { label: 'Meta',        spend: 97040, cvr: 0.034, closeRate: 0.12, roas: 4.6, cac:  35.94, trend:  0.06, cpm: 12 },
+  tiktok:     { label: 'TikTok',      spend: 48710, cvr: 0.021, closeRate: 0.09, roas: 3.9, cac:  33.38, trend: -0.03, cpm: 6 },
+  youtube:    { label: 'YouTube',     spend: 44270, cvr: 0.018, closeRate: 0.10, roas: 3.1, cac:  40.05, trend:  0.02, cpm: 4 },
+  affiliates: { label: 'Affiliates',  spend: 33320, cvr: 0.052, closeRate: 0.18, roas: 5.2, cac:  36.79, trend:  0.11, cpm: 95 },
+  paidSearch: { label: 'Paid Search', spend: 34400, cvr: 0.041, closeRate: 0.15, roas: 3.4, cac:  85.98, trend:  0.04, cpm: 120 },
+  podcasts:   { label: 'Podcasts',    spend: 28440, cvr: 0.012, closeRate: 0.07, roas: 2.1, cac: 128.80, trend: -0.01, cpm: 30 },
 };
 
 export const CHANNEL_KEYS = Object.keys(CHANNELS) as ChannelName[];

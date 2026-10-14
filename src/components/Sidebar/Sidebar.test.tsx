@@ -40,13 +40,15 @@ describe('the sidebar (Sept 30)', () => {
     expect(result.current.decisions).toBe(waiting.length - 1);
   });
 
-  it('🐛 approving a campaign moves the badge too -- not only the screen', async () => {
+  it('🐛 acting on a campaign moves the badge too -- not only the screen', async () => {
     const { setStage } = await import('../../data/campaignStatus');
     const ch = [...CHANNEL_KEYS];
     const { result } = renderHook(() => useNavCounts(30, ch));
     const before = result.current.decisions;
-    /* "End Non-brand" is a waiting proposal; activating it removes that card. */
-    act(() => setStage('c8', 'Active'));
+    /* "End Non-brand" is a waiting proposal; ending the campaign removes that card.
+       (Activating it used to, but with six ads per ad set its own ads now bring
+       new cards with them, and the count happened to land where it started.) */
+    act(() => setStage('c8', 'Ended'));
     try {
       expect(result.current.decisions).toBe(decisions(30, ch).filter((c) => c.tier !== 3).length);
       expect(result.current.decisions).not.toBe(before);
