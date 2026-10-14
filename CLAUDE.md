@@ -48,7 +48,7 @@ npm run brand:check  # rasterise brand assets so they can be LOOKED AT
 
 ## Figma
 File `b6JvDQQ7QcWJpckvZyAbjm` (Growth). All required pages exist (checked Oct 14 2026; every screen reachable from a flow):
-00 Cover · 01 Brand guide · 02 Design system · 03 Wireframes · Lo-fi (desktop + phone) ·
+00 Cover · 01 Brand guide · 02 Design system · 03 Wireframes · Lo-fi (desktop 1440 + phone 402) ·
 04 Hi-fi · Desktop (prototype, 19 screens at 1440 wide, captured at 1440 × 1024; flows "Growth · Desktop" + "· Dark") ·
 05 Hi-fi · Phone (prototype, 20 screens incl. channel → ad set → ad, with Back; flows "Growth · Phone" + "· Dark") ·
 06 Mockups (iPhone 1206×2622, laptops 2560×1664 + 3456×2234, desktop 5120×2880, light + dark,
