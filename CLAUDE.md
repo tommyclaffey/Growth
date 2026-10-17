@@ -51,7 +51,8 @@ File `b6JvDQQ7QcWJpckvZyAbjm` (Growth). All required pages exist (checked Oct 14
 00 Cover · 01 Brand guide · 02 Design system · 03 Wireframes · Lo-fi (desktop 1440 + phone 402) ·
 04 Hi-fi · Desktop (prototype, 19 screens at 1440; flows Desktop / Dark / Welcome) ·
 05 Hi-fi · Phone (prototype, 20 screens at 402 × 874; flows Phone / Dark / Welcome) ·
-06 Mockups (89 frames: 8 main screens + 3 channel pages + TikTok running now + Ad detail; iPhone, 13", 16", 5K;
+06 Mockups (97 frames: 8 main screens + Overview + Team chat + 3 channel pages + TikTok running now + Ad detail; iPhone, 13", 16", 5K;
 light + dark). Laptop/5K mockups are the 1440 design scaled per device, captured sharp at 1440 wide.
 Screens are captures of this app with the DEMO tag and the welcome card's "Live demo" pill hidden at capture time
 (the app keeps them). Charts use the trend line, bars only where the metric is Leads.
+Capture with `scripts/mockup-capture.mjs` (jobs JSON; device sizes in its header).
