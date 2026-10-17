@@ -1,6 +1,6 @@
 // Mockup / prototype capture from the live build.
 // usage: node scripts/mockup-capture.mjs <jobs.json> <device> <w> <h> <dpr>
-// jobs: [{ url, out, theme, js? }]. Per job: sets the theme, hides demo labels
+// jobs: [{ url, out, theme, js?, full? }]. full = whole page length (prototype frames). Per job: sets the theme, hides demo labels
 // (Oct 14 rule: no DEMO / "Live demo" in any prototype or mockup), switches every
 // chart to its trend line except Leads (Oct 12), runs the job's own js (e.g. open
 // Team chat, scroll), then screenshots the viewport.
@@ -46,7 +46,24 @@ for (const j of jobs) {
     await new Promise(r => setTimeout(r, 400));
     return out.join(' | ') + ' || ' + (document.querySelector('h1')?.textContent || '');
   })()` });
+  if (j.full) {
+    /* Full length (prototype frames): the shell is fixed to the viewport and
+       only the content column scrolls, so grow the viewport by however far the
+       tallest scroller can scroll, then shoot. CAP keeps it sane. */
+    const m = await send('Runtime.evaluate', { returnByValue: true, expression: `(() => {
+      let extra = Math.max(0, document.documentElement.scrollHeight - innerHeight);
+      for (const el of document.querySelectorAll('*')) {
+        const cs = getComputedStyle(el);
+        if (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 1) extra = Math.max(extra, el.scrollHeight - el.clientHeight);
+      }
+      return extra;
+    })()` });
+    const extra = Math.min(m.result?.result?.value || 0, +(process.env.CAP || 16000));
+    await send('Emulation.setDeviceMetricsOverride', { width: +w, height: +h + extra, deviceScaleFactor: +dpr, mobile });
+    await sleep(900);
+  }
   const shot = await send('Page.captureScreenshot', { format: 'png' });
+  if (j.full) await send('Emulation.setDeviceMetricsOverride', { width: +w, height: +h, deviceScaleFactor: +dpr, mobile });
   writeFileSync(j.out, Buffer.from(shot.result.data, 'base64'));
   console.log(device, j.out.split('/').pop(), r.result?.result?.value ?? r.result?.exceptionDetails?.text);
 }
