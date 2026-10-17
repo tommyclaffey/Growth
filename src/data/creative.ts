@@ -423,6 +423,48 @@ export function creativeLeadShare(id: string): number {
   return (weights[i] / sum) * adSetLeadShare(found.adSetId);
 }
 
+/**
+ * ⭐ Oct 16: an ad's share of its ad set's CLICKS and SALES, wobbled the same
+ * way its lead share is (G-013), so click-through and close rate differ ad to ad.
+ *
+ * Before this, clicks rode the spend share and sales rode the lead share, so
+ * every ad in a campaign had the campaign's exact click-through and close rate,
+ * and the ad page's funnel read "level" on both, on every ad. Renormalised
+ * within the ad set like the lead share, so ads still sum to their ad set and
+ * ad sets to their campaign, exactly. Decisions read spend and leads, so they
+ * do not move.
+ */
+let WOBBLE_FOR: unknown = null;
+const WOBBLE = new Map<string, number>();
+function wobbledWithin(id: string, base: (x: string) => number, salt: string, spread: number): number {
+  if (WOBBLE_FOR !== CAMPAIGNS || SOURCE_ADS) { WOBBLE.clear(); WOBBLE_FOR = CAMPAIGNS; }
+  const key = `${salt}|${id}`;
+  const hit = WOBBLE.get(key);
+  if (hit !== undefined) return hit;
+  const owner = creativeById(id);
+  if (!owner) return 0;
+  const me = creativesFor(owner.campaignId).find((x) => x.id === id);
+  if (!me) return 0;
+  const sibs = creativesFor(owner.campaignId).filter((x) => x.adSetId === me.adSetId);
+  const bases = sibs.map((x) => base(x.id));
+  const total = bases.reduce((a, b) => a + b, 0);
+  if (total <= 0) return 0;
+  const weights = sibs.map((x, i) => bases[i] * adSetWobble(`${x.id}:${salt}`, spread));
+  const sum = weights.reduce((a, b) => a + b, 0) || 1;
+  sibs.forEach((x, i) => WOBBLE.set(`${salt}|${x.id}`, (weights[i] / sum) * total));
+  return WOBBLE.get(key) ?? 0;
+}
+
+/** Share of the campaign's clicks: spend share, wobbled within the ad set. */
+export function creativeClickShare(id: string): number {
+  return wobbledWithin(id, creativeShare, 'ctr', 0.5);
+}
+
+/** Share of the campaign's sales: lead share, wobbled within the ad set. */
+export function creativeSalesShare(id: string): number {
+  return wobbledWithin(id, creativeLeadShare, 'close', 0.4);
+}
+
 /** Daily rows for one ad, scaled out of its campaign's. Follows the range. */
 export function creativeRows(id: string, range: Range = 30, back = 0, shift = 0): DayRow[] {
   const real = SOURCE_AD_ROWS?.get(id);
@@ -434,14 +476,16 @@ export function creativeRows(id: string, range: Range = 30, back = 0, shift = 0)
      different CACs. */
   const share = creativeShare(id);
   const leadShare = creativeLeadShare(id);
+  const clickShare = creativeClickShare(id);
+  const salesShare = creativeSalesShare(id);
   return campaignRows(owner.campaignId, range, back, shift).map((r) => ({
     ...r,
     spend: r.spend * share,
     impressions: r.impressions * share,
-    clicks: r.clicks * share,
+    clicks: r.clicks * clickShare,
     leads: r.leads * leadShare,
-    sales: r.sales * leadShare,
-    revenue: r.revenue * leadShare,
+    sales: r.sales * salesShare,
+    revenue: r.revenue * salesShare,
   }));
 }
 

@@ -6,6 +6,7 @@ import { StatusPill } from '../components/StatusPill/StatusPill';
 import { Button } from '../components/Button/Button';
 import { ChannelMark } from '../components/ChannelMark/ChannelMark';
 import { ChannelWordmark } from '../components/ChannelWordmark/ChannelWordmark';
+import { AdFunnel, AdVerdict } from '../components/AdInsights/AdInsights';
 import { CAMPAIGNS } from '../data/campaigns';
 import {
   creativeById, creativeRows, creativeSeries, creativeShare, creativeTotals,
@@ -152,6 +153,9 @@ export function AdDetail({ id, range, onBack, backLabel = 'Campaign' }: AdDetail
           </dl>
         </section>
 
+        {/* Oct 16: the copy and Growth's call stand beside the artwork, about
+            its height, so the first screen has no empty column. */}
+        <div className="gr-ad__side">
         <section className="gr-card gr-ad__copy">
           <header className="gr-card__header">
             <h3 className="gr-card__title gr-type-card-heading">Copy</h3>
@@ -171,7 +175,12 @@ export function AdDetail({ id, range, onBack, backLabel = 'Campaign' }: AdDetail
             )}
           </dl>
         </section>
+        <AdVerdict creative={c} campaignId={campaign.id} channel={campaign.channel} range={range} />
+        </div>
       </div>
+
+      {/* Full width: the funnel reads left to right, step by step. */}
+      <AdFunnel creative={c} campaignId={campaign.id} channel={campaign.channel} range={range} />
 
       <Chart
         channel={campaign.channel}

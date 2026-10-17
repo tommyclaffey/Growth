@@ -260,6 +260,7 @@ a.gr-setting-row__connect { text-decoration: none; display: inline-flex; align-i
 @container (min-width: 780px) { .gr-ad__split { grid-template-columns: 1fr 1fr; } }
 
 .gr-ad__preview { display: flex; flex-direction: column; gap: var(--space-16); }
+.gr-ad__side { display: flex; flex-direction: column; gap: var(--space-14); min-width: 0; }
 .gr-ad__stage {
   display: flex; align-items: center; justify-content: center;
   /* Capped so a 9:16 story does not run the page to two screens tall. The
