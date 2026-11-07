@@ -12,7 +12,8 @@ import { refreshAuth } from './auth';
  */
 export async function restartDemoIfRefreshed(): Promise<void> {
   const nav = performance.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined;
-  if (nav?.type !== 'reload') return;
+  // Inside another page's frame (the portfolio's viewer) a refresh of that page reports "navigate", so every load there counts.
+  if (nav?.type !== 'reload' && window.self === window.top) return;
   const s = await refreshAuth();
   const demo = location.hostname.endsWith('github.io') || (s.status === 'signed-in' && Boolean(s.user.sandboxed));
   if (!demo) return;
