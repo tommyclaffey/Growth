@@ -6,7 +6,7 @@ import '@fontsource/fraunces/latin-600.css';
 import './styles/tokens.css';
 import './styles/type.css';
 import './index.css';
-import { Root } from './Root.tsx';
+import { restartDemoIfRefreshed } from './data/demoRestart';
 
 /* The theme goes on BEFORE anything renders. App sets it too, but the
    sign-in screen renders without App -- so a dark-mode person signed out saw a
@@ -27,8 +27,12 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   });
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <Root />
-  </StrictMode>,
-);
+/* The app itself loads after the demo's refresh check, which may clear what its stores read. */
+void restartDemoIfRefreshed().catch(() => {}).then(async () => {
+  const { Root } = await import('./Root.tsx');
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <Root />
+    </StrictMode>,
+  );
+});
